@@ -1,0 +1,26 @@
+[[redirects]]
+  from   = "/api/kick-send-message"
+  to     = "/.netlify/functions/kick-send-message"
+  status = 200
+
+[[redirects]]
+  from   = "/api/kick-store-wenbot"
+  to     = "/.netlify/functions/kick-store-wenbot"
+  status = 200
+
+[[edge_functions]]
+  function = "leaderboard"
+  path = "/api/leaderboard"
+
+[[edge_functions]]
+  function = "kick-channel"
+  path = "/api/kick-channel"
+
+[[edge_functions]]
+  function = "kick-token"
+  path = "/api/kick-token"
+
+# Legacy - can remove later
+[[edge_functions]]
+  function = "gambulls"
+  path = "/api/gambulls"

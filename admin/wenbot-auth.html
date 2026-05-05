@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WenBot Admin — Bot Authentication</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .admin-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px 36px;
+      max-width: 480px;
+      width: 90%;
+    }
+    .admin-logo   { font-family: 'Exo 2', sans-serif; font-size: 26px; font-weight: 800; color: var(--accent); text-align: center; margin-bottom: 4px; text-shadow: 0 0 20px var(--accent-glow); }
+    .admin-sub    { text-align: center; color: var(--text-dim); font-size: 13px; margin-bottom: 32px; }
+    .status-box   { border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 24px; font-size: 13px; line-height: 1.6; }
+    .status-ok    { background: rgba(83, 224, 119, 0.08); border: 1px solid rgba(83, 224, 119, 0.3); color: #53e077; }
+    .status-warn  { background: rgba(255, 165, 0, 0.08); border: 1px solid rgba(255, 165, 0, 0.3); color: #ffa500; }
+    .status-none  { background: var(--bg-input); border: 1px solid var(--border); color: var(--text-dim); }
+    .admin-label  { font-size: 13px; font-weight: 600; color: var(--text-bright); display: block; margin-bottom: 6px; }
+    .admin-field  { margin-bottom: 20px; }
+    .admin-hint   { font-size: 12px; color: var(--text-dim); margin-top: 5px; }
+    .divider      { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+    .back-link    { display: block; text-align: center; margin-top: 20px; color: var(--text-dim); font-size: 12px; text-decoration: none; }
+    .back-link:hover { color: var(--text); }
+    .success-banner {
+      background: rgba(83, 224, 119, 0.1);
+      border: 1px solid rgba(83, 224, 119, 0.4);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      color: #53e077;
+      font-size: 13px;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-card">
+    <div class="admin-logo">WenBot</div>
+    <div class="admin-sub">Admin — Bot Authentication</div>
+
+    <div class="success-banner" id="successBanner" style="display:none;">
+      ✅ WenBot authenticated successfully! The bot can now post in modded channels.
+    </div>
+
+    <div class="status-box status-none" id="statusBox">
+      Checking WenBot token status...
+    </div>
+
+    <hr class="divider">
+
+    <p style="font-size:13px; color:var(--text-dim); margin-bottom:20px; line-height:1.6;">
+      This page authenticates WenBot's Kick account so it can post messages in streamers' channels.
+      You only need to do this <strong style="color:var(--text)">once</strong> — tokens auto-refresh.
+      WenBot must also be <strong style="color:var(--text)">modded</strong> in any channel it posts to.
+    </p>
+
+    <div class="admin-field">
+      <label class="admin-label" for="adminKeyInput">Admin Key</label>
+      <input type="password" id="adminKeyInput" class="input" placeholder="Enter your WENBOT_ADMIN_KEY">
+      <div class="admin-hint">Set as WENBOT_ADMIN_KEY in your Netlify environment variables.</div>
+    </div>
+
+    <button class="btn btn-accent" style="width:100%; padding:12px;" onclick="startWenBotAuth()">
+      Authenticate WenBot on Kick
+    </button>
+
+    <a href="/index.html" class="back-link">← Back to Dashboard</a>
+  </div>
+
+  <script src="/js/kick-auth.js"></script>
+  <script>
+    // Show success banner if redirected back after successful auth
+    if (new URLSearchParams(window.location.search).get("success") === "1") {
+      document.getElementById("successBanner").style.display = "block";
+    }
+
+    // Check token status on load
+    async function checkStatus() {
+      const box = document.getElementById("statusBox");
+      try {
+        // Probe by attempting a send with an impossible channel ID
+        // A 503 "not authenticated" vs other error tells us token status
+        const resp = await fetch("/api/kick-send-message", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ broadcaster_user_id: 0, message: "__status_check__" }),
+        });
+        const data = await resp.json();
+
+        if (data.error && data.error.includes("not authenticated")) {
+          box.className = "status-box status-warn";
+          box.textContent = "⚠️ WenBot is NOT authenticated. Complete the auth flow below.";
+        } else {
+          // Any other response means tokens exist (even if the message itself failed)
+          box.className = "status-box status-ok";
+          box.textContent = "✅ WenBot tokens are stored and active. Re-authenticate below only if needed.";
+        }
+      } catch {
+        box.className = "status-box status-warn";
+        box.textContent = "⚠️ Could not check token status.";
+      }
+    }
+
+    function startWenBotAuth() {
+      initiateKickAuth("wenbot");
+    }
+
+    checkStatus();
+  </script>
+</body>
+</html>

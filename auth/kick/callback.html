@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WenBot — Connecting Kick</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .cb-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 48px 40px;
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+    }
+    .cb-logo { font-family: 'Exo 2', sans-serif; font-size: 26px; font-weight: 800; color: var(--accent); margin-bottom: 28px; text-shadow: 0 0 20px var(--accent-glow); }
+    .cb-status { font-size: 15px; color: var(--text); margin-bottom: 8px; font-weight: 600; }
+    .cb-detail { font-size: 13px; color: var(--text-dim); }
+    .cb-error  { color: var(--red); }
+    .cb-success { color: #53e077; }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 24px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .check-icon { font-size: 40px; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+  <div class="cb-card">
+    <div class="cb-logo">WenBot</div>
+    <div class="spinner" id="spinner"></div>
+    <div class="check-icon" id="checkIcon" style="display:none;">✅</div>
+    <div class="cb-status" id="status">Connecting your Kick account...</div>
+    <div class="cb-detail" id="detail"></div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="/js/firebase-config.js"></script>
+  <script>
+    // Suppress default redirects — this page handles its own flow
+    function onAuthReady()      {}
+    function onAuthNotLoggedIn() {}
+
+    const urlParams  = new URLSearchParams(window.location.search);
+    const code       = urlParams.get("code");
+    const state      = urlParams.get("state");
+    const kickError  = urlParams.get("error");
+
+    function setStatus(msg, type) {
+      const el = document.getElementById("status");
+      el.textContent  = msg;
+      el.className    = "cb-status" + (type ? " cb-" + type : "");
+    }
+    function setDetail(msg) { document.getElementById("detail").textContent = msg; }
+    function showCheck()    {
+      document.getElementById("spinner").style.display   = "none";
+      document.getElementById("checkIcon").style.display = "block";
+    }
+    function hideSpinner()  { document.getElementById("spinner").style.display = "none"; }
+
+    async function run() {
+      // Handle Kick returning an error
+      if (kickError) {
+        hideSpinner();
+        setStatus("Authorization cancelled", "error");
+        setDetail(kickError);
+        redirectBack(3000);
+        return;
+      }
+
+      if (!code) {
+        hideSpinner();
+        setStatus("No authorization code received", "error");
+        redirectBack(3000);
+        return;
+      }
+
+      const verifier = sessionStorage.getItem("kick_code_verifier");
+      if (!verifier) {
+        hideSpinner();
+        setStatus("Session expired — please try again", "error");
+        redirectBack(3000);
+        return;
+      }
+
+      const isWenBot = state && state.startsWith("wenbot_");
+
+      try {
+        // 1. Exchange code for tokens (server-side, keeps client_secret safe)
+        setDetail("Exchanging authorization code...");
+        const tokenResp = await fetch("/api/kick-token", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ code, code_verifier: verifier }),
+        });
+        const tokens = await tokenResp.json();
+        if (!tokenResp.ok) throw new Error(tokens.error || "Token exchange failed");
+
+        sessionStorage.removeItem("kick_code_verifier");
+        sessionStorage.removeItem("kick_auth_purpose");
+
+        if (isWenBot) {
+          // 2a. WenBot admin flow — store tokens in Netlify Blobs
+          setDetail("Storing WenBot credentials...");
+          const adminKey  = state.replace("wenbot_", "");
+          const storeResp = await fetch("/api/kick-store-wenbot", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
+            body:    JSON.stringify(tokens),
+          });
+          const storeData = await storeResp.json();
+          if (!storeResp.ok) throw new Error(storeData.error || "Failed to store WenBot tokens");
+
+          showCheck();
+          setStatus("WenBot authenticated!", "success");
+          setDetail("WenBot can now post in any modded channel.");
+          setTimeout(() => window.location.href = "/admin/wenbot-auth.html?success=1", 2000);
+
+        } else {
+          // 2b. Streamer connect flow — fetch Kick profile then save to Firebase
+          setDetail("Fetching your Kick profile...");
+          const userResp = await fetch("https://api.kick.com/public/v1/users", {
+            headers: { "Authorization": `Bearer ${tokens.access_token}` },
+          });
+          const userData = await userResp.json();
+          if (!userResp.ok) throw new Error("Failed to fetch Kick profile");
+
+          const kickUser = userData.data?.[0];
+          if (!kickUser) throw new Error("No Kick user data returned");
+
+          // Wait for Firebase auth session to be ready
+          setDetail("Saving to your profile...");
+          await waitForFirebaseAuth();
+
+          await saveKickConnection({
+            kickUserId:          kickUser.user_id,
+            kickUsername:        kickUser.name,
+            kickEmail:           kickUser.email,
+            kickAvatar:          kickUser.profile_picture,
+            kickAccessToken:     tokens.access_token,
+            kickRefreshToken:    tokens.refresh_token,
+            kickTokenExpiresAt:  Date.now() + (tokens.expires_in * 1000),
+            kickConnectedAt:     Date.now(),
+          });
+
+          showCheck();
+          setStatus("Kick connected!", "success");
+          setDetail(`Signed in as @${kickUser.name}`);
+          setTimeout(() => window.location.href = "/setup.html?kick=connected", 1500);
+        }
+
+      } catch (err) {
+        hideSpinner();
+        setStatus("Connection failed", "error");
+        setDetail(err.message);
+        redirectBack(4000);
+      }
+    }
+
+    function redirectBack(delay) {
+      const dest = state && state.startsWith("wenbot_") ? "/admin/wenbot-auth.html" : "/setup.html";
+      setTimeout(() => window.location.href = dest, delay);
+    }
+
+    function waitForFirebaseAuth() {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("Firebase auth timeout")), 10000);
+        firebase.auth().onAuthStateChanged((user) => {
+          if (user) { clearTimeout(timer); resolve(user); }
+        });
+      });
+    }
+
+    initFirebase();
+    run();
+  </script>
+</body>
+</html>

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LogicPlay - Sign In</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: auto;
+    }
+
+    .auth-container {
+      width: 100%;
+      max-width: 400px;
+      padding: 20px;
+    }
+
+    .auth-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px 32px;
+    }
+
+    .auth-logo {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--accent);
+      text-align: center;
+      margin-bottom: 4px;
+      text-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    .auth-subtitle {
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 13px;
+      margin-bottom: 32px;
+    }
+
+    .auth-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 24px;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 10px;
+      background: var(--bg-input);
+      border: none;
+      color: var(--text-dim);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .auth-tab.active {
+      background: var(--accent);
+      color: var(--bg-primary);
+    }
+
+    .auth-form { display: flex; flex-direction: column; gap: 16px; }
+
+    .auth-field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-bright);
+      margin-bottom: 6px;
+    }
+
+    .auth-field input {
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 14px;
+    }
+
+    .auth-error {
+      background: rgba(255, 71, 87, 0.1);
+      border: 1px solid var(--red);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      color: var(--red);
+      font-size: 13px;
+      display: none;
+    }
+
+    .auth-submit {
+      width: 100%;
+      padding: 12px;
+      font-size: 15px;
+      margin-top: 8px;
+    }
+
+    .auth-footer {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .auth-footer a {
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .auth-footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="auth-logo">LogicPlay</div>
+      <div class="auth-subtitle">Streamer Tools</div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tabSignIn" onclick="showTab('signin')">Sign In</button>
+        <button class="auth-tab" id="tabSignUp" onclick="showTab('signup')">Sign Up</button>
+      </div>
+
+      <div class="auth-error" id="authError"></div>
+
+      <!-- Sign In Form -->
+      <form class="auth-form" id="signinForm" onsubmit="handleSignIn(event)">
+        <div class="auth-field">
+          <label>Email</label>
+          <input type="email" id="signinEmail" required placeholder="you@example.com">
+        </div>
+        <div class="auth-field">
+          <label>Password</label>
+          <input type="password" id="signinPassword" required placeholder="Enter password">
+        </div>
+        <button type="submit" class="btn btn-accent auth-submit" id="signinBtn">Sign In</button>
+        <div class="auth-footer">
+          <a onclick="handleForgotPassword()">Forgot password?</a>
+        </div>
+      </form>
+
+      <!-- Sign Up Form -->
+      <form class="auth-form" id="signupForm" style="display:none;" onsubmit="handleSignUp(event)">
+        <div class="auth-field">
+          <label>Email</label>
+          <input type="email" id="signupEmail" required placeholder="you@example.com">
+        </div>
+        <div class="auth-field">
+          <label>Password</label>
+          <input type="password" id="signupPassword" required placeholder="Min 6 characters" minlength="6">
+        </div>
+        <div class="auth-field">
+          <label>Confirm Password</label>
+          <input type="password" id="signupConfirm" required placeholder="Confirm password" minlength="6">
+        </div>
+        <button type="submit" class="btn btn-accent auth-submit" id="signupBtn">Create Account</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Firebase SDKs (compat for simplicity) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script>
+    // Auth callbacks for login page
+    function onAuthReady(user) {
+      // Already logged in — check if onboarded
+      if (fb.streamerProfile && fb.streamerProfile.onboarded) {
+        window.location.href = "index.html";
+      } else {
+        window.location.href = "setup.html";
+      }
+    }
+
+    function onAuthNotLoggedIn() {
+      // Stay on login page
+    }
+
+    // Init Firebase
+    initFirebase();
+
+    // Tab switching
+    function showTab(tab) {
+      document.getElementById("tabSignIn").classList.toggle("active", tab === "signin");
+      document.getElementById("tabSignUp").classList.toggle("active", tab === "signup");
+      document.getElementById("signinForm").style.display = tab === "signin" ? "" : "none";
+      document.getElementById("signupForm").style.display = tab === "signup" ? "" : "none";
+      hideError();
+    }
+
+    function showError(msg) {
+      const el = document.getElementById("authError");
+      el.textContent = msg;
+      el.style.display = "block";
+    }
+
+    function hideError() {
+      document.getElementById("authError").style.display = "none";
+    }
+
+    async function handleSignIn(e) {
+      e.preventDefault();
+      hideError();
+      const btn = document.getElementById("signinBtn");
+      btn.disabled = true;
+      btn.textContent = "Signing in...";
+
+      try {
+        const email = document.getElementById("signinEmail").value;
+        const password = document.getElementById("signinPassword").value;
+        await signIn(email, password);
+      } catch (err) {
+        showError(friendlyError(err.code));
+        btn.disabled = false;
+        btn.textContent = "Sign In";
+      }
+    }
+
+    async function handleSignUp(e) {
+      e.preventDefault();
+      hideError();
+
+      const password = document.getElementById("signupPassword").value;
+      const confirm = document.getElementById("signupConfirm").value;
+
+      if (password !== confirm) {
+        showError("Passwords don't match.");
+        return;
+      }
+
+      const btn = document.getElementById("signupBtn");
+      btn.disabled = true;
+      btn.textContent = "Creating account...";
+
+      try {
+        const email = document.getElementById("signupEmail").value;
+        await signUp(email, password);
+      } catch (err) {
+        showError(friendlyError(err.code));
+        btn.disabled = false;
+        btn.textContent = "Create Account";
+      }
+    }
+
+    async function handleForgotPassword() {
+      const email = document.getElementById("signinEmail").value;
+      if (!email) {
+        showError("Enter your email first, then click Forgot password.");
+        return;
+      }
+      try {
+        await resetPassword(email);
+        showError("Password reset email sent! Check your inbox.");
+        document.getElementById("authError").style.borderColor = "var(--green)";
+        document.getElementById("authError").style.color = "var(--green)";
+      } catch (err) {
+        showError(friendlyError(err.code));
+      }
+    }
+
+    function friendlyError(code) {
+      const map = {
+        "auth/user-not-found": "No account found with that email.",
+        "auth/wrong-password": "Incorrect password.",
+        "auth/invalid-credential": "Invalid email or password.",
+        "auth/email-already-in-use": "An account with that email already exists.",
+        "auth/weak-password": "Password must be at least 6 characters.",
+        "auth/invalid-email": "Please enter a valid email address.",
+        "auth/too-many-requests": "Too many attempts. Try again later.",
+      };
+      return map[code] || "Something went wrong. Please try again.";
+    }
+  </script>
+</body>
+</html>

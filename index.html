@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LogicPlay - Giveaway Bot</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <h1 class="logo">LogicPlay</h1>
+      <nav class="breadcrumb">
+        <span>Home</span>
+        <span class="sep">&rsaquo;</span>
+        <span>Tools</span>
+        <span class="sep">&rsaquo;</span>
+        <span class="active">Giveaway Bot</span>
+      </nav>
+    </div>
+    <div class="header-right">
+      <span class="giveaway-id">Giveaway ID: <span id="giveawayId">—</span></span>
+      <span class="header-user" id="headerUser"></span>
+      <div class="header-icons">
+        <button class="icon-btn" title="Fullscreen" onclick="toggleFullscreen()">F</button>
+        <button class="icon-btn" title="Options" onclick="toggleOptionsPanel()">O</button>
+        <button class="icon-btn" title="Chat" onclick="toggleChatPanel()">C</button>
+        <button class="icon-btn" title="Winners" onclick="toggleWinnersPanel()">W</button>
+        <button class="icon-btn" title="Settings" onclick="window.location.href='setup.html'">S</button>
+        <button class="icon-btn" title="Sign Out" onclick="signOut()">X</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main 4-Panel Layout -->
+  <main class="panels">
+    <!-- ENTRIES PANEL -->
+    <section class="panel panel-entries" id="entriesPanel">
+      <div class="panel-header">
+        <h2>Entries</h2>
+      </div>
+      <div class="panel-meta">
+        <span>Entries: <strong id="entryCount">0</strong></span>
+        <button class="meta-btn" title="Copy entries" onclick="copyEntries()">&#x1F4CB;</button>
+      </div>
+      <div class="entries-list" id="entriesList">
+        <!-- Entries populate here -->
+      </div>
+      <div class="panel-footer">
+        <button class="btn btn-sm" onclick="clearEntries()">Clear</button>
+        <button class="btn btn-sm" onclick="importEntries()">Import</button>
+        <button class="btn btn-sm" onclick="exportEntries()">Export</button>
+      </div>
+    </section>
+
+    <!-- OPTIONS PANEL -->
+    <section class="panel panel-options" id="optionsPanel">
+      <div class="panel-header">
+        <h2>Options</h2>
+      </div>
+      <div class="options-body">
+        <!-- Keyword -->
+        <div class="option-group">
+          <label>Keyword <button class="eye-btn" id="keywordVisToggle" onclick="toggleKeywordVisibility()">&#128065;</button></label>
+          <div class="input-row">
+            <input type="text" id="keywordInput" value="!giveaway" placeholder="Enter keyword...">
+            <button class="btn btn-accent" onclick="updateKeyword()">Update</button>
+          </div>
+        </div>
+
+        <!-- Channel -->
+        <div class="option-group">
+          <label>Kick Channel</label>
+          <div class="input-row">
+            <input type="text" id="channelInput" value="flloozy" placeholder="Kick username...">
+            <button class="btn btn-accent" onclick="connectToChannel()">Connect</button>
+          </div>
+          <span class="hint" id="connectionStatus">Not connected</span>
+        </div>
+
+        <!-- Entry Source -->
+        <div class="option-group">
+          <label>Entry Source</label>
+          <div class="toggle-group">
+            <button class="toggle-btn active" id="btnSourceCode" onclick="setSource('code')">Code Users</button>
+            <button class="toggle-btn" id="btnSourceChat" onclick="setSource('chat')">Chat Users</button>
+          </div>
+          <span class="hint" id="sourceHint">Only users under Floozy's code who wagered $200+ can enter</span>
+        </div>
+
+        <!-- Verified Users -->
+        <div class="option-group">
+          <label>Verified Users <span class="verified-badge" id="verifiedCount">0</span></label>
+          <span class="hint">Users type <strong>!verify GambullsName</strong> in chat to link accounts</span>
+          <div class="verified-actions">
+            <button class="btn btn-sm" onclick="showVerifiedList()">View List</button>
+            <button class="btn btn-sm btn-danger" onclick="clearAllVerified()">Clear All</button>
+          </div>
+        </div>
+
+        <!-- Min Wager (only visible in Code Users mode) -->
+        <div class="option-group" id="minWagerGroup">
+          <label>Minimum Wager ($)</label>
+          <input type="number" id="minWagerInput" value="200" min="0" step="10">
+          <span class="hint">Only applies to Code Users — their wager is verified via the leaderboard</span>
+        </div>
+
+        <!-- Subscriber Luck -->
+        <div class="option-group">
+          <label>Wager Luck</label>
+          <input type="range" id="wagerLuckSlider" min="1" max="5" value="1" oninput="updateWagerLuck()">
+          <span class="hint" id="wagerLuckHint">Top wagerers get 1 extra entries</span>
+        </div>
+
+        <!-- Follower Only -->
+        <div class="option-group">
+          <label>
+            <input type="checkbox" id="followerOnly"> Followers Only
+          </label>
+        </div>
+
+        <!-- Subscriber Only -->
+        <div class="option-group">
+          <label>
+            <input type="checkbox" id="subscriberOnly"> Subscribers Only
+          </label>
+        </div>
+      </div>
+
+      <div class="panel-footer options-footer">
+        <button class="btn" id="pauseBtn" onclick="togglePause()">Pause</button>
+        <button class="btn" onclick="resetGiveaway()">Reset</button>
+        <button class="btn btn-accent btn-lg" id="waitForWinnerBtn" onclick="waitForWinner()">Wait for Winner</button>
+      </div>
+    </section>
+
+    <!-- CHAT PANEL -->
+    <section class="panel panel-chat" id="chatPanel">
+      <div class="panel-header">
+        <h2>Chat</h2>
+        <span class="active-viewers">Active Viewers: <strong id="activeViewers">0</strong></span>
+      </div>
+      <div class="chat-banner" id="chatBanner">
+        <span class="banner-name">Flloozy</span> - type <strong>!verify YourGambullsName</strong> to link, then <span class="banner-keyword" id="bannerKeyword">!giveaway</span> to enter
+      </div>
+      <div class="chat-messages" id="chatMessages">
+        <!-- Chat messages populate here -->
+      </div>
+      <div class="panel-footer">
+        <button class="btn btn-sm" onclick="clearChat()">Clear</button>
+        <button class="btn btn-sm" id="disableChatBtn" onclick="toggleChatDisable()">Disable</button>
+      </div>
+    </section>
+
+    <!-- WINNERS PANEL -->
+    <section class="panel panel-winners" id="winnersPanel">
+      <div class="panel-header">
+        <h2>Winners</h2>
+      </div>
+      <div class="panel-meta">
+        <span>Winners: <strong id="winnerCount">0</strong></span>
+        <button class="meta-btn" title="Copy winners" onclick="copyWinners()">&#x1F4CB;</button>
+      </div>
+      <div class="winners-list" id="winnersList">
+        <!-- Winners populate here -->
+      </div>
+      <div class="panel-footer winners-footer">
+        <button class="btn btn-accent" id="winnerChatBtn" onclick="openWinnerChat()">Winner Chat</button>
+        <button class="btn btn-accent btn-lg" id="pickWinnerBtn" onclick="pickWinner()">Pick Winner</button>
+        <button class="btn btn-sm" onclick="clearWinners()">Clear</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Winner Announcement Overlay -->
+  <div class="overlay" id="winnerOverlay" style="display:none;">
+    <div class="winner-card">
+      <div class="winner-card-sparkle"></div>
+      <h2>We have a winner!</h2>
+      <div class="winner-name" id="winnerNameDisplay">—</div>
+      <div class="winner-meta" id="winnerMetaDisplay"></div>
+      <div class="winner-actions">
+        <button class="btn btn-accent" onclick="acceptWinner()">Accept</button>
+        <button class="btn" onclick="rerollWinner()">Reroll</button>
+        <button class="btn" onclick="closeWinnerOverlay()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Verified Users List Overlay -->
+  <div class="overlay" id="verifiedOverlay" style="display:none;" onclick="if(event.target===this)closeVerifiedList()">
+    <div class="verified-list-card">
+      <div class="verified-list-header">
+        <h2>Verified Users</h2>
+        <button class="btn btn-sm" onclick="closeVerifiedList()">Close</button>
+      </div>
+      <div class="verified-list-body" id="verifiedListBody">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Gambulls Data Loading Overlay -->
+  <div class="overlay" id="loadingOverlay" style="display:none;">
+    <div class="loading-card">
+      <div class="spinner"></div>
+      <p id="loadingText">Loading Gambulls data...</p>
+    </div>
+  </div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
