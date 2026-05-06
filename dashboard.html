@@ -425,8 +425,7 @@
           <p style="color:var(--text-dim);font-size:12px;margin-bottom:16px;">WenBot will announce the giveaway in your Kick chat immediately.</p>
           <div class="giveaway-type-row" style="justify-content:flex-start;margin-bottom:12px;">
             <button class="type-btn active" id="quickTypeCode" onclick="setQuickType('code')">Code Users</button>
-            <button class="type-btn" id="quickTypeWager" onclick="setQuickType('wager')">Wager Based</button>
-            <button class="type-btn" id="quickTypeOpen" onclick="setQuickType('open')">Open</button>
+            <button class="type-btn" id="quickTypeEveryone" onclick="setQuickType('everyone')">Everyone</button>
           </div>
           <button class="btn btn-accent btn-xl" style="width:100%;" id="quickStartBtn" onclick="quickStartGiveaway()">
             🎉 Start Giveaway
@@ -446,11 +445,10 @@
     <div class="page" id="page-giveaway">
       <div class="giveaway-hero">
         <h2>Giveaway Control</h2>
-        <p>Choose a type, configure options, and start — WenBot posts the announcement automatically.</p>
+        <p>Configure and start — WenBot announces in chat and collects entries automatically.</p>
         <div class="giveaway-type-row">
           <button class="type-btn active" id="typeCode" onclick="setType('code')">🔑 Code Users</button>
-          <button class="type-btn" id="typeWager" onclick="setType('wager')">💰 Wager Based</button>
-          <button class="type-btn" id="typeOpen" onclick="setType('open')">🌐 Open to All</button>
+          <button class="type-btn" id="typeEveryone" onclick="setType('everyone')">🌐 Everyone</button>
         </div>
         <button class="btn btn-accent btn-xl" id="startGiveawayBtn" onclick="startGiveaway()">🎉 Start Giveaway</button>
         <button class="btn btn-danger" id="stopGiveawayBtn" style="display:none;margin-left:10px;" onclick="stopGiveaway()">⏹ Stop Giveaway</button>
@@ -466,28 +464,28 @@
         <div class="card">
           <div class="card-title">⚙️ Options</div>
           <div class="field">
-            <label>Minimum Wager ($)</label>
-            <input type="number" id="minWagerInput" value="200" min="0" step="10">
-            <div class="hint">Only verified code users above this amount can enter</div>
-          </div>
-          <div class="field">
-            <label>Wager Luck Multiplier: <strong id="wagerLuckVal">1x</strong></label>
-            <input type="range" id="wagerLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('wagerLuckVal').textContent=this.value+'x'">
-            <div class="hint">Top wagerers receive up to 5x more entries</div>
+            <label>Entry Keyword</label>
+            <input type="text" id="giveawayKeyword" value="!join" placeholder="!join">
+            <div class="hint">Viewers type this in chat to enter. Default: !join</div>
           </div>
           <div class="toggle-row">
             <div class="toggle-info">
-              <div class="toggle-label">Followers Only</div>
-              <div class="toggle-desc">Only channel followers can enter</div>
+              <div class="toggle-label">Wager Requirement</div>
+              <div class="toggle-desc" id="wagerReqDesc">Require a minimum wager amount to enter</div>
             </div>
-            <div class="toggle" id="toggleFollower" onclick="toggleOption(this)"></div>
+            <div class="toggle" id="toggleWagerReq" onclick="toggleWagerReq(this)"></div>
           </div>
-          <div class="toggle-row">
-            <div class="toggle-info">
-              <div class="toggle-label">Subscribers Only</div>
-              <div class="toggle-desc">Only channel subscribers can enter</div>
+          <div id="wagerReqFields" style="display:none;margin-top:12px;">
+            <div class="field">
+              <label>Minimum Wager ($)</label>
+              <input type="number" id="minWagerInput" value="200" min="0" step="50">
+              <div class="hint" id="wagerReqHint">Code users: verified against leaderboard API</div>
             </div>
-            <div class="toggle" id="toggleSub" onclick="toggleOption(this)"></div>
+            <div class="field">
+              <label>Wager Luck Multiplier: <strong id="wagerLuckVal">1x</strong></label>
+              <input type="range" id="wagerLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('wagerLuckVal').textContent=this.value+'x'">
+              <div class="hint">Higher wagerers get up to 5x more entries</div>
+            </div>
           </div>
         </div>
 
@@ -497,7 +495,7 @@
             <div style="color:var(--text-dim);font-size:12px;margin-bottom:16px;">Start a giveaway and collect entries first.</div>
           </div>
           <button class="btn btn-accent" style="width:100%;margin-top:8px;" id="pickWinnerBtn" onclick="pickWinner()" disabled>🏆 Pick Winner</button>
-          <button class="btn btn-ghost" style="width:100%;margin-top:6px;" id="rerollBtn" onclick="rerollWinner()" style="display:none;" disabled>🔄 Reroll</button>
+          <button class="btn btn-ghost" style="width:100%;margin-top:6px;" id="rerollBtn" onclick="rerollWinner()" disabled>🔄 Reroll</button>
         </div>
       </div>
 
@@ -505,7 +503,6 @@
         <div class="card-title" style="justify-content:space-between;">
           <span>📋 Entries (<span id="entryCountLabel">0</span>)</span>
           <div style="display:flex;gap:6px;">
-            <button class="btn btn-ghost btn-sm" onclick="clearEntries()">Clear</button>
             <button class="btn btn-ghost btn-sm" onclick="exportEntries()">Export</button>
           </div>
         </div>
@@ -954,25 +951,42 @@ initFirebase();
 
 // ── GIVEAWAY ──
 let giveawayActive = false;
-let entries = [];
+let entries = [];  // populated from Firestore real-time listener
 let winner = null;
+let entriesUnsub = null;
 
 function setType(type) {
   currentGiveawayType = type;
-  ['code','wager','open'].forEach(t => {
+  ['code','everyone'].forEach(t => {
     document.getElementById('type'+t.charAt(0).toUpperCase()+t.slice(1))?.classList.toggle('active', t === type);
   });
+  // Update wager hint text
+  const hint = document.getElementById('wagerReqHint');
+  if (hint) hint.textContent = type === 'code'
+    ? 'Code users: verified against leaderboard API'
+    : 'Everyone: minimum stated in announcement (honor system)';
 }
 
 function setQuickType(type) {
   currentGiveawayType = type;
-  ['code','wager','open'].forEach(t => {
+  ['code','everyone'].forEach(t => {
     document.getElementById('quickType'+t.charAt(0).toUpperCase()+t.slice(1))?.classList.toggle('active', t === type);
   });
 }
 
+function toggleWagerReq(el) {
+  el.classList.toggle('on');
+  const on = el.classList.contains('on');
+  document.getElementById('wagerReqFields').style.display = on ? 'block' : 'none';
+}
+
 async function startGiveaway() {
   if (!profile) return;
+  const keyword   = (document.getElementById('giveawayKeyword')?.value.trim() || '!join');
+  const wagerOn   = document.getElementById('toggleWagerReq')?.classList.contains('on');
+  const minWager  = wagerOn ? (parseInt(document.getElementById('minWagerInput')?.value, 10) || 0) : 0;
+  const wagerLuck = parseInt(document.getElementById('wagerLuckSlider')?.value, 10) || 1;
+
   giveawayActive = true;
   entries = [];
   winner = null;
@@ -983,12 +997,23 @@ async function startGiveaway() {
   document.getElementById('pickWinnerBtn').disabled = false;
   document.getElementById('giveawayPill').style.display = '';
 
-  // Save to Firestore so Railway bot picks it up
-  const typeLabels = { code: 'Verified users only — type !verify first', wager: 'Top wagers get bonus entries — type !join to enter', open: 'Everyone welcome — type !join to enter' };
-  const announceMsg = `🎉 Giveaway is LIVE! ${typeLabels[currentGiveawayType] || 'Type !join to enter'}`;
+  // Start real-time entries listener
+  subscribeEntries();
+
+  const typeLabel = currentGiveawayType === 'code'
+    ? `Verified code users only — type ${keyword} to enter`
+    : `Everyone welcome — type ${keyword} to enter`;
+  const minText = minWager > 0 ? ` | Min wager: $${minWager}` : '';
+  const announceMsg = `🎉 Giveaway is LIVE! ${typeLabel}${minText}`;
+
   await saveStreamerProfile({
-    giveawayActive: true, giveawayType: currentGiveawayType,
-    pendingChatMessage: announceMsg, pendingChatTs: Date.now(),
+    giveawayActive:     true,
+    giveawayType:       currentGiveawayType,
+    giveawayKeyword:    keyword,
+    giveawayMinWager:   minWager,
+    giveawayWagerLuck:  wagerLuck,
+    pendingChatMessage: announceMsg,
+    pendingChatTs:      Date.now(),
   });
   flash('🎉 Giveaway started! WenBot is announcing in chat.');
 }
@@ -1004,8 +1029,25 @@ async function stopGiveaway() {
   document.getElementById('startGiveawayBtn').style.display = '';
   document.getElementById('stopGiveawayBtn').style.display = 'none';
   document.getElementById('giveawayPill').style.display = 'none';
+  if (entriesUnsub) { entriesUnsub(); entriesUnsub = null; }
   await saveStreamerProfile({ giveawayActive: false, pendingChatMessage: '🔒 Giveaway entries are now closed!', pendingChatTs: Date.now() });
   flash('Giveaway stopped.', 'success');
+}
+
+function subscribeEntries() {
+  if (entriesUnsub) entriesUnsub();
+  const uid = fb.currentUser?.uid;
+  if (!uid) return;
+  entriesUnsub = fb.db.collection('streamers').doc(uid)
+    .collection('giveaway_entries').onSnapshot(snap => {
+      entries = snap.docs.map(d => ({
+        username: d.data().kickName || d.id,
+        wager:    d.data().wager    || 0,
+        tickets:  1 + (d.data().extraEntries || 0),
+        kickKey:  d.id,
+      }));
+      renderEntries();
+    });
 }
 
 function updateGiveawayStatus(active) {
@@ -1013,7 +1055,7 @@ function updateGiveawayStatus(active) {
   const txt = document.getElementById('giveawayStatusText');
   if (active) {
     dot.classList.add('online'); dot.classList.remove('offline');
-    txt.textContent = 'Giveaway LIVE — ' + (currentGiveawayType === 'code' ? 'Code Users' : currentGiveawayType === 'wager' ? 'Wager Based' : 'Open') + ' — collecting entries';
+    txt.textContent = 'Giveaway LIVE — ' + (currentGiveawayType === 'code' ? 'Code Users' : 'Everyone') + ' — collecting entries';
     txt.style.color = 'var(--green)';
   } else {
     dot.classList.remove('online');
@@ -1052,6 +1094,11 @@ function pickWinner() {
   document.getElementById('rerollBtn').disabled = false;
   flash('🏆 Winner picked: ' + winner.username);
   addRecentWinner(winner.username);
+  // Remove winner from Firestore entries so they don't appear again
+  const uid = fb.currentUser?.uid;
+  if (uid && winner.kickKey) {
+    fb.db.collection('streamers').doc(uid).collection('giveaway_entries').doc(winner.kickKey).delete().catch(() => {});
+  }
 }
 
 function rerollWinner() { winner = null; document.getElementById('winnerArea').innerHTML = ''; pickWinner(); }
@@ -1061,8 +1108,6 @@ function addRecentWinner(name) {
   if (list.querySelector('[data-empty]')) list.innerHTML = '';
   list.insertAdjacentHTML('afterbegin', `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-card);border-radius:6px;font-size:13px;"><span style="color:var(--gold);">🏆</span><span style="color:var(--bright);font-weight:600;">${name}</span></div>`);
 }
-
-function clearEntries() { entries = []; renderEntries(); flash('Entries cleared.'); }
 
 function exportEntries() {
   const text = entries.map(e => e.username).join('\n');
