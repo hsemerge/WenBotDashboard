@@ -17,6 +17,7 @@ let fb = {
   app: null,
   auth: null,
   db: null,
+  storage: null,
   currentUser: null,
   streamerProfile: null,
 };
@@ -25,12 +26,13 @@ function initFirebase() {
   fb.app = firebase.initializeApp(firebaseConfig);
   fb.auth = firebase.auth();
   fb.db = firebase.firestore();
+  if (typeof firebase.storage === 'function') fb.storage = firebase.storage();
 
   // Listen for auth state changes
   fb.auth.onAuthStateChanged(async (user) => {
     fb.currentUser = user;
     if (user) {
-      await loadStreamerProfile(user.uid);
+      try { await loadStreamerProfile(user.uid); } catch (e) { console.warn("loadStreamerProfile failed:", e); }
       onAuthReady(user);
     } else {
       onAuthNotLoggedIn();

@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WenBot — Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #0d1117;
+      --bg-panel:  #161b22;
+      --bg-card:   #1a2030;
+      --bg-input:  #0d1117;
+      --border:    #30363d;
+      --text:      #c9d1d9;
+      --text-dim:  #8b949e;
+      --bright:    #f0f6fc;
+      --accent:    #00e5ff;
+      --accent-glow: rgba(0,229,255,0.18);
+      --green:     #00ff88;
+      --red:       #ff4757;
+      --orange:    #ffb347;
+      --purple:    #a78bfa;
+      --gold:      #ffd700;
+      --sidebar-w: 220px;
+    }
+    html, body { height: 100%; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; overflow: hidden; }
+
+    /* ── LAYOUT ── */
+    .app { display: flex; height: 100vh; }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .sidebar-logo {
+      padding: 20px 20px 16px;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--accent);
+      text-shadow: 0 0 16px var(--accent-glow);
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-section { padding: 10px 10px 0; }
+    .sidebar-label { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); padding: 8px 10px 4px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--text-dim);
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--bright); }
+    .nav-item.active { background: rgba(0,229,255,0.08); color: var(--accent); }
+    .nav-item .icon { font-size: 15px; width: 18px; text-align: center; }
+    .nav-badge { margin-left: auto; background: var(--accent); color: #0d1117; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; }
+    .nav-badge.red { background: var(--red); color: #fff; }
+
+    .sidebar-bot-status {
+      margin-top: auto;
+      padding: 14px 16px;
+      border-top: 1px solid var(--border);
+    }
+    .bot-status-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; }
+    .status-dot.online { background: var(--green); box-shadow: 0 0 6px rgba(0,255,136,0.5); }
+    .status-dot.offline { background: var(--red); }
+    .bot-status-label { font-size: 12px; color: var(--text-dim); }
+    .bot-status-channel { font-size: 12px; font-weight: 600; color: var(--bright); }
+    .sidebar-user { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+    .sidebar-user-name { font-size: 12px; color: var(--text-dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sidebar-signout { font-size: 11px; color: var(--text-dim); cursor: pointer; padding: 3px 6px; border-radius: 4px; border: 1px solid var(--border); transition: all 0.15s; }
+    .sidebar-signout:hover { color: var(--red); border-color: var(--red); }
+
+    /* ── MAIN ── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    .topbar {
+      height: 52px; flex-shrink: 0;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center;
+      padding: 0 24px; gap: 16px;
+    }
+    .topbar-title { font-family: 'Exo 2', sans-serif; font-size: 16px; font-weight: 700; color: var(--bright); flex: 1; }
+    .topbar-pill {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 12px; border-radius: 100px;
+      border: 1px solid var(--border);
+      font-size: 12px; color: var(--text-dim);
+    }
+    .topbar-pill.live { border-color: rgba(0,255,136,0.3); color: var(--green); background: rgba(0,255,136,0.06); }
+
+    .page { flex: 1; overflow-y: auto; padding: 24px; display: none; }
+    .page.active { display: block; }
+
+    /* ── CARDS & GRID ── */
+    .card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .card-title {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 14px; font-weight: 700;
+      color: var(--bright); margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .stack { display: flex; flex-direction: column; gap: 16px; }
+
+    /* ── STAT CARDS ── */
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); margin-bottom: 6px; }
+    .stat-value { font-family: 'Exo 2', sans-serif; font-size: 28px; font-weight: 800; color: var(--bright); }
+    .stat-sub { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+    /* ── INPUTS ── */
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .field label { font-size: 12px; font-weight: 600; color: var(--bright); }
+    .field .hint { font-size: 11px; color: var(--text-dim); }
+    input[type=text], input[type=number], input[type=password], select, textarea {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--bright);
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      padding: 8px 12px;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+    select option { background: var(--bg-panel); }
+
+    .input-row { display: flex; gap: 8px; }
+    .input-row input { flex: 1; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 8px 16px; border-radius: 6px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      border: none; font-family: 'Inter', sans-serif;
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .btn-accent { background: var(--accent); color: #0d1117; }
+    .btn-accent:hover { background: #33ecff; box-shadow: 0 0 16px rgba(0,229,255,0.3); }
+    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: rgba(255,255,255,0.04); color: var(--bright); }
+    .btn-danger { background: rgba(255,71,87,0.12); color: var(--red); border: 1px solid rgba(255,71,87,0.3); }
+    .btn-danger:hover { background: rgba(255,71,87,0.2); }
+    .btn-green { background: rgba(0,255,136,0.12); color: var(--green); border: 1px solid rgba(0,255,136,0.3); }
+    .btn-green:hover { background: rgba(0,255,136,0.2); }
+    .btn-xl { padding: 14px 28px; font-size: 16px; border-radius: 8px; font-family: 'Exo 2', sans-serif; font-weight: 800; letter-spacing: 0.5px; }
+    .btn-sm { padding: 5px 10px; font-size: 11px; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ── GIVEAWAY PAGE ── */
+    .giveaway-hero {
+      background: linear-gradient(135deg, rgba(0,229,255,0.06), rgba(167,139,250,0.04));
+      border: 1px solid rgba(0,229,255,0.15);
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .giveaway-hero h2 { font-family: 'Exo 2', sans-serif; font-size: 22px; font-weight: 800; color: var(--bright); margin-bottom: 8px; }
+    .giveaway-hero p { color: var(--text-dim); font-size: 13px; margin-bottom: 20px; }
+    .giveaway-type-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
+    .type-btn {
+      padding: 8px 20px; border-radius: 6px; cursor: pointer;
+      border: 1px solid var(--border); background: var(--bg-input);
+      color: var(--text-dim); font-size: 13px; font-weight: 600;
+      font-family: 'Inter', sans-serif; transition: all 0.15s;
+    }
+    .type-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,229,255,0.08); }
+    .giveaway-status-bar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      margin-bottom: 16px;
+    }
+    .giveaway-status-bar .status-dot { width: 8px; height: 8px; }
+
+    .entries-grid { display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto; }
+    .entry-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px; border-radius: 6px;
+      background: var(--bg-card); border: 1px solid transparent;
+      font-size: 13px;
+    }
+    .entry-row:hover { border-color: var(--border); }
+    .entry-num { color: var(--text-dim); font-size: 11px; width: 24px; text-align: right; flex-shrink: 0; }
+    .entry-name { flex: 1; color: var(--bright); font-weight: 500; }
+    .entry-wager { color: var(--green); font-size: 11px; font-weight: 600; }
+    .entry-tickets { background: rgba(0,229,255,0.1); color: var(--accent); font-size: 10px; padding: 1px 6px; border-radius: 4px; font-weight: 700; }
+
+    .winner-display {
+      background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(0,229,255,0.05));
+      border: 1px solid rgba(255,215,0,0.3);
+      border-radius: 10px;
+      padding: 24px;
+      text-align: center;
+    }
+    .winner-display .trophy { font-size: 36px; margin-bottom: 8px; }
+    .winner-display .winner-name { font-family: 'Exo 2', sans-serif; font-size: 28px; font-weight: 900; color: var(--gold); }
+    .winner-display .winner-detail { color: var(--text-dim); font-size: 13px; margin-top: 6px; }
+
+    /* ── TOGGLE ── */
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(48,54,61,0.5); }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-info .toggle-label { font-size: 13px; color: var(--bright); font-weight: 500; }
+    .toggle-info .toggle-desc { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+    .toggle {
+      position: relative; width: 36px; height: 20px;
+      background: var(--border); border-radius: 10px; cursor: pointer;
+      transition: background 0.2s; flex-shrink: 0;
+    }
+    .toggle.on { background: var(--accent); }
+    .toggle::after {
+      content: ''; position: absolute;
+      top: 3px; left: 3px;
+      width: 14px; height: 14px;
+      background: white; border-radius: 50%;
+      transition: left 0.2s;
+    }
+    .toggle.on::after { left: 19px; }
+
+    /* ── RANGE SLIDER ── */
+    input[type=range] {
+      -webkit-appearance: none; width: 100%; height: 4px;
+      background: var(--border); border-radius: 2px; outline: none;
+      padding: 0; border: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 16px; height: 16px;
+      background: var(--accent); border-radius: 50%; cursor: pointer;
+    }
+
+    /* ── TABLE ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); border-bottom: 1px solid var(--border); }
+    td { padding: 9px 12px; border-bottom: 1px solid rgba(48,54,61,0.4); color: var(--text); }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    tr:last-child td { border-bottom: none; }
+    .td-highlight { color: var(--accent); font-weight: 600; }
+    .td-green { color: var(--green); font-weight: 600; }
+    .td-gold { color: var(--gold); font-weight: 700; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.3px; }
+    .badge-green { background: rgba(0,255,136,0.12); color: var(--green); }
+    .badge-accent { background: rgba(0,229,255,0.1); color: var(--accent); }
+    .badge-orange { background: rgba(255,179,71,0.12); color: var(--orange); }
+
+    /* ── GTB ── */
+    .gtb-status-card {
+      background: linear-gradient(135deg, rgba(167,139,250,0.08), rgba(0,229,255,0.04));
+      border: 1px solid rgba(167,139,250,0.2);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .gtb-closed { opacity: 0.5; pointer-events: none; }
+
+    /* ── HELP ── */
+    .help-section { margin-bottom: 28px; }
+    .help-section h3 { font-family: 'Exo 2', sans-serif; font-size: 15px; font-weight: 700; color: var(--accent); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid rgba(0,229,255,0.15); }
+    .cmd-list { display: flex; flex-direction: column; gap: 6px; }
+    .cmd-row { display: flex; gap: 16px; padding: 8px 12px; background: var(--bg-card); border-radius: 6px; align-items: flex-start; }
+    .cmd-name { font-family: 'Exo 2', sans-serif; font-size: 13px; font-weight: 700; color: var(--accent); white-space: nowrap; min-width: 180px; }
+    .cmd-desc { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+    .cmd-who { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-left: auto; flex-shrink: 0; align-self: flex-start; }
+    .who-mod { background: rgba(255,71,87,0.15); color: var(--red); }
+    .who-all { background: rgba(0,255,136,0.1); color: var(--green); }
+
+    /* ── VERIFIED LIST ── */
+    .verified-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--bg-card); border-radius: 6px; margin-bottom: 4px; }
+    .verified-kick { font-weight: 600; color: var(--bright); flex: 1; }
+    .verified-provider { font-size: 12px; color: var(--text-dim); }
+    .verified-wager { color: var(--green); font-size: 12px; font-weight: 600; }
+
+    /* ── FLASH MESSAGE ── */
+    .flash {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--bg-panel); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 18px;
+      font-size: 13px; color: var(--bright);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      z-index: 1000; transform: translateY(8px);
+      opacity: 0; transition: all 0.2s; pointer-events: none;
+    }
+    .flash.show { opacity: 1; transform: translateY(0); }
+    .flash.success { border-color: rgba(0,255,136,0.4); }
+    .flash.error { border-color: rgba(255,71,87,0.4); }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── POINTS PAGE ── */
+    .earn-method-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 0; border-bottom: 1px solid rgba(48,54,61,0.5);
+    }
+    .earn-method-row:last-child { border-bottom: none; }
+    .earn-icon { font-size: 20px; width: 32px; text-align: center; flex-shrink: 0; }
+    .earn-info { flex: 1; }
+    .earn-info .name { font-size: 13px; color: var(--bright); font-weight: 500; line-height: 1.4; }
+    .earn-info .desc { font-size: 11px; color: var(--text-dim); margin-top: 4px; line-height: 1.5; }
+    .earn-input { width: 70px !important; text-align: center; flex-shrink: 0; }
+    .earn-method-row { padding: 14px 0; }
+
+    /* ── STORE ── */
+    .store-item-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; background: var(--bg-card);
+      border: 1px solid var(--border); border-radius: 8px;
+    }
+    .store-item-img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; background: var(--bg-input); flex-shrink: 0; }
+    .store-item-info { flex: 1; min-width: 0; }
+    .store-item-name { font-size: 13px; font-weight: 600; color: var(--bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .store-item-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+    .store-toggle { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <img src="wenbotlogo.png" alt="WenBot" style="height:64px;mix-blend-mode:lighten;display:block;margin:0 auto;">
+    <div style="flex:1;overflow-y:auto;padding-top:8px;">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Main</div>
+        <div class="nav-item active" onclick="showPage('overview',this)"><span class="icon">📊</span> Overview</div>
+        <div class="nav-item" onclick="showPage('giveaway',this)"><span class="icon">🎁</span> Giveaway</div>
+        <div class="nav-item" onclick="showPage('points',this)"><span class="icon">🪙</span> Points</div>
+        <div class="nav-item" onclick="showPage('gtb',this)"><span class="icon">🎰</span> Guess the Balance</div>
+      </div>
+      <div class="sidebar-section" style="margin-top:8px;">
+        <div class="sidebar-label">Tools</div>
+        <div class="nav-item" onclick="showPage('store',this)"><span class="icon">🛒</span> Store <span class="nav-badge red" id="storeBadge" style="display:none;">0</span></div>
+        <div class="nav-item" onclick="showPage('commands',this)"><span class="icon">💬</span> Commands</div>
+        <div class="nav-item" onclick="showPage('leaderboard',this)"><span class="icon">🏆</span> Leaderboard</div>
+        <div class="nav-item" onclick="showPage('verified',this)"><span class="icon">✅</span> Verified Users</div>
+      </div>
+      <div class="sidebar-section" style="margin-top:8px;">
+        <div class="sidebar-label">Account</div>
+        <div class="nav-item" onclick="showPage('settings',this)"><span class="icon">⚙️</span> Settings</div>
+        <div class="nav-item" onclick="showPage('help',this)"><span class="icon">❓</span> Help</div>
+      </div>
+    </div>
+    <div class="sidebar-bot-status">
+      <div class="bot-status-row">
+        <div class="status-dot" id="botDot"></div>
+        <div class="bot-status-label" id="botStatusLabel">Connecting...</div>
+      </div>
+      <div class="bot-status-channel" id="botStatusChannel">—</div>
+      <div class="sidebar-user" style="margin-top:12px;">
+        <div class="sidebar-user-name" id="sidebarUser">—</div>
+        <div class="sidebar-signout" onclick="signOut()">Sign out</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbarTitle">Overview</div>
+      <div class="topbar-pill" id="channelPill">⚡ <span id="channelPillName">Loading...</span></div>
+      <div class="topbar-pill live" id="giveawayPill" style="display:none;">🔴 Giveaway Live</div>
+    </div>
+
+    <!-- ── OVERVIEW ── -->
+    <div class="page active" id="page-overview">
+      <div class="grid-4" style="margin-bottom:16px;">
+        <div class="stat-card">
+          <div class="stat-label">Bot Status</div>
+          <div class="stat-value" id="statBotStatus" style="font-size:18px;color:var(--green);">Online</div>
+          <div class="stat-sub" id="statChannel">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Active Entries</div>
+          <div class="stat-value" id="statEntries">0</div>
+          <div class="stat-sub">Current giveaway</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Verified Users</div>
+          <div class="stat-value" id="statVerified">0</div>
+          <div class="stat-sub">Linked accounts</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Points Distributed</div>
+          <div class="stat-value" id="statPoints">—</div>
+          <div class="stat-sub" id="statCurrency">points total</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">🎁 Quick Start Giveaway</div>
+          <p style="color:var(--text-dim);font-size:12px;margin-bottom:16px;">WenBot will announce the giveaway in your Kick chat immediately.</p>
+          <div class="giveaway-type-row" style="justify-content:flex-start;margin-bottom:12px;">
+            <button class="type-btn active" id="quickTypeCode" onclick="setQuickType('code')">Code Users</button>
+            <button class="type-btn" id="quickTypeWager" onclick="setQuickType('wager')">Wager Based</button>
+            <button class="type-btn" id="quickTypeOpen" onclick="setQuickType('open')">Open</button>
+          </div>
+          <button class="btn btn-accent btn-xl" style="width:100%;" id="quickStartBtn" onclick="quickStartGiveaway()">
+            🎉 Start Giveaway
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📋 Recent Winners</div>
+          <div id="recentWinnersList" style="display:flex;flex-direction:column;gap:6px;">
+            <div style="color:var(--text-dim);font-size:12px;text-align:center;padding:16px;">No winners yet this session</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── GIVEAWAY ── -->
+    <div class="page" id="page-giveaway">
+      <div class="giveaway-hero">
+        <h2>Giveaway Control</h2>
+        <p>Choose a type, configure options, and start — WenBot posts the announcement automatically.</p>
+        <div class="giveaway-type-row">
+          <button class="type-btn active" id="typeCode" onclick="setType('code')">🔑 Code Users</button>
+          <button class="type-btn" id="typeWager" onclick="setType('wager')">💰 Wager Based</button>
+          <button class="type-btn" id="typeOpen" onclick="setType('open')">🌐 Open to All</button>
+        </div>
+        <button class="btn btn-accent btn-xl" id="startGiveawayBtn" onclick="startGiveaway()">🎉 Start Giveaway</button>
+        <button class="btn btn-danger" id="stopGiveawayBtn" style="display:none;margin-left:10px;" onclick="stopGiveaway()">⏹ Stop Giveaway</button>
+      </div>
+
+      <div class="giveaway-status-bar" id="giveawayStatusBar">
+        <div class="status-dot" id="giveawayDot"></div>
+        <span id="giveawayStatusText" style="font-size:13px;color:var(--text-dim);">No active giveaway</span>
+        <span style="margin-left:auto;font-size:12px;color:var(--text-dim);">Entries: <strong id="entryCountBadge" style="color:var(--bright);">0</strong></span>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">⚙️ Options</div>
+          <div class="field">
+            <label>Minimum Wager ($)</label>
+            <input type="number" id="minWagerInput" value="200" min="0" step="10">
+            <div class="hint">Only verified code users above this amount can enter</div>
+          </div>
+          <div class="field">
+            <label>Wager Luck Multiplier: <strong id="wagerLuckVal">1x</strong></label>
+            <input type="range" id="wagerLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('wagerLuckVal').textContent=this.value+'x'">
+            <div class="hint">Top wagerers receive up to 5x more entries</div>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Followers Only</div>
+              <div class="toggle-desc">Only channel followers can enter</div>
+            </div>
+            <div class="toggle" id="toggleFollower" onclick="toggleOption(this)"></div>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Subscribers Only</div>
+              <div class="toggle-desc">Only channel subscribers can enter</div>
+            </div>
+            <div class="toggle" id="toggleSub" onclick="toggleOption(this)"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🎯 Winner Picker</div>
+          <div id="winnerArea">
+            <div style="color:var(--text-dim);font-size:12px;margin-bottom:16px;">Start a giveaway and collect entries first.</div>
+          </div>
+          <button class="btn btn-accent" style="width:100%;margin-top:8px;" id="pickWinnerBtn" onclick="pickWinner()" disabled>🏆 Pick Winner</button>
+          <button class="btn btn-ghost" style="width:100%;margin-top:6px;" id="rerollBtn" onclick="rerollWinner()" style="display:none;" disabled>🔄 Reroll</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div class="card-title" style="justify-content:space-between;">
+          <span>📋 Entries (<span id="entryCountLabel">0</span>)</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-ghost btn-sm" onclick="clearEntries()">Clear</button>
+            <button class="btn btn-ghost btn-sm" onclick="exportEntries()">Export</button>
+          </div>
+        </div>
+        <div class="entries-grid" id="entriesList">
+          <div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Entries will appear here when a giveaway is active</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── POINTS ── -->
+    <div class="page" id="page-points">
+      <div class="grid-2" style="margin-bottom:16px;">
+        <div class="card">
+          <div class="card-title">🪙 Currency Settings</div>
+          <div class="field">
+            <label>Currency Name</label>
+            <input type="text" id="currencyNameInput" placeholder="e.g. Chips, Skulls, Coins" maxlength="20">
+            <div class="hint">What viewers see in chat when checking their balance</div>
+          </div>
+          <button class="btn btn-accent" onclick="savePointsConfig()" style="width:100%;">Save Settings</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">⚡ How Viewers Earn</div>
+          <div class="earn-method-row">
+            <div class="earn-icon">💬</div>
+            <div class="earn-info">
+              <div class="name">Per Chat Message</div>
+              <div class="desc">Points awarded each time a viewer sends a message</div>
+            </div>
+            <input type="number" class="earn-input" id="earnPerMessage" value="1" min="0" max="100">
+          </div>
+          <div class="earn-method-row">
+            <div class="earn-icon">⏱️</div>
+            <div class="earn-info">
+              <div class="name">Active Minutes Watched</div>
+              <div class="desc">Points per active minute (must chat at least once every 5 min)</div>
+            </div>
+            <input type="number" class="earn-input" id="earnPerMinute" value="2" min="0" max="100">
+          </div>
+          <div class="earn-method-row">
+            <div class="earn-icon">✅</div>
+            <div class="earn-info">
+              <div class="name">On Verify</div>
+              <div class="desc">Bonus points when a viewer verifies their affiliate account</div>
+            </div>
+            <input type="number" class="earn-input" id="earnOnVerify" value="50" min="0" max="1000">
+          </div>
+          <div class="earn-method-row">
+            <div class="earn-icon">🏆</div>
+            <div class="earn-info">
+              <div class="name">Giveaway Entry</div>
+              <div class="desc">Points awarded just for entering a giveaway</div>
+            </div>
+            <input type="number" class="earn-input" id="earnOnEntry" value="5" min="0" max="500">
+          </div>
+          <button class="btn btn-accent" onclick="saveEarnRates()" style="width:100%;margin-top:14px;">Save Earn Rates</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="justify-content:space-between;">
+          <span>🏅 Top Viewers by Points</span>
+          <button class="btn btn-ghost btn-sm" onclick="loadTopViewers()">Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Viewer</th><th>Points</th><th>Last Active</th><th>Actions</th></tr></thead>
+            <tbody id="topViewersTable"><tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── GTB ── -->
+    <div class="page" id="page-gtb">
+      <div class="gtb-status-card">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+          <div>
+            <div style="font-family:'Exo 2',sans-serif;font-size:18px;font-weight:800;color:var(--bright);">Guess the Balance</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Viewers type <strong style="color:var(--accent);">!gtb [amount]</strong> to guess the final bonus hunt balance</div>
+          </div>
+          <div style="margin-left:auto;display:flex;gap:8px;">
+            <button class="btn btn-green" id="gtbStartBtn" onclick="startGTB()">▶ Open GTB</button>
+            <button class="btn btn-danger" id="gtbStopBtn" onclick="stopGTB()" disabled>⏹ Close GTB</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;">
+          <div class="stat-card" style="flex:1;padding:12px;">
+            <div class="stat-label">Status</div>
+            <div style="font-size:14px;font-weight:700;" id="gtbStatusText">Closed</div>
+          </div>
+          <div class="stat-card" style="flex:1;padding:12px;">
+            <div class="stat-label">Total Guesses</div>
+            <div class="stat-value" style="font-size:22px;" id="gtbGuessCount">0</div>
+          </div>
+          <div class="stat-card" style="flex:1;padding:12px;">
+            <div class="stat-label">Session</div>
+            <div style="font-size:13px;color:var(--text-dim);" id="gtbSessionId">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:16px;">
+        <div class="card">
+          <div class="card-title">🎯 Pick Winner</div>
+          <p style="color:var(--text-dim);font-size:12px;margin-bottom:12px;">Enter the actual final balance to find the closest guess.</p>
+          <div class="input-row">
+            <input type="number" id="gtbActualBalance" placeholder="Actual balance e.g. 4250" min="0">
+            <button class="btn btn-accent" onclick="pickGTBWinner()">Find Winner</button>
+          </div>
+          <div id="gtbWinnerDisplay" style="margin-top:12px;"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">📢 Announce to Chat</div>
+          <p style="color:var(--text-dim);font-size:12px;margin-bottom:12px;">Post a custom message from WenBot after picking the winner.</p>
+          <textarea id="gtbAnnounce" rows="3" placeholder="e.g. GTB Winner is @username with a guess of $4,200! 🎉" style="resize:none;"></textarea>
+          <button class="btn btn-accent" style="width:100%;margin-top:8px;" onclick="postGTBAnnounce()">Post to Chat</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="justify-content:space-between;">
+          <span>📋 All Guesses</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-ghost btn-sm" onclick="loadGTBGuesses()">Refresh</button>
+            <button class="btn btn-danger btn-sm" onclick="clearGTBSession()">Clear Session</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Viewer</th><th>Guess ($)</th><th>Submitted</th><th>Diff</th></tr></thead>
+            <tbody id="gtbGuessesTable"><tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;">No active GTB session</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── STORE ── -->
+    <div class="page" id="page-store">
+
+      <!-- Redemption queue -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title" style="justify-content:space-between;">
+          <span>🔔 Pending Redemptions</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-ghost btn-sm" onclick="loadRedemptions()">Refresh</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Viewer</th><th>Item</th><th>Points</th><th>Time</th><th>Action</th></tr></thead>
+            <tbody id="redemptionsTable"><tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;">No pending redemptions</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Store items management -->
+      <div class="grid-2" style="margin-bottom:16px;">
+        <div class="card">
+          <div class="card-title">➕ Add Item</div>
+          <div class="field">
+            <label>Item Name</label>
+            <input type="text" id="newItemName" placeholder="e.g. Free Spin, VIP Shoutout">
+          </div>
+          <div class="field">
+            <label>Description</label>
+            <input type="text" id="newItemDesc" placeholder="Short description for viewers">
+          </div>
+          <div class="field">
+            <label>Price (<span id="itemPriceLabel">points</span>)</label>
+            <input type="number" id="newItemPrice" placeholder="500" min="1">
+          </div>
+          <div class="field">
+            <label>Stock (leave blank = unlimited)</label>
+            <input type="number" id="newItemStock" placeholder="Unlimited" min="0">
+          </div>
+          <div class="field">
+            <label>Image</label>
+            <div id="imageUploadArea" style="border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:all 0.2s;" onclick="document.getElementById('imageFileInput').click()" ondragover="event.preventDefault();this.style.borderColor='var(--accent)'" ondrop="handleImageDrop(event)">
+              <div id="imagePreview" style="display:none;margin-bottom:8px;"><img id="imagePreviewImg" style="max-height:100px;max-width:100%;border-radius:6px;object-fit:cover;"></div>
+              <div id="imageUploadText" style="font-size:12px;color:var(--text-dim);">📷 Click or drag an image here</div>
+            </div>
+            <input type="file" id="imageFileInput" accept="image/*" style="display:none;" onchange="handleImageSelect(this.files[0])">
+            <div id="imageUploadProgress" style="display:none;margin-top:6px;font-size:11px;color:var(--accent);">Uploading...</div>
+          </div>
+          <button class="btn btn-accent" style="width:100%;" onclick="addStoreItem()">Add Item</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="justify-content:space-between;">
+            <span>📦 Your Items</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span id="storePublicLink" style="display:none;font-size:11px;color:var(--text-dim);"></span>
+            </div>
+          </div>
+          <div id="storeItemsList" style="display:flex;flex-direction:column;gap:8px;">
+            <div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Loading items...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── COMMANDS ── -->
+    <div class="page" id="page-commands">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">➕ Add Custom Command</div>
+        <div class="grid-2">
+          <div class="field">
+            <label>Command (with !)</label>
+            <input type="text" id="newCmdTrigger" placeholder="!discord">
+          </div>
+          <div class="field">
+            <label>Response</label>
+            <input type="text" id="newCmdResponse" placeholder="Join our Discord: discord.gg/...">
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label>Cooldown (seconds)</label>
+            <input type="number" id="newCmdCooldown" value="30" min="0" max="3600">
+          </div>
+          <div class="field" style="justify-content:flex-end;padding-top:18px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="checkbox" id="newCmdModOnly"> <span style="font-size:12px;color:var(--text);">Mod only</span>
+              </label>
+              <button class="btn btn-accent" onclick="addCommand()">Add Command</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 Your Commands</div>
+        <div id="commandsList">
+          <div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">No custom commands yet</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── LEADERBOARD ── -->
+    <div class="page" id="page-leaderboard">
+      <div class="grid-2" style="margin-bottom:16px;">
+        <div class="card">
+          <div class="card-title">🏆 Wager Leaderboard</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Live data from your affiliate platform</div>
+          <div id="wagerLeaderboard">
+            <div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Loading...</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">🪙 Points Leaderboard</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Viewers ranked by earned points</div>
+          <div id="pointsLeaderboard">
+            <div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Loading...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VERIFIED USERS ── -->
+    <div class="page" id="page-verified">
+      <div class="card">
+        <div class="card-title" style="justify-content:space-between;">
+          <span>✅ Verified Users (<span id="verifiedCountLabel">0</span>)</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-ghost btn-sm" onclick="loadVerifiedUsers()">Refresh</button>
+            <button class="btn btn-danger btn-sm" onclick="clearAllVerified()">Clear All</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Kick Username</th><th>Provider Username</th><th>Wager</th><th>Verified At</th><th></th></tr></thead>
+            <tbody id="verifiedTable"><tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SETTINGS ── -->
+    <div class="page" id="page-settings">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">🔗 Affiliate Platform</div>
+          <div class="field">
+            <label>Platform</label>
+            <select id="settingsProvider">
+              <option value="gambulls">Gambulls</option>
+              <option value="csbattle">CSBattle</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>API Key</label>
+            <input type="password" id="settingsApiKey" placeholder="sk_...">
+          </div>
+          <button class="btn btn-accent" onclick="saveProviderSettings()" style="width:100%;">Save</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📡 Kick Channel</div>
+          <div class="field">
+            <label>Channel Username</label>
+            <input type="text" id="settingsChannel" placeholder="yourchannel">
+            <div class="hint">WenBot monitors this channel 24/7</div>
+          </div>
+          <div class="field">
+            <label>Display Name</label>
+            <input type="text" id="settingsDisplayName" placeholder="How viewers see your name">
+          </div>
+          <button class="btn btn-accent" onclick="saveChannelSettings()" style="width:100%;">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── HELP ── -->
+    <div class="page" id="page-help">
+      <div class="grid-2">
+        <div class="stack">
+          <div class="card help-section" style="margin-bottom:0;">
+            <h3>🎁 Giveaway Commands</h3>
+            <div class="cmd-list">
+              <div class="cmd-row"><div class="cmd-name">!giveaway start code</div><div class="cmd-desc">Start a code-user giveaway. Only verified users can enter.</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!giveaway start wager</div><div class="cmd-desc">Start a wager-based giveaway with weighted entries.</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!giveaway start open</div><div class="cmd-desc">Open giveaway — any viewer can enter.</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!giveaway stop</div><div class="cmd-desc">Close entries for the active giveaway.</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!winner</div><div class="cmd-desc">Pick a random winner from current entries.</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!verify [username]</div><div class="cmd-desc">Link your affiliate account to enter giveaways.</div><div class="cmd-who who-all">ALL</div></div>
+            </div>
+          </div>
+
+          <div class="card help-section" style="margin-bottom:0;">
+            <h3>🪙 Points Commands</h3>
+            <div class="cmd-list">
+              <div class="cmd-row"><div class="cmd-name">!points</div><div class="cmd-desc">Check your own point balance.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!points @user</div><div class="cmd-desc">Check another viewer's balance.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!give @user [amount]</div><div class="cmd-desc">Gift points to another viewer.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!top</div><div class="cmd-desc">Show the top 5 viewers by points.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!rank</div><div class="cmd-desc">See your current rank on the leaderboard.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!addpoints @user [n]</div><div class="cmd-desc">Add points to a viewer's balance.</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!setpoints @user [n]</div><div class="cmd-desc">Set a viewer's balance to an exact amount.</div><div class="cmd-who who-mod">MOD</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="card help-section" style="margin-bottom:0;">
+            <h3>🎰 Guess the Balance (!gtb)</h3>
+            <div class="cmd-list">
+              <div class="cmd-row"><div class="cmd-name">!gtb start</div><div class="cmd-desc">Open the GTB session — viewers can now submit guesses.</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!gtb stop</div><div class="cmd-desc">Close the GTB session — no more guesses accepted.</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!gtb [amount]</div><div class="cmd-desc">Submit your guess. e.g. !gtb 4250</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!gtb winner [actual]</div><div class="cmd-desc">Find the closest guess. WenBot announces winner.</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!mygtb</div><div class="cmd-desc">Check what you guessed this session.</div><div class="cmd-who who-all">ALL</div></div>
+            </div>
+          </div>
+
+          <div class="card help-section" style="margin-bottom:0;">
+            <h3>📖 Getting Started</h3>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;gap:10px;align-items:flex-start;">
+                <div style="background:var(--accent);color:#0d1117;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">1</div>
+                <div style="font-size:13px;color:var(--text);">Go to <strong>Settings</strong> and connect your affiliate platform API key</div>
+              </div>
+              <div style="display:flex;gap:10px;align-items:flex-start;">
+                <div style="background:var(--accent);color:#0d1117;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">2</div>
+                <div style="font-size:13px;color:var(--text);">In your Kick chat type <strong>/mod WenBot</strong> to give WenBot mod permissions</div>
+              </div>
+              <div style="display:flex;gap:10px;align-items:flex-start;">
+                <div style="background:var(--accent);color:#0d1117;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">3</div>
+                <div style="font-size:13px;color:var(--text);">Viewers type <strong>!verify [affiliateUsername]</strong> to link their account before entering giveaways</div>
+              </div>
+              <div style="display:flex;gap:10px;align-items:flex-start;">
+                <div style="background:var(--accent);color:#0d1117;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">4</div>
+                <div style="font-size:13px;color:var(--text);">Type <strong>!giveaway start code</strong> in chat to launch your first giveaway</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end main -->
+</div><!-- end app -->
+
+<div class="flash" id="flash"></div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script>
+// ── NAV ──
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  if (el) el.classList.add('active');
+  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', commands:'Commands', leaderboard:'Leaderboard', verified:'Verified Users', settings:'Settings', help:'Help' };
+  document.getElementById('topbarTitle').textContent = titles[id] || id;
+  if (id === 'verified') loadVerifiedUsers();
+  if (id === 'points') loadTopViewers();
+  if (id === 'gtb') loadGTBGuesses();
+  if (id === 'leaderboard') loadLeaderboards();
+  if (id === 'store') { loadStoreItems(); loadRedemptions(); }
+}
+
+// ── FLASH ──
+function flash(msg, type='success') {
+  const el = document.getElementById('flash');
+  el.textContent = msg;
+  el.className = 'flash show ' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── AUTH ──
+let profile = null;
+let currentGiveawayType = 'code';
+let gtbActive = false;
+let gtbSessionId = null;
+let activeGuesses = [];
+
+function onAuthReady(user) {
+  profile = fb.streamerProfile;
+  document.getElementById('sidebarUser').textContent = user.email;
+  document.getElementById('botStatusChannel').textContent = profile?.kickChannel || '—';
+  document.getElementById('botDot').classList.add('online');
+  document.getElementById('botStatusLabel').textContent = 'Online';
+  document.getElementById('channelPillName').textContent = profile?.kickChannel || '—';
+  document.getElementById('statChannel').textContent = profile?.kickChannel || '—';
+  document.getElementById('statCurrency').textContent = (profile?.currencyName || 'points') + ' total';
+
+  if (profile?.currencyName) document.getElementById('currencyNameInput').value = profile.currencyName;
+  if (profile?.pointsPerMessage) document.getElementById('earnPerMessage').value = profile.pointsPerMessage;
+  if (profile?.kickChannel) document.getElementById('settingsChannel').value = profile.kickChannel;
+  if (profile?.displayName) document.getElementById('settingsDisplayName').value = profile.displayName;
+
+  loadVerifiedCount();
+  loadProviderSettings();
+}
+
+function onAuthNotLoggedIn() { window.location.href = 'login.html'; }
+initFirebase();
+
+// ── GIVEAWAY ──
+let giveawayActive = false;
+let entries = [];
+let winner = null;
+
+function setType(type) {
+  currentGiveawayType = type;
+  ['code','wager','open'].forEach(t => {
+    document.getElementById('type'+t.charAt(0).toUpperCase()+t.slice(1))?.classList.toggle('active', t === type);
+  });
+}
+
+function setQuickType(type) {
+  currentGiveawayType = type;
+  ['code','wager','open'].forEach(t => {
+    document.getElementById('quickType'+t.charAt(0).toUpperCase()+t.slice(1))?.classList.toggle('active', t === type);
+  });
+}
+
+async function startGiveaway() {
+  if (!profile) return;
+  giveawayActive = true;
+  entries = [];
+  winner = null;
+  renderEntries();
+  updateGiveawayStatus(true);
+  document.getElementById('startGiveawayBtn').style.display = 'none';
+  document.getElementById('stopGiveawayBtn').style.display = '';
+  document.getElementById('pickWinnerBtn').disabled = false;
+  document.getElementById('giveawayPill').style.display = '';
+
+  // Save to Firestore so Railway bot picks it up
+  const typeLabels = { code: 'Verified users only — type !verify first', wager: 'Top wagers get bonus entries — type !join to enter', open: 'Everyone welcome — type !join to enter' };
+  const announceMsg = `🎉 Giveaway is LIVE! ${typeLabels[currentGiveawayType] || 'Type !join to enter'}`;
+  await saveStreamerProfile({
+    giveawayActive: true, giveawayType: currentGiveawayType,
+    pendingChatMessage: announceMsg, pendingChatTs: Date.now(),
+  });
+  flash('🎉 Giveaway started! WenBot is announcing in chat.');
+}
+
+function quickStartGiveaway() {
+  showPage('giveaway', document.querySelector('.nav-item:nth-child(2)'));
+  startGiveaway();
+}
+
+async function stopGiveaway() {
+  giveawayActive = false;
+  updateGiveawayStatus(false);
+  document.getElementById('startGiveawayBtn').style.display = '';
+  document.getElementById('stopGiveawayBtn').style.display = 'none';
+  document.getElementById('giveawayPill').style.display = 'none';
+  await saveStreamerProfile({ giveawayActive: false, pendingChatMessage: '🔒 Giveaway entries are now closed!', pendingChatTs: Date.now() });
+  flash('Giveaway stopped.', 'success');
+}
+
+function updateGiveawayStatus(active) {
+  const dot = document.getElementById('giveawayDot');
+  const txt = document.getElementById('giveawayStatusText');
+  if (active) {
+    dot.classList.add('online'); dot.classList.remove('offline');
+    txt.textContent = 'Giveaway LIVE — ' + (currentGiveawayType === 'code' ? 'Code Users' : currentGiveawayType === 'wager' ? 'Wager Based' : 'Open') + ' — collecting entries';
+    txt.style.color = 'var(--green)';
+  } else {
+    dot.classList.remove('online');
+    txt.textContent = 'No active giveaway';
+    txt.style.color = 'var(--text-dim)';
+  }
+}
+
+function renderEntries() {
+  const list = document.getElementById('entriesList');
+  const count = entries.length;
+  document.getElementById('entryCountLabel').textContent = count;
+  document.getElementById('entryCountBadge').textContent = count;
+  document.getElementById('statEntries').textContent = count;
+  if (!count) { list.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">No entries yet</div>'; return; }
+  list.innerHTML = entries.map((e, i) => `
+    <div class="entry-row">
+      <div class="entry-num">${i+1}</div>
+      <div class="entry-name">${e.username}</div>
+      ${e.wager ? `<div class="entry-wager">$${e.wager.toLocaleString()}</div>` : ''}
+      ${e.tickets > 1 ? `<div class="entry-tickets">${e.tickets}x</div>` : ''}
+    </div>`).join('');
+}
+
+function pickWinner() {
+  if (!entries.length) { flash('No entries to pick from.', 'error'); return; }
+  const pool = [];
+  entries.forEach(e => { for (let i = 0; i < (e.tickets || 1); i++) pool.push(e); });
+  winner = pool[Math.floor(Math.random() * pool.length)];
+  document.getElementById('winnerArea').innerHTML = `
+    <div class="winner-display">
+      <div class="trophy">🏆</div>
+      <div class="winner-name">${winner.username}</div>
+      <div class="winner-detail">${winner.wager ? '$'+winner.wager.toLocaleString()+' wagered' : ''}</div>
+    </div>`;
+  document.getElementById('rerollBtn').disabled = false;
+  flash('🏆 Winner picked: ' + winner.username);
+  addRecentWinner(winner.username);
+}
+
+function rerollWinner() { winner = null; document.getElementById('winnerArea').innerHTML = ''; pickWinner(); }
+
+function addRecentWinner(name) {
+  const list = document.getElementById('recentWinnersList');
+  if (list.querySelector('[data-empty]')) list.innerHTML = '';
+  list.insertAdjacentHTML('afterbegin', `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-card);border-radius:6px;font-size:13px;"><span style="color:var(--gold);">🏆</span><span style="color:var(--bright);font-weight:600;">${name}</span></div>`);
+}
+
+function clearEntries() { entries = []; renderEntries(); flash('Entries cleared.'); }
+
+function exportEntries() {
+  const text = entries.map(e => e.username).join('\n');
+  navigator.clipboard.writeText(text).then(() => flash('Entries copied to clipboard!'));
+}
+
+// ── POINTS ──
+async function savePointsConfig() {
+  const name = document.getElementById('currencyNameInput').value.trim() || 'points';
+  await saveStreamerProfile({ currencyName: name });
+  if (profile) profile.currencyName = name;
+  document.getElementById('statCurrency').textContent = name + ' total';
+  flash('Currency name saved!');
+}
+
+async function saveEarnRates() {
+  await saveStreamerProfile({
+    pointsPerMessage: parseInt(document.getElementById('earnPerMessage').value) || 1,
+    pointsPerMinute:  parseInt(document.getElementById('earnPerMinute').value) || 2,
+    pointsOnVerify:   parseInt(document.getElementById('earnOnVerify').value) || 50,
+    pointsOnEntry:    parseInt(document.getElementById('earnOnEntry').value) || 5,
+  });
+  flash('Earn rates saved!');
+}
+
+async function loadTopViewers() {
+  const tbody = document.getElementById('topViewersTable');
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px;">Loading...</td></tr>';
+  try {
+    const snap = await fb.db.collection('streamers').doc(fb.currentUser.uid)
+      .collection('viewers').orderBy('points','desc').limit(20).get();
+    if (snap.empty) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px;">No data yet</td></tr>'; return; }
+    const currency = profile?.currencyName || 'points';
+    tbody.innerHTML = snap.docs.map((d,i) => {
+      const data = d.data();
+      const last = data.lastSeen ? new Date(data.lastSeen).toLocaleDateString() : '—';
+      return `<tr>
+        <td style="color:var(--text-dim);">${i+1}</td>
+        <td class="td-highlight">${d.id}</td>
+        <td class="td-green">${(data.points||0).toLocaleString()} ${currency}</td>
+        <td style="color:var(--text-dim);">${last}</td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="promptAddPoints('${d.id}')">+</button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch(e) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--red);">Error loading</td></tr>'; }
+}
+
+function promptAddPoints(username) {
+  const amt = prompt(`Add points to ${username}:`);
+  if (!amt || isNaN(parseInt(amt))) return;
+  fb.db.collection('streamers').doc(fb.currentUser.uid)
+    .collection('viewers').doc(username)
+    .set({ points: firebase.firestore.FieldValue.increment(parseInt(amt)) }, { merge: true })
+    .then(() => { flash(`Added ${amt} points to ${username}`); loadTopViewers(); });
+}
+
+// ── GTB ──
+async function startGTB() {
+  gtbActive = true;
+  gtbSessionId = 'gtb_' + Date.now();
+  document.getElementById('gtbStartBtn').disabled = true;
+  document.getElementById('gtbStopBtn').disabled = false;
+  document.getElementById('gtbStatusText').textContent = '🟢 OPEN';
+  document.getElementById('gtbStatusText').style.color = 'var(--green)';
+  document.getElementById('gtbSessionId').textContent = gtbSessionId;
+  document.getElementById('gtbGuessCount').textContent = '0';
+  await saveStreamerProfile({
+    gtbActive: true,
+    gtbSessionId,
+    pendingChatMessage: '🎰 GTB is now open! Type !gtb [amount] to guess the ending balance. e.g. !gtb 5000',
+    pendingChatTs: Date.now(),
+  });
+  flash('GTB is open! WenBot is announcing in chat.');
+  listenGTBGuesses();
+}
+
+async function stopGTB() {
+  gtbActive = false;
+  document.getElementById('gtbStartBtn').disabled = false;
+  document.getElementById('gtbStopBtn').disabled = true;
+  document.getElementById('gtbStatusText').textContent = '🔴 Closed';
+  document.getElementById('gtbStatusText').style.color = 'var(--red)';
+  await saveStreamerProfile({
+    gtbActive: false,
+    pendingChatMessage: '🔒 GTB entries are now closed! Winner will be announced shortly.',
+    pendingChatTs: Date.now(),
+  });
+  flash('GTB closed. WenBot is announcing in chat.');
+}
+
+let gtbUnsubscribe = null;
+function listenGTBGuesses() {
+  if (gtbUnsubscribe) gtbUnsubscribe();
+  if (!gtbSessionId) return;
+  gtbUnsubscribe = fb.db
+    .collection('streamers').doc(fb.currentUser.uid)
+    .collection('gtb_sessions').doc(gtbSessionId)
+    .collection('guesses')
+    .orderBy('guess', 'asc')
+    .onSnapshot(snap => {
+      activeGuesses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      document.getElementById('gtbGuessCount').textContent = activeGuesses.length;
+      renderGTBGuesses();
+    });
+}
+
+async function loadGTBGuesses() {
+  if (!gtbSessionId) return;
+  const snap = await fb.db
+    .collection('streamers').doc(fb.currentUser.uid)
+    .collection('gtb_sessions').doc(gtbSessionId)
+    .collection('guesses').orderBy('guess','asc').get();
+  activeGuesses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  renderGTBGuesses();
+}
+
+function renderGTBGuesses(actualBalance) {
+  const tbody = document.getElementById('gtbGuessesTable');
+  if (!activeGuesses.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;">No guesses yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = activeGuesses.map((g, i) => {
+    const diff = actualBalance != null ? Math.abs(g.guess - actualBalance) : null;
+    const isWinner = diff === 0 || (actualBalance != null && diff === Math.min(...activeGuesses.map(x => Math.abs(x.guess - actualBalance))));
+    const time = g.timestamp ? new Date(g.timestamp).toLocaleTimeString() : '—';
+    return `<tr ${isWinner ? 'style="background:rgba(255,215,0,0.05);"' : ''}>
+      <td style="color:var(--text-dim);">${i+1}</td>
+      <td class="${isWinner ? 'td-gold' : 'td-highlight'}">${isWinner ? '🏆 ' : ''}${g.id}</td>
+      <td class="${isWinner ? 'td-gold' : ''}" style="font-weight:600;">$${Number(g.guess).toLocaleString()}</td>
+      <td style="color:var(--text-dim);">${time}</td>
+      <td>${diff != null ? '<span class="badge '+(isWinner?'badge-accent':'badge-orange')+'">±$'+diff.toLocaleString()+'</span>' : '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function pickGTBWinner() {
+  const actual = parseFloat(document.getElementById('gtbActualBalance').value);
+  if (isNaN(actual)) { flash('Enter the actual balance first.', 'error'); return; }
+  if (!activeGuesses.length) { flash('No guesses to evaluate.', 'error'); return; }
+  const sorted = [...activeGuesses].sort((a,b) => Math.abs(a.guess-actual) - Math.abs(b.guess-actual));
+  const w = sorted[0];
+  const diff = Math.abs(w.guess - actual);
+  document.getElementById('gtbWinnerDisplay').innerHTML = `
+    <div style="background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.25);border-radius:8px;padding:12px;text-align:center;">
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">CLOSEST GUESS</div>
+      <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:800;color:var(--gold);">🏆 ${w.id}</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">Guessed $${Number(w.guess).toLocaleString()} — off by $${diff.toLocaleString()}</div>
+    </div>`;
+  document.getElementById('gtbAnnounce').value = `🎰 GTB Winner: @${w.id} with a guess of $${Number(w.guess).toLocaleString()}! Actual balance was $${actual.toLocaleString()} (±$${diff.toLocaleString()}) 🏆`;
+  renderGTBGuesses(actual);
+  flash('Winner found: ' + w.id);
+}
+
+async function postGTBAnnounce() {
+  const msg = document.getElementById('gtbAnnounce').value.trim();
+  if (!msg) return;
+  await saveStreamerProfile({ pendingChatMessage: msg, pendingChatTs: Date.now() });
+  flash('Message queued for WenBot to post!');
+}
+
+async function clearGTBSession() {
+  if (!confirm('Clear all guesses for this session?')) return;
+  activeGuesses = [];
+  renderGTBGuesses();
+  flash('GTB session cleared.');
+}
+
+// ── COMMANDS ──
+async function addCommand() {
+  const trigger  = document.getElementById('newCmdTrigger').value.trim();
+  const response = document.getElementById('newCmdResponse').value.trim();
+  const cooldown = parseInt(document.getElementById('newCmdCooldown').value) || 30;
+  const modOnly  = document.getElementById('newCmdModOnly').checked;
+  if (!trigger || !response) { flash('Fill in trigger and response.', 'error'); return; }
+  await fb.db.collection('streamers').doc(fb.currentUser.uid)
+    .collection('commands').doc(trigger).set({ trigger, response, cooldown, modOnly, createdAt: Date.now() });
+  document.getElementById('newCmdTrigger').value = '';
+  document.getElementById('newCmdResponse').value = '';
+  flash('Command added!');
+  loadCommands();
+}
+
+async function loadCommands() {
+  const snap = await fb.db.collection('streamers').doc(fb.currentUser.uid).collection('commands').get();
+  const list = document.getElementById('commandsList');
+  if (snap.empty) { list.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">No custom commands yet</div>'; return; }
+  list.innerHTML = snap.docs.map(d => {
+    const c = d.data();
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg-card);border-radius:6px;margin-bottom:4px;">
+      <span style="font-family:'Exo 2',sans-serif;font-weight:700;color:var(--accent);min-width:120px;">${c.trigger}</span>
+      <span style="flex:1;font-size:12px;color:var(--text);">${c.response}</span>
+      <span style="font-size:11px;color:var(--text-dim);">${c.cooldown}s</span>
+      ${c.modOnly ? '<span class="badge badge-orange">MOD</span>' : ''}
+      <button class="btn btn-danger btn-sm" onclick="deleteCommand('${d.id}')">Delete</button>
+    </div>`;
+  }).join('');
+}
+
+async function deleteCommand(id) {
+  await fb.db.collection('streamers').doc(fb.currentUser.uid).collection('commands').doc(id).delete();
+  flash('Command deleted.');
+  loadCommands();
+}
+
+// ── VERIFIED USERS ──
+async function loadVerifiedUsers() {
+  const tbody = document.getElementById('verifiedTable');
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px;">Loading...</td></tr>';
+  const snap = await fb.db.collection('streamers').doc(fb.currentUser.uid).collection('verified_users').get();
+  document.getElementById('verifiedCountLabel').textContent = snap.size;
+  document.getElementById('statVerified').textContent = snap.size;
+  if (snap.empty) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px;">No verified users yet</td></tr>'; return; }
+  tbody.innerHTML = snap.docs.map(d => {
+    const v = d.data();
+    const ts = v.verifiedAt ? new Date(v.verifiedAt).toLocaleDateString() : '—';
+    return `<tr>
+      <td class="td-highlight">${d.id}</td>
+      <td>${v.providerUsername || '—'}</td>
+      <td class="td-green">${v.wagerAmount ? '$'+Number(v.wagerAmount).toLocaleString() : '—'}</td>
+      <td style="color:var(--text-dim);">${ts}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="removeVerified('${d.id}')">Remove</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function loadVerifiedCount() {
+  const snap = await fb.db.collection('streamers').doc(fb.currentUser.uid).collection('verified_users').get();
+  document.getElementById('statVerified').textContent = snap.size;
+}
+
+async function removeVerified(kickName) {
+  await fb.db.collection('streamers').doc(fb.currentUser.uid).collection('verified_users').doc(kickName).delete();
+  flash('User removed.');
+  loadVerifiedUsers();
+}
+
+async function clearAllVerified() {
+  if (!confirm('Remove all verified users?')) return;
+  const snap = await fb.db.collection('streamers').doc(fb.currentUser.uid).collection('verified_users').get();
+  const batch = fb.db.batch();
+  snap.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+  flash('All verified users cleared.');
+  loadVerifiedUsers();
+}
+
+// ── SETTINGS ──
+async function loadProviderSettings() {
+  if (!profile?.activeProvider) return;
+  document.getElementById('settingsProvider').value = profile.activeProvider;
+  const doc = await getProviderConfig(profile.activeProvider);
+  if (doc?.apiKey) document.getElementById('settingsApiKey').value = doc.apiKey;
+}
+
+async function saveProviderSettings() {
+  const provider = document.getElementById('settingsProvider').value;
+  const apiKey   = document.getElementById('settingsApiKey').value.trim();
+  if (!apiKey) { flash('Enter an API key.', 'error'); return; }
+  await saveProviderConfig(provider, { apiKey, enabled: true });
+  await saveStreamerProfile({ activeProvider: provider });
+  flash('Provider settings saved!');
+}
+
+async function saveChannelSettings() {
+  const channel = document.getElementById('settingsChannel').value.trim().toLowerCase();
+  const displayName = document.getElementById('settingsDisplayName').value.trim();
+  if (!channel) { flash('Enter a channel name.', 'error'); return; }
+  await saveStreamerProfile({ kickChannel: channel, displayName: displayName || channel });
+  flash('Channel settings saved!');
+}
+
+// ── LEADERBOARDS ──
+async function loadLeaderboards() {
+  // Points leaderboard
+  const pSnap = await fb.db.collection('streamers').doc(fb.currentUser.uid)
+    .collection('viewers').orderBy('points','desc').limit(10).get();
+  const currency = profile?.currencyName || 'points';
+  document.getElementById('pointsLeaderboard').innerHTML = pSnap.empty
+    ? '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">No data yet</div>'
+    : pSnap.docs.map((d,i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(48,54,61,0.4);">
+        <span style="color:var(--text-dim);font-size:12px;width:20px;text-align:right;">${i+1}</span>
+        <span style="flex:1;color:var(--bright);font-weight:500;">${d.id}</span>
+        <span style="color:var(--green);font-weight:600;font-size:12px;">${(d.data().points||0).toLocaleString()} ${currency}</span>
+      </div>`).join('');
+  // Wager leaderboard placeholder
+  document.getElementById('wagerLeaderboard').innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Configure your affiliate API key in Settings to see wager data.</div>';
+}
+
+// ── TOGGLE ──
+function toggleOption(el) { el.classList.toggle('on'); }
+
+// ── STORE ──
+let pendingImageFile = null;
+let pendingImageUrl  = null;
+
+function handleImageSelect(file) {
+  if (!file) return;
+  pendingImageFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('imagePreviewImg').src = e.target.result;
+    document.getElementById('imagePreview').style.display = '';
+    document.getElementById('imageUploadText').textContent = file.name;
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleImageDrop(e) {
+  e.preventDefault();
+  document.getElementById('imageUploadArea').style.borderColor = '';
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) handleImageSelect(file);
+}
+
+async function uploadStoreImage(file, itemId) {
+  const ext  = file.name.split('.').pop();
+  const path = `store-images/${fb.currentUser.uid}/${itemId}.${ext}`;
+  const ref  = fb.storage.ref(path);
+  await ref.put(file);
+  return await ref.getDownloadURL();
+}
+
+async function addStoreItem() {
+  const name  = document.getElementById('newItemName').value.trim();
+  const desc  = document.getElementById('newItemDesc').value.trim();
+  const price = parseInt(document.getElementById('newItemPrice').value) || 0;
+  const stockVal = document.getElementById('newItemStock').value.trim();
+  const stock = stockVal === '' ? null : parseInt(stockVal);
+
+  if (!name) { flash('Enter an item name.', 'error'); return; }
+  if (!price) { flash('Enter a price.', 'error'); return; }
+
+  const uid     = fb.currentUser.uid;
+  const itemRef = fb.db.collection('streamers').doc(uid).collection('store_items').doc();
+
+  let imageUrl = null;
+  if (pendingImageFile) {
+    document.getElementById('imageUploadProgress').style.display = '';
+    try {
+      imageUrl = await uploadStoreImage(pendingImageFile, itemRef.id);
+    } catch(e) {
+      flash('Image upload failed: ' + e.message, 'error');
+      document.getElementById('imageUploadProgress').style.display = 'none';
+      return;
+    }
+    document.getElementById('imageUploadProgress').style.display = 'none';
+  }
+
+  await itemRef.set({ name, description: desc, price, stock, imageUrl, enabled: true, createdAt: Date.now() });
+
+  // Reset form
+  document.getElementById('newItemName').value = '';
+  document.getElementById('newItemDesc').value = '';
+  document.getElementById('newItemPrice').value = '';
+  document.getElementById('newItemStock').value = '';
+  document.getElementById('imagePreview').style.display = 'none';
+  document.getElementById('imageUploadText').textContent = '📷 Click or drag an image here';
+  pendingImageFile = null;
+
+  flash('Item added!');
+  loadStoreItems();
+}
+
+async function loadStoreItems() {
+  const uid  = fb.currentUser.uid;
+  const snap = await fb.db.collection('streamers').doc(uid).collection('store_items').orderBy('createdAt','asc').get();
+  const list = document.getElementById('storeItemsList');
+  const currency = profile?.currencyName || 'points';
+
+  // Update price label
+  document.getElementById('itemPriceLabel').textContent = currency;
+
+  // Show public store link
+  const channel = profile?.kickChannel;
+  if (channel) {
+    const linkEl = document.getElementById('storePublicLink');
+    linkEl.style.display = '';
+    linkEl.innerHTML = `<a href="store.html?channel=${channel}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:11px;">🔗 View public store</a>`;
+  }
+
+  if (snap.empty) {
+    list.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">No items yet — add your first item</div>';
+    return;
+  }
+
+  list.innerHTML = snap.docs.map(doc => {
+    const d = doc.data();
+    const stockStr = d.stock === null || d.stock === undefined ? 'Unlimited' : `${d.stock} left`;
+    const imgHtml = d.imageUrl
+      ? `<img class="store-item-img" src="${d.imageUrl}" alt="${d.name}">`
+      : `<div class="store-item-img" style="display:flex;align-items:center;justify-content:center;font-size:18px;">🎁</div>`;
+    return `
+      <div class="store-item-row">
+        ${imgHtml}
+        <div class="store-item-info">
+          <div class="store-item-name">${d.name}</div>
+          <div class="store-item-meta">${d.price.toLocaleString()} ${currency} · ${stockStr}</div>
+        </div>
+        <div class="store-toggle">
+          <div class="toggle ${d.enabled ? 'on' : ''}" onclick="toggleStoreItem('${doc.id}', ${!d.enabled})"></div>
+          <button class="btn btn-danger btn-sm" onclick="deleteStoreItem('${doc.id}')">✕</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function toggleStoreItem(id, enabled) {
+  await fb.db.collection('streamers').doc(fb.currentUser.uid)
+    .collection('store_items').doc(id).update({ enabled });
+  loadStoreItems();
+}
+
+async function deleteStoreItem(id) {
+  if (!confirm('Delete this item?')) return;
+  await fb.db.collection('streamers').doc(fb.currentUser.uid)
+    .collection('store_items').doc(id).delete();
+  flash('Item deleted.');
+  loadStoreItems();
+}
+
+async function loadRedemptions() {
+  const uid   = fb.currentUser.uid;
+  const tbody = document.getElementById('redemptionsTable');
+  const snap  = await fb.db.collection('streamers').doc(uid)
+    .collection('store_redemptions').where('status','==','pending').orderBy('redeemedAt','asc').get();
+
+  if (snap.empty) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;">No pending redemptions</td></tr>';
+    document.getElementById('storeBadge').style.display = 'none';
+    return;
+  }
+
+  const badge = document.getElementById('storeBadge');
+  badge.style.display = '';
+  badge.textContent = snap.size;
+
+  const currency = profile?.currencyName || 'points';
+  tbody.innerHTML = snap.docs.map(doc => {
+    const d  = doc.data();
+    const ts = d.redeemedAt?.toDate ? d.redeemedAt.toDate().toLocaleTimeString() : '—';
+    return `<tr>
+      <td class="td-highlight">@${d.kickUsername}</td>
+      <td>${d.itemName}</td>
+      <td style="color:var(--green);">${(d.pointsSpent||0).toLocaleString()} ${currency}</td>
+      <td style="color:var(--text-dim);">${ts}</td>
+      <td><button class="btn btn-green btn-sm" onclick="fulfillRedemption('${doc.id}')">✓ Fulfill</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function fulfillRedemption(id) {
+  await fb.db.collection('streamers').doc(fb.currentUser.uid)
+    .collection('store_redemptions').doc(id).update({ status: 'fulfilled', fulfilledAt: new Date() });
+  flash('Marked as fulfilled!');
+  loadRedemptions();
+}
+</script>
+</body>
+</html>

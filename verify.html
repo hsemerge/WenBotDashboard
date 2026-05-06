@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Your Account — WenBot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --bg-panel: #161b22; --bg-card: #1a2030;
+      --border: #30363d; --text: #c9d1d9; --text-dim: #8b949e;
+      --bright: #f0f6fc; --accent: #00e5ff; --accent-glow: rgba(0,229,255,0.2);
+      --green: #00ff88; --gold: #ffd700; --red: #ff4757;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    nav {
+      position: sticky; top: 0; z-index: 10;
+      background: rgba(13,17,23,0.9); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo { font-family: 'Exo 2', sans-serif; font-size: 20px; font-weight: 900; color: var(--accent); text-shadow: 0 0 16px var(--accent-glow); }
+    .nav-channel { font-size: 13px; color: var(--text-dim); }
+    .nav-channel span { color: var(--bright); font-weight: 600; }
+
+    .page-wrap {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      padding: 40px 20px;
+    }
+
+    .verify-card {
+      background: var(--bg-panel); border: 1px solid var(--border);
+      border-radius: 16px; width: 100%; max-width: 460px;
+      padding: 40px 36px;
+    }
+
+    .verify-header { text-align: center; margin-bottom: 32px; }
+    .verify-icon { font-size: 40px; margin-bottom: 12px; }
+    .verify-header h1 {
+      font-family: 'Exo 2', sans-serif; font-size: 24px; font-weight: 900;
+      color: var(--bright); margin-bottom: 8px;
+    }
+    .verify-header p { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+    .verify-header .channel-badge {
+      display: inline-block; margin-top: 10px;
+      background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.2);
+      border-radius: 20px; padding: 4px 14px;
+      font-size: 13px; color: var(--accent); font-weight: 600;
+    }
+
+    .info-row {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 14px; margin-bottom: 20px;
+    }
+    .info-row .label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+    .info-row .value { font-size: 14px; color: var(--bright); font-weight: 600; }
+    .info-icon { font-size: 20px; flex-shrink: 0; }
+
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .form-input {
+      width: 100%; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--bright); font-size: 14px;
+      padding: 12px 14px; font-family: 'Inter', sans-serif; transition: border-color 0.15s;
+    }
+    .form-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,229,255,0.08); }
+    .form-input::placeholder { color: var(--text-dim); }
+
+    .provider-hint {
+      margin-top: 6px; font-size: 12px; color: var(--text-dim); line-height: 1.5;
+    }
+    .provider-hint strong { color: var(--text); }
+
+    .btn-verify {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #00e5ff, #00b8d4);
+      border: none; border-radius: 8px; cursor: pointer;
+      font-family: 'Exo 2', sans-serif; font-size: 16px; font-weight: 800;
+      color: #0d1117; letter-spacing: 0.03em;
+      transition: all 0.2s;
+    }
+    .btn-verify:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,229,255,0.25); }
+    .btn-verify:active { transform: translateY(0); }
+    .btn-verify:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* Status states */
+    .status-box {
+      display: none; border-radius: 10px; padding: 20px;
+      text-align: center; margin-top: 20px;
+    }
+    .status-box.show { display: block; }
+    .status-box.success {
+      background: rgba(0,255,136,0.07); border: 1px solid rgba(0,255,136,0.25);
+    }
+    .status-box.error {
+      background: rgba(255,71,87,0.07); border: 1px solid rgba(255,71,87,0.25);
+    }
+    .status-box .status-icon { font-size: 32px; margin-bottom: 10px; }
+    .status-box h3 { font-family: 'Exo 2', sans-serif; font-size: 17px; font-weight: 800; margin-bottom: 6px; }
+    .status-box.success h3 { color: var(--green); }
+    .status-box.error h3 { color: var(--red); }
+    .status-box p { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+    .status-box p strong { color: var(--bright); }
+
+    .back-link {
+      display: block; text-align: center; margin-top: 20px;
+      font-size: 12px; color: var(--text-dim); text-decoration: none;
+    }
+    .back-link:hover { color: var(--accent); }
+
+    footer { text-align: center; padding: 24px; font-size: 12px; color: var(--text-dim); border-top: 1px solid var(--border); }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">WenBot</div>
+  <div class="nav-channel" id="navChannel"></div>
+</nav>
+
+<div class="page-wrap">
+  <div class="verify-card" id="verifyCard">
+    <div class="verify-header">
+      <div class="verify-icon">🔗</div>
+      <h1>Link Your Account</h1>
+      <p>Connect your affiliate username to your Kick account so WenBot can track your wagers for giveaways.</p>
+      <div class="channel-badge" id="channelBadge">Loading...</div>
+    </div>
+
+    <div class="info-row">
+      <div class="info-icon">💬</div>
+      <div>
+        <div class="label">Kick Username</div>
+        <div class="value" id="kickUsernameDisplay">...</div>
+      </div>
+    </div>
+
+    <div id="formSection">
+      <div class="form-group">
+        <label id="affiliateLabel">Affiliate Username</label>
+        <input type="text" class="form-input" id="affiliateInput" placeholder="Enter your exact username..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <div class="provider-hint" id="providerHint">Enter the username you use on the affiliate platform for this streamer.</div>
+      </div>
+
+      <button class="btn-verify" id="verifyBtn" onclick="submitVerify()">Verify Account</button>
+    </div>
+
+    <div class="status-box success" id="successBox">
+      <div class="status-icon">✅</div>
+      <h3>Verified!</h3>
+      <p id="successMsg">Your account has been linked successfully.</p>
+    </div>
+
+    <div class="status-box error" id="errorBox">
+      <div class="status-icon">❌</div>
+      <h3>Verification Failed</h3>
+      <p id="errorMsg">Something went wrong. Please try again.</p>
+    </div>
+
+    <a href="#" class="back-link" id="tryAgainLink" style="display:none;" onclick="resetForm(); return false;">← Try a different username</a>
+  </div>
+</div>
+
+<footer>
+  <p>Powered by <a href="/">WenBot</a> — Streamer tools for Kick</p>
+</footer>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const channel     = params.get('channel') || '';
+  const kickUsername = params.get('kick') || '';
+
+  // Populate static fields
+  document.getElementById('kickUsernameDisplay').textContent = kickUsername || 'Unknown';
+
+  if (channel) {
+    document.getElementById('channelBadge').textContent = channel;
+    document.getElementById('navChannel').innerHTML = `Stream: <span>${escHtml(channel)}</span>`;
+  } else {
+    document.getElementById('channelBadge').textContent = 'Unknown channel';
+  }
+
+  if (!channel || !kickUsername) {
+    showError('Invalid verification link. Make sure you clicked the link from WenBot in Kick chat.');
+    document.getElementById('formSection').style.display = 'none';
+  }
+
+  async function submitVerify() {
+    const affiliateUsername = document.getElementById('affiliateInput').value.trim();
+    if (!affiliateUsername) {
+      document.getElementById('affiliateInput').focus();
+      return;
+    }
+
+    const btn = document.getElementById('verifyBtn');
+    btn.disabled = true;
+    btn.textContent = 'Verifying...';
+    hideStatus();
+
+    try {
+      const resp = await fetch('/api/verify-affiliate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel, kickUsername, affiliateUsername }),
+      });
+      const data = await resp.json();
+
+      if (resp.ok && data.success) {
+        document.getElementById('formSection').style.display = 'none';
+        document.getElementById('successMsg').innerHTML =
+          `<strong>${escHtml(data.kickUsername)}</strong> has been linked to <strong>${escHtml(data.affiliateUsername)}</strong> on ${escHtml(data.provider)}.<br><br>You can now enter wager-based giveaways in <strong>${escHtml(channel)}</strong>'s stream!`;
+        showSuccess();
+      } else {
+        showError(data.error || 'Verification failed. Please try again.');
+        btn.disabled = false;
+        btn.textContent = 'Verify Account';
+      }
+    } catch (err) {
+      showError('Network error. Check your connection and try again.');
+      btn.disabled = false;
+      btn.textContent = 'Verify Account';
+    }
+  }
+
+  function showSuccess() {
+    document.getElementById('successBox').classList.add('show');
+    document.getElementById('errorBox').classList.remove('show');
+    document.getElementById('tryAgainLink').style.display = 'none';
+  }
+
+  function showError(msg) {
+    document.getElementById('errorMsg').textContent = msg;
+    document.getElementById('errorBox').classList.add('show');
+    document.getElementById('successBox').classList.remove('show');
+    document.getElementById('tryAgainLink').style.display = 'block';
+  }
+
+  function hideStatus() {
+    document.getElementById('successBox').classList.remove('show');
+    document.getElementById('errorBox').classList.remove('show');
+    document.getElementById('tryAgainLink').style.display = 'none';
+  }
+
+  function resetForm() {
+    hideStatus();
+    document.getElementById('affiliateInput').value = '';
+    document.getElementById('formSection').style.display = 'block';
+    const btn = document.getElementById('verifyBtn');
+    btn.disabled = false;
+    btn.textContent = 'Verify Account';
+  }
+
+  // Allow Enter key to submit
+  document.getElementById('affiliateInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitVerify();
+  });
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+</body>
+</html>

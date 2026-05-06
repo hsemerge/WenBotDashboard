@@ -8,6 +8,16 @@
   to     = "/.netlify/functions/kick-store-wenbot"
   status = 200
 
+[[redirects]]
+  from   = "/api/store-public"
+  to     = "/.netlify/functions/store-public"
+  status = 200
+
+[[redirects]]
+  from   = "/api/verify-affiliate"
+  to     = "/.netlify/functions/verify-affiliate"
+  status = 200
+
 [[edge_functions]]
   function = "leaderboard"
   path = "/api/leaderboard"

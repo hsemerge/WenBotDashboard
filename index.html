@@ -3,219 +3,1140 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LogicPlay - Giveaway Bot</title>
-  <link rel="stylesheet" href="css/styles.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <title>WenBot — Streamer Tools for Kick</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d1117;
+      --bg-panel:  #161b22;
+      --bg-card:   #1a2030;
+      --border:    #30363d;
+      --text:      #c9d1d9;
+      --text-dim:  #8b949e;
+      --bright:    #f0f6fc;
+      --accent:    #00e5ff;
+      --accent-glow: rgba(0,229,255,0.2);
+      --green:     #00ff88;
+      --purple:    #a78bfa;
+      --gold:      #ffd700;
+      --red:       #ff4757;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 48px;
+      height: 64px;
+      background: rgba(13,17,23,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(48,54,61,0.6);
+    }
+
+    .nav-logo {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--accent);
+      text-shadow: 0 0 20px var(--accent-glow);
+      letter-spacing: 1px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-dim);
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--bright); }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      background: rgba(255,255,255,0.05);
+      color: var(--bright);
+    }
+
+    .btn-accent {
+      background: var(--accent);
+      color: #0d1117;
+    }
+
+    .btn-accent:hover {
+      background: #33ecff;
+      box-shadow: 0 0 20px rgba(0,229,255,0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn-lg {
+      padding: 14px 32px;
+      font-size: 16px;
+      border-radius: 8px;
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+
+    .btn-outline:hover {
+      background: rgba(0,229,255,0.08);
+      box-shadow: 0 0 16px rgba(0,229,255,0.2);
+    }
+
+    /* ── SECTIONS ── */
+    section { padding: 100px 48px; }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding-top: 64px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -200px; left: 50%;
+      transform: translateX(-50%);
+      width: 800px; height: 800px;
+      background: radial-gradient(circle, rgba(0,229,255,0.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 64px;
+      align-items: center;
+      width: 100%;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: 100px;
+      border: 1px solid rgba(0,229,255,0.3);
+      background: rgba(0,229,255,0.06);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .hero-title {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 56px;
+      font-weight: 900;
+      line-height: 1.1;
+      color: var(--bright);
+      margin-bottom: 20px;
+    }
+
+    .hero-title span {
+      color: var(--accent);
+      text-shadow: 0 0 30px var(--accent-glow);
+    }
+
+    .hero-sub {
+      font-size: 18px;
+      color: var(--text-dim);
+      line-height: 1.7;
+      margin-bottom: 36px;
+      max-width: 480px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 32px;
+      margin-top: 48px;
+    }
+
+    .hero-stat-num {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    .hero-stat-label {
+      font-size: 12px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Chat mock */
+    .chat-mock {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    }
+
+    .chat-mock-header {
+      padding: 12px 16px;
+      background: rgba(0,229,255,0.04);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .chat-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    .chat-mock-body { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+
+    .chat-msg {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .chat-msg-user {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .chat-msg-text {
+      background: rgba(255,255,255,0.04);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 13px;
+      color: var(--text);
+      border-left: 2px solid transparent;
+    }
+
+    .chat-msg.bot .chat-msg-user { color: var(--accent); }
+    .chat-msg.bot .chat-msg-text {
+      background: rgba(0,229,255,0.06);
+      border-left-color: var(--accent);
+      color: var(--bright);
+    }
+    .chat-msg.viewer1 .chat-msg-user { color: #a78bfa; }
+    .chat-msg.viewer2 .chat-msg-user { color: #00ff88; }
+    .chat-msg.viewer3 .chat-msg-user { color: #ffd700; }
+    .chat-msg.mod .chat-msg-user { color: #ff4757; }
+
+    /* ── FEATURES ── */
+    .section-label {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 38px;
+      font-weight: 800;
+      color: var(--bright);
+      margin-bottom: 16px;
+      line-height: 1.2;
+    }
+
+    .section-sub {
+      font-size: 16px;
+      color: var(--text-dim);
+      max-width: 560px;
+      margin-bottom: 56px;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent 60%, rgba(0,229,255,0.03));
+      pointer-events: none;
+    }
+
+    .feature-card:hover {
+      border-color: rgba(0,229,255,0.25);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+
+    .feature-icon {
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+
+    .feature-title {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--bright);
+      margin-bottom: 8px;
+    }
+
+    .feature-desc {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    .feature-tag {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .tag-pro { background: rgba(167,139,250,0.15); color: var(--purple); }
+    .tag-elite { background: rgba(255,215,0,0.12); color: var(--gold); }
+    .tag-free { background: rgba(0,255,136,0.12); color: var(--green); }
+
+    /* ── DISCORD SECTION ── */
+    .discord-section {
+      background: linear-gradient(135deg, rgba(88,101,242,0.08) 0%, rgba(0,229,255,0.05) 100%);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .discord-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 64px;
+      align-items: center;
+    }
+
+    .discord-feature-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: 24px;
+    }
+
+    .discord-feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .discord-feature-list li::before {
+      content: '✓';
+      color: var(--accent);
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .discord-mock {
+      background: #1e1f2e;
+      border: 1px solid rgba(88,101,242,0.3);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    }
+
+    .discord-mock-header {
+      padding: 12px 16px;
+      background: rgba(88,101,242,0.15);
+      border-bottom: 1px solid rgba(88,101,242,0.2);
+      font-size: 13px;
+      font-weight: 600;
+      color: #7289da;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .discord-mock-body { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+
+    .discord-msg {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .discord-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .discord-msg-content { flex: 1; }
+
+    .discord-msg-user {
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 3px;
+    }
+
+    .discord-msg-text {
+      font-size: 13px;
+      color: #dcddde;
+      line-height: 1.5;
+    }
+
+    .discord-embed {
+      margin-top: 6px;
+      background: rgba(255,255,255,0.04);
+      border-left: 3px solid var(--accent);
+      border-radius: 4px;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #b9bbbe;
+    }
+
+    .discord-embed-title {
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    /* ── HOW IT WORKS ── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      margin-top: 56px;
+      position: relative;
+    }
+
+    .steps::before {
+      content: '';
+      position: absolute;
+      top: 28px;
+      left: calc(16.6% + 16px);
+      right: calc(16.6% + 16px);
+      height: 1px;
+      background: linear-gradient(90deg, var(--accent), var(--purple));
+      opacity: 0.3;
+    }
+
+    .step {
+      text-align: center;
+      position: relative;
+    }
+
+    .step-num {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--accent);
+      margin: 0 auto 20px;
+      background: var(--bg);
+      position: relative;
+      z-index: 1;
+    }
+
+    .step-title {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--bright);
+      margin-bottom: 8px;
+    }
+
+    .step-desc { font-size: 13px; color: var(--text-dim); }
+
+    /* ── PRICING ── */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-top: 56px;
+    }
+
+    .pricing-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    .pricing-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+    }
+
+    .pricing-card.popular {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent), 0 0 40px rgba(0,229,255,0.1);
+    }
+
+    .popular-badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent);
+      color: #0d1117;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 3px 14px;
+      border-radius: 100px;
+      white-space: nowrap;
+    }
+
+    .pricing-tier {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .pricing-price {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 40px;
+      font-weight: 900;
+      color: var(--bright);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .pricing-price span {
+      font-size: 16px;
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+
+    .pricing-sub {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 24px;
+    }
+
+    .pricing-divider {
+      height: 1px;
+      background: var(--border);
+      margin-bottom: 20px;
+    }
+
+    .pricing-features {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+      margin-bottom: 24px;
+    }
+
+    .pricing-features li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .pricing-features li .check { color: var(--green); flex-shrink: 0; }
+    .pricing-features li .cross { color: var(--text-dim); flex-shrink: 0; }
+
+    .pricing-cta { width: 100%; text-align: center; }
+
+    /* ── DIFF SECTION ── */
+    .diff-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 56px;
+    }
+
+    .diff-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+    }
+
+    .diff-card h3 {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--bright);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .diff-card p { font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+
+    /* ── CTA FOOTER ── */
+    .cta-section {
+      text-align: center;
+      padding: 120px 48px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      bottom: -100px; left: 50%;
+      transform: translateX(-50%);
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(0,229,255,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .cta-section .section-title { font-size: 48px; }
+
+    .cta-actions {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 32px;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 48px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    footer .footer-logo {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    footer p { font-size: 12px; color: var(--text-dim); }
+
+    /* ── GLOW DIVIDER ── */
+    .glow-line {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0.3;
+      margin: 0;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      nav { padding: 0 20px; }
+      .nav-links { display: none; }
+      section { padding: 80px 20px; }
+      .hero-inner { grid-template-columns: 1fr; gap: 40px; }
+      .hero-title { font-size: 38px; }
+      .features-grid { grid-template-columns: 1fr 1fr; }
+      .discord-inner { grid-template-columns: 1fr; }
+      .pricing-grid { grid-template-columns: 1fr 1fr; }
+      .steps { grid-template-columns: 1fr; }
+      .steps::before { display: none; }
+      .diff-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 600px) {
+      .features-grid { grid-template-columns: 1fr; }
+      .pricing-grid { grid-template-columns: 1fr; }
+      .hero-stats { gap: 20px; }
+    }
+  </style>
 </head>
 <body>
-  <!-- Header -->
-  <header class="header">
-    <div class="header-left">
-      <h1 class="logo">LogicPlay</h1>
-      <nav class="breadcrumb">
-        <span>Home</span>
-        <span class="sep">&rsaquo;</span>
-        <span>Tools</span>
-        <span class="sep">&rsaquo;</span>
-        <span class="active">Giveaway Bot</span>
-      </nav>
-    </div>
-    <div class="header-right">
-      <span class="giveaway-id">Giveaway ID: <span id="giveawayId">—</span></span>
-      <span class="header-user" id="headerUser"></span>
-      <div class="header-icons">
-        <button class="icon-btn" title="Fullscreen" onclick="toggleFullscreen()">F</button>
-        <button class="icon-btn" title="Options" onclick="toggleOptionsPanel()">O</button>
-        <button class="icon-btn" title="Chat" onclick="toggleChatPanel()">C</button>
-        <button class="icon-btn" title="Winners" onclick="toggleWinnersPanel()">W</button>
-        <button class="icon-btn" title="Settings" onclick="window.location.href='setup.html'">S</button>
-        <button class="icon-btn" title="Sign Out" onclick="signOut()">X</button>
-      </div>
-    </div>
-  </header>
 
-  <!-- Main 4-Panel Layout -->
-  <main class="panels">
-    <!-- ENTRIES PANEL -->
-    <section class="panel panel-entries" id="entriesPanel">
-      <div class="panel-header">
-        <h2>Entries</h2>
-      </div>
-      <div class="panel-meta">
-        <span>Entries: <strong id="entryCount">0</strong></span>
-        <button class="meta-btn" title="Copy entries" onclick="copyEntries()">&#x1F4CB;</button>
-      </div>
-      <div class="entries-list" id="entriesList">
-        <!-- Entries populate here -->
-      </div>
-      <div class="panel-footer">
-        <button class="btn btn-sm" onclick="clearEntries()">Clear</button>
-        <button class="btn btn-sm" onclick="importEntries()">Import</button>
-        <button class="btn btn-sm" onclick="exportEntries()">Export</button>
-      </div>
-    </section>
+  <!-- NAV -->
+  <nav>
+    <div class="nav-logo">WenBot</div>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#discord">Discord</a></li>
+      <li><a href="#how">How it works</a></li>
+      <li><a href="#pricing">Pricing</a></li>
+    </ul>
+    <div class="nav-actions">
+      <a href="login.html" class="btn btn-ghost">Sign In</a>
+      <a href="login.html#signup" class="btn btn-accent">Get Started Free</a>
+    </div>
+  </nav>
 
-    <!-- OPTIONS PANEL -->
-    <section class="panel panel-options" id="optionsPanel">
-      <div class="panel-header">
-        <h2>Options</h2>
-      </div>
-      <div class="options-body">
-        <!-- Keyword -->
-        <div class="option-group">
-          <label>Keyword <button class="eye-btn" id="keywordVisToggle" onclick="toggleKeywordVisibility()">&#128065;</button></label>
-          <div class="input-row">
-            <input type="text" id="keywordInput" value="!giveaway" placeholder="Enter keyword...">
-            <button class="btn btn-accent" onclick="updateKeyword()">Update</button>
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-inner container">
+      <div>
+        <div class="hero-badge">🎰 Built for Kick Gambling Streamers</div>
+        <h1 class="hero-title">The All-In-One<br><span>Streamer Bot</span><br>for Kick</h1>
+        <p class="hero-sub">
+          Giveaways, points, leaderboards, raffles, Discord sync, store redemptions, and more — managed entirely through chat commands and a single dashboard.
+        </p>
+        <div class="hero-actions">
+          <a href="login.html" class="btn btn-accent btn-lg">Start Free Today</a>
+          <a href="#features" class="btn btn-outline btn-lg">See All Features</a>
+        </div>
+        <div class="hero-stats">
+          <div>
+            <div class="hero-stat-num">10+</div>
+            <div class="hero-stat-label">Feature Modules</div>
+          </div>
+          <div>
+            <div class="hero-stat-num">2</div>
+            <div class="hero-stat-label">Platforms</div>
+          </div>
+          <div>
+            <div class="hero-stat-num">24/7</div>
+            <div class="hero-stat-label">Always Online</div>
           </div>
         </div>
+      </div>
 
-        <!-- Channel -->
-        <div class="option-group">
-          <label>Kick Channel</label>
-          <div class="input-row">
-            <input type="text" id="channelInput" value="flloozy" placeholder="Kick username...">
-            <button class="btn btn-accent" onclick="connectToChannel()">Connect</button>
+      <!-- Chat mock -->
+      <div class="chat-mock">
+        <div class="chat-mock-header">
+          <div class="chat-dot" style="background:#ff4757;"></div>
+          <div class="chat-dot" style="background:#ffd700;"></div>
+          <div class="chat-dot" style="background:#00ff88;"></div>
+          <span style="margin-left:6px;font-size:12px;color:#8b949e;">Kick Chat — yourstream</span>
+        </div>
+        <div class="chat-mock-body">
+          <div class="chat-msg mod">
+            <div class="chat-msg-user">🔴 StreamerName</div>
+            <div class="chat-msg-text">!giveaway start wager</div>
           </div>
-          <span class="hint" id="connectionStatus">Not connected</span>
-        </div>
-
-        <!-- Entry Source -->
-        <div class="option-group">
-          <label>Entry Source</label>
-          <div class="toggle-group">
-            <button class="toggle-btn active" id="btnSourceCode" onclick="setSource('code')">Code Users</button>
-            <button class="toggle-btn" id="btnSourceChat" onclick="setSource('chat')">Chat Users</button>
+          <div class="chat-msg bot">
+            <div class="chat-msg-user">🤖 WenBot</div>
+            <div class="chat-msg-text">🎉 Giveaway started! Type <strong>!enter</strong> to join. Top wagers get bonus entries!</div>
           </div>
-          <span class="hint" id="sourceHint">Only users under Floozy's code who wagered $200+ can enter</span>
-        </div>
-
-        <!-- Verified Users -->
-        <div class="option-group">
-          <label>Verified Users <span class="verified-badge" id="verifiedCount">0</span></label>
-          <span class="hint">Users type <strong>!verify GambullsName</strong> in chat to link accounts</span>
-          <div class="verified-actions">
-            <button class="btn btn-sm" onclick="showVerifiedList()">View List</button>
-            <button class="btn btn-sm btn-danger" onclick="clearAllVerified()">Clear All</button>
+          <div class="chat-msg viewer1">
+            <div class="chat-msg-user">💜 viewer_x</div>
+            <div class="chat-msg-text">!verify GambullsUsername</div>
+          </div>
+          <div class="chat-msg bot">
+            <div class="chat-msg-user">🤖 WenBot</div>
+            <div class="chat-msg-text">✅ @viewer_x verified! Wager: $4,210 — 5x entries added.</div>
+          </div>
+          <div class="chat-msg viewer2">
+            <div class="chat-msg-user">💚 slot_king99</div>
+            <div class="chat-msg-text">!points</div>
+          </div>
+          <div class="chat-msg bot">
+            <div class="chat-msg-user">🤖 WenBot</div>
+            <div class="chat-msg-text">@slot_king99 has <strong>2,850 Chips</strong> 🪙</div>
+          </div>
+          <div class="chat-msg viewer3">
+            <div class="chat-msg-user">🥇 bigroller</div>
+            <div class="chat-msg-text">!redeem freespin</div>
+          </div>
+          <div class="chat-msg bot">
+            <div class="chat-msg-user">🤖 WenBot</div>
+            <div class="chat-msg-text">🎰 @bigroller redeemed <strong>Free Spin</strong>! Added to queue.</div>
           </div>
         </div>
-
-        <!-- Min Wager (only visible in Code Users mode) -->
-        <div class="option-group" id="minWagerGroup">
-          <label>Minimum Wager ($)</label>
-          <input type="number" id="minWagerInput" value="200" min="0" step="10">
-          <span class="hint">Only applies to Code Users — their wager is verified via the leaderboard</span>
-        </div>
-
-        <!-- Subscriber Luck -->
-        <div class="option-group">
-          <label>Wager Luck</label>
-          <input type="range" id="wagerLuckSlider" min="1" max="5" value="1" oninput="updateWagerLuck()">
-          <span class="hint" id="wagerLuckHint">Top wagerers get 1 extra entries</span>
-        </div>
-
-        <!-- Follower Only -->
-        <div class="option-group">
-          <label>
-            <input type="checkbox" id="followerOnly"> Followers Only
-          </label>
-        </div>
-
-        <!-- Subscriber Only -->
-        <div class="option-group">
-          <label>
-            <input type="checkbox" id="subscriberOnly"> Subscribers Only
-          </label>
-        </div>
-      </div>
-
-      <div class="panel-footer options-footer">
-        <button class="btn" id="pauseBtn" onclick="togglePause()">Pause</button>
-        <button class="btn" onclick="resetGiveaway()">Reset</button>
-        <button class="btn btn-accent btn-lg" id="waitForWinnerBtn" onclick="waitForWinner()">Wait for Winner</button>
-      </div>
-    </section>
-
-    <!-- CHAT PANEL -->
-    <section class="panel panel-chat" id="chatPanel">
-      <div class="panel-header">
-        <h2>Chat</h2>
-        <span class="active-viewers">Active Viewers: <strong id="activeViewers">0</strong></span>
-      </div>
-      <div class="chat-banner" id="chatBanner">
-        <span class="banner-name">Flloozy</span> - type <strong>!verify YourGambullsName</strong> to link, then <span class="banner-keyword" id="bannerKeyword">!giveaway</span> to enter
-      </div>
-      <div class="chat-messages" id="chatMessages">
-        <!-- Chat messages populate here -->
-      </div>
-      <div class="panel-footer">
-        <button class="btn btn-sm" onclick="clearChat()">Clear</button>
-        <button class="btn btn-sm" id="disableChatBtn" onclick="toggleChatDisable()">Disable</button>
-      </div>
-    </section>
-
-    <!-- WINNERS PANEL -->
-    <section class="panel panel-winners" id="winnersPanel">
-      <div class="panel-header">
-        <h2>Winners</h2>
-      </div>
-      <div class="panel-meta">
-        <span>Winners: <strong id="winnerCount">0</strong></span>
-        <button class="meta-btn" title="Copy winners" onclick="copyWinners()">&#x1F4CB;</button>
-      </div>
-      <div class="winners-list" id="winnersList">
-        <!-- Winners populate here -->
-      </div>
-      <div class="panel-footer winners-footer">
-        <button class="btn btn-accent" id="winnerChatBtn" onclick="openWinnerChat()">Winner Chat</button>
-        <button class="btn btn-accent btn-lg" id="pickWinnerBtn" onclick="pickWinner()">Pick Winner</button>
-        <button class="btn btn-sm" onclick="clearWinners()">Clear</button>
-      </div>
-    </section>
-  </main>
-
-  <!-- Winner Announcement Overlay -->
-  <div class="overlay" id="winnerOverlay" style="display:none;">
-    <div class="winner-card">
-      <div class="winner-card-sparkle"></div>
-      <h2>We have a winner!</h2>
-      <div class="winner-name" id="winnerNameDisplay">—</div>
-      <div class="winner-meta" id="winnerMetaDisplay"></div>
-      <div class="winner-actions">
-        <button class="btn btn-accent" onclick="acceptWinner()">Accept</button>
-        <button class="btn" onclick="rerollWinner()">Reroll</button>
-        <button class="btn" onclick="closeWinnerOverlay()">Close</button>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- Verified Users List Overlay -->
-  <div class="overlay" id="verifiedOverlay" style="display:none;" onclick="if(event.target===this)closeVerifiedList()">
-    <div class="verified-list-card">
-      <div class="verified-list-header">
-        <h2>Verified Users</h2>
-        <button class="btn btn-sm" onclick="closeVerifiedList()">Close</button>
-      </div>
-      <div class="verified-list-body" id="verifiedListBody">
-        <!-- Populated by JS -->
+  <div class="glow-line"></div>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <div class="container">
+      <div class="section-label">Everything you need</div>
+      <h2 class="section-title">One bot. Every feature<br>your stream needs.</h2>
+      <p class="section-sub">WenBot replaces 5 different tools with one unified platform — all running automatically while you focus on streaming.</p>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🎁</div>
+          <div class="feature-title">Giveaway Bot</div>
+          <div class="feature-desc">Run code-based or wager-based giveaways. Weighted entries, eligibility checks, automatic announcements. Viewers verify their affiliate accounts before entering.</div>
+          <span class="feature-tag tag-free">Free</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🪙</div>
+          <div class="feature-title">Points System</div>
+          <div class="feature-desc">Custom currency per streamer — "Chips", "Skulls", "Coins". Viewers earn by chatting and wagering. Full leaderboard, rank, and gifting commands.</div>
+          <span class="feature-tag tag-pro">Pro</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🏆</div>
+          <div class="feature-title">Wager Leaderboard</div>
+          <div class="feature-desc">Live leaderboards fed from your favorite casino affiliate. OBS browser source overlay that auto-refreshes. Public shareable URL for your community.</div>
+          <span class="feature-tag tag-pro">Pro</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎟️</div>
+          <div class="feature-title">Raffle System</div>
+          <div class="feature-desc">Viewers spend points to buy tickets. Tiered pricing, animated draw, live countdown. Results posted to both Kick chat and Discord automatically.</div>
+          <span class="feature-tag tag-pro">Pro</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🛒</div>
+          <div class="feature-title">Viewer Store</div>
+          <div class="feature-desc">Streamers create custom items — Free Spins, Shoutouts, VIP roles. Viewers redeem with <strong>!redeem</strong>. Dashboard queue with one-click fulfillment.</div>
+          <span class="feature-tag tag-pro">Pro</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💬</div>
+          <div class="feature-title">Custom Commands</div>
+          <div class="feature-desc">Create !discord, !socials, !schedule commands. Variable substitution, cooldowns, mod-only flags. Built-in !slots and !coinflip for points-based fun.</div>
+          <span class="feature-tag tag-pro">Pro</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎮</div>
+          <div class="feature-title">Discord Integration</div>
+          <div class="feature-desc">Sync Kick verified users to Discord roles. Post giveaway results, leaderboard updates, and raffle draws to your Discord server automatically.</div>
+          <span class="feature-tag tag-elite">Elite</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎰</div>
+          <div class="feature-title">Bonus Hunt Tracker</div>
+          <div class="feature-desc">Log bonus buys with game name, buy-in, and live multiplier. Payout calculator, win/loss totals, session history, and OBS overlay widget.</div>
+          <span class="feature-tag tag-elite">Elite</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🖥️</div>
+          <div class="feature-title">OBS Overlays</div>
+          <div class="feature-desc">All data served as browser-source URLs. Leaderboard, Points Top 10, Bonus Hunt, Active Giveaway, Raffle Ticker — auto-refreshing, no OBS plugins needed.</div>
+          <span class="feature-tag tag-pro">Pro</span>
+        </div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- Gambulls Data Loading Overlay -->
-  <div class="overlay" id="loadingOverlay" style="display:none;">
-    <div class="loading-card">
-      <div class="spinner"></div>
-      <p id="loadingText">Loading Gambulls data...</p>
+  <div class="glow-line"></div>
+
+  <!-- DISCORD -->
+  <section class="discord-section" id="discord">
+    <div class="container discord-inner">
+      <div>
+        <div class="section-label">Discord + Kick</div>
+        <h2 class="section-title">Your community,<br>fully connected.</h2>
+        <p style="color:var(--text-dim);font-size:15px;line-height:1.7;margin-bottom:8px;">
+          WenBot bridges your Kick stream and Discord server in real time. Viewers verify their gambling accounts once in Kick chat — their Discord roles update automatically.
+        </p>
+        <ul class="discord-feature-list">
+          <li>Kick chat verification syncs directly to Discord roles</li>
+          <li>Wager tier roles assigned automatically (e.g. "Gold Wagerer" at $10k+)</li>
+          <li>Giveaway and raffle results posted to your Discord announcements channel</li>
+          <li>Slash commands in Discord: /leaderboard, /points, /rank</li>
+          <li>One-click Kick ↔ Discord account linking for verified members</li>
+          <li>Giveaway eligibility checked across both platforms before entry</li>
+        </ul>
+      </div>
+
+      <!-- Discord mock -->
+      <div class="discord-mock">
+        <div class="discord-mock-header">
+          <span style="font-size:16px;">#</span> giveaway-results
+        </div>
+        <div class="discord-mock-body">
+          <div class="discord-msg">
+            <div class="discord-avatar" style="background:#5865f2;">W</div>
+            <div class="discord-msg-content">
+              <div class="discord-msg-user" style="color:#00e5ff;">WenBot</div>
+              <div class="discord-embed">
+                <div class="discord-embed-title">🎉 Giveaway Winner!</div>
+                <div>Winner: <strong>@slot_king99</strong><br>Wager: $8,420 verified<br>Prize: $50 Bonus Hunt<br>Verified: ✅ Kick + Discord linked</div>
+              </div>
+            </div>
+          </div>
+          <div class="discord-msg">
+            <div class="discord-avatar" style="background:#a78bfa;">S</div>
+            <div class="discord-msg-content">
+              <div class="discord-msg-user" style="color:#a78bfa;">slot_king99</div>
+              <div class="discord-msg-text">LFG!! 🚀🚀🚀</div>
+            </div>
+          </div>
+          <div class="discord-msg">
+            <div class="discord-avatar" style="background:#5865f2;">W</div>
+            <div class="discord-msg-content">
+              <div class="discord-msg-user" style="color:#00e5ff;">WenBot</div>
+              <div class="discord-msg-text">✅ @bigroller has been assigned role <strong>Gold Wagerer</strong> ($10,000+ wager milestone reached)</div>
+            </div>
+          </div>
+          <div class="discord-msg">
+            <div class="discord-avatar" style="background:#00ff88;color:#0d1117;">B</div>
+            <div class="discord-msg-content">
+              <div class="discord-msg-user" style="color:#00ff88;">bigroller</div>
+              <div class="discord-msg-text">let's go!! finally got the Gold role 👑</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-  <script src="js/firebase-config.js"></script>
-  <script src="js/app.js"></script>
+  <div class="glow-line"></div>
+
+  <!-- HOW IT WORKS -->
+  <section id="how">
+    <div class="container">
+      <div class="section-label" style="text-align:center;">Setup in minutes</div>
+      <h2 class="section-title" style="text-align:center;">How it works</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-title">Sign Up & Connect</div>
+          <div class="step-desc">Create your account, connect your Kick channel via OAuth, and enter your affiliate platform API key.</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-title">WenBot Joins Your Chat</div>
+          <div class="step-desc">Mod WenBot in your channel. It connects instantly — no browser tab needed. Runs 24/7 on our servers even when you're offline.</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-title">Go Live & Run Features</div>
+          <div class="step-desc">Type <strong>!giveaway start</strong>, viewers type <strong>!verify</strong> and <strong>!points</strong>. Everything works automatically from your dashboard.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="glow-line"></div>
+
+  <!-- WHY WENBOT -->
+  <section>
+    <div class="container">
+      <div class="section-label">Why WenBot</div>
+      <h2 class="section-title">Different by design.</h2>
+      <p class="section-sub">Every feature is built specifically for gambling streamers on Kick — not adapted from Twitch tools.</p>
+      <div class="diff-grid">
+        <div class="diff-card">
+          <h3>🔗 Affiliate-Native Verification</h3>
+          <p>Viewers verify their casino affiliate usernames directly in chat. WenBot checks their actual wager data before allowing giveaway entry — no faking eligibility.</p>
+        </div>
+        <div class="diff-card">
+          <h3>⚡ Always-On, No Browser Required</h3>
+          <p>Most bots die when you close a tab. WenBot runs on dedicated servers 24/7. Your channel is monitored and responding even when you're offline.</p>
+        </div>
+        <div class="diff-card">
+          <h3>🎯 Weighted Giveaway Entries</h3>
+          <p>Higher wagers = more entries, configurable per giveaway. Rewards your biggest supporters fairly while keeping the giveaway exciting for everyone.</p>
+        </div>
+        <div class="diff-card">
+          <h3>🔄 Multi-Platform in One Tool</h3>
+          <p>Kick chat, Discord server, and affiliate leaderboard data all in one dashboard. No juggling five different bots or copy-pasting winner names manually.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="glow-line"></div>
+
+  <!-- PRICING -->
+  <section id="pricing">
+    <div class="container">
+      <div class="section-label" style="text-align:center;">Simple pricing</div>
+      <h2 class="section-title" style="text-align:center;">Start free, scale as you grow.</h2>
+      <p class="section-sub" style="margin:0 auto 0;text-align:center;">No contracts. Cancel anytime. All plans include the core giveaway bot.</p>
+
+      <div class="pricing-grid">
+
+        <div class="pricing-card">
+          <div class="pricing-tier">Starter</div>
+          <div class="pricing-price">$0<span>/mo</span></div>
+          <div class="pricing-sub">Forever free</div>
+          <div class="pricing-divider"></div>
+          <ul class="pricing-features">
+            <li><span class="check">✓</span> Giveaway bot (code & wager)</li>
+            <li><span class="check">✓</span> 1 affiliate provider</li>
+            <li><span class="check">✓</span> 50 verified users</li>
+            <li><span class="check">✓</span> !verify command</li>
+            <li><span class="cross">✗</span> Points system</li>
+            <li><span class="cross">✗</span> Raffle & Store</li>
+            <li><span class="cross">✗</span> OBS Overlays</li>
+          </ul>
+          <a href="login.html" class="btn btn-ghost pricing-cta">Get Started</a>
+        </div>
+
+        <div class="pricing-card popular">
+          <div class="popular-badge">Most Popular</div>
+          <div class="pricing-tier">Pro</div>
+          <div class="pricing-price">$15<span>/mo</span></div>
+          <div class="pricing-sub">Per streamer</div>
+          <div class="pricing-divider"></div>
+          <ul class="pricing-features">
+            <li><span class="check">✓</span> Everything in Starter</li>
+            <li><span class="check">✓</span> Points system + commands</li>
+            <li><span class="check">✓</span> Wager leaderboard</li>
+            <li><span class="check">✓</span> Raffle system</li>
+            <li><span class="check">✓</span> Viewer store</li>
+            <li><span class="check">✓</span> OBS overlay widgets</li>
+            <li><span class="check">✓</span> Custom chat commands</li>
+          </ul>
+          <a href="login.html" class="btn btn-accent pricing-cta">Start Pro</a>
+        </div>
+
+        <div class="pricing-card">
+          <div class="pricing-tier">Elite</div>
+          <div class="pricing-price">$30<span>/mo</span></div>
+          <div class="pricing-sub">Per streamer</div>
+          <div class="pricing-divider"></div>
+          <ul class="pricing-features">
+            <li><span class="check">✓</span> Everything in Pro</li>
+            <li><span class="check">✓</span> Discord bot integration</li>
+            <li><span class="check">✓</span> Wager tier Discord roles</li>
+            <li><span class="check">✓</span> Bonus hunt tracker</li>
+            <li><span class="check">✓</span> Tournaments</li>
+            <li><span class="check">✓</span> Unlimited verified users</li>
+            <li><span class="check">✓</span> Priority support</li>
+          </ul>
+          <a href="login.html" class="btn btn-outline pricing-cta">Start Elite</a>
+        </div>
+
+        <div class="pricing-card">
+          <div class="pricing-tier">Agency</div>
+          <div class="pricing-price">$75<span>/mo</span></div>
+          <div class="pricing-sub">Up to 5 streamers</div>
+          <div class="pricing-divider"></div>
+          <ul class="pricing-features">
+            <li><span class="check">✓</span> Everything in Elite</li>
+            <li><span class="check">✓</span> Up to 5 streamers</li>
+            <li><span class="check">✓</span> White-label overlays</li>
+            <li><span class="check">✓</span> Custom branding</li>
+            <li><span class="check">✓</span> Dedicated support</li>
+            <li><span class="check">✓</span> Early access to features</li>
+            <li><span class="check">✓</span> Multi-channel dashboard</li>
+          </ul>
+          <a href="login.html" class="btn btn-ghost pricing-cta">Contact Us</a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <div class="glow-line"></div>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <div class="container">
+      <div class="section-label" style="text-align:center;">Ready to go?</div>
+      <h2 class="section-title">Your chat. Your rules.<br><span style="color:var(--accent);">Your bot.</span></h2>
+      <p style="color:var(--text-dim);font-size:17px;margin-top:16px;">Join streamers already using WenBot to run better giveaways, grow their community, and reward loyal viewers.</p>
+      <div class="cta-actions">
+        <a href="login.html" class="btn btn-accent btn-lg">Get Started Free</a>
+        <a href="#features" class="btn btn-outline btn-lg">See All Features</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <img src="wenbotlogo.png" alt="WenBot" style="height:48px;mix-blend-mode:lighten;">
+    <p>© 2026 WenBot. Built for Kick streamers.</p>
+    <div style="display:flex;gap:20px;">
+      <a href="login.html" style="font-size:13px;color:var(--text-dim);">Sign In</a>
+      <a href="#pricing" style="font-size:13px;color:var(--text-dim);">Pricing</a>
+    </div>
+  </footer>
+
 </body>
 </html>

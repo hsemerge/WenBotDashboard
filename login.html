@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LogicPlay - Sign In</title>
+  <title>WenBot - Sign In</title>
   <link rel="stylesheet" href="css/styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -126,7 +126,9 @@
 <body>
   <div class="auth-container">
     <div class="auth-card">
-      <div class="auth-logo">LogicPlay</div>
+      <div style="text-align:center;margin-bottom:4px;">
+        <img src="wenbotlogo.png" alt="WenBot" style="height:80px;mix-blend-mode:lighten;">
+      </div>
       <div class="auth-subtitle">Streamer Tools</div>
 
       <div class="auth-tabs">
@@ -181,7 +183,7 @@
     function onAuthReady(user) {
       // Already logged in — check if onboarded
       if (fb.streamerProfile && fb.streamerProfile.onboarded) {
-        window.location.href = "index.html";
+        window.location.href = "dashboard.html";
       } else {
         window.location.href = "setup.html";
       }

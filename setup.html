@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LogicPlay - Setup</title>
+  <title>WenBot - Setup</title>
   <link rel="stylesheet" href="css/styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -122,7 +122,9 @@
 <body>
   <div class="setup-container">
     <div class="setup-card">
-      <div class="setup-logo">WenBot</div>
+      <div style="text-align:center;margin-bottom:4px;">
+        <img src="wenbotlogo.png" alt="WenBot" style="height:80px;mix-blend-mode:lighten;">
+      </div>
       <div class="setup-subtitle">Let's get you set up</div>
       <div class="setup-step">Connect your Kick channel and affiliate platform</div>
 
@@ -151,7 +153,7 @@
       <form class="setup-form" onsubmit="handleSetup(event)">
         <div class="setup-field" id="kickManualField">
           <label>Kick Channel Username</label>
-          <input type="text" id="setupKickChannel" required placeholder="e.g. flloozy">
+          <input type="text" id="setupKickChannel" required placeholder="e.g. yourchannel">
           <span class="hint">Or type your Kick username manually</span>
         </div>
 
@@ -179,6 +181,18 @@
           <input type="text" id="setupDisplayName" placeholder="How viewers see your name">
         </div>
 
+        <div class="setup-field">
+          <label>Points Currency Name</label>
+          <input type="text" id="setupCurrencyName" placeholder="e.g. Chips, Skulls, Coins" maxlength="20">
+          <span class="hint">What viewers earn for chatting (default: points)</span>
+        </div>
+
+        <div class="setup-field">
+          <label>Points Per Message</label>
+          <input type="number" id="setupPointsPerMessage" placeholder="1" min="0" max="100" value="1">
+          <span class="hint">How many points viewers earn per chat message</span>
+        </div>
+
         <button type="submit" class="btn btn-accent setup-submit" id="setupBtn">Complete Setup</button>
       </form>
 
@@ -197,7 +211,7 @@
   <script>
     function onAuthReady(user) {
       if (fb.streamerProfile && fb.streamerProfile.onboarded) {
-        window.location.href = "index.html";
+        window.location.href = "dashboard.html";
         return;
       }
       if (fb.streamerProfile) {
@@ -256,20 +270,19 @@
     function updateProviderInfo() {
       const provider = document.getElementById("setupProvider").value;
       const label = document.getElementById("apiKeyLabel");
-      const hint = document.getElementById("apiKeyHint");
-      const info = document.getElementById("providerInfo");
+      const hint  = document.getElementById("apiKeyHint");
+      const info  = document.getElementById("providerInfo");
       const input = document.getElementById("setupApiKey");
-
       if (provider === "gambulls") {
         label.textContent = "Gambulls Streamer API Key";
-        hint.textContent = "Found in your Gambulls streamer dashboard";
+        hint.textContent  = "Found in your Gambulls streamer dashboard";
         input.placeholder = "sk_...";
-        info.innerHTML = '<strong>Where to find this:</strong><br>Log into Gambulls &rarr; Streamer Dashboard &rarr; API Settings &rarr; copy your Streamer API Key. It starts with <strong>sk_</strong>';
+        info.innerHTML    = '<strong>Where to find this:</strong><br>Log into Gambulls &rarr; Streamer Dashboard &rarr; API Settings &rarr; copy your Streamer API Key. It starts with <strong>sk_</strong>';
       } else if (provider === "csbattle") {
         label.textContent = "CSBattle Affiliate ID";
-        hint.textContent = "Found in your CSBattle affiliate dashboard";
+        hint.textContent  = "Found in your CSBattle affiliate dashboard";
         input.placeholder = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx";
-        info.innerHTML = '<strong>Where to find this:</strong><br>Log into CSBattle &rarr; Affiliate Dashboard &rarr; copy your Affiliate ID (UUID format).';
+        info.innerHTML    = '<strong>Where to find this:</strong><br>Log into CSBattle &rarr; Affiliate Dashboard &rarr; copy your Affiliate ID (UUID format).';
       }
     }
 
@@ -286,30 +299,29 @@
       btn.textContent = "Saving...";
 
       try {
-        const kickChannel = document.getElementById("setupKickChannel").value.trim().toLowerCase();
-        const provider = document.getElementById("setupProvider").value;
-        const apiKey = document.getElementById("setupApiKey").value.trim();
-        const displayName = document.getElementById("setupDisplayName").value.trim();
+        const kickChannel      = document.getElementById("setupKickChannel").value.trim().toLowerCase();
+        const provider         = document.getElementById("setupProvider").value;
+        const apiKey           = document.getElementById("setupApiKey").value.trim();
+        const displayName      = document.getElementById("setupDisplayName").value.trim();
+        const currencyName     = document.getElementById("setupCurrencyName").value.trim() || "points";
+        const pointsPerMessage = parseInt(document.getElementById("setupPointsPerMessage").value, 10) || 1;
 
         if (!kickChannel) throw new Error("Enter your Kick channel username.");
-        if (!apiKey) throw new Error("Enter your API key.");
+        if (!apiKey) throw new Error("Enter your affiliate API key.");
 
-        // Save streamer profile
         await saveStreamerProfile({
-          kickChannel: kickChannel,
+          kickChannel,
           displayName: displayName || kickChannel,
           activeProvider: provider,
+          currencyName,
+          pointsPerMessage,
           onboarded: true,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
 
-        // Save provider config
-        await saveProviderConfig(provider, {
-          apiKey: apiKey,
-          enabled: true,
-        });
+        await saveProviderConfig(provider, { apiKey, enabled: true });
 
-        window.location.href = "index.html";
+        window.location.href = "dashboard.html";
       } catch (err) {
         showSetupError(err.message);
         btn.disabled = false;
