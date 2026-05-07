@@ -421,15 +421,20 @@
 
       <div class="grid-2">
         <div class="card">
-          <div class="card-title">🎁 Quick Start Giveaway</div>
-          <p style="color:var(--text-dim);font-size:12px;margin-bottom:16px;">WenBot will announce the giveaway in your Kick chat immediately.</p>
-          <div class="giveaway-type-row" style="justify-content:flex-start;margin-bottom:12px;">
-            <button class="type-btn active" id="quickTypeCode" onclick="setQuickType('code')">Code Users</button>
-            <button class="type-btn" id="quickTypeEveryone" onclick="setQuickType('everyone')">Everyone</button>
+          <div class="card-title">🎁 Giveaway</div>
+          <div id="overviewGwInactive">
+            <p style="color:var(--text-dim);font-size:12px;margin-bottom:16px;">No active giveaway. Go to the Giveaway page to configure and launch.</p>
+            <button class="btn btn-accent" style="width:100%;" onclick="showPage('giveaway', document.querySelector('.nav-item[onclick*=giveaway]'))">⚙️ Configure Giveaway</button>
           </div>
-          <button class="btn btn-accent btn-xl" style="width:100%;" id="quickStartBtn" onclick="quickStartGiveaway()">
-            🎉 Start Giveaway
-          </button>
+          <div id="overviewGwActive" style="display:none;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <div class="status-dot online"></div>
+              <span style="font-size:13px;color:var(--green);font-weight:600;">Giveaway LIVE</span>
+            </div>
+            <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">Type: <strong id="overviewGwType" style="color:var(--bright);">—</strong></div>
+            <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Keyword: <strong id="overviewGwKeyword" style="color:var(--accent);">!join</strong></div>
+            <button class="btn btn-danger" style="width:100%;" onclick="showPage('giveaway', document.querySelector('.nav-item[onclick*=giveaway]'))">View Giveaway →</button>
+          </div>
         </div>
 
         <div class="card">
@@ -448,7 +453,22 @@
         <p>Configure and start — WenBot announces in chat and collects entries automatically.</p>
         <div class="giveaway-type-row">
           <button class="type-btn active" id="typeCode" onclick="setType('code')">🔑 Code Users</button>
+          <button class="type-btn" id="typeVerified" onclick="setType('verified')">✅ Verified Users</button>
           <button class="type-btn" id="typeEveryone" onclick="setType('everyone')">🌐 Everyone</button>
+        </div>
+        <div id="verifiedReqRow" style="display:none;margin-bottom:16px;">
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">Require verification from:</div>
+          <div style="display:flex;gap:16px;justify-content:center;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer;">
+              <input type="checkbox" id="verifiedCasinoCheck" checked style="accent-color:var(--accent);width:14px;height:14px;">
+              Casino Verified
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer;">
+              <input type="checkbox" id="verifiedDiscordCheck" style="accent-color:var(--accent);width:14px;height:14px;">
+              Discord Verified
+            </label>
+          </div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">Casino = linked via !verify · Discord = verified in your server</div>
         </div>
         <button class="btn btn-accent btn-xl" id="startGiveawayBtn" onclick="startGiveaway()">🎉 Start Giveaway</button>
         <button class="btn btn-danger" id="stopGiveawayBtn" style="display:none;margin-left:10px;" onclick="stopGiveaway()">⏹ Stop Giveaway</button>
@@ -486,6 +506,13 @@
               <input type="range" id="wagerLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('wagerLuckVal').textContent=this.value+'x'">
               <div class="hint">Higher wagerers get up to 5x more entries</div>
             </div>
+          </div>
+          <div class="toggle-row" style="margin-top:12px;">
+            <div class="toggle-info">
+              <div class="toggle-label">Subscribers Only</div>
+              <div class="toggle-desc">Only channel subscribers can enter (enforced via Kick badge)</div>
+            </div>
+            <div class="toggle" id="toggleSubOnly" onclick="toggleOption(this)"></div>
           </div>
         </div>
 
@@ -944,6 +971,27 @@ function onAuthReady(user) {
 
   loadVerifiedCount();
   loadProviderSettings();
+
+  // Restore giveaway state if it was active before refresh
+  if (profile?.giveawayActive) {
+    giveawayActive = true;
+    currentGiveawayType = profile.giveawayType || 'code';
+    setType(currentGiveawayType);
+    if (profile.giveawayKeyword) document.getElementById('giveawayKeyword').value = profile.giveawayKeyword;
+    if (profile.giveawayMinWager > 0) {
+      document.getElementById('toggleWagerReq').classList.add('on');
+      document.getElementById('wagerReqFields').style.display = 'block';
+      document.getElementById('minWagerInput').value = profile.giveawayMinWager;
+    }
+    if (profile.giveawaySubOnly) document.getElementById('toggleSubOnly').classList.add('on');
+    if (profile.giveawayVerifiedCasino) document.getElementById('verifiedCasinoCheck').checked = true;
+    if (profile.giveawayVerifiedDiscord) document.getElementById('verifiedDiscordCheck').checked = true;
+    updateGiveawayStatus(true);
+    document.getElementById('startGiveawayBtn').style.display = 'none';
+    document.getElementById('stopGiveawayBtn').style.display = '';
+    document.getElementById('pickWinnerBtn').disabled = false;
+    subscribeEntries();
+  }
 }
 
 function onAuthNotLoggedIn() { window.location.href = 'login.html'; }
@@ -957,21 +1005,14 @@ let entriesUnsub = null;
 
 function setType(type) {
   currentGiveawayType = type;
-  ['code','everyone'].forEach(t => {
+  ['code','verified','everyone'].forEach(t => {
     document.getElementById('type'+t.charAt(0).toUpperCase()+t.slice(1))?.classList.toggle('active', t === type);
   });
-  // Update wager hint text
+  document.getElementById('verifiedReqRow').style.display = type === 'verified' ? 'block' : 'none';
   const hint = document.getElementById('wagerReqHint');
   if (hint) hint.textContent = type === 'code'
     ? 'Code users: verified against leaderboard API'
-    : 'Everyone: minimum stated in announcement (honor system)';
-}
-
-function setQuickType(type) {
-  currentGiveawayType = type;
-  ['code','everyone'].forEach(t => {
-    document.getElementById('quickType'+t.charAt(0).toUpperCase()+t.slice(1))?.classList.toggle('active', t === type);
-  });
+    : 'Minimum stated in announcement (honor system)';
 }
 
 function toggleWagerReq(el) {
@@ -985,7 +1026,10 @@ async function startGiveaway() {
   const keyword   = (document.getElementById('giveawayKeyword')?.value.trim() || '!join');
   const wagerOn   = document.getElementById('toggleWagerReq')?.classList.contains('on');
   const minWager  = wagerOn ? (parseInt(document.getElementById('minWagerInput')?.value, 10) || 0) : 0;
-  const wagerLuck = parseInt(document.getElementById('wagerLuckSlider')?.value, 10) || 1;
+  const wagerLuck       = parseInt(document.getElementById('wagerLuckSlider')?.value, 10) || 1;
+  const subOnly         = document.getElementById('toggleSubOnly')?.classList.contains('on') || false;
+  const verifiedCasino  = document.getElementById('verifiedCasinoCheck')?.checked || false;
+  const verifiedDiscord = document.getElementById('verifiedDiscordCheck')?.checked || false;
 
   giveawayActive = true;
   entries = [];
@@ -995,25 +1039,29 @@ async function startGiveaway() {
   document.getElementById('startGiveawayBtn').style.display = 'none';
   document.getElementById('stopGiveawayBtn').style.display = '';
   document.getElementById('pickWinnerBtn').disabled = false;
-  document.getElementById('giveawayPill').style.display = '';
 
   // Start real-time entries listener
   subscribeEntries();
 
   const typeLabel = currentGiveawayType === 'code'
     ? `Verified code users only — type ${keyword} to enter`
+    : currentGiveawayType === 'verified'
+    ? `Verified users only — type ${keyword} to enter`
     : `Everyone welcome — type ${keyword} to enter`;
   const minText = minWager > 0 ? ` | Min wager: $${minWager}` : '';
   const announceMsg = `🎉 Giveaway is LIVE! ${typeLabel}${minText}`;
 
   await saveStreamerProfile({
-    giveawayActive:     true,
-    giveawayType:       currentGiveawayType,
-    giveawayKeyword:    keyword,
-    giveawayMinWager:   minWager,
-    giveawayWagerLuck:  wagerLuck,
-    pendingChatMessage: announceMsg,
-    pendingChatTs:      Date.now(),
+    giveawayActive:          true,
+    giveawayType:            currentGiveawayType,
+    giveawayKeyword:         keyword,
+    giveawayMinWager:        minWager,
+    giveawayWagerLuck:       wagerLuck,
+    giveawaySubOnly:         subOnly,
+    giveawayVerifiedCasino:  verifiedCasino,
+    giveawayVerifiedDiscord: verifiedDiscord,
+    pendingChatMessage:      announceMsg,
+    pendingChatTs:           Date.now(),
   });
   flash('🎉 Giveaway started! WenBot is announcing in chat.');
 }
@@ -1028,7 +1076,6 @@ async function stopGiveaway() {
   updateGiveawayStatus(false);
   document.getElementById('startGiveawayBtn').style.display = '';
   document.getElementById('stopGiveawayBtn').style.display = 'none';
-  document.getElementById('giveawayPill').style.display = 'none';
   if (entriesUnsub) { entriesUnsub(); entriesUnsub = null; }
   await saveStreamerProfile({ giveawayActive: false, pendingChatMessage: '🔒 Giveaway entries are now closed!', pendingChatTs: Date.now() });
   flash('Giveaway stopped.', 'success');
@@ -1053,14 +1100,25 @@ function subscribeEntries() {
 function updateGiveawayStatus(active) {
   const dot = document.getElementById('giveawayDot');
   const txt = document.getElementById('giveawayStatusText');
+  const typeLabel = currentGiveawayType === 'code' ? 'Code Users' : currentGiveawayType === 'verified' ? 'Verified Users' : 'Everyone';
   if (active) {
     dot.classList.add('online'); dot.classList.remove('offline');
-    txt.textContent = 'Giveaway LIVE — ' + (currentGiveawayType === 'code' ? 'Code Users' : 'Everyone') + ' — collecting entries';
+    txt.textContent = `Giveaway LIVE — ${typeLabel} — collecting entries`;
     txt.style.color = 'var(--green)';
+    // Update overview card
+    document.getElementById('overviewGwInactive').style.display = 'none';
+    document.getElementById('overviewGwActive').style.display = 'block';
+    document.getElementById('overviewGwType').textContent = typeLabel;
+    const kw = document.getElementById('giveawayKeyword')?.value || '!join';
+    document.getElementById('overviewGwKeyword').textContent = kw;
+    document.getElementById('giveawayPill').style.display = '';
   } else {
     dot.classList.remove('online');
     txt.textContent = 'No active giveaway';
     txt.style.color = 'var(--text-dim)';
+    document.getElementById('overviewGwInactive').style.display = 'block';
+    document.getElementById('overviewGwActive').style.display = 'none';
+    document.getElementById('giveawayPill').style.display = 'none';
   }
 }
 
