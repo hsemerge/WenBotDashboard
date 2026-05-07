@@ -151,7 +151,7 @@
       align-items: center;
       padding-top: 64px;
       position: relative;
-      overflow: hidden;
+      overflow: visible;
     }
 
     .hero::before {
@@ -172,6 +172,7 @@
       gap: 64px;
       align-items: center;
       width: 100%;
+      padding-right: 120px;
     }
 
     .hero-badge {
@@ -236,6 +237,21 @@
       color: var(--text-dim);
       text-transform: uppercase;
       letter-spacing: 0.5px;
+    }
+
+    /* Chat mock wrapper — lets the bot image hang off the right edge */
+    .chat-mock-wrap {
+      position: relative;
+    }
+
+    .chat-bot-img {
+      position: absolute;
+      right: -130px;
+      bottom: -30px;
+      width: 240px;
+      pointer-events: none;
+      z-index: 2;
+      filter: drop-shadow(0 8px 32px rgba(0,229,255,0.25));
     }
 
     /* Chat mock */
@@ -797,47 +813,50 @@
       </div>
 
       <!-- Chat mock -->
-      <div class="chat-mock">
-        <div class="chat-mock-header">
-          <div class="chat-dot" style="background:#ff4757;"></div>
-          <div class="chat-dot" style="background:#ffd700;"></div>
-          <div class="chat-dot" style="background:#00ff88;"></div>
-          <span style="margin-left:6px;font-size:12px;color:#8b949e;">Kick Chat — yourstream</span>
+      <div class="chat-mock-wrap">
+        <div class="chat-mock">
+          <div class="chat-mock-header">
+            <div class="chat-dot" style="background:#ff4757;"></div>
+            <div class="chat-dot" style="background:#ffd700;"></div>
+            <div class="chat-dot" style="background:#00ff88;"></div>
+            <span style="margin-left:6px;font-size:12px;color:#8b949e;">Kick Chat — yourstream</span>
+          </div>
+          <div class="chat-mock-body">
+            <div class="chat-msg mod">
+              <div class="chat-msg-user">🔴 StreamerName</div>
+              <div class="chat-msg-text">!giveaway start wager</div>
+            </div>
+            <div class="chat-msg bot">
+              <div class="chat-msg-user">🤖 WenBot</div>
+              <div class="chat-msg-text">🎉 Giveaway started! Type <strong>!join</strong> to enter. Top wagers get bonus entries!</div>
+            </div>
+            <div class="chat-msg viewer1">
+              <div class="chat-msg-user">💜 viewer_x</div>
+              <div class="chat-msg-text">!join</div>
+            </div>
+            <div class="chat-msg bot">
+              <div class="chat-msg-user">🤖 WenBot</div>
+              <div class="chat-msg-text">✅ @viewer_x entered! Wager: $4,210 — <strong>5x entries</strong> added.</div>
+            </div>
+            <div class="chat-msg viewer2">
+              <div class="chat-msg-user">💚 slot_king99</div>
+              <div class="chat-msg-text">!points</div>
+            </div>
+            <div class="chat-msg bot">
+              <div class="chat-msg-user">🤖 WenBot</div>
+              <div class="chat-msg-text">@slot_king99 has <strong>2,850 Chips</strong> 🪙</div>
+            </div>
+            <div class="chat-msg viewer3">
+              <div class="chat-msg-user">🥇 bigroller</div>
+              <div class="chat-msg-text">!store</div>
+            </div>
+            <div class="chat-msg bot">
+              <div class="chat-msg-user">🤖 WenBot</div>
+              <div class="chat-msg-text">🛒 Store: <strong>Free Spin</strong> (500pts) · <strong>Shoutout</strong> (1000pts) · <strong>Song Request</strong> (750pts)</div>
+            </div>
+          </div>
         </div>
-        <div class="chat-mock-body">
-          <div class="chat-msg mod">
-            <div class="chat-msg-user">🔴 StreamerName</div>
-            <div class="chat-msg-text">!giveaway start wager</div>
-          </div>
-          <div class="chat-msg bot">
-            <div class="chat-msg-user">🤖 WenBot</div>
-            <div class="chat-msg-text">🎉 Giveaway started! Type <strong>!enter</strong> to join. Top wagers get bonus entries!</div>
-          </div>
-          <div class="chat-msg viewer1">
-            <div class="chat-msg-user">💜 viewer_x</div>
-            <div class="chat-msg-text">!verify GambullsUsername</div>
-          </div>
-          <div class="chat-msg bot">
-            <div class="chat-msg-user">🤖 WenBot</div>
-            <div class="chat-msg-text">✅ @viewer_x verified! Wager: $4,210 — 5x entries added.</div>
-          </div>
-          <div class="chat-msg viewer2">
-            <div class="chat-msg-user">💚 slot_king99</div>
-            <div class="chat-msg-text">!points</div>
-          </div>
-          <div class="chat-msg bot">
-            <div class="chat-msg-user">🤖 WenBot</div>
-            <div class="chat-msg-text">@slot_king99 has <strong>2,850 Chips</strong> 🪙</div>
-          </div>
-          <div class="chat-msg viewer3">
-            <div class="chat-msg-user">🥇 bigroller</div>
-            <div class="chat-msg-text">!redeem freespin</div>
-          </div>
-          <div class="chat-msg bot">
-            <div class="chat-msg-user">🤖 WenBot</div>
-            <div class="chat-msg-text">🎰 @bigroller redeemed <strong>Free Spin</strong>! Added to queue.</div>
-          </div>
-        </div>
+        <img src="wenbotsidebar.png" alt="" class="chat-bot-img">
       </div>
     </div>
   </section>
