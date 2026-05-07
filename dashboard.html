@@ -1086,12 +1086,13 @@ function subscribeEntries() {
   const uid = fb.currentUser?.uid;
   if (!uid) return;
   entriesUnsub = fb.db.collection('streamers').doc(uid)
-    .collection('giveaway_entries').onSnapshot(snap => {
-      entries = snap.docs.map(d => ({
-        username: d.data().kickName || d.id,
-        wager:    d.data().wager    || 0,
-        tickets:  1 + (d.data().extraEntries || 0),
-        kickKey:  d.id,
+    .collection('giveaway_state').doc('snapshot').onSnapshot(snap => {
+      if (!snap.exists) { entries = []; renderEntries(); return; }
+      entries = (snap.data().entries || []).map(e => ({
+        username: e.kickName || e.kickKey,
+        wager:    e.wager   || 0,
+        tickets:  e.tickets || 1,
+        kickKey:  e.kickKey,
       }));
       renderEntries();
     });
@@ -1152,11 +1153,6 @@ function pickWinner() {
   document.getElementById('rerollBtn').disabled = false;
   flash('🏆 Winner picked: ' + winner.username);
   addRecentWinner(winner.username);
-  // Remove winner from Firestore entries so they don't appear again
-  const uid = fb.currentUser?.uid;
-  if (uid && winner.kickKey) {
-    fb.db.collection('streamers').doc(uid).collection('giveaway_entries').doc(winner.kickKey).delete().catch(() => {});
-  }
 }
 
 function rerollWinner() { winner = null; document.getElementById('winnerArea').innerHTML = ''; pickWinner(); }
