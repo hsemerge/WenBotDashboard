@@ -217,6 +217,46 @@
     .entry-wager { color: var(--green); font-size: 11px; font-weight: 600; }
     .entry-tickets { background: rgba(0,229,255,0.1); color: var(--accent); font-size: 10px; padding: 1px 6px; border-radius: 4px; font-weight: 700; }
 
+    /* ── DRUM / SLOT MACHINE ── */
+    .drum-wrap { padding: 8px 0 4px; }
+    .drum-window {
+      position: relative; height: 120px; overflow: hidden;
+      border-radius: 10px; border: 1px solid var(--border);
+      background: var(--bg-card);
+    }
+    .drum-highlight {
+      position: absolute; top: 50%; left: 0; right: 0;
+      height: 40px; transform: translateY(-50%);
+      background: rgba(0,229,255,0.06);
+      border-top: 1px solid rgba(0,229,255,0.2);
+      border-bottom: 1px solid rgba(0,229,255,0.2);
+      pointer-events: none; z-index: 2;
+    }
+    .drum-shine-top {
+      position: absolute; top: 0; left: 0; right: 0; height: 40px;
+      background: linear-gradient(to bottom, var(--bg-card), transparent);
+      z-index: 3; pointer-events: none;
+    }
+    .drum-shine-bottom {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 40px;
+      background: linear-gradient(to top, var(--bg-card), transparent);
+      z-index: 3; pointer-events: none;
+    }
+    .drum-list { position: absolute; left: 0; right: 0; top: 0; }
+    .drum-item {
+      height: 40px; display: flex; align-items: center; justify-content: center;
+      font-family: 'Exo 2', sans-serif; font-size: 15px; font-weight: 700;
+      color: var(--text-dim); white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis; padding: 0 16px;
+    }
+    .drum-item.drum-winner { color: var(--gold); font-size: 17px; }
+    .drum-item.drum-placeholder { color: var(--border); font-size: 20px; }
+    @keyframes winnerPulse {
+      0%,100% { text-shadow: 0 0 10px rgba(255,215,0,0.4); }
+      50%      { text-shadow: 0 0 30px rgba(255,215,0,0.9), 0 0 60px rgba(255,215,0,0.4); }
+    }
+    .drum-item.drum-winner.landed { animation: winnerPulse 1.5s ease-in-out infinite; }
+
     .winner-display {
       background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(0,229,255,0.05));
       border: 1px solid rgba(255,215,0,0.3);
@@ -477,6 +517,7 @@
       <div class="giveaway-status-bar" id="giveawayStatusBar">
         <div class="status-dot" id="giveawayDot"></div>
         <span id="giveawayStatusText" style="font-size:13px;color:var(--text-dim);">No active giveaway</span>
+        <span id="gwCountdown" style="display:none;margin-left:12px;font-size:13px;font-weight:700;color:var(--gold);font-family:'Exo 2',sans-serif;"></span>
         <span style="margin-left:auto;font-size:12px;color:var(--text-dim);">Entries: <strong id="entryCountBadge" style="color:var(--bright);">0</strong></span>
       </div>
 
@@ -487,6 +528,19 @@
             <label>Entry Keyword</label>
             <input type="text" id="giveawayKeyword" value="!join" placeholder="!join">
             <div class="hint">Viewers type this in chat to enter. Default: !join</div>
+          </div>
+          <div class="field">
+            <label>Duration</label>
+            <select id="giveawayDuration" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;width:100%;font-family:'Inter',sans-serif;">
+              <option value="0">No Timer — close manually</option>
+              <option value="60">1 minute</option>
+              <option value="120">2 minutes</option>
+              <option value="180">3 minutes</option>
+              <option value="300">5 minutes</option>
+              <option value="600">10 minutes</option>
+              <option value="custom">Custom...</option>
+            </select>
+            <input type="number" id="giveawayDurationCustom" placeholder="Seconds" min="10" style="display:none;margin-top:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;width:100%;font-family:'Inter',sans-serif;">
           </div>
           <div class="toggle-row">
             <div class="toggle-info">
@@ -517,12 +571,27 @@
         </div>
 
         <div class="card">
-          <div class="card-title">🎯 Winner Picker</div>
-          <div id="winnerArea">
-            <div style="color:var(--text-dim);font-size:12px;margin-bottom:16px;">Start a giveaway and collect entries first.</div>
+          <div class="card-title">🎰 Winner Picker</div>
+          <div class="drum-wrap" id="drumWrap">
+            <div class="drum-window">
+              <div class="drum-shine-top"></div>
+              <div class="drum-shine-bottom"></div>
+              <div class="drum-highlight"></div>
+              <div class="drum-list" id="drumList">
+                <div class="drum-item drum-placeholder">—</div>
+              </div>
+            </div>
           </div>
-          <button class="btn btn-accent" style="width:100%;margin-top:8px;" id="pickWinnerBtn" onclick="pickWinner()" disabled>🏆 Pick Winner</button>
-          <button class="btn btn-ghost" style="width:100%;margin-top:6px;" id="rerollBtn" onclick="rerollWinner()" disabled>🔄 Reroll</button>
+          <div id="winnerReveal" style="display:none;text-align:center;padding:10px 0 4px;">
+            <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">🏆 Winner</div>
+            <div id="winnerRevealName" style="font-family:'Exo 2',sans-serif;font-size:20px;font-weight:900;color:var(--gold);text-shadow:0 0 20px rgba(255,215,0,0.5);"></div>
+            <div id="winnerRevealDetail" style="font-size:11px;color:var(--text-dim);margin-top:3px;"></div>
+          </div>
+          <button class="btn btn-accent" style="width:100%;margin-top:12px;" id="pickWinnerBtn" onclick="spinPicker()" disabled>🎰 Spin to Pick Winner</button>
+          <button class="btn btn-ghost" style="width:100%;margin-top:6px;" id="rerollBtn" onclick="spinPicker()" disabled>🔄 Reroll</button>
+          <div style="margin-top:10px;text-align:center;">
+            <a href="#" target="_blank" id="overlayLink" style="font-size:11px;color:var(--accent);text-decoration:none;opacity:0.7;">🖥 OBS Overlay URL</a>
+          </div>
         </div>
       </div>
 
@@ -972,6 +1041,14 @@ function onAuthReady(user) {
   loadVerifiedCount();
   loadProviderSettings();
 
+  // Set OBS overlay link using the streamer's kick channel
+  const chan = profile?.kickChannel || '';
+  const overlayLink = document.getElementById('overlayLink');
+  if (overlayLink && chan) {
+    overlayLink.href = `/overlay-winner.html?channel=${encodeURIComponent(chan)}`;
+    overlayLink.textContent = '🖥 OBS Overlay URL';
+  }
+
   // Restore giveaway state if it was active before refresh
   if (profile?.giveawayActive) {
     giveawayActive = true;
@@ -986,6 +1063,12 @@ function onAuthReady(user) {
     if (profile.giveawaySubOnly) document.getElementById('toggleSubOnly').classList.add('on');
     if (profile.giveawayVerifiedCasino) document.getElementById('verifiedCasinoCheck').checked = true;
     if (profile.giveawayVerifiedDiscord) document.getElementById('verifiedDiscordCheck').checked = true;
+    // Restore active countdown if duration was set and time hasn't expired
+    if (profile.giveawayDuration > 0 && profile.giveawayStartedAt) {
+      const elapsed = Math.floor((Date.now() - profile.giveawayStartedAt) / 1000);
+      const remaining = profile.giveawayDuration - elapsed;
+      if (remaining > 0) startCountdown(remaining);
+    }
     updateGiveawayStatus(true);
     document.getElementById('startGiveawayBtn').style.display = 'none';
     document.getElementById('stopGiveawayBtn').style.display = '';
@@ -999,9 +1082,40 @@ initFirebase();
 
 // ── GIVEAWAY ──
 let giveawayActive = false;
-let entries = [];  // populated from Firestore real-time listener
+let entries = [];
 let winner = null;
 let entriesUnsub = null;
+let gwCountdownInterval = null;
+let gwEndTime = null;
+let spinningNow = false;
+
+function startCountdown(durationSecs) {
+  stopCountdown();
+  gwEndTime = Date.now() + durationSecs * 1000;
+  const el = document.getElementById('gwCountdown');
+  el.style.display = 'inline';
+  function tick() {
+    const remaining = Math.max(0, Math.ceil((gwEndTime - Date.now()) / 1000));
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    el.textContent = `⏱ ${m}:${s.toString().padStart(2,'0')}`;
+    if (remaining === 0) { stopCountdown(); el.textContent = '🔒 Closed'; }
+  }
+  tick();
+  gwCountdownInterval = setInterval(tick, 1000);
+}
+
+function stopCountdown() {
+  if (gwCountdownInterval) { clearInterval(gwCountdownInterval); gwCountdownInterval = null; }
+  gwEndTime = null;
+  const el = document.getElementById('gwCountdown');
+  if (el) el.style.display = 'none';
+}
+
+// Duration select — show/hide custom input
+document.getElementById('giveawayDuration').addEventListener('change', function() {
+  document.getElementById('giveawayDurationCustom').style.display = this.value === 'custom' ? 'block' : 'none';
+});
 
 function setType(type) {
   currentGiveawayType = type;
@@ -1030,6 +1144,10 @@ async function startGiveaway() {
   const subOnly         = document.getElementById('toggleSubOnly')?.classList.contains('on') || false;
   const verifiedCasino  = document.getElementById('verifiedCasinoCheck')?.checked || false;
   const verifiedDiscord = document.getElementById('verifiedDiscordCheck')?.checked || false;
+  const durSel          = document.getElementById('giveawayDuration')?.value;
+  const duration        = durSel === 'custom'
+    ? (parseInt(document.getElementById('giveawayDurationCustom')?.value, 10) || 0)
+    : parseInt(durSel, 10) || 0;
 
   giveawayActive = true;
   entries = [];
@@ -1042,6 +1160,9 @@ async function startGiveaway() {
 
   // Start real-time entries listener
   subscribeEntries();
+
+  // Start countdown if duration set
+  if (duration > 0) startCountdown(duration);
 
   const typeLabel = currentGiveawayType === 'code'
     ? `Verified code users only — type ${keyword} to enter`
@@ -1060,6 +1181,8 @@ async function startGiveaway() {
     giveawaySubOnly:         subOnly,
     giveawayVerifiedCasino:  verifiedCasino,
     giveawayVerifiedDiscord: verifiedDiscord,
+    giveawayDuration:        duration,
+    giveawayStartedAt:       Date.now(),
     pendingChatMessage:      announceMsg,
     pendingChatTs:           Date.now(),
   });
@@ -1077,6 +1200,7 @@ async function stopGiveaway() {
   document.getElementById('startGiveawayBtn').style.display = '';
   document.getElementById('stopGiveawayBtn').style.display = 'none';
   if (entriesUnsub) { entriesUnsub(); entriesUnsub = null; }
+  stopCountdown();
   await saveStreamerProfile({ giveawayActive: false, pendingChatMessage: '🔒 Giveaway entries are now closed!', pendingChatTs: Date.now() });
   flash('Giveaway stopped.', 'success');
 }
@@ -1139,23 +1263,72 @@ function renderEntries() {
     </div>`).join('');
 }
 
-function pickWinner() {
+function spinPicker() {
   if (!entries.length) { flash('No entries to pick from.', 'error'); return; }
+  if (spinningNow) return;
+  spinningNow = true;
+  document.getElementById('pickWinnerBtn').disabled = true;
+  document.getElementById('rerollBtn').disabled = true;
+  document.getElementById('winnerReveal').style.display = 'none';
+
+  // Build weighted pool
   const pool = [];
   entries.forEach(e => { for (let i = 0; i < (e.tickets || 1); i++) pool.push(e); });
   winner = pool[Math.floor(Math.random() * pool.length)];
-  document.getElementById('winnerArea').innerHTML = `
-    <div class="winner-display">
-      <div class="trophy">🏆</div>
-      <div class="winner-name">${winner.username}</div>
-      <div class="winner-detail">${winner.wager ? '$'+winner.wager.toLocaleString()+' wagered' : ''}</div>
-    </div>`;
-  document.getElementById('rerollBtn').disabled = false;
-  flash('🏆 Winner picked: ' + winner.username);
-  addRecentWinner(winner.username);
-}
 
-function rerollWinner() { winner = null; document.getElementById('winnerArea').innerHTML = ''; pickWinner(); }
+  // Build drum list: ~40 random + winner in center position
+  const ITEM_H   = 40;
+  const VISIBLE  = 3; // items visible in window
+  const PAD      = Math.floor(VISIBLE / 2); // winner lands in center
+  const spinList = [];
+  for (let i = 0; i < 38; i++) spinList.push(pool[Math.floor(Math.random() * pool.length)]);
+  spinList.push(winner); // winner at index 38
+  const winnerIdx = 38;
+
+  const drumList = document.getElementById('drumList');
+  drumList.style.transition = 'none';
+  drumList.style.transform  = 'translateY(0)';
+  drumList.innerHTML = spinList.map((e, i) =>
+    `<div class="drum-item${i === winnerIdx ? ' drum-winner' : ''}">${e.username}</div>`
+  ).join('');
+
+  // Start position: top of list shows first item centered in window
+  const startY = PAD * ITEM_H;
+  // End position: winner centered in window
+  const endY   = -(winnerIdx * ITEM_H) + PAD * ITEM_H;
+
+  drumList.style.transform = `translateY(${startY}px)`;
+
+  // Kick off spin after a frame
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    drumList.style.transition = 'transform 3.8s cubic-bezier(0.15, 0.85, 0.35, 1.0)';
+    drumList.style.transform  = `translateY(${endY}px)`;
+  }));
+
+  setTimeout(() => {
+    // Add glow to winner item
+    const items = drumList.querySelectorAll('.drum-item');
+    if (items[winnerIdx]) items[winnerIdx].classList.add('landed');
+
+    // Show reveal
+    document.getElementById('winnerRevealName').textContent = winner.username;
+    document.getElementById('winnerRevealDetail').textContent = winner.wager ? `$${winner.wager.toLocaleString()} wagered` : '';
+    document.getElementById('winnerReveal').style.display = 'block';
+
+    document.getElementById('rerollBtn').disabled = false;
+    spinningNow = false;
+    flash('🏆 Winner: ' + winner.username);
+    addRecentWinner(winner.username);
+
+    // Write spin trigger to Firestore so OBS overlay animates
+    const uid = fb.currentUser?.uid;
+    if (uid) {
+      fb.db.collection('streamers').doc(uid).collection('giveaway_state').doc('snapshot')
+        .set({ spinTrigger: { winner: winner.username, wager: winner.wager || 0, triggeredAt: Date.now() } }, { merge: true })
+        .catch(() => {});
+    }
+  }, 4000);
+}
 
 function addRecentWinner(name) {
   const list = document.getElementById('recentWinnersList');

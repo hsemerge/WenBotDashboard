@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WenBot Winner Overlay</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: transparent;
+      font-family: 'Exo 2', 'Inter', sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── SLOT MACHINE ── */
+    .machine {
+      position: relative;
+      width: 380px;
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .machine.visible { opacity: 1; transform: translateY(0); }
+
+    .machine-header {
+      text-align: center;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #00e5ff;
+      text-shadow: 0 0 20px rgba(0,229,255,0.8);
+      margin-bottom: 10px;
+    }
+
+    .machine-body {
+      background: linear-gradient(180deg, #0d1117 0%, #161b22 100%);
+      border: 2px solid #30363d;
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 0 0 40px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,0,0,0.4);
+    }
+
+    .drum-wrap {
+      position: relative;
+      height: 120px;
+      overflow: hidden;
+      border-radius: 8px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+    }
+
+    /* gradient fade top/bottom */
+    .drum-wrap::before, .drum-wrap::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      height: 36px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .drum-wrap::before { top: 0; background: linear-gradient(to bottom, #0d1117, transparent); }
+    .drum-wrap::after  { bottom: 0; background: linear-gradient(to top, #0d1117, transparent); }
+
+    /* center highlight bar */
+    .drum-highlight {
+      position: absolute;
+      top: 50%; left: 0; right: 0;
+      height: 40px;
+      transform: translateY(-50%);
+      border-top: 1px solid rgba(0,229,255,0.35);
+      border-bottom: 1px solid rgba(0,229,255,0.35);
+      background: rgba(0,229,255,0.06);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .drum-list {
+      display: flex;
+      flex-direction: column;
+      will-change: transform;
+    }
+
+    .drum-item {
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: #8b949e;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding: 0 16px;
+    }
+
+    .drum-item.landed {
+      color: #ffd700;
+      text-shadow: 0 0 24px rgba(255,215,0,0.9), 0 0 48px rgba(255,215,0,0.5);
+      animation: winnerPulse 0.6s ease-in-out infinite alternate;
+      font-size: 22px;
+    }
+
+    @keyframes winnerPulse {
+      from { text-shadow: 0 0 16px rgba(255,215,0,0.6), 0 0 32px rgba(255,215,0,0.3); }
+      to   { text-shadow: 0 0 32px rgba(255,215,0,1.0), 0 0 64px rgba(255,215,0,0.7); transform: scale(1.06); }
+    }
+
+    /* ── WINNER REVEAL BANNER ── */
+    .winner-banner {
+      margin-top: 10px;
+      padding: 14px 20px;
+      background: linear-gradient(135deg, rgba(255,215,0,0.12), rgba(255,215,0,0.05));
+      border: 1px solid rgba(255,215,0,0.4);
+      border-radius: 10px;
+      text-align: center;
+      display: none;
+      animation: bannerIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    @keyframes bannerIn {
+      from { opacity: 0; transform: scale(0.85); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    .winner-banner .trophy { font-size: 28px; display: block; margin-bottom: 4px; }
+    .winner-banner .label { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #8b949e; }
+    .winner-banner .name  { font-family: 'Exo 2', sans-serif; font-size: 28px; font-weight: 900; color: #ffd700; text-shadow: 0 0 20px rgba(255,215,0,0.6); margin-top: 2px; }
+    .winner-banner .sub   { font-size: 12px; color: #8b949e; margin-top: 4px; }
+
+    /* ── PARTICLES ── */
+    .particle-container {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .particle {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      opacity: 0;
+      animation: particleFall 2s ease-in forwards;
+    }
+    @keyframes particleFall {
+      0%   { opacity: 1; transform: translateY(-10px) rotate(0deg); }
+      100% { opacity: 0; transform: translateY(100vh) rotate(720deg); }
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="particle-container" id="particles"></div>
+
+<div class="machine" id="machine">
+  <div class="machine-header">🎰 Giveaway Winner</div>
+  <div class="machine-body">
+    <div class="drum-wrap">
+      <div class="drum-highlight"></div>
+      <div class="drum-list" id="drumList"></div>
+    </div>
+    <div class="winner-banner" id="winnerBanner">
+      <span class="trophy">🏆</span>
+      <div class="label">Winner</div>
+      <div class="name" id="winnerName"></div>
+      <div class="sub" id="winnerSub"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+const params  = new URLSearchParams(location.search);
+const channel = params.get('channel') || '';
+
+let lastTriggerAt = 0;
+let animating     = false;
+
+async function init() {
+  if (!channel) {
+    console.warn('overlay-winner: no ?channel= param');
+    return;
+  }
+
+  // Find the streamer uid by kickChannel field
+  const db = firebase.firestore();
+  const snap = await db.collection('streamers')
+    .where('kickChannel', '==', channel)
+    .limit(1)
+    .get();
+
+  if (snap.empty) { console.warn('overlay-winner: streamer not found'); return; }
+  const uid = snap.docs[0].id;
+
+  // Listen to the giveaway_state/snapshot doc
+  db.collection('streamers').doc(uid)
+    .collection('giveaway_state').doc('snapshot')
+    .onSnapshot(doc => {
+      if (!doc.exists) return;
+      const data = doc.data();
+      if (!data.spinTrigger) return;
+      const { winner, wager, triggeredAt } = data.spinTrigger;
+      if (!winner || triggeredAt === lastTriggerAt) return;
+      lastTriggerAt = triggeredAt;
+
+      // Show the machine and spin
+      showMachine();
+      runSpin(winner, wager || 0);
+    });
+}
+
+function showMachine() {
+  document.getElementById('machine').classList.add('visible');
+}
+
+function runSpin(winnerName, wager) {
+  if (animating) return;
+  animating = true;
+
+  const ITEM_H   = 40;
+  const PAD      = 1;
+  const winnerIdx = 38;
+
+  // Fake names pool for visual effect
+  const fakePool = [
+    'xSlayer99','NightWolf','CryptoKing','AceGambler','LuckyDuke',
+    'StarRoller','BigBetBoss','SpinMaster','RNGGod','GoldRush',
+    'VegasVibes','JackpotJoe','HighRoller','BonusHunter','ChipStack',
+    'WildCard','AllIn_Andy','SlotLord','KickChamp','WenFan',
+  ];
+
+  const spinList = [];
+  for (let i = 0; i < 38; i++) spinList.push(fakePool[i % fakePool.length]);
+  spinList.push(winnerName);
+
+  const drumList = document.getElementById('drumList');
+  drumList.style.transition = 'none';
+  drumList.style.transform  = 'translateY(0)';
+  drumList.innerHTML = spinList.map((name, i) =>
+    `<div class="drum-item${i === winnerIdx ? ' drum-winner-slot' : ''}">${name}</div>`
+  ).join('');
+
+  const startY = PAD * ITEM_H;
+  const endY   = -(winnerIdx * ITEM_H) + PAD * ITEM_H;
+
+  drumList.style.transform = `translateY(${startY}px)`;
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    drumList.style.transition = 'transform 3.8s cubic-bezier(0.15, 0.85, 0.35, 1.0)';
+    drumList.style.transform  = `translateY(${endY}px)`;
+  }));
+
+  setTimeout(() => {
+    const items = drumList.querySelectorAll('.drum-item');
+    if (items[winnerIdx]) items[winnerIdx].classList.add('landed');
+
+    // Show banner
+    document.getElementById('winnerName').textContent = winnerName;
+    document.getElementById('winnerSub').textContent  = wager ? `$${Number(wager).toLocaleString()} wagered` : '';
+    document.getElementById('winnerBanner').style.display = 'block';
+
+    spawnParticles();
+    animating = false;
+
+    // Auto-hide after 12 seconds
+    setTimeout(hideMachine, 12000);
+  }, 4000);
+}
+
+function hideMachine() {
+  const machine = document.getElementById('machine');
+  machine.classList.remove('visible');
+  document.getElementById('winnerBanner').style.display = 'none';
+  const drumList = document.getElementById('drumList');
+  drumList.innerHTML = '';
+  drumList.style.transition = 'none';
+  drumList.style.transform  = 'translateY(0)';
+}
+
+function spawnParticles() {
+  const colors = ['#ffd700','#00e5ff','#ff4757','#00ff88','#a78bfa','#ffb347'];
+  const container = document.getElementById('particles');
+  for (let i = 0; i < 60; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left            = Math.random() * 100 + 'vw';
+    p.style.top             = '-10px';
+    p.style.background      = colors[Math.floor(Math.random() * colors.length)];
+    p.style.animationDelay  = (Math.random() * 1.5) + 's';
+    p.style.animationDuration = (1.5 + Math.random() * 1.5) + 's';
+    p.style.width  = (6 + Math.random() * 8) + 'px';
+    p.style.height = (6 + Math.random() * 8) + 'px';
+    container.appendChild(p);
+    p.addEventListener('animationend', () => p.remove());
+  }
+}
+
+init();
+</script>
+</body>
+</html>
