@@ -151,7 +151,7 @@
       align-items: center;
       padding-top: 64px;
       position: relative;
-      overflow: hidden;
+      overflow: visible;
     }
 
     .hero::before {
@@ -175,21 +175,17 @@
     }
 
     .hero-right {
-      display: flex;
-      align-items: flex-end;
-      gap: 0;
-    }
-
-    .hero-right .chat-mock {
-      flex: 1;
-      min-width: 0;
+      position: relative;
     }
 
     .hero-bot-img {
-      height: 480px;
+      position: absolute;
+      left: 100%;
+      bottom: 0;
+      height: 460px;
       width: auto;
-      flex-shrink: 0;
-      display: block;
+      margin-left: 16px;
+      pointer-events: none;
       filter: drop-shadow(0 0 30px rgba(0,229,255,0.12));
     }
 
