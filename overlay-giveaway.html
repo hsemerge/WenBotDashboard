@@ -222,16 +222,27 @@
   </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-<script src="firebase-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyDIFmRUou9_aWJWrQJa8HSoA1MBsndBnqg",
+  authDomain: "logictools.firebaseapp.com",
+  projectId: "logictools",
+  storageBucket: "logictools.firebasestorage.app",
+  messagingSenderId: "814616765484",
+  appId: "1:814616765484:web:6cf9f657fe612c95c19d89"
+});
+</script>
 <script>
 const params  = new URLSearchParams(location.search);
 const channel = params.get('channel') || '';
 
 async function init() {
   if (!channel) return;
+
+  await firebase.auth().signInAnonymously().catch(() => {});
 
   const db   = firebase.firestore();
   const snap = await db.collection('streamers').where('kickChannel', '==', channel).limit(1).get();
