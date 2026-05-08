@@ -176,17 +176,27 @@
 
     .hero-right {
       position: relative;
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      min-height: 520px;
     }
 
     .hero-bot-img {
-      position: absolute;
-      left: 100%;
-      bottom: 0;
-      height: 460px;
+      height: 580px;
       width: auto;
-      margin-left: 16px;
-      pointer-events: none;
-      filter: drop-shadow(0 0 30px rgba(0,229,255,0.12));
+      flex-shrink: 0;
+      filter: drop-shadow(0 0 40px rgba(0,229,255,0.15));
+    }
+
+    .hero-chat-float {
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 300px;
+      z-index: 2;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.7);
     }
 
     .hero-badge {
@@ -812,9 +822,9 @@
         </div>
       </div>
 
-      <!-- Chat mock + bot image side by side -->
+      <!-- Bot image as hero visual, chat mock floating in front -->
       <div class="hero-right">
-        <div class="chat-mock">
+        <div class="chat-mock hero-chat-float">
           <div class="chat-mock-header">
             <div class="chat-dot" style="background:#ff4757;"></div>
             <div class="chat-dot" style="background:#ffd700;"></div>
@@ -861,6 +871,7 @@
 
     </div>
   </section>
+
 
   <div class="glow-line"></div>
 
