@@ -185,9 +185,7 @@ let animating     = false;
 
 // Demo mode — show a test spin immediately
 if (demoMode) {
-  window.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => { showMachine(); runSpin('TestViewer99', 4210); }, 800);
-  });
+  setTimeout(() => { showMachine(); runSpin('TestViewer99', 4210); }, 800);
 }
 
 async function poll() {
