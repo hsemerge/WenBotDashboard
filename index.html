@@ -165,13 +165,21 @@
     }
 
     .hero-inner {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: 0 auto;
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 64px;
+      grid-template-columns: 1fr 360px auto;
+      gap: 48px;
       align-items: center;
       width: 100%;
+    }
+
+    .hero-bot-img {
+      height: 520px;
+      width: auto;
+      display: block;
+      align-self: flex-end;
+      filter: drop-shadow(0 0 40px rgba(0,229,255,0.15));
     }
 
     .hero-badge {
@@ -734,6 +742,7 @@
       .nav-links { display: none; }
       section { padding: 80px 20px; }
       .hero-inner { grid-template-columns: 1fr; gap: 40px; }
+      .hero-bot-img { display: none; }
       .hero-title { font-size: 38px; }
       .features-grid { grid-template-columns: 1fr 1fr; }
       .discord-inner { grid-template-columns: 1fr; }
@@ -774,7 +783,7 @@
         <div class="hero-badge">🎰 Built for Kick Gambling Streamers</div>
         <h1 class="hero-title">The All-In-One<br><span>Streamer Bot</span><br>for Kick</h1>
         <p class="hero-sub">
-          Giveaways, points, leaderboards, raffles, Discord sync, store redemptions, and more — managed entirely through chat commands and a single dashboard.
+          Giveaways, points, wager leaderboards, store redemptions, and casino verification — all running automatically from a single dashboard while you stream.
         </p>
         <div class="hero-actions">
           <a href="login.html" class="btn btn-accent btn-lg">Start Free Today</a>
@@ -786,8 +795,8 @@
             <div class="hero-stat-label">Feature Modules</div>
           </div>
           <div>
-            <div class="hero-stat-num">2</div>
-            <div class="hero-stat-label">Platforms</div>
+            <div class="hero-stat-num">14</div>
+            <div class="hero-stat-label">Casinos Supported</div>
           </div>
           <div>
             <div class="hero-stat-num">24/7</div>
@@ -798,47 +807,50 @@
 
       <!-- Chat mock -->
       <div class="chat-mock">
-          <div class="chat-mock-header">
-            <div class="chat-dot" style="background:#ff4757;"></div>
-            <div class="chat-dot" style="background:#ffd700;"></div>
-            <div class="chat-dot" style="background:#00ff88;"></div>
-            <span style="margin-left:6px;font-size:12px;color:#8b949e;">Kick Chat — yourstream</span>
+        <div class="chat-mock-header">
+          <div class="chat-dot" style="background:#ff4757;"></div>
+          <div class="chat-dot" style="background:#ffd700;"></div>
+          <div class="chat-dot" style="background:#00ff88;"></div>
+          <span style="margin-left:6px;font-size:12px;color:#8b949e;">Kick Chat — yourstream</span>
+        </div>
+        <div class="chat-mock-body">
+          <div class="chat-msg mod">
+            <div class="chat-msg-user">🔴 StreamerName</div>
+            <div class="chat-msg-text">!giveaway start wager</div>
           </div>
-          <div class="chat-mock-body">
-            <div class="chat-msg mod">
-              <div class="chat-msg-user">🔴 StreamerName</div>
-              <div class="chat-msg-text">!giveaway start wager</div>
-            </div>
-            <div class="chat-msg bot">
-              <div class="chat-msg-user">🤖 WenBot</div>
-              <div class="chat-msg-text">🎉 Giveaway started! Type <strong>!enter</strong> to join. Top wagers get bonus entries!</div>
-            </div>
-            <div class="chat-msg viewer1">
-              <div class="chat-msg-user">💜 viewer_x</div>
-              <div class="chat-msg-text">!join</div>
-            </div>
-            <div class="chat-msg bot">
-              <div class="chat-msg-user">🤖 WenBot</div>
-              <div class="chat-msg-text">✅ @viewer_x entered! Wager: $4,210 — 5x entries added.</div>
-            </div>
-            <div class="chat-msg viewer2">
-              <div class="chat-msg-user">💚 slot_king99</div>
-              <div class="chat-msg-text">!points</div>
-            </div>
-            <div class="chat-msg bot">
-              <div class="chat-msg-user">🤖 WenBot</div>
-              <div class="chat-msg-text">@slot_king99 has <strong>2,850 Chips</strong> 🪙</div>
-            </div>
-            <div class="chat-msg viewer3">
-              <div class="chat-msg-user">🥇 bigroller</div>
-              <div class="chat-msg-text">!redeem freespin</div>
-            </div>
-            <div class="chat-msg bot">
-              <div class="chat-msg-user">🤖 WenBot</div>
-              <div class="chat-msg-text">🎰 @bigroller redeemed <strong>Free Spin</strong>! Added to queue.</div>
-            </div>
+          <div class="chat-msg bot">
+            <div class="chat-msg-user">🤖 WenBot</div>
+            <div class="chat-msg-text">🎉 Giveaway started! Type <strong>!join</strong> to enter. Top wagers get bonus entries!</div>
+          </div>
+          <div class="chat-msg viewer1">
+            <div class="chat-msg-user">💜 viewer_x</div>
+            <div class="chat-msg-text">!verify</div>
+          </div>
+          <div class="chat-msg bot">
+            <div class="chat-msg-user">🤖 WenBot</div>
+            <div class="chat-msg-text">@viewer_x verify your Gambulls account here: wenbot.gg/verify?channel=...</div>
+          </div>
+          <div class="chat-msg viewer2">
+            <div class="chat-msg-user">💚 slot_king99</div>
+            <div class="chat-msg-text">!points</div>
+          </div>
+          <div class="chat-msg bot">
+            <div class="chat-msg-user">🤖 WenBot</div>
+            <div class="chat-msg-text">@slot_king99 has <strong>2,850 Chips</strong> 🪙</div>
+          </div>
+          <div class="chat-msg viewer3">
+            <div class="chat-msg-user">🥇 bigroller</div>
+            <div class="chat-msg-text">!redeem freespin</div>
+          </div>
+          <div class="chat-msg bot">
+            <div class="chat-msg-user">🤖 WenBot</div>
+            <div class="chat-msg-text">🎰 @bigroller redeemed <strong>Free Spin</strong>! Added to queue.</div>
           </div>
         </div>
+      </div>
+
+      <!-- Bot image -->
+      <img src="wenfoldedarms.png" alt="WenBot" class="hero-bot-img">
     </div>
   </section>
 
@@ -849,62 +861,62 @@
     <div class="container">
       <div class="section-label">Everything you need</div>
       <h2 class="section-title">One bot. Every feature<br>your stream needs.</h2>
-      <p class="section-sub">WenBot replaces 5 different tools with one unified platform — all running automatically while you focus on streaming.</p>
+      <p class="section-sub">WenBot replaces multiple tools with one unified platform built specifically for Kick gambling streamers — running automatically while you focus on the game.</p>
 
       <div class="features-grid">
         <div class="feature-card">
           <div class="feature-icon">🎁</div>
           <div class="feature-title">Giveaway Bot</div>
-          <div class="feature-desc">Run code-based or wager-based giveaways. Weighted entries, eligibility checks, automatic announcements. Viewers verify their affiliate accounts before entering.</div>
+          <div class="feature-desc">Run code-based or open giveaways. Configurable entry keyword, duration timer, weighted entries by wager amount, and an animated spin picker to reveal winners live on stream.</div>
           <span class="feature-tag tag-free">Free</span>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">🪙</div>
-          <div class="feature-title">Points System</div>
-          <div class="feature-desc">Custom currency per streamer — "Chips", "Skulls", "Coins". Viewers earn by chatting and wagering. Full leaderboard, rank, and gifting commands.</div>
-          <span class="feature-tag tag-pro">Pro</span>
+          <div class="feature-icon">✅</div>
+          <div class="feature-title">Casino Verification</div>
+          <div class="feature-desc">Viewers type <strong>!verify</strong> and get a personal link to connect their casino account to their Kick username. Supports 14 casinos including Gambulls, Stake, Roobet, Rollbit, and more.</div>
+          <span class="feature-tag tag-free">Free</span>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🏆</div>
           <div class="feature-title">Wager Leaderboard</div>
-          <div class="feature-desc">Live leaderboards fed from your favorite casino affiliate. OBS browser source overlay that auto-refreshes. Public shareable URL for your community.</div>
+          <div class="feature-desc">Live monthly wager rankings pulled directly from your casino affiliate API. Public shareable page for your community with a podium, full table, and archived past winners.</div>
           <span class="feature-tag tag-pro">Pro</span>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">🎟️</div>
-          <div class="feature-title">Raffle System</div>
-          <div class="feature-desc">Viewers spend points to buy tickets. Tiered pricing, animated draw, live countdown. Results posted to both Kick chat and Discord automatically.</div>
+          <div class="feature-icon">🪙</div>
+          <div class="feature-title">Points System</div>
+          <div class="feature-desc">Custom channel currency — name it whatever you want. Viewers earn by chatting, check their balance with <strong>!points</strong>, see their rank with <strong>!rank</strong>, and gift points to each other.</div>
           <span class="feature-tag tag-pro">Pro</span>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🛒</div>
           <div class="feature-title">Viewer Store</div>
-          <div class="feature-desc">Streamers create custom items — Free Spins, Shoutouts, VIP roles. Viewers redeem with <strong>!redeem</strong>. Dashboard queue with one-click fulfillment.</div>
+          <div class="feature-desc">Create custom reward items — Free Spins, Shoutouts, VIP access, anything you want. Viewers redeem with <strong>!redeem</strong>. Dashboard queue lets you fulfill with one click.</div>
+          <span class="feature-tag tag-pro">Pro</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎯</div>
+          <div class="feature-title">Guess the Balance</div>
+          <div class="feature-desc">Start a <strong>!guess</strong> session and viewers predict your balance. Closest guess wins points. Great for bonus hunts, big spins, and keeping chat engaged during sessions.</div>
           <span class="feature-tag tag-pro">Pro</span>
         </div>
         <div class="feature-card">
           <div class="feature-icon">💬</div>
           <div class="feature-title">Custom Commands</div>
-          <div class="feature-desc">Create !discord, !socials, !schedule commands. Variable substitution, cooldowns, mod-only flags. Built-in !slots and !coinflip for points-based fun.</div>
+          <div class="feature-desc">Create any command — <strong>!discord</strong>, <strong>!socials</strong>, <strong>!schedule</strong>. Set cooldowns, restrict to mods, and respond instantly in chat. No code needed.</div>
+          <span class="feature-tag tag-pro">Pro</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🖥️</div>
+          <div class="feature-title">OBS Overlays</div>
+          <div class="feature-desc">Browser-source URLs for your stream. Giveaway overlay shows live entry count, winner spin animation plays on screen when you pick a winner. No plugins required.</div>
           <span class="feature-tag tag-pro">Pro</span>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🎮</div>
           <div class="feature-title">Discord Integration</div>
-          <div class="feature-desc">Sync Kick verified users to Discord roles. Post giveaway results, leaderboard updates, and raffle draws to your Discord server automatically.</div>
+          <div class="feature-desc">Sync verified Kick users to Discord roles automatically. Post giveaway results and leaderboard updates to your Discord server. Cross-platform community management. <em style="color:var(--text-dim);">Coming soon.</em></div>
           <span class="feature-tag tag-elite">Elite</span>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🎰</div>
-          <div class="feature-title">Bonus Hunt Tracker</div>
-          <div class="feature-desc">Log bonus buys with game name, buy-in, and live multiplier. Payout calculator, win/loss totals, session history, and OBS overlay widget.</div>
-          <span class="feature-tag tag-elite">Elite</span>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🖥️</div>
-          <div class="feature-title">OBS Overlays</div>
-          <div class="feature-desc">All data served as browser-source URLs. Leaderboard, Points Top 10, Bonus Hunt, Active Giveaway, Raffle Ticker — auto-refreshing, no OBS plugins needed.</div>
-          <span class="feature-tag tag-pro">Pro</span>
         </div>
       </div>
     </div>
@@ -919,15 +931,15 @@
         <div class="section-label">Discord + Kick</div>
         <h2 class="section-title">Your community,<br>fully connected.</h2>
         <p style="color:var(--text-dim);font-size:15px;line-height:1.7;margin-bottom:8px;">
-          WenBot bridges your Kick stream and Discord server in real time. Viewers verify their gambling accounts once in Kick chat — their Discord roles update automatically.
+          WenBot is built to bridge your Kick stream and Discord server. Viewers verify their casino accounts once — and your community stays connected across both platforms automatically.
         </p>
         <ul class="discord-feature-list">
-          <li>Kick chat verification syncs directly to Discord roles</li>
-          <li>Wager tier roles assigned automatically (e.g. "Gold Wagerer" at $10k+)</li>
-          <li>Giveaway and raffle results posted to your Discord announcements channel</li>
-          <li>Slash commands in Discord: /leaderboard, /points, /rank</li>
-          <li>One-click Kick ↔ Discord account linking for verified members</li>
-          <li>Giveaway eligibility checked across both platforms before entry</li>
+          <li>Verified Kick users linked to Discord roles automatically</li>
+          <li>Wager tier roles assigned based on affiliate leaderboard data</li>
+          <li>Giveaway results and winner announcements posted to Discord</li>
+          <li>Leaderboard updates pushed to your Discord channel each month</li>
+          <li>One verification flow covers both Kick and Discord membership</li>
+          <li>Coming soon — full Discord bot with /leaderboard, /points, /rank</li>
         </ul>
       </div>
 
@@ -994,7 +1006,7 @@
         <div class="step">
           <div class="step-num">3</div>
           <div class="step-title">Go Live & Run Features</div>
-          <div class="step-desc">Type <strong>!giveaway start</strong>, viewers type <strong>!verify</strong> and <strong>!points</strong>. Everything works automatically from your dashboard.</div>
+          <div class="step-desc">Type <strong>!giveaway start</strong> in chat, viewers type <strong>!join</strong> to enter and <strong>!verify</strong> to link their casino account. Spin the winner live, right from your dashboard.</div>
         </div>
       </div>
     </div>
@@ -1010,20 +1022,20 @@
       <p class="section-sub">Every feature is built specifically for gambling streamers on Kick — not adapted from Twitch tools.</p>
       <div class="diff-grid">
         <div class="diff-card">
-          <h3>🔗 Affiliate-Native Verification</h3>
-          <p>Viewers verify their casino affiliate usernames directly in chat. WenBot checks their actual wager data before allowing giveaway entry — no faking eligibility.</p>
+          <h3>🔗 14-Casino Verification System</h3>
+          <p>Viewers type !verify in chat and get a personal link to connect their casino username to their Kick account. Supports Gambulls, Stake, Roobet, Rollbit, Gamdom, and 9 more — with live API verification for supported casinos.</p>
         </div>
         <div class="diff-card">
           <h3>⚡ Always-On, No Browser Required</h3>
-          <p>Most bots die when you close a tab. WenBot runs on dedicated servers 24/7. Your channel is monitored and responding even when you're offline.</p>
+          <p>Most bots die when you close a tab. WenBot runs on dedicated servers 24/7. Your channel stays active, giveaways close on time, and viewers get responses even when you're offline.</p>
         </div>
         <div class="diff-card">
-          <h3>🎯 Weighted Giveaway Entries</h3>
-          <p>Higher wagers = more entries, configurable per giveaway. Rewards your biggest supporters fairly while keeping the giveaway exciting for everyone.</p>
+          <h3>🎯 Weighted Entries & Live Spin Picker</h3>
+          <p>Higher wagers = more entries, fully configurable. When you're ready to pick a winner, hit Spin on your dashboard — an animated slot-machine overlay plays live on your stream.</p>
         </div>
         <div class="diff-card">
-          <h3>🔄 Multi-Platform in One Tool</h3>
-          <p>Kick chat, Discord server, and affiliate leaderboard data all in one dashboard. No juggling five different bots or copy-pasting winner names manually.</p>
+          <h3>🔄 Everything in One Dashboard</h3>
+          <p>Giveaways, points, the store, verified users, wager leaderboard, Guess the Balance, and OBS overlays — all managed from a single streamer dashboard. No juggling separate tools.</p>
         </div>
       </div>
     </div>
@@ -1046,13 +1058,13 @@
           <div class="pricing-sub">Forever free</div>
           <div class="pricing-divider"></div>
           <ul class="pricing-features">
-            <li><span class="check">✓</span> Giveaway bot (code & wager)</li>
-            <li><span class="check">✓</span> 1 affiliate provider</li>
-            <li><span class="check">✓</span> 50 verified users</li>
-            <li><span class="check">✓</span> !verify command</li>
-            <li><span class="cross">✗</span> Points system</li>
-            <li><span class="cross">✗</span> Raffle & Store</li>
-            <li><span class="cross">✗</span> OBS Overlays</li>
+            <li><span class="check">✓</span> Giveaway bot (code & open)</li>
+            <li><span class="check">✓</span> Casino verification (!verify)</li>
+            <li><span class="check">✓</span> 1 casino, 50 verified users</li>
+            <li><span class="check">✓</span> Spin picker winner overlay</li>
+            <li><span class="cross">✗</span> Points system & store</li>
+            <li><span class="cross">✗</span> Public leaderboard page</li>
+            <li><span class="cross">✗</span> Guess the Balance</li>
           </ul>
           <a href="login.html" class="btn btn-ghost pricing-cta">Get Started</a>
         </div>
@@ -1060,50 +1072,50 @@
         <div class="pricing-card popular">
           <div class="popular-badge">Most Popular</div>
           <div class="pricing-tier">Pro</div>
-          <div class="pricing-price">$15<span>/mo</span></div>
+          <div class="pricing-price">$30<span>/mo</span></div>
           <div class="pricing-sub">Per streamer</div>
           <div class="pricing-divider"></div>
           <ul class="pricing-features">
             <li><span class="check">✓</span> Everything in Starter</li>
-            <li><span class="check">✓</span> Points system + commands</li>
-            <li><span class="check">✓</span> Wager leaderboard</li>
-            <li><span class="check">✓</span> Raffle system</li>
-            <li><span class="check">✓</span> Viewer store</li>
-            <li><span class="check">✓</span> OBS overlay widgets</li>
+            <li><span class="check">✓</span> Points system + custom currency</li>
+            <li><span class="check">✓</span> Public wager leaderboard</li>
+            <li><span class="check">✓</span> Viewer store & !redeem</li>
+            <li><span class="check">✓</span> Guess the Balance</li>
             <li><span class="check">✓</span> Custom chat commands</li>
+            <li><span class="check">✓</span> OBS overlay widgets</li>
           </ul>
           <a href="login.html" class="btn btn-accent pricing-cta">Start Pro</a>
         </div>
 
         <div class="pricing-card">
-          <div class="pricing-tier">Elite</div>
-          <div class="pricing-price">$30<span>/mo</span></div>
+          <div class="pricing-tier">Streamer</div>
+          <div class="pricing-price">$50<span>/mo</span></div>
           <div class="pricing-sub">Per streamer</div>
           <div class="pricing-divider"></div>
           <ul class="pricing-features">
             <li><span class="check">✓</span> Everything in Pro</li>
-            <li><span class="check">✓</span> Discord bot integration</li>
-            <li><span class="check">✓</span> Wager tier Discord roles</li>
-            <li><span class="check">✓</span> Bonus hunt tracker</li>
-            <li><span class="check">✓</span> Tournaments</li>
+            <li><span class="check">✓</span> Multi-casino leaderboards</li>
             <li><span class="check">✓</span> Unlimited verified users</li>
+            <li><span class="check">✓</span> Past winners archive</li>
             <li><span class="check">✓</span> Priority support</li>
+            <li><span class="check">✓</span> Early access to new features</li>
+            <li><span class="check">✓</span> Custom leaderboard branding</li>
           </ul>
-          <a href="login.html" class="btn btn-outline pricing-cta">Start Elite</a>
+          <a href="login.html" class="btn btn-outline pricing-cta">Start Streamer</a>
         </div>
 
         <div class="pricing-card">
-          <div class="pricing-tier">Agency</div>
-          <div class="pricing-price">$75<span>/mo</span></div>
-          <div class="pricing-sub">Up to 5 streamers</div>
+          <div class="pricing-tier">Elite</div>
+          <div class="pricing-price">$80<span>/mo</span></div>
+          <div class="pricing-sub">Per streamer</div>
           <div class="pricing-divider"></div>
           <ul class="pricing-features">
-            <li><span class="check">✓</span> Everything in Elite</li>
-            <li><span class="check">✓</span> Up to 5 streamers</li>
+            <li><span class="check">✓</span> Everything in Streamer</li>
+            <li><span class="check">✓</span> Discord bot integration</li>
+            <li><span class="check">✓</span> Wager tier Discord roles</li>
+            <li><span class="check">✓</span> Dedicated account manager</li>
             <li><span class="check">✓</span> White-label overlays</li>
-            <li><span class="check">✓</span> Custom branding</li>
-            <li><span class="check">✓</span> Dedicated support</li>
-            <li><span class="check">✓</span> Early access to features</li>
+            <li><span class="check">✓</span> Custom feature requests</li>
             <li><span class="check">✓</span> Multi-channel dashboard</li>
           </ul>
           <a href="login.html" class="btn btn-ghost pricing-cta">Contact Us</a>
