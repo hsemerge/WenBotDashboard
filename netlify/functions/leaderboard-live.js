@@ -64,6 +64,12 @@ exports.handler = async (event) => {
     const streamerDoc = snap.docs[0];
     const streamerData = streamerDoc.data();
 
+    // For public viewers, check leaderboard is enabled; internal=1 bypasses (dashboard)
+    const isInternal = event.queryStringParameters?.internal === "1";
+    if (!isInternal && !streamerData.leaderboardEnabled) {
+      return res(403, { error: "This streamer's leaderboard is not publicly enabled." });
+    }
+
     // Only Gambulls has live API support right now
     if (provider === "gambulls") {
       const providerDoc = await db.collection("streamers").doc(streamerDoc.id)
