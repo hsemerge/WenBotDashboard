@@ -23,11 +23,7 @@
       backdrop-filter: blur(12px);
       box-shadow: 0 0 40px rgba(0,0,0,0.6), 0 0 20px rgba(0,229,255,0.08);
       overflow: hidden;
-      opacity: 0;
-      transform: translateX(-16px);
-      transition: opacity 0.4s ease, transform 0.4s ease;
     }
-    .panel.visible { opacity: 1; transform: translateX(0); }
 
     .panel-header {
       padding: 12px 16px;
@@ -236,7 +232,6 @@ async function fetchData() {
 
 function render(data) {
   if (!data) return;
-  document.getElementById('panel').classList.add('visible');
 
   // Criteria chips
   const chips = [];
