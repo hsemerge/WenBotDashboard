@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wager Leaderboard — WenBot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --bg-panel: #161b22; --bg-card: #1a2030;
+      --border: #30363d; --text: #c9d1d9; --text-dim: #8b949e;
+      --bright: #f0f6fc; --accent: #00e5ff; --accent-glow: rgba(0,229,255,0.2);
+      --green: #00ff88; --gold: #ffd700; --silver: #c0c0c0; --bronze: #cd7f32;
+      --red: #ff4757;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    nav {
+      position: sticky; top: 0; z-index: 10;
+      background: rgba(13,17,23,0.92); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo { font-family: 'Exo 2', sans-serif; font-size: 20px; font-weight: 900; color: var(--accent); text-shadow: 0 0 16px var(--accent-glow); }
+    .nav-right { display: flex; align-items: center; gap: 16px; font-size: 13px; color: var(--text-dim); }
+    .nav-right .casino-badge {
+      background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.2);
+      border-radius: 20px; padding: 4px 14px; color: var(--accent); font-weight: 600;
+    }
+    .kick-link {
+      display: flex; align-items: center; gap: 6px;
+      color: #53fc18; text-decoration: none; font-weight: 600; font-size: 13px;
+    }
+    .kick-link svg { width: 16px; height: 16px; }
+    .kick-link:hover { opacity: 0.8; }
+
+    .hero {
+      text-align: center; padding: 48px 20px 32px;
+      border-bottom: 1px solid var(--border);
+    }
+    .hero-channel {
+      font-family: 'Exo 2', sans-serif; font-size: 13px; font-weight: 700;
+      color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;
+    }
+    .hero-title {
+      font-family: 'Exo 2', sans-serif; font-size: 32px; font-weight: 900;
+      color: var(--bright); margin-bottom: 8px; line-height: 1.1;
+    }
+    .hero-sub { font-size: 14px; color: var(--text-dim); }
+    .hero-stats {
+      display: flex; justify-content: center; gap: 32px; margin-top: 28px; flex-wrap: wrap;
+    }
+    .stat-box {
+      text-align: center; background: var(--bg-panel); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px 24px; min-width: 120px;
+    }
+    .stat-value { font-family: 'Exo 2', sans-serif; font-size: 22px; font-weight: 900; color: var(--accent); }
+    .stat-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; }
+
+    .container { max-width: 860px; margin: 0 auto; padding: 32px 20px 60px; }
+
+    /* Podium */
+    .podium {
+      display: flex; align-items: flex-end; justify-content: center;
+      gap: 12px; margin-bottom: 32px;
+    }
+    .podium-slot { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; max-width: 220px; }
+    .podium-avatar {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--bg-card); border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Exo 2', sans-serif; font-size: 20px; font-weight: 800;
+      color: var(--text-dim); overflow: hidden; flex-shrink: 0;
+    }
+    .podium-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .podium-name { font-weight: 700; font-size: 13px; color: var(--bright); text-align: center; word-break: break-word; }
+    .podium-wagered { font-size: 12px; color: var(--text-dim); }
+    .podium-block {
+      width: 100%; border-radius: 10px 10px 0 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 14px 10px;
+    }
+    .podium-rank-num { font-family: 'Exo 2', sans-serif; font-size: 24px; font-weight: 900; }
+    .slot-1 .podium-avatar { width: 68px; height: 68px; border-color: var(--gold); border-width: 3px; }
+    .slot-1 .podium-block { background: linear-gradient(180deg, rgba(255,215,0,0.15), rgba(255,215,0,0.05)); border: 1px solid rgba(255,215,0,0.3); height: 100px; }
+    .slot-1 .podium-rank-num { color: var(--gold); }
+    .slot-2 .podium-block { background: linear-gradient(180deg, rgba(192,192,192,0.12), rgba(192,192,192,0.04)); border: 1px solid rgba(192,192,192,0.25); height: 80px; }
+    .slot-2 .podium-rank-num { color: var(--silver); }
+    .slot-3 .podium-block { background: linear-gradient(180deg, rgba(205,127,50,0.12), rgba(205,127,50,0.04)); border: 1px solid rgba(205,127,50,0.25); height: 60px; }
+    .slot-3 .podium-rank-num { color: var(--bronze); }
+
+    /* Leaderboard table */
+    .lb-section { margin-bottom: 40px; }
+    .lb-header {
+      font-family: 'Exo 2', sans-serif; font-size: 13px; font-weight: 700;
+      color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+    .lb-table { width: 100%; border-collapse: collapse; }
+    .lb-table thead th {
+      font-size: 11px; font-weight: 600; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 8px 14px; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .lb-table thead th:last-child { text-align: right; }
+    .lb-table tbody tr { transition: background 0.1s; }
+    .lb-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+    .lb-table td { padding: 12px 14px; font-size: 14px; border-bottom: 1px solid rgba(48,54,61,0.5); }
+    .lb-table td:last-child { text-align: right; }
+    .rank-cell { font-family: 'Exo 2', sans-serif; font-weight: 800; font-size: 15px; width: 48px; }
+    .rank-gold { color: var(--gold); }
+    .rank-silver { color: var(--silver); }
+    .rank-bronze { color: var(--bronze); }
+    .rank-other { color: var(--text-dim); }
+    .user-cell { display: flex; align-items: center; gap: 10px; }
+    .user-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--bg-card); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: var(--text-dim);
+      flex-shrink: 0; overflow: hidden;
+    }
+    .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .user-name { font-weight: 600; color: var(--bright); }
+    .wagered-cell { color: var(--text-dim); font-size: 13px; }
+    .prize-cell { font-family: 'Exo 2', sans-serif; font-weight: 800; font-size: 14px; color: var(--accent); }
+
+    /* Past Winners */
+    .section-title {
+      font-family: 'Exo 2', sans-serif; font-size: 18px; font-weight: 900;
+      color: var(--bright); margin-bottom: 16px;
+      padding-bottom: 12px; border-bottom: 1px solid var(--border);
+    }
+    .period-section {
+      background: var(--bg-panel); border: 1px solid var(--border);
+      border-radius: 12px; margin-bottom: 10px; overflow: hidden;
+    }
+    .period-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; cursor: pointer; user-select: none;
+      transition: background 0.15s;
+    }
+    .period-header:hover { background: rgba(255,255,255,0.03); }
+    .period-name { font-family: 'Exo 2', sans-serif; font-size: 14px; font-weight: 800; color: var(--bright); }
+    .period-meta { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+    .period-toggle { color: var(--text-dim); font-size: 12px; transition: transform 0.25s; }
+    .period-section.open .period-toggle { transform: rotate(180deg); }
+    .period-body { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
+    .period-section.open .period-body { max-height: 2000px; }
+    .past-winners-list { padding: 0 20px 16px; }
+    .pw-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 0; border-bottom: 1px solid rgba(48,54,61,0.5);
+    }
+    .pw-row:last-child { border-bottom: none; }
+    .pw-rank {
+      width: 36px; height: 36px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Exo 2', sans-serif; font-weight: 800; font-size: 14px; flex-shrink: 0;
+    }
+    .pw-rank-1 { background: linear-gradient(135deg, #FFD700, #FFA500); color: #000; }
+    .pw-rank-2 { background: linear-gradient(135deg, #C0C0C0, #A8A8A8); color: #000; }
+    .pw-rank-3 { background: linear-gradient(135deg, #CD7F32, #B87333); color: #fff; }
+    .pw-rank-other { background: rgba(255,255,255,0.06); color: var(--text-dim); }
+    .pw-avatar {
+      width: 32px; height: 32px; border-radius: 50%; background: var(--bg-card);
+      border: 1px solid var(--border); flex-shrink: 0; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: var(--text-dim);
+    }
+    .pw-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .pw-name { flex: 1; font-weight: 600; font-size: 14px; color: var(--bright); }
+    .pw-wagered { font-size: 12px; color: var(--text-dim); text-align: right; }
+    .pw-prize { font-family: 'Exo 2', sans-serif; font-weight: 800; font-size: 13px; color: var(--accent); text-align: right; min-width: 70px; }
+
+    .empty-state {
+      text-align: center; padding: 48px 20px;
+      color: var(--text-dim); font-size: 14px;
+    }
+    .empty-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.4; }
+
+    .loading-state { text-align: center; padding: 48px; color: var(--text-dim); }
+    .spinner {
+      display: inline-block; width: 24px; height: 24px; border: 2px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    footer {
+      text-align: center; padding: 24px; font-size: 12px;
+      color: var(--text-dim); border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    @media (max-width: 600px) {
+      .hero-title { font-size: 22px; }
+      .podium { gap: 6px; }
+      .podium-slot { max-width: 110px; }
+      .podium-avatar { width: 44px; height: 44px; }
+      .slot-1 .podium-avatar { width: 52px; height: 52px; }
+      .wagered-cell { display: none; }
+      .pw-wagered { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">WenBot</div>
+  <div class="nav-right">
+    <span class="casino-badge" id="casinoBadge">Loading...</span>
+    <a class="kick-link" id="kickLink" href="#" target="_blank">
+      <svg viewBox="0 0 24 24"><path fill="#53FC18" fill-rule="evenodd" d="M2.435 1h7.174v4.783H12V3.39h2.391V1h7.174v7.174h-2.391v2.391h-2.391v2.87h2.39v2.391h2.392V23h-7.174v-2.391H12v-2.392H9.609V23H2.435z" clip-rule="evenodd"/></svg>
+      <span id="kickLinkText">Watch Live</span>
+    </a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-channel" id="heroChannel">Loading...</div>
+  <h1 class="hero-title" id="heroTitle">Wager Leaderboard</h1>
+  <p class="hero-sub" id="heroSub">Monthly wager rankings — top wagerers win prizes</p>
+  <div class="hero-stats">
+    <div class="stat-box">
+      <div class="stat-value" id="statWagered">—</div>
+      <div class="stat-label">Total Wagered</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="statPlayers">—</div>
+      <div class="stat-label">Players</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="statReset">Monthly</div>
+      <div class="stat-label">Resets</div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div id="podiumWrap" class="podium" style="display:none;"></div>
+
+  <div class="lb-section">
+    <div class="lb-header">Live Rankings</div>
+    <div id="lbContent">
+      <div class="loading-state"><div class="spinner"></div><br>Loading leaderboard...</div>
+    </div>
+  </div>
+
+  <div id="pastWinnersSection" style="display:none;">
+    <div class="section-title">Past Winners</div>
+    <div id="pastWinnersContent"></div>
+  </div>
+</div>
+
+<footer>
+  <p>Powered by <a href="/">WenBot</a> — Streamer tools for Kick</p>
+</footer>
+
+<script>
+  const CASINO_NAMES = {
+    gambulls: 'Gambulls', stake: 'Stake', rainbet: 'Rainbet',
+    thrill: 'Thrill', winna: 'Winna', shuffle: 'Shuffle',
+    duel: 'Duel', roobet: 'Roobet', bcgame: 'BC.Game',
+    '500casino': '500 Casino', gamdom: 'Gamdom', duelbits: 'Duelbits',
+    rollbit: 'Rollbit', chipsgg: 'Chips.gg',
+  };
+
+  const params  = new URLSearchParams(window.location.search);
+  const channel = params.get('channel') || '';
+  const casino  = (params.get('casino') || 'gambulls').toLowerCase();
+  const casinoName = CASINO_NAMES[casino] || casino;
+
+  // Populate header
+  document.getElementById('casinoBadge').textContent = casinoName;
+  document.getElementById('heroChannel').textContent = channel ? channel.toUpperCase() + ' ×' : '';
+  document.getElementById('heroTitle').textContent = `${casinoName} Wager Leaderboard`;
+  document.getElementById('heroSub').textContent = `Monthly wager rankings for ${channel}'s ${casinoName} affiliate`;
+  if (channel) {
+    document.getElementById('kickLink').href = `https://kick.com/${channel}`;
+    document.getElementById('kickLinkText').textContent = `Watch ${channel}`;
+  }
+
+  function fmt(n) {
+    return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function rankClass(r) {
+    if (r === 1) return 'rank-gold';
+    if (r === 2) return 'rank-silver';
+    if (r === 3) return 'rank-bronze';
+    return 'rank-other';
+  }
+
+  function avatarEl(username, avatarUrl, size) {
+    const initial = (username || '?')[0].toUpperCase();
+    if (avatarUrl) {
+      return `<img src="${esc(avatarUrl)}" alt="${esc(username)}" onerror="this.parentElement.textContent='${initial}'">`;
+    }
+    return initial;
+  }
+
+  function renderPodium(rankings) {
+    if (!rankings || rankings.length === 0) return;
+    const wrap = document.getElementById('podiumWrap');
+    const slots = [rankings[1], rankings[0], rankings[2]]; // 2nd, 1st, 3rd visual order
+    const slotOrder = [2, 1, 3];
+    wrap.innerHTML = slots.map((entry, i) => {
+      if (!entry) return `<div class="podium-slot slot-${slotOrder[i]}"><div class="podium-block"></div></div>`;
+      return `
+        <div class="podium-slot slot-${slotOrder[i]}">
+          <div class="podium-avatar">${avatarEl(entry.username, entry.avatarUrl)}</div>
+          <div class="podium-name">${esc(entry.username)}</div>
+          <div class="podium-wagered">${fmt(entry.wagered)}</div>
+          <div class="podium-block">
+            <div class="podium-rank-num">#${slotOrder[i]}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    wrap.style.display = 'flex';
+  }
+
+  function renderTable(rankings, prizeStructure) {
+    if (!rankings || rankings.length === 0) {
+      document.getElementById('lbContent').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📊</div>
+          <p>No leaderboard data available yet.</p>
+          <p style="margin-top:8px;font-size:12px;">Start wagering at ${esc(casinoName)} under ${esc(channel)}'s affiliate link to appear here.</p>
+        </div>`;
+      return;
+    }
+
+    const rows = rankings.map(e => {
+      const rc = rankClass(e.rank);
+      const prize = prizeStructure && prizeStructure[e.rank] ? fmt(prizeStructure[e.rank]) : '';
+      return `
+        <tr>
+          <td class="rank-cell ${rc}">#${e.rank}</td>
+          <td>
+            <div class="user-cell">
+              <div class="user-avatar">${avatarEl(e.username, e.avatarUrl)}</div>
+              <span class="user-name">${esc(e.username)}</span>
+            </div>
+          </td>
+          <td class="wagered-cell">${fmt(e.wagered)}</td>
+          <td class="prize-cell">${prize}</td>
+        </tr>`;
+    }).join('');
+
+    document.getElementById('lbContent').innerHTML = `
+      <table class="lb-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Player</th>
+            <th>Wagered</th>
+            <th>Prize</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  function renderPastWinners(periods) {
+    const section = document.getElementById('pastWinnersSection');
+    const content = document.getElementById('pastWinnersContent');
+
+    if (!periods || periods.length === 0) {
+      section.style.display = 'block';
+      content.innerHTML = `<div class="empty-state"><div class="empty-icon">🏆</div><p>No past winners yet.</p><p style="margin-top:8px;font-size:12px;">Winners will appear here after each monthly period ends.</p></div>`;
+      return;
+    }
+
+    section.style.display = 'block';
+    content.innerHTML = periods.map((period, idx) => {
+      const winnersHtml = (period.winners || []).map(w => {
+        const rankCls = w.rank <= 3 ? `pw-rank-${w.rank}` : 'pw-rank-other';
+        const initial = (w.username || '?')[0].toUpperCase();
+        const avatarContent = w.avatarUrl
+          ? `<img src="${esc(w.avatarUrl)}" alt="${esc(w.username)}" onerror="this.parentElement.textContent='${initial}'">`
+          : initial;
+        return `
+          <div class="pw-row">
+            <div class="pw-rank ${rankCls}">${w.rank}</div>
+            <div class="pw-avatar">${avatarContent}</div>
+            <div class="pw-name">${esc(w.username)}</div>
+            <div class="pw-wagered">${fmt(w.wagered)}</div>
+            <div class="pw-prize">${w.prize > 0 ? fmt(w.prize) : '—'}</div>
+          </div>`;
+      }).join('');
+
+      return `
+        <div class="period-section${idx === 0 ? ' open' : ''}" onclick="this.classList.toggle('open')">
+          <div class="period-header">
+            <div>
+              <div class="period-name">${esc(period.period)}</div>
+              <div class="period-meta">${esc(period.casinoName || casinoName)} · ${(period.winners || []).length} winners</div>
+            </div>
+            <div class="period-toggle">▼</div>
+          </div>
+          <div class="period-body">
+            <div class="past-winners-list">${winnersHtml || '<p style="color:var(--text-dim);padding:16px 0;">No winners recorded.</p>'}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  async function loadLeaderboard() {
+    if (!channel) {
+      document.getElementById('lbContent').innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>No channel specified.</p></div>`;
+      return;
+    }
+
+    try {
+      const resp = await fetch(`/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}`);
+      const data = await resp.json();
+
+      if (data.totalWagered) document.getElementById('statWagered').textContent = fmt(data.totalWagered);
+      if (data.totalUsers) document.getElementById('statPlayers').textContent = data.totalUsers;
+
+      if (data.rankings && data.rankings.length > 0) {
+        renderPodium(data.rankings.slice(0, 3));
+        renderTable(data.rankings, data.prizeStructure);
+      } else {
+        renderTable([], null);
+      }
+    } catch (err) {
+      document.getElementById('lbContent').innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Failed to load leaderboard. Try refreshing.</p></div>`;
+    }
+  }
+
+  async function loadPastWinners() {
+    if (!channel) return;
+    try {
+      const resp = await fetch(`/api/leaderboard-winners?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}`);
+      const data = await resp.json();
+      renderPastWinners(data.periods || []);
+    } catch (err) {
+      renderPastWinners([]);
+    }
+  }
+
+  function esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  loadLeaderboard();
+  loadPastWinners();
+
+  // Refresh live data every 5 minutes
+  setInterval(loadLeaderboard, 5 * 60 * 1000);
+</script>
+</body>
+</html>

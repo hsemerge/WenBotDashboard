@@ -127,8 +127,8 @@
   <div class="verify-card" id="verifyCard">
     <div class="verify-header">
       <div class="verify-icon">🔗</div>
-      <h1>Link Your Account</h1>
-      <p>Connect your affiliate username to your Kick account so WenBot can track your wagers for giveaways.</p>
+      <h1 id="verifyTitle">Connect Your Casino Account</h1>
+      <p id="verifyDesc">Connect your casino username to your Kick account so WenBot can track your wagers for giveaways.</p>
       <div class="channel-badge" id="channelBadge">Loading...</div>
     </div>
 
@@ -142,9 +142,9 @@
 
     <div id="formSection">
       <div class="form-group">
-        <label id="affiliateLabel">Affiliate Username</label>
-        <input type="text" class="form-input" id="affiliateInput" placeholder="Enter your exact username..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-        <div class="provider-hint" id="providerHint">Enter the username you use on the affiliate platform for this streamer.</div>
+        <label id="affiliateLabel">Casino Username</label>
+        <input type="text" class="form-input" id="affiliateInput" placeholder="Enter your exact casino username..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <div class="provider-hint" id="providerHint">Enter the username you use at the casino. It must be registered under this streamer's affiliate link.</div>
       </div>
 
       <button class="btn-verify" id="verifyBtn" onclick="submitVerify()">Verify Account</button>
@@ -171,9 +171,19 @@
 </footer>
 
 <script>
-  const params = new URLSearchParams(window.location.search);
-  const channel     = params.get('channel') || '';
-  const kickUsername = params.get('kick') || '';
+  const CASINO_NAMES = {
+    gambulls: 'Gambulls', stake: 'Stake', rainbet: 'Rainbet',
+    thrill: 'Thrill', winna: 'Winna', shuffle: 'Shuffle',
+    duel: 'Duel', roobet: 'Roobet', bcgame: 'BC.Game',
+    '500casino': '500 Casino', gamdom: 'Gamdom', duelbits: 'Duelbits',
+    rollbit: 'Rollbit', chipsgg: 'Chips.gg',
+  };
+
+  const params       = new URLSearchParams(window.location.search);
+  const channel      = params.get('channel') || '';
+  const kickUsername = params.get('kick')    || '';
+  const casino       = (params.get('casino') || 'gambulls').toLowerCase();
+  const casinoName   = CASINO_NAMES[casino]  || casino;
 
   // Populate static fields
   document.getElementById('kickUsernameDisplay').textContent = kickUsername || 'Unknown';
@@ -184,6 +194,15 @@
   } else {
     document.getElementById('channelBadge').textContent = 'Unknown channel';
   }
+
+  // Update all copy to show the specific casino
+  document.getElementById('verifyTitle').textContent = `Connect Your ${casinoName} Account`;
+  document.getElementById('verifyDesc').textContent  =
+    `Connect your ${casinoName} username to your Kick account so WenBot can track your wagers for giveaways.`;
+  document.getElementById('affiliateLabel').textContent      = `${casinoName} Username`;
+  document.getElementById('affiliateInput').placeholder      = `Enter your exact ${casinoName} username...`;
+  document.getElementById('providerHint').textContent        =
+    `Enter the username you use at ${casinoName}. It must be registered under this streamer's affiliate link.`;
 
   if (!channel || !kickUsername) {
     showError('Invalid verification link. Make sure you clicked the link from WenBot in Kick chat.');
@@ -206,14 +225,14 @@
       const resp = await fetch('/api/verify-affiliate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channel, kickUsername, affiliateUsername }),
+        body: JSON.stringify({ channel, kickUsername, affiliateUsername, casino }),
       });
       const data = await resp.json();
 
       if (resp.ok && data.success) {
         document.getElementById('formSection').style.display = 'none';
         document.getElementById('successMsg').innerHTML =
-          `<strong>${escHtml(data.kickUsername)}</strong> has been linked to <strong>${escHtml(data.affiliateUsername)}</strong> on ${escHtml(data.provider)}.<br><br>You can now enter wager-based giveaways in <strong>${escHtml(channel)}</strong>'s stream!`;
+          `<strong>${escHtml(data.kickUsername)}</strong> has been linked to <strong>${escHtml(data.affiliateUsername)}</strong> on ${escHtml(data.casinoName || casinoName)}.<br><br>You can now enter giveaways in <strong>${escHtml(channel)}</strong>'s stream!`;
         showSuccess();
       } else {
         showError(data.error || 'Verification failed. Please try again.');

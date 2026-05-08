@@ -491,27 +491,36 @@
       <div class="giveaway-hero">
         <h2>Giveaway Control</h2>
         <p>Configure and start — WenBot announces in chat and collects entries automatically.</p>
+        <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:18px;">
+          <span style="font-size:12px;color:var(--text-dim);font-weight:600;letter-spacing:.04em;text-transform:uppercase;">Streaming at:</span>
+          <select id="activeCasinoSelect" onchange="saveActiveCasino(this.value)" style="background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;font-weight:600;padding:6px 10px;font-family:'Inter',sans-serif;cursor:pointer;">
+            <option value="gambulls">Gambulls</option>
+            <option value="stake">Stake</option>
+            <option value="rainbet">Rainbet</option>
+            <option value="thrill">Thrill</option>
+            <option value="winna">Winna</option>
+            <option value="shuffle">Shuffle</option>
+            <option value="duel">Duel</option>
+            <option value="roobet">Roobet</option>
+            <option value="bcgame">BC.Game</option>
+            <option value="500casino">500 Casino</option>
+            <option value="gamdom">Gamdom</option>
+            <option value="duelbits">Duelbits</option>
+            <option value="rollbit">Rollbit</option>
+            <option value="chipsgg">Chips.gg</option>
+          </select>
+        </div>
         <div class="giveaway-type-row">
           <button class="type-btn active" id="typeCode" onclick="setType('code')">🔑 Code Users</button>
-          <button class="type-btn" id="typeVerified" onclick="setType('verified')">✅ Verified Users</button>
           <button class="type-btn" id="typeEveryone" onclick="setType('everyone')">🌐 Everyone</button>
-        </div>
-        <div id="verifiedReqRow" style="display:none;margin-bottom:16px;">
-          <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">Require verification from:</div>
-          <div style="display:flex;gap:16px;justify-content:center;">
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer;">
-              <input type="checkbox" id="verifiedCasinoCheck" checked style="accent-color:var(--accent);width:14px;height:14px;">
-              Casino Verified
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer;">
-              <input type="checkbox" id="verifiedDiscordCheck" style="accent-color:var(--accent);width:14px;height:14px;">
-              Discord Verified
-            </label>
-          </div>
-          <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">Casino = linked via !verify · Discord = verified in your server</div>
         </div>
         <button class="btn btn-accent btn-xl" id="startGiveawayBtn" onclick="startGiveaway()">🎉 Start Giveaway</button>
         <button class="btn btn-danger" id="stopGiveawayBtn" style="display:none;margin-left:10px;" onclick="stopGiveaway()">⏹ Stop Giveaway</button>
+        <div style="margin-top:14px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;">
+          <a id="viewLeaderboardLink" href="#" target="_blank" style="font-size:12px;color:var(--accent);text-decoration:none;font-weight:600;">↗ View Public Leaderboard</a>
+          <span style="color:var(--border);">|</span>
+          <button onclick="openFinalizeModal()" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-dim);font-weight:600;padding:0;">🏆 Finalize Month & Save Winners</button>
+        </div>
       </div>
 
       <div class="giveaway-status-bar" id="giveawayStatusBar">
@@ -568,6 +577,26 @@
             </div>
             <div class="toggle" id="toggleSubOnly" onclick="toggleOption(this)"></div>
           </div>
+          <div class="toggle-row" style="margin-top:12px;">
+            <div class="toggle-info">
+              <div class="toggle-label">Require Verification</div>
+              <div class="toggle-desc">Entrants must be verified (casino and/or Discord)</div>
+            </div>
+            <div class="toggle" id="toggleVerified" onclick="toggleVerifiedReq(this)"></div>
+          </div>
+          <div id="verifiedReqFields" style="display:none;margin-top:10px;">
+            <div style="display:flex;gap:16px;padding:0 2px;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer;">
+                <input type="checkbox" id="verifiedCasinoCheck" checked style="accent-color:var(--accent);width:14px;height:14px;">
+                Casino Verified
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);cursor:pointer;">
+                <input type="checkbox" id="verifiedDiscordCheck" style="accent-color:var(--accent);width:14px;height:14px;">
+                Discord Verified
+              </label>
+            </div>
+            <div class="hint" style="margin-top:6px;">Casino = linked via !verify · Discord = verified in your server</div>
+          </div>
         </div>
 
         <div class="card">
@@ -590,7 +619,7 @@
           <button class="btn btn-accent" style="width:100%;margin-top:12px;" id="pickWinnerBtn" onclick="spinPicker()" disabled>🎰 Spin to Pick Winner</button>
           <button class="btn btn-ghost" style="width:100%;margin-top:6px;" id="rerollBtn" onclick="spinPicker()" disabled>🔄 Reroll</button>
           <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px;align-items:center;">
-            <a href="#" target="_blank" id="overlayLink" style="font-size:11px;color:var(--accent);text-decoration:none;opacity:0.7;">🖥 Winner Overlay (OBS)</a>
+            <a href="#" target="_blank" id="overlayLink" style="font-size:11px;color:var(--accent);text-decoration:none;opacity:0.7;">🖥 Spinner Overlay (OBS)</a>
             <a href="#" target="_blank" id="overlayEntriesLink" style="font-size:11px;color:var(--accent);text-decoration:none;opacity:0.7;">📋 Entries Overlay (OBS)</a>
           </div>
         </div>
@@ -1042,6 +1071,13 @@ function onAuthReady(user) {
   loadVerifiedCount();
   loadProviderSettings();
 
+  // Restore active casino selector
+  if (profile?.activeProvider) {
+    const sel = document.getElementById('activeCasinoSelect');
+    if (sel) sel.value = profile.activeProvider;
+  }
+  updateLeaderboardLink(profile?.activeProvider || 'gambulls');
+
   // Set OBS overlay link using the streamer's kick channel
   const chan = profile?.kickChannel || '';
   const overlayLink = document.getElementById('overlayLink');
@@ -1061,8 +1097,12 @@ function onAuthReady(user) {
       document.getElementById('minWagerInput').value = profile.giveawayMinWager;
     }
     if (profile.giveawaySubOnly) document.getElementById('toggleSubOnly').classList.add('on');
-    if (profile.giveawayVerifiedCasino) document.getElementById('verifiedCasinoCheck').checked = true;
-    if (profile.giveawayVerifiedDiscord) document.getElementById('verifiedDiscordCheck').checked = true;
+    if (profile.giveawayVerifiedCasino || profile.giveawayVerifiedDiscord) {
+      document.getElementById('toggleVerified').classList.add('on');
+      document.getElementById('verifiedReqFields').style.display = 'block';
+      document.getElementById('verifiedCasinoCheck').checked = !!profile.giveawayVerifiedCasino;
+      document.getElementById('verifiedDiscordCheck').checked = !!profile.giveawayVerifiedDiscord;
+    }
     // Restore active countdown if duration was set and time hasn't expired
     if (profile.giveawayDuration > 0 && profile.giveawayStartedAt) {
       const elapsed = Math.floor((Date.now() - profile.giveawayStartedAt) / 1000);
@@ -1117,16 +1157,34 @@ document.getElementById('giveawayDuration').addEventListener('change', function(
   document.getElementById('giveawayDurationCustom').style.display = this.value === 'custom' ? 'block' : 'none';
 });
 
+async function saveActiveCasino(val) {
+  await saveStreamerProfile({ activeProvider: val });
+  updateLeaderboardLink(val);
+}
+
+function updateLeaderboardLink(casino) {
+  const channel = profile?.kickChannel || '';
+  const link = document.getElementById('viewLeaderboardLink');
+  if (link && channel) {
+    link.href = `/leaderboard.html?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino || 'gambulls')}`;
+  }
+}
+
 function setType(type) {
+  if (type === 'verified') type = 'code'; // legacy fallback
   currentGiveawayType = type;
-  ['code','verified','everyone'].forEach(t => {
+  ['code','everyone'].forEach(t => {
     document.getElementById('type'+t.charAt(0).toUpperCase()+t.slice(1))?.classList.toggle('active', t === type);
   });
-  document.getElementById('verifiedReqRow').style.display = type === 'verified' ? 'block' : 'none';
   const hint = document.getElementById('wagerReqHint');
   if (hint) hint.textContent = type === 'code'
     ? 'Code users: verified against leaderboard API'
     : 'Minimum stated in announcement (honor system)';
+}
+
+function toggleVerifiedReq(el) {
+  el.classList.toggle('on');
+  document.getElementById('verifiedReqFields').style.display = el.classList.contains('on') ? 'block' : 'none';
 }
 
 function toggleWagerReq(el) {
@@ -1142,8 +1200,9 @@ async function startGiveaway() {
   const minWager  = wagerOn ? (parseInt(document.getElementById('minWagerInput')?.value, 10) || 0) : 0;
   const wagerLuck       = parseInt(document.getElementById('wagerLuckSlider')?.value, 10) || 1;
   const subOnly         = document.getElementById('toggleSubOnly')?.classList.contains('on') || false;
-  const verifiedCasino  = document.getElementById('verifiedCasinoCheck')?.checked || false;
-  const verifiedDiscord = document.getElementById('verifiedDiscordCheck')?.checked || false;
+  const verifiedOn      = document.getElementById('toggleVerified')?.classList.contains('on') || false;
+  const verifiedCasino  = verifiedOn && (document.getElementById('verifiedCasinoCheck')?.checked || false);
+  const verifiedDiscord = verifiedOn && (document.getElementById('verifiedDiscordCheck')?.checked || false);
   const durSel          = document.getElementById('giveawayDuration')?.value;
   const duration        = durSel === 'custom'
     ? (parseInt(document.getElementById('giveawayDurationCustom')?.value, 10) || 0)
@@ -1166,8 +1225,6 @@ async function startGiveaway() {
 
   const typeLabel = currentGiveawayType === 'code'
     ? `Verified code users only — type ${keyword} to enter`
-    : currentGiveawayType === 'verified'
-    ? `Verified users only — type ${keyword} to enter`
     : `Everyone welcome — type ${keyword} to enter`;
   const minText  = minWager > 0 ? ` | Min wager: $${minWager}` : '';
   const durMins  = duration > 0 ? Math.round(duration / 60) : 0;
@@ -1227,7 +1284,7 @@ function subscribeEntries() {
 function updateGiveawayStatus(active) {
   const dot = document.getElementById('giveawayDot');
   const txt = document.getElementById('giveawayStatusText');
-  const typeLabel = currentGiveawayType === 'code' ? 'Code Users' : currentGiveawayType === 'verified' ? 'Verified Users' : 'Everyone';
+  const typeLabel = currentGiveawayType === 'code' ? 'Code Users' : 'Everyone';
   if (active) {
     dot.classList.add('online'); dot.classList.remove('offline');
     txt.textContent = `Giveaway LIVE — ${typeLabel} — collecting entries`;
@@ -1800,6 +1857,99 @@ async function fulfillRedemption(id) {
   flash('Marked as fulfilled!');
   loadRedemptions();
 }
+
+// ── Finalize Month Modal ─────────────────────────────────────────────────────
+
+function openFinalizeModal() {
+  const casino = document.getElementById('activeCasinoSelect')?.value || 'gambulls';
+  const now = new Date();
+  const monthName = now.toLocaleString('en-US', { month: 'long' });
+  const year = now.getFullYear();
+  document.getElementById('finalizeMonthLabel').textContent = `${monthName} ${year} — ${casino.charAt(0).toUpperCase() + casino.slice(1)}`;
+  document.getElementById('finalizeStatus').textContent = '';
+  document.getElementById('finalizeModal').style.display = 'flex';
+}
+
+function closeFinalizeModal() {
+  document.getElementById('finalizeModal').style.display = 'none';
+}
+
+async function submitFinalize() {
+  const casino = document.getElementById('activeCasinoSelect')?.value || 'gambulls';
+  const period = document.getElementById('finalizePeriodInput').value.trim();
+  const endDate = document.getElementById('finalizeEndDate').value;
+  const winnersRaw = document.getElementById('finalizeWinnersJson').value.trim();
+
+  if (!period || !endDate || !winnersRaw) {
+    document.getElementById('finalizeStatus').textContent = 'Please fill in all fields.';
+    return;
+  }
+
+  let winners;
+  try { winners = JSON.parse(winnersRaw); }
+  catch { document.getElementById('finalizeStatus').textContent = 'Winners JSON is invalid. Check the format.'; return; }
+
+  if (!Array.isArray(winners) || winners.length === 0) {
+    document.getElementById('finalizeStatus').textContent = 'Winners must be a non-empty JSON array.';
+    return;
+  }
+
+  const btn = document.getElementById('finalizeSaveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  document.getElementById('finalizeStatus').textContent = '';
+
+  try {
+    const idToken = await fb.currentUser.getIdToken();
+    const resp = await fetch('/api/save-leaderboard-period', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, casino, period, endDate, winners }),
+    });
+    const data = await resp.json();
+    if (resp.ok && data.success) {
+      closeFinalizeModal();
+      flash(`✅ "${period}" saved to past winners!`);
+    } else {
+      document.getElementById('finalizeStatus').textContent = data.error || 'Save failed.';
+    }
+  } catch (err) {
+    document.getElementById('finalizeStatus').textContent = 'Network error. Try again.';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Save Winners';
+}
 </script>
+
+<!-- Finalize Month Modal -->
+<div id="finalizeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:16px;width:100%;max-width:500px;padding:32px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div style="font-family:'Exo 2',sans-serif;font-size:18px;font-weight:900;color:var(--bright);">🏆 Finalize Month</div>
+      <button onclick="closeFinalizeModal()" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:18px;">✕</button>
+    </div>
+    <div style="font-size:13px;color:var(--text-dim);margin-bottom:20px;" id="finalizeMonthLabel"></div>
+    <div class="field" style="margin-bottom:14px;">
+      <label style="font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">Period Label</label>
+      <input type="text" id="finalizePeriodInput" placeholder="e.g. May 2025" style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;font-family:'Inter',sans-serif;">
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Shown as the period name on the leaderboard.</div>
+    </div>
+    <div class="field" style="margin-bottom:14px;">
+      <label style="font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">End Date</label>
+      <input type="date" id="finalizeEndDate" style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;font-family:'Inter',sans-serif;">
+    </div>
+    <div class="field" style="margin-bottom:20px;">
+      <label style="font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px;">Winners (JSON)</label>
+      <textarea id="finalizeWinnersJson" rows="6" placeholder='[{"rank":1,"username":"PlayerOne","wagered":5000,"prize":500},{"rank":2,"username":"PlayerTwo","wagered":3200,"prize":250}]' style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:12px;padding:10px 12px;font-family:monospace;resize:vertical;"></textarea>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Paste the final rankings as JSON. Each entry: rank, username, wagered, prize.</div>
+    </div>
+    <div style="font-size:12px;color:var(--red);margin-bottom:12px;" id="finalizeStatus"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button onclick="closeFinalizeModal()" style="padding:10px 20px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:13px;cursor:pointer;">Cancel</button>
+      <button id="finalizeSaveBtn" onclick="submitFinalize()" style="padding:10px 20px;background:linear-gradient(135deg,#00e5ff,#00b8d4);border:none;border-radius:8px;color:#0d1117;font-family:'Exo 2',sans-serif;font-size:14px;font-weight:800;cursor:pointer;">Save Winners</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

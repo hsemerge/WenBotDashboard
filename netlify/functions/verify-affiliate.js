@@ -1,8 +1,29 @@
 // POST /api/verify-affiliate
-// Body: { channel, kickUsername, affiliateUsername }
-// Looks up streamer by channel, calls their affiliate API, saves verification
+// Body: { channel, kickUsername, affiliateUsername, casino }
+// Verifies a viewer's casino account and saves it to verified_users
 
 const admin = require("firebase-admin");
+
+// Casinos with live API verification
+const API_CASINOS = new Set(["gambulls", "csbattle"]);
+
+// Display names for all supported casinos
+const CASINO_NAMES = {
+  gambulls:   "Gambulls",
+  stake:      "Stake",
+  rainbet:    "Rainbet",
+  thrill:     "Thrill",
+  winna:      "Winna",
+  shuffle:    "Shuffle",
+  duel:       "Duel",
+  roobet:     "Roobet",
+  bcgame:     "BC.Game",
+  "500casino":"500 Casino",
+  gamdom:     "Gamdom",
+  duelbits:   "Duelbits",
+  rollbit:    "Rollbit",
+  chipsgg:    "Chips.gg",
+};
 
 function getDb() {
   if (!admin.apps.length) {
@@ -21,6 +42,7 @@ function res(statusCode, body) {
   };
 }
 
+// API-backed lookup — returns { username, wagerAmount } or null
 async function lookupAffiliate(provider, apiKey, affiliateUsername) {
   if (provider === "gambulls") {
     const resp = await fetch(
@@ -60,61 +82,82 @@ exports.handler = async (event) => {
   let body;
   try { body = JSON.parse(event.body || "{}"); } catch { return res(400, { error: "Invalid JSON" }); }
 
-  const { channel, kickUsername, affiliateUsername } = body;
+  const { channel, kickUsername, affiliateUsername, casino } = body;
   if (!channel || !kickUsername || !affiliateUsername) {
     return res(400, { error: "Missing channel, kickUsername, or affiliateUsername" });
+  }
+
+  const provider = (casino || "gambulls").toLowerCase();
+  if (!CASINO_NAMES[provider]) {
+    return res(400, { error: "Unsupported casino." });
   }
 
   try {
     const db = getDb();
 
-    // Find streamer by channel
     const snap = await db.collection("streamers").where("kickChannel", "==", channel.toLowerCase()).limit(1).get();
     if (snap.empty) return res(404, { error: "Channel not found" });
 
-    const streamerDoc = snap.docs[0];
-    const streamerUid = streamerDoc.id;
+    const streamerDoc  = snap.docs[0];
+    const streamerUid  = streamerDoc.id;
     const streamerData = streamerDoc.data();
-    const provider = streamerData.activeProvider || "gambulls";
 
-    // Get API key
-    const providerDoc = await db.collection("streamers").doc(streamerUid)
-      .collection("providers").doc(provider).get();
-    if (!providerDoc.exists) return res(400, { error: "Streamer has no affiliate provider configured" });
-    const { apiKey } = providerDoc.data();
-
-    // Check if affiliate username already claimed by different Kick user
     const kickKey      = kickUsername.toLowerCase();
     const affiliateKey = affiliateUsername.toLowerCase();
 
+    // Check the active casino matches what the streamer is currently streaming at
+    const activeProvider = streamerData.activeProvider || "gambulls";
+    if (provider !== activeProvider) {
+      const activeName = CASINO_NAMES[activeProvider] || activeProvider;
+      return res(400, { error: `This streamer is currently streaming at ${activeName}. Please verify your ${activeName} username instead.` });
+    }
+
+    // Check if this casino username is already claimed by a different Kick account
     const claimSnap = await db.collection("streamers").doc(streamerUid)
-      .collection("verified_users").where("providerUsername_lower", "==", affiliateKey).limit(1).get();
+      .collection("verified_users")
+      .where("providerUsername_lower", "==", affiliateKey)
+      .where("provider", "==", provider)
+      .limit(1).get();
 
     if (!claimSnap.empty && claimSnap.docs[0].id !== kickKey) {
-      return res(409, { error: `"${affiliateUsername}" is already linked to another account. Contact a mod if this is an error.` });
+      return res(409, { error: `"${affiliateUsername}" is already linked to another Kick account. Contact a mod if this is an error.` });
     }
 
-    // Validate against affiliate API
-    const result = await lookupAffiliate(provider, apiKey, affiliateUsername);
-    if (!result) {
-      return res(404, { error: `"${affiliateUsername}" was not found on the ${provider} leaderboard for this channel. Make sure you're using your exact ${provider} username.` });
-    }
+    let resultUsername = affiliateUsername;
 
-    // Save verification — store identity only, NOT wager (wager is always read live)
+    if (API_CASINOS.has(provider)) {
+      // Full API verification
+      const providerDoc = await db.collection("streamers").doc(streamerUid)
+        .collection("providers").doc(provider).get();
+      if (!providerDoc.exists) {
+        return res(400, { error: `This streamer hasn't configured their ${CASINO_NAMES[provider]} API yet.` });
+      }
+      const { apiKey } = providerDoc.data();
+      const result = await lookupAffiliate(provider, apiKey, affiliateUsername);
+      if (!result) {
+        return res(404, { error: `"${affiliateUsername}" was not found on the ${CASINO_NAMES[provider]} leaderboard for this channel. Make sure you're using your exact ${CASINO_NAMES[provider]} username.` });
+      }
+      resultUsername = result.username;
+    }
+    // For honor-system casinos: save without API check — username taken at face value
+
     await db.collection("streamers").doc(streamerUid)
       .collection("verified_users").doc(kickKey).set({
-        kickName:              kickUsername,
-        providerUsername:      result.username,
+        kickName:               kickUsername,
+        providerUsername:       resultUsername,
         providerUsername_lower: affiliateKey,
         provider,
-        verifiedAt:            Date.now(),
+        apiVerified:            API_CASINOS.has(provider),
+        verifiedAt:             Date.now(),
       });
 
     return res(200, {
-      success: true,
+      success:          true,
       kickUsername,
-      affiliateUsername: result.username,
+      affiliateUsername: resultUsername,
       provider,
+      casinoName:       CASINO_NAMES[provider],
+      apiVerified:      API_CASINOS.has(provider),
     });
 
   } catch (err) {

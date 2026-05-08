@@ -182,6 +182,7 @@ const channel     = params.get('channel') || '';
 const demoMode    = params.get('demo') === '1';
 let lastTriggerAt = 0;
 let animating     = false;
+let initialized   = false;
 
 // Demo mode — show a test spin immediately
 if (demoMode) {
@@ -196,11 +197,17 @@ async function poll() {
     const data = await r.json();
     if (data.spinTrigger) {
       const { winner, wager, triggeredAt } = data.spinTrigger;
-      if (winner && triggeredAt !== lastTriggerAt) {
+      if (!initialized) {
+        // On first load, mark existing trigger as seen so we don't replay old spins
+        lastTriggerAt = triggeredAt;
+        initialized   = true;
+      } else if (winner && triggeredAt !== lastTriggerAt) {
         lastTriggerAt = triggeredAt;
         showMachine();
         runSpin(winner, wager || 0);
       }
+    } else {
+      initialized = true;
     }
   } catch {}
   setTimeout(poll, 3000);
