@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WenBot Giveaway Overlay</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: transparent;
+      font-family: 'Inter', sans-serif;
+      overflow: hidden;
+      width: 420px;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    .panel {
+      background: rgba(13,17,23,0.92);
+      border: 1px solid rgba(0,229,255,0.25);
+      border-radius: 14px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 0 40px rgba(0,0,0,0.6), 0 0 20px rgba(0,229,255,0.08);
+      overflow: hidden;
+      opacity: 0;
+      transform: translateX(-16px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    .panel.visible { opacity: 1; transform: translateX(0); }
+
+    .panel-header {
+      padding: 12px 16px;
+      background: rgba(0,229,255,0.06);
+      border-bottom: 1px solid rgba(0,229,255,0.15);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #00ff88;
+      box-shadow: 0 0 8px rgba(0,255,136,0.8);
+      animation: blink 1.2s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    .header-title {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #00e5ff;
+      flex: 1;
+    }
+
+    .entry-count {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 20px;
+      font-weight: 900;
+      color: #ffd700;
+      text-shadow: 0 0 12px rgba(255,215,0,0.5);
+      line-height: 1;
+    }
+    .entry-count-label {
+      font-size: 9px;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-align: right;
+      margin-top: 1px;
+    }
+
+    .criteria {
+      padding: 10px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      border-bottom: 1px solid rgba(48,54,61,0.6);
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(255,255,255,0.06);
+      color: #c9d1d9;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .chip.keyword { background: rgba(0,229,255,0.1); border-color: rgba(0,229,255,0.3); color: #00e5ff; }
+    .chip.type    { background: rgba(167,139,250,0.1); border-color: rgba(167,139,250,0.3); color: #a78bfa; }
+    .chip.wager   { background: rgba(255,215,0,0.1); border-color: rgba(255,215,0,0.3); color: #ffd700; }
+    .chip.sub     { background: rgba(0,255,136,0.1); border-color: rgba(0,255,136,0.3); color: #00ff88; }
+
+    .entries-list {
+      max-height: 340px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .entries-inner {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .entry-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 16px;
+      border-bottom: 1px solid rgba(48,54,61,0.4);
+      animation: slideIn 0.3s ease both;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-10px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .entry-rank {
+      font-size: 10px;
+      color: #8b949e;
+      width: 20px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .entry-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f0f6fc;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .entry-tickets {
+      font-size: 11px;
+      color: #00e5ff;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .entry-wager {
+      font-size: 11px;
+      color: #8b949e;
+      flex-shrink: 0;
+    }
+
+    .empty-state {
+      padding: 24px 16px;
+      text-align: center;
+      color: #8b949e;
+      font-size: 13px;
+    }
+
+    .panel-footer {
+      padding: 8px 16px;
+      background: rgba(0,0,0,0.2);
+      border-top: 1px solid rgba(48,54,61,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-brand {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 11px;
+      font-weight: 800;
+      color: rgba(0,229,255,0.5);
+      letter-spacing: 1px;
+    }
+
+    .closed-badge {
+      display: none;
+      padding: 8px 16px;
+      background: rgba(255,71,87,0.1);
+      border-top: 1px solid rgba(255,71,87,0.3);
+      color: #ff4757;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="panel" id="panel">
+  <div class="panel-header">
+    <div class="live-dot" id="liveDot"></div>
+    <div class="header-title">🎁 Giveaway Live</div>
+    <div>
+      <div class="entry-count" id="entryCount">0</div>
+      <div class="entry-count-label">Entries</div>
+    </div>
+  </div>
+
+  <div class="criteria" id="criteriaRow"></div>
+
+  <div class="entries-list">
+    <div class="entries-inner" id="entriesInner">
+      <div class="empty-state">Waiting for entries…</div>
+    </div>
+  </div>
+
+  <div class="closed-badge" id="closedBadge">🔒 Entries Closed — Pick a Winner!</div>
+
+  <div class="panel-footer">
+    <span class="footer-brand">WENBOT</span>
+    <span style="font-size:10px;color:#8b949e;" id="updatedAt"></span>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+const params  = new URLSearchParams(location.search);
+const channel = params.get('channel') || '';
+
+async function init() {
+  if (!channel) return;
+
+  const db   = firebase.firestore();
+  const snap = await db.collection('streamers').where('kickChannel', '==', channel).limit(1).get();
+  if (snap.empty) return;
+
+  const uid      = snap.docs[0].id;
+  const profile  = snap.docs[0].data();
+
+  // Show panel
+  document.getElementById('panel').classList.add('visible');
+
+  // Subscribe to giveaway snapshot
+  db.collection('streamers').doc(uid)
+    .collection('giveaway_state').doc('snapshot')
+    .onSnapshot(doc => {
+      if (!doc.exists) return;
+      const data = doc.data();
+      renderOverlay(data, profile);
+    });
+
+  // Also subscribe to profile for criteria updates
+  db.collection('streamers').doc(uid).onSnapshot(doc => {
+    if (!doc.exists) return;
+    const p = doc.data();
+    renderCriteria(p);
+  });
+}
+
+function renderCriteria(profile) {
+  const row = document.getElementById('criteriaRow');
+  const chips = [];
+
+  const keyword = profile.giveawayKeyword || '!join';
+  chips.push(`<span class="chip keyword">⌨ ${keyword}</span>`);
+
+  const type = profile.giveawayType || 'code';
+  const typeLabel = type === 'code' ? '🔗 Code Users' : type === 'verified' ? '✅ Verified' : '🌐 Everyone';
+  chips.push(`<span class="chip type">${typeLabel}</span>`);
+
+  if (profile.giveawayMinWager > 0) {
+    chips.push(`<span class="chip wager">💰 Min $${profile.giveawayMinWager.toLocaleString()}</span>`);
+  }
+  if (profile.giveawaySubOnly) {
+    chips.push(`<span class="chip sub">⭐ Subs Only</span>`);
+  }
+
+  row.innerHTML = chips.join('');
+}
+
+function renderOverlay(data, profile) {
+  const entries = data.entries || [];
+  const active  = data.active;
+
+  // Entry count
+  document.getElementById('entryCount').textContent = entries.length;
+
+  // Live dot / closed badge
+  document.getElementById('liveDot').style.display   = active ? '' : 'none';
+  document.getElementById('closedBadge').style.display = active ? 'none' : 'block';
+
+  // Updated timestamp
+  if (data.updatedAt) {
+    const d = new Date(data.updatedAt);
+    document.getElementById('updatedAt').textContent = `Updated ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+  }
+
+  // Entries list — show up to 8 most recent (last = most recent since bot appends)
+  const inner = document.getElementById('entriesInner');
+  if (!entries.length) {
+    inner.innerHTML = '<div class="empty-state">Waiting for entries…</div>';
+    return;
+  }
+
+  const show = entries.slice(-8).reverse(); // most recent first, max 8
+  inner.innerHTML = show.map((e, i) => {
+    const name    = e.kickName || e.kickKey || '?';
+    const wager   = e.wager   > 0 ? `$${Number(e.wager).toLocaleString()}` : '';
+    const tickets = e.tickets > 1 ? `${e.tickets}x` : '';
+    return `<div class="entry-row">
+      <span class="entry-rank">${entries.length - i}</span>
+      <span class="entry-name">${name}</span>
+      ${tickets ? `<span class="entry-tickets">${tickets}</span>` : ''}
+      ${wager   ? `<span class="entry-wager">${wager}</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+init();
+</script>
+</body>
+</html>

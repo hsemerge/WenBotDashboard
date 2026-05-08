@@ -589,8 +589,9 @@
           </div>
           <button class="btn btn-accent" style="width:100%;margin-top:12px;" id="pickWinnerBtn" onclick="spinPicker()" disabled>🎰 Spin to Pick Winner</button>
           <button class="btn btn-ghost" style="width:100%;margin-top:6px;" id="rerollBtn" onclick="spinPicker()" disabled>🔄 Reroll</button>
-          <div style="margin-top:10px;text-align:center;">
-            <a href="#" target="_blank" id="overlayLink" style="font-size:11px;color:var(--accent);text-decoration:none;opacity:0.7;">🖥 OBS Overlay URL</a>
+          <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px;align-items:center;">
+            <a href="#" target="_blank" id="overlayLink" style="font-size:11px;color:var(--accent);text-decoration:none;opacity:0.7;">🖥 Winner Overlay (OBS)</a>
+            <a href="#" target="_blank" id="overlayEntriesLink" style="font-size:11px;color:var(--accent);text-decoration:none;opacity:0.7;">📋 Entries Overlay (OBS)</a>
           </div>
         </div>
       </div>
@@ -1044,10 +1045,9 @@ function onAuthReady(user) {
   // Set OBS overlay link using the streamer's kick channel
   const chan = profile?.kickChannel || '';
   const overlayLink = document.getElementById('overlayLink');
-  if (overlayLink && chan) {
-    overlayLink.href = `/overlay-winner.html?channel=${encodeURIComponent(chan)}`;
-    overlayLink.textContent = '🖥 OBS Overlay URL';
-  }
+  if (overlayLink && chan) overlayLink.href = `/overlay-winner.html?channel=${encodeURIComponent(chan)}`;
+  const overlayEntriesLink = document.getElementById('overlayEntriesLink');
+  if (overlayEntriesLink && chan) overlayEntriesLink.href = `/overlay-giveaway.html?channel=${encodeURIComponent(chan)}`;
 
   // Restore giveaway state if it was active before refresh
   if (profile?.giveawayActive) {
@@ -1169,8 +1169,10 @@ async function startGiveaway() {
     : currentGiveawayType === 'verified'
     ? `Verified users only — type ${keyword} to enter`
     : `Everyone welcome — type ${keyword} to enter`;
-  const minText = minWager > 0 ? ` | Min wager: $${minWager}` : '';
-  const announceMsg = `🎉 Giveaway is LIVE! ${typeLabel}${minText}`;
+  const minText  = minWager > 0 ? ` | Min wager: $${minWager}` : '';
+  const durMins  = duration > 0 ? Math.round(duration / 60) : 0;
+  const durText  = durMins > 0 ? ` | Closes in ${durMins} minute${durMins !== 1 ? 's' : ''}!` : '';
+  const announceMsg = `🎉 Giveaway is LIVE! ${typeLabel}${minText}${durText}`;
 
   await saveStreamerProfile({
     giveawayActive:          true,
@@ -1184,7 +1186,7 @@ async function startGiveaway() {
     giveawayDuration:        duration,
     giveawayStartedAt:       Date.now(),
     pendingChatMessage:      announceMsg,
-    pendingChatTs:           Date.now(),
+    pendingChatTs:           Date.now() + Math.random(),
   });
   flash('🎉 Giveaway started! WenBot is announcing in chat.');
 }
@@ -1201,7 +1203,7 @@ async function stopGiveaway() {
   document.getElementById('stopGiveawayBtn').style.display = 'none';
   if (entriesUnsub) { entriesUnsub(); entriesUnsub = null; }
   stopCountdown();
-  await saveStreamerProfile({ giveawayActive: false, pendingChatMessage: '🔒 Giveaway entries are now closed!', pendingChatTs: Date.now() });
+  await saveStreamerProfile({ giveawayActive: false, pendingChatMessage: '🔒 Giveaway entries are now closed!', pendingChatTs: Date.now() + Math.random() });
   flash('Giveaway stopped.', 'success');
 }
 
@@ -1320,9 +1322,12 @@ function spinPicker() {
     flash('🏆 Winner: ' + winner.username);
     addRecentWinner(winner.username);
 
-    // Write spin trigger to Firestore so OBS overlay animates
+    // Post winner to chat + trigger OBS overlay
     const uid = fb.currentUser?.uid;
     if (uid) {
+      fb.db.collection('streamers').doc(uid)
+        .update({ pendingChatMessage: `🏆 Congratulations @${winner.username}! You won the giveaway! 🎉`, pendingChatTs: Date.now() + Math.random() })
+        .catch(() => {});
       fb.db.collection('streamers').doc(uid).collection('giveaway_state').doc('snapshot')
         .set({ spinTrigger: { winner: winner.username, wager: winner.wager || 0, triggeredAt: Date.now() } }, { merge: true })
         .catch(() => {});
