@@ -222,101 +222,49 @@
   </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script>
-firebase.initializeApp({
-  apiKey: "AIzaSyDIFmRUou9_aWJWrQJa8HSoA1MBsndBnqg",
-  authDomain: "logictools.firebaseapp.com",
-  projectId: "logictools",
-  storageBucket: "logictools.firebasestorage.app",
-  messagingSenderId: "814616765484",
-  appId: "1:814616765484:web:6cf9f657fe612c95c19d89"
-});
-</script>
-<script>
-const params  = new URLSearchParams(location.search);
-const channel = params.get('channel') || '';
+const channel = new URLSearchParams(location.search).get('channel') || '';
 
-async function init() {
-  if (!channel) return;
+async function fetchData() {
+  if (!channel) return null;
+  try {
+    const r = await fetch(`/api/overlay-data?channel=${encodeURIComponent(channel)}`);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
 
-  await firebase.auth().signInAnonymously().catch(() => {});
-
-  const db   = firebase.firestore();
-  const snap = await db.collection('streamers').where('kickChannel', '==', channel).limit(1).get();
-  if (snap.empty) return;
-
-  const uid      = snap.docs[0].id;
-  const profile  = snap.docs[0].data();
-
-  // Show panel
+function render(data) {
+  if (!data) return;
   document.getElementById('panel').classList.add('visible');
 
-  // Subscribe to giveaway snapshot
-  db.collection('streamers').doc(uid)
-    .collection('giveaway_state').doc('snapshot')
-    .onSnapshot(doc => {
-      if (!doc.exists) return;
-      const data = doc.data();
-      renderOverlay(data, profile);
-    });
-
-  // Also subscribe to profile for criteria updates
-  db.collection('streamers').doc(uid).onSnapshot(doc => {
-    if (!doc.exists) return;
-    const p = doc.data();
-    renderCriteria(p);
-  });
-}
-
-function renderCriteria(profile) {
-  const row = document.getElementById('criteriaRow');
+  // Criteria chips
   const chips = [];
-
-  const keyword = profile.giveawayKeyword || '!join';
-  chips.push(`<span class="chip keyword">⌨ ${keyword}</span>`);
-
-  const type = profile.giveawayType || 'code';
-  const typeLabel = type === 'code' ? '🔗 Code Users' : type === 'verified' ? '✅ Verified' : '🌐 Everyone';
+  chips.push(`<span class="chip keyword">⌨ ${data.keyword}</span>`);
+  const typeLabel = data.type === 'code' ? '🔗 Code Users' : data.type === 'verified' ? '✅ Verified' : '🌐 Everyone';
   chips.push(`<span class="chip type">${typeLabel}</span>`);
+  if (data.minWager > 0) chips.push(`<span class="chip wager">💰 Min $${data.minWager.toLocaleString()}</span>`);
+  if (data.subOnly)      chips.push(`<span class="chip sub">⭐ Subs Only</span>`);
+  document.getElementById('criteriaRow').innerHTML = chips.join('');
 
-  if (profile.giveawayMinWager > 0) {
-    chips.push(`<span class="chip wager">💰 Min $${profile.giveawayMinWager.toLocaleString()}</span>`);
-  }
-  if (profile.giveawaySubOnly) {
-    chips.push(`<span class="chip sub">⭐ Subs Only</span>`);
-  }
+  // Count + status
+  document.getElementById('entryCount').textContent = data.count || 0;
+  document.getElementById('liveDot').style.display    = data.active ? '' : 'none';
+  document.getElementById('closedBadge').style.display = data.active ? 'none' : 'block';
 
-  row.innerHTML = chips.join('');
-}
-
-function renderOverlay(data, profile) {
-  const entries = data.entries || [];
-  const active  = data.active;
-
-  // Entry count
-  document.getElementById('entryCount').textContent = entries.length;
-
-  // Live dot / closed badge
-  document.getElementById('liveDot').style.display   = active ? '' : 'none';
-  document.getElementById('closedBadge').style.display = active ? 'none' : 'block';
-
-  // Updated timestamp
   if (data.updatedAt) {
     const d = new Date(data.updatedAt);
-    document.getElementById('updatedAt').textContent = `Updated ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+    document.getElementById('updatedAt').textContent = `Updated ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
   }
 
-  // Entries list — show up to 8 most recent (last = most recent since bot appends)
-  const inner = document.getElementById('entriesInner');
+  // Entries list — most recent last in array, show up to 8 newest
+  const entries = data.entries || [];
+  const inner   = document.getElementById('entriesInner');
   if (!entries.length) {
     inner.innerHTML = '<div class="empty-state">Waiting for entries…</div>';
     return;
   }
-
-  const show = entries.slice(-8).reverse(); // most recent first, max 8
+  const show = entries.slice(-8).reverse();
   inner.innerHTML = show.map((e, i) => {
     const name    = e.kickName || e.kickKey || '?';
     const wager   = e.wager   > 0 ? `$${Number(e.wager).toLocaleString()}` : '';
@@ -330,7 +278,12 @@ function renderOverlay(data, profile) {
   }).join('');
 }
 
-init();
+async function poll() {
+  render(await fetchData());
+  setTimeout(poll, 5000); // refresh every 5s
+}
+
+poll();
 </script>
 </body>
 </html>

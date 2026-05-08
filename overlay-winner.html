@@ -176,59 +176,27 @@
   </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script>
-firebase.initializeApp({
-  apiKey: "AIzaSyDIFmRUou9_aWJWrQJa8HSoA1MBsndBnqg",
-  authDomain: "logictools.firebaseapp.com",
-  projectId: "logictools",
-  storageBucket: "logictools.firebasestorage.app",
-  messagingSenderId: "814616765484",
-  appId: "1:814616765484:web:6cf9f657fe612c95c19d89"
-});
-</script>
-<script>
-const params  = new URLSearchParams(location.search);
-const channel = params.get('channel') || '';
-
+const channel     = new URLSearchParams(location.search).get('channel') || '';
 let lastTriggerAt = 0;
 let animating     = false;
 
-async function init() {
-  if (!channel) {
-    console.warn('overlay-winner: no ?channel= param');
-    return;
-  }
-
-  await firebase.auth().signInAnonymously().catch(() => {});
-
-  // Find the streamer uid by kickChannel field
-  const db = firebase.firestore();
-  const snap = await db.collection('streamers')
-    .where('kickChannel', '==', channel)
-    .limit(1)
-    .get();
-
-  if (snap.empty) { console.warn('overlay-winner: streamer not found'); return; }
-  const uid = snap.docs[0].id;
-
-  // Listen to the giveaway_state/snapshot doc
-  db.collection('streamers').doc(uid)
-    .collection('giveaway_state').doc('snapshot')
-    .onSnapshot(doc => {
-      if (!doc.exists) return;
-      const data = doc.data();
-      if (!data.spinTrigger) return;
+async function poll() {
+  if (!channel) return;
+  try {
+    const r    = await fetch(`/api/overlay-data?channel=${encodeURIComponent(channel)}`);
+    if (!r.ok) { setTimeout(poll, 5000); return; }
+    const data = await r.json();
+    if (data.spinTrigger) {
       const { winner, wager, triggeredAt } = data.spinTrigger;
-      if (!winner || triggeredAt === lastTriggerAt) return;
-      lastTriggerAt = triggeredAt;
-
-      // Show the machine and spin
-      showMachine();
-      runSpin(winner, wager || 0);
-    });
+      if (winner && triggeredAt !== lastTriggerAt) {
+        lastTriggerAt = triggeredAt;
+        showMachine();
+        runSpin(winner, wager || 0);
+      }
+    }
+  } catch {}
+  setTimeout(poll, 3000);
 }
 
 function showMachine() {
@@ -317,7 +285,7 @@ function spawnParticles() {
   }
 }
 
-init();
+poll();
 </script>
 </body>
 </html>

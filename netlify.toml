@@ -18,6 +18,11 @@
   to     = "/.netlify/functions/verify-affiliate"
   status = 200
 
+[[redirects]]
+  from   = "/api/overlay-data"
+  to     = "/.netlify/functions/overlay-data"
+  status = 200
+
 [[edge_functions]]
   function = "leaderboard"
   path = "/api/leaderboard"
