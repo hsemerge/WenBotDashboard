@@ -23,6 +23,21 @@
   to     = "/.netlify/functions/overlay-data"
   status = 200
 
+[[redirects]]
+  from   = "/api/leaderboard-live"
+  to     = "/.netlify/functions/leaderboard-live"
+  status = 200
+
+[[redirects]]
+  from   = "/api/leaderboard-winners"
+  to     = "/.netlify/functions/leaderboard-winners"
+  status = 200
+
+[[redirects]]
+  from   = "/api/save-leaderboard-period"
+  to     = "/.netlify/functions/save-leaderboard-period"
+  status = 200
+
 [[edge_functions]]
   function = "leaderboard"
   path = "/api/leaderboard"
