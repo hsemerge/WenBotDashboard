@@ -165,21 +165,23 @@
     }
 
     .hero-inner {
-      max-width: 1200px;
+      max-width: 1100px;
       margin: 0 auto;
       display: grid;
-      grid-template-columns: 1fr 360px auto;
-      gap: 48px;
+      grid-template-columns: 1fr 1fr;
+      gap: 64px;
       align-items: center;
       width: 100%;
     }
 
     .hero-bot-img {
-      height: 520px;
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      height: 560px;
       width: auto;
-      display: block;
-      align-self: flex-end;
-      filter: drop-shadow(0 0 40px rgba(0,229,255,0.15));
+      pointer-events: none;
+      filter: drop-shadow(0 0 40px rgba(0,229,255,0.12));
     }
 
     .hero-badge {
@@ -742,7 +744,7 @@
       .nav-links { display: none; }
       section { padding: 80px 20px; }
       .hero-inner { grid-template-columns: 1fr; gap: 40px; }
-      .hero-bot-img { display: none; }
+      .hero-bot-img { display: none; } /* hide on mobile — no room */
       .hero-title { font-size: 38px; }
       .features-grid { grid-template-columns: 1fr 1fr; }
       .discord-inner { grid-template-columns: 1fr; }
@@ -849,9 +851,9 @@
         </div>
       </div>
 
-      <!-- Bot image -->
-      <img src="wenfoldedarms.png" alt="WenBot" class="hero-bot-img">
     </div>
+    <!-- Bot image — absolutely positioned at right edge, outside the grid -->
+    <img src="wentransparent.png" alt="WenBot" class="hero-bot-img">
   </section>
 
   <div class="glow-line"></div>
