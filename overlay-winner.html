@@ -177,12 +177,21 @@
 </div>
 
 <script>
-const channel     = new URLSearchParams(location.search).get('channel') || '';
+const params      = new URLSearchParams(location.search);
+const channel     = params.get('channel') || '';
+const demoMode    = params.get('demo') === '1';
 let lastTriggerAt = 0;
 let animating     = false;
 
+// Demo mode — show a test spin immediately
+if (demoMode) {
+  window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => { showMachine(); runSpin('TestViewer99', 4210); }, 800);
+  });
+}
+
 async function poll() {
-  if (!channel) return;
+  if (!channel || demoMode) return;
   try {
     const r    = await fetch(`/api/overlay-data?channel=${encodeURIComponent(channel)}`);
     if (!r.ok) { setTimeout(poll, 5000); return; }
