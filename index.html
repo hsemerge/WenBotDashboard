@@ -148,10 +148,10 @@
     .hero {
       min-height: 100vh;
       display: flex;
-      align-items: center;
+      align-items: flex-end;
       padding-top: 64px;
       position: relative;
-      overflow: visible;
+      overflow: hidden;
     }
 
     .hero::before {
@@ -169,25 +169,28 @@
       margin: 0 auto;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 56px;
-      align-items: center;
+      gap: 16px;
+      align-items: flex-end;
       width: 100%;
+      padding-bottom: 0;
+    }
+
+    .hero-text {
+      padding-bottom: 60px;
     }
 
     .hero-right {
       position: relative;
       display: flex;
       align-items: flex-end;
-      justify-content: flex-end;
-      min-height: 520px;
+      justify-content: center;
     }
 
     .hero-bot-img {
-      height: 660px;
+      height: 780px;
       width: auto;
       flex-shrink: 0;
-      margin-right: 60px;
-      filter: drop-shadow(0 0 40px rgba(0,229,255,0.15));
+      filter: drop-shadow(0 0 50px rgba(0,229,255,0.18));
     }
 
     .hero-chat-float {
@@ -797,7 +800,7 @@
   <!-- HERO -->
   <section class="hero">
     <div class="hero-inner container">
-      <div>
+      <div class="hero-text">
         <div class="hero-badge">🎰 Built for Kick Gambling Streamers</div>
         <h1 class="hero-title">The All-In-One<br><span>Streamer Bot</span><br>for Kick</h1>
         <p class="hero-sub">
