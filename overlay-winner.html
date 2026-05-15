@@ -193,7 +193,7 @@ async function poll() {
   if (!channel || demoMode) return;
   try {
     const r    = await fetch(`/api/overlay-data?channel=${encodeURIComponent(channel)}`);
-    if (!r.ok) { setTimeout(poll, 5000); return; }
+    if (!r.ok) { setTimeout(poll, 3000); return; }
     const data = await r.json();
     if (data.spinTrigger) {
       const { winner, wager, triggeredAt } = data.spinTrigger;
@@ -210,7 +210,7 @@ async function poll() {
       initialized = true;
     }
   } catch {}
-  setTimeout(poll, 3000);
+  setTimeout(poll, 800);
 }
 
 function showMachine() {

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bonus Hunt Overlay — WenBot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       rgba(13,17,23,0.93);
+      --border:   rgba(0,229,255,0.25);
+      --text:     #c9d1d9;
+      --text-dim: #8b949e;
+      --bright:   #f0f6fc;
+      --accent:   #00e5ff;
+      --green:    #00ff88;
+      --red:      #ff4757;
+      --orange:   #ffb347;
+      --gold:     #ffd700;
+    }
+
+    body {
+      background: transparent;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      padding: 12px;
+      width: 500px;
+    }
+
+    .panel {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,229,255,0.05);
+    }
+
+    /* ── HEADER ── */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .header-title {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 13px;
+      font-weight: 900;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .progress-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .progress-bar {
+      flex: 1;
+      height: 5px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--green));
+      border-radius: 3px;
+      transition: width 0.4s ease;
+      width: 0%;
+    }
+    .progress-count {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--bright);
+      white-space: nowrap;
+    }
+
+    /* ── STATS ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .stat {
+      padding: 8px 10px;
+      border-right: 1px solid rgba(255,255,255,0.05);
+    }
+    .stat:last-child { border-right: none; }
+    .stat-val {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 15px;
+      font-weight: 900;
+      color: var(--bright);
+      line-height: 1;
+      margin-bottom: 3px;
+    }
+    .stat-val.positive { color: var(--green); }
+    .stat-val.accent   { color: var(--accent); }
+    .stat-val.gold     { color: var(--gold); }
+    .stat-lbl {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    /* ── BEST ── */
+    .best-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      background: rgba(255,215,0,0.04);
+    }
+    .best-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--gold);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .best-slot {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--bright);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .best-x {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 13px;
+      font-weight: 900;
+      color: var(--gold);
+      white-space: nowrap;
+    }
+
+    /* ── TABLE ── */
+    .table-wrap {
+      max-height: 280px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0,229,255,0.2) transparent;
+    }
+    .table-wrap::-webkit-scrollbar { width: 4px; }
+    .table-wrap::-webkit-scrollbar-track { background: transparent; }
+    .table-wrap::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.2); border-radius: 2px; }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      padding: 6px 10px;
+      text-align: left;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      background: rgba(255,255,255,0.02);
+      position: sticky;
+      top: 0;
+    }
+    thead th:nth-child(1) { width: 32px; text-align: center; }
+    thead th:nth-child(3) { width: 60px; text-align: right; }
+    thead th:nth-child(4) { width: 110px; text-align: right; }
+
+    tbody tr {
+      border-top: 1px solid rgba(255,255,255,0.03);
+      transition: background 0.2s;
+    }
+    tbody tr.best-bonus { background: rgba(255,215,0,0.05); }
+    tbody tr.newly-revealed { animation: revealFlash 1.2s ease; }
+    @keyframes revealFlash {
+      0%   { background: rgba(0,229,255,0.15); }
+      100% { background: transparent; }
+    }
+
+    td {
+      padding: 7px 10px;
+      font-size: 12px;
+    }
+    td:nth-child(1) {
+      text-align: center;
+      font-size: 10px;
+      color: var(--text-dim);
+      font-weight: 600;
+      width: 32px;
+    }
+    td:nth-child(2) {
+      color: var(--bright);
+      font-weight: 500;
+      max-width: 160px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    td:nth-child(3) {
+      text-align: right;
+      color: var(--text-dim);
+      font-size: 11px;
+    }
+    td:nth-child(4) {
+      text-align: right;
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 700;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .result-pending { color: var(--text-dim); font-weight: 400; font-family: 'Inter', sans-serif; font-size: 12px; }
+    .result-low  { color: var(--red); }
+    .result-mid  { color: var(--text); }
+    .result-high { color: var(--orange); }
+    .result-mega { color: var(--green); }
+    .result-best { color: var(--gold); }
+
+    .idle-state {
+      padding: 32px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="panel" id="panel" style="display:none;">
+
+  <!-- Header + progress -->
+  <div class="header">
+    <div class="header-title">🎰 Bonus Hunt</div>
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-count" id="progressCount">0 / 0</div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat">
+      <div class="stat-val" id="statCost">$0</div>
+      <div class="stat-lbl">Cost</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" id="statWinnings">$0</div>
+      <div class="stat-lbl">Winnings</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val accent" id="statAvgX">0x</div>
+      <div class="stat-lbl">Avg X</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" id="statReqX">—</div>
+      <div class="stat-lbl">Req X</div>
+    </div>
+  </div>
+
+  <!-- Best slot -->
+  <div class="best-row" id="bestRow" style="display:none;">
+    <div class="best-label">🥇 Best</div>
+    <div class="best-slot" id="bestSlotName">—</div>
+    <div class="best-x" id="bestSlotX">—</div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Slot</th>
+          <th>Bet</th>
+          <th>Result</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+  const params  = new URLSearchParams(window.location.search);
+  const channel = params.get('channel') || '';
+  const demo    = params.get('demo') === '1';
+
+  let seenPayouts = new Set(); // track which bonus ids have already been revealed
+
+  function fmt(n) {
+    if (n >= 1000000) return '$' + (n/1000000).toFixed(2) + 'M';
+    if (n >= 1000)    return '$' + (n/1000).toFixed(1) + 'k';
+    return '$' + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  }
+
+  function fmtX(x) { return x.toFixed(1) + 'x'; }
+
+  function resultClass(x, isBest) {
+    if (isBest) return 'result-best';
+    if (x >= 200) return 'result-mega';
+    if (x >= 50)  return 'result-high';
+    if (x >= 10)  return 'result-mid';
+    return 'result-low';
+  }
+
+  function render(hunt) {
+    if (!hunt || !hunt.active) {
+      document.getElementById('panel').style.display = 'none';
+      return;
+    }
+    document.getElementById('panel').style.display = '';
+
+    const bonuses   = hunt.bonuses || [];
+    const totalCost = hunt.totalCost || 0;
+    const played    = bonuses.filter(b => b.payout !== null && b.payout !== undefined);
+    const remaining = bonuses.filter(b => b.payout == null);
+    const total     = bonuses.length;
+    const opened    = played.length;
+
+    const winnings  = played.reduce((s, b) => s + b.payout, 0);
+    const multis    = played.filter(b => b.multiplier != null).map(b => b.multiplier);
+    const avgX      = multis.length ? multis.reduce((s, x) => s + x, 0) / multis.length : 0;
+    const remCost   = remaining.reduce((s, b) => s + (b.betSize || 0), 0);
+    const reqX      = (remaining.length > 0 && remCost > 0) ? (totalCost - winnings) / remCost : null;
+    const bestBonus = played.reduce((best, b) => (b.multiplier || 0) > (best?.multiplier || 0) ? b : best, null);
+
+    // Progress
+    const pct = total ? (opened / total) * 100 : 0;
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressCount').textContent = opened + ' / ' + total;
+
+    // Stats
+    document.getElementById('statCost').textContent     = fmt(totalCost);
+    document.getElementById('statWinnings').textContent  = fmt(winnings);
+    document.getElementById('statWinnings').className   = 'stat-val' + (winnings >= totalCost ? ' positive' : '');
+    document.getElementById('statAvgX').textContent     = fmtX(avgX);
+
+    const reqEl = document.getElementById('statReqX');
+    if (reqX !== null) {
+      reqEl.textContent  = fmtX(reqX);
+      reqEl.className    = 'stat-val ' + (reqX <= avgX ? 'positive' : 'accent');
+    } else {
+      reqEl.textContent = played.length === total ? (winnings >= totalCost ? '🎉' : '🔴') : '—';
+      reqEl.className   = 'stat-val';
+    }
+
+    // Best
+    const bestRow = document.getElementById('bestRow');
+    if (bestBonus) {
+      bestRow.style.display = '';
+      document.getElementById('bestSlotName').textContent = bestBonus.name;
+      document.getElementById('bestSlotX').textContent    = fmtX(bestBonus.multiplier);
+    } else {
+      bestRow.style.display = 'none';
+    }
+
+    // Table
+    const tbody = document.getElementById('tableBody');
+    const newlyRevealed = new Set();
+    played.forEach(b => {
+      if (!seenPayouts.has(b.id)) newlyRevealed.add(b.id);
+    });
+    played.forEach(b => seenPayouts.add(b.id));
+
+    tbody.innerHTML = bonuses.map((b, i) => {
+      const isPlayed = b.payout != null;
+      const isBest   = bestBonus && b.id === bestBonus.id;
+      const cls      = newlyRevealed.has(b.id) ? 'newly-revealed' : (isBest ? 'best-bonus' : '');
+
+      let resultHtml;
+      if (isPlayed) {
+        const rc = resultClass(b.multiplier || 0, isBest);
+        resultHtml = `<span class="${rc}">${fmt(b.payout)} <span style="opacity:0.7;font-size:10px;">${fmtX(b.multiplier || 0)}</span></span>`;
+      } else {
+        resultHtml = `<span class="result-pending">—</span>`;
+      }
+
+      return `<tr class="${cls}">
+        <td>${i + 1}</td>
+        <td>${escHtml(b.name)}</td>
+        <td>$${(b.betSize || 0).toLocaleString()}</td>
+        <td>${resultHtml}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function escHtml(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Demo mode
+  if (demo) {
+    const demoHunt = {
+      active: true,
+      totalCost: 50000,
+      bonuses: [
+        { id:'1', name:'Gates of Olympus', provider:'Pragmatic Play', betSize:4, payout:3248, multiplier:812 },
+        { id:'2', name:'Sweet Bonanza', provider:'Pragmatic Play', betSize:4, payout:840, multiplier:210 },
+        { id:'3', name:'Fire in the Hole xBomb', provider:'Nolimit City', betSize:5, payout:null, multiplier:null },
+        { id:'4', name:'Wanted Dead or a Wild', provider:'Hacksaw Gaming', betSize:2, payout:null, multiplier:null },
+        { id:'5', name:'Razor Shark', provider:'Push Gaming', betSize:3, payout:null, multiplier:null },
+        { id:'6', name:'San Quentin xWays', provider:'Nolimit City', betSize:1, payout:null, multiplier:null },
+        { id:'7', name:'Money Train 4', provider:'Relax Gaming', betSize:8, payout:null, multiplier:null },
+        { id:'8', name:'Nitropolis 5', provider:'ELK Studios', betSize:2, payout:null, multiplier:null },
+      ],
+    };
+    seenPayouts.add('1');
+    seenPayouts.add('2');
+    render(demoHunt);
+  } else {
+    async function poll() {
+      if (!channel) return;
+      try {
+        const r    = await fetch(`/api/bonus-hunt-data?channel=${encodeURIComponent(channel)}`);
+        if (!r.ok) { setTimeout(poll, 3000); return; }
+        const data = await r.json();
+        render(data);
+      } catch {}
+      setTimeout(poll, 800);
+    }
+    poll();
+  }
+</script>
+</body>
+</html>

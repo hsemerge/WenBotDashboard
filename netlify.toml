@@ -29,6 +29,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/bonus-hunt-data"
+  to     = "/.netlify/functions/bonus-hunt-data"
+  status = 200
+
+[[redirects]]
   from   = "/api/leaderboard-live"
   to     = "/.netlify/functions/leaderboard-live"
   status = 200

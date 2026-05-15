@@ -172,6 +172,13 @@
     .btn-danger:hover { background: rgba(255,71,87,0.2); }
     .btn-green { background: rgba(0,255,136,0.12); color: var(--green); border: 1px solid rgba(0,255,136,0.3); }
     .btn-green:hover { background: rgba(0,255,136,0.2); }
+    .overlay-row { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+    .overlay-row-label { font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; }
+    .overlay-url { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 5px 10px; font-size: 11px; color: var(--accent); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; }
+    .btn-copy { background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.2); border-radius: 5px; color: var(--accent); font-size: 11px; font-weight: 600; cursor: pointer; padding: 5px 10px; white-space: nowrap; transition: background 0.15s; }
+    .btn-copy:hover { background: rgba(0,229,255,0.16); }
+    .btn-preview { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 5px; color: var(--text-dim); font-size: 11px; font-weight: 600; cursor: pointer; padding: 5px 10px; text-decoration: none; white-space: nowrap; transition: all 0.15s; }
+    .btn-preview:hover { color: var(--bright); background: rgba(255,255,255,0.08); }
     .btn-xl { padding: 14px 28px; font-size: 16px; border-radius: 8px; font-family: 'Exo 2', sans-serif; font-weight: 800; letter-spacing: 0.5px; }
     .btn-sm { padding: 5px 10px; font-size: 11px; }
     .btn:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -406,6 +413,8 @@
         <div class="nav-item" onclick="showPage('commands',this)"><span class="icon">💬</span> Commands</div>
         <div class="nav-item" onclick="showPage('leaderboard',this)"><span class="icon">🏆</span> Leaderboard</div>
         <div class="nav-item" onclick="showPage('verified',this)"><span class="icon">✅</span> Verified Users</div>
+        <div class="nav-item" onclick="showPage('bonushunt',this)"><span class="icon">🎰</span> Bonus Hunt <span class="nav-badge" id="bhLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
+        <div class="nav-item" onclick="showPage('overlays',this)"><span class="icon">🖥</span> Overlays</div>
       </div>
       <div class="sidebar-section" style="margin-top:8px;">
         <div class="sidebar-label">Account</div>
@@ -620,6 +629,7 @@
           <button class="btn btn-ghost" style="width:100%;margin-top:6px;" id="rerollBtn" onclick="spinPicker()" disabled>🔄 Reroll</button>
           <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px;align-items:center;">
             <a href="#" target="_blank" id="overlayLink" style="font-size:11px;color:var(--accent);text-decoration:none;opacity:0.7;">🖥 Spinner Overlay (OBS)</a>
+            <a href="#" target="_blank" id="overlayPreviewLink" style="font-size:11px;color:var(--text-dim);text-decoration:none;opacity:0.7;">▶ Preview</a>
             <a href="#" target="_blank" id="overlayEntriesLink" style="font-size:11px;color:var(--accent);text-decoration:none;opacity:0.7;">📋 Entries Overlay (OBS)</a>
           </div>
         </div>
@@ -1046,6 +1056,175 @@
       </div>
     </div>
 
+    <!-- ── OVERLAYS ── -->
+    <div class="page" id="page-overlays">
+      <div style="max-width:720px;">
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title" style="margin-bottom:16px;">🎰 Winner Spinner</div>
+          <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">Animated slot-machine-style winner reveal. Appears when you spin a winner from the Giveaway page.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div class="overlay-row">
+              <div class="overlay-row-label">OBS Browser Source URL</div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <code class="overlay-url" id="obsSpinnerUrl">—</code>
+                <button onclick="copyOverlay('obsSpinnerUrl')" class="btn-copy">Copy</button>
+                <a href="#" target="_blank" id="obsSpinnerPreview" class="btn-preview">▶ Preview</a>
+              </div>
+              <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Set width: 1920, height: 1080, transparent background checked</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title" style="margin-bottom:16px;">📋 Giveaway Entries</div>
+          <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">Live scrolling list of giveaway entries as viewers join. Place as a sidebar or ticker on your scene.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div class="overlay-row">
+              <div class="overlay-row-label">OBS Browser Source URL</div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <code class="overlay-url" id="obsEntriesUrl">—</code>
+                <button onclick="copyOverlay('obsEntriesUrl')" class="btn-copy">Copy</button>
+                <a href="#" target="_blank" id="obsEntriesPreview" class="btn-preview">▶ Preview</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title" style="margin-bottom:16px;">🎰 Bonus Hunt</div>
+          <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">Live bonus hunt tracker. Shows progress, stats, and your full slot list as you hunt through them.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div class="overlay-row">
+              <div class="overlay-row-label">OBS Browser Source URL</div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <code class="overlay-url" id="obsBonusUrl">—</code>
+                <button onclick="copyOverlay('obsBonusUrl')" class="btn-copy">Copy</button>
+                <a href="#" target="_blank" id="obsBonusPreview" class="btn-preview">▶ Preview</a>
+              </div>
+              <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Width: 500px recommended. Position freely — transparent background.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="background:rgba(0,229,255,0.03);border-color:rgba(0,229,255,0.12);">
+          <div style="font-size:12px;color:var(--text-dim);line-height:1.7;">
+            <strong style="color:var(--accent);">OBS setup tip:</strong> Add each overlay as a <em>Browser Source</em> in OBS. Check <em>Shutdown source when not visible</em> to save resources. The overlays are transparent by default — only content appears on stream.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── BONUS HUNT ── -->
+    <div class="page" id="page-bonushunt">
+
+      <!-- No hunt active -->
+      <div id="bhNoHunt">
+        <div class="card" style="text-align:center;padding:52px 36px;max-width:480px;margin:0 auto;">
+          <div style="font-size:52px;margin-bottom:16px;">🎰</div>
+          <h2 style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--bright);margin-bottom:8px;">No Active Bonus Hunt</h2>
+          <p style="color:var(--text-dim);font-size:13px;margin-bottom:28px;line-height:1.6;">Enter the total amount you spent buying bonuses, then add each slot as you hunt through them.</p>
+          <div style="max-width:320px;margin:0 auto;">
+            <div class="field">
+              <label>Total Amount Spent on Bonuses ($)</label>
+              <input type="number" id="bhCostInput" class="form-input" placeholder="e.g. 25000" min="0" step="1">
+            </div>
+            <button onclick="startBonusHunt()" class="btn btn-accent" style="width:100%;margin-top:4px;padding:13px;">🎰 Start Bonus Hunt</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hunt active -->
+      <div id="bhActive" style="display:none;">
+
+        <!-- Stats bar -->
+        <div class="card" style="margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+            <div style="flex:1;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+                <span style="font-size:12px;color:var(--text-dim);" id="bhProgressLabel">0 of 0 played</span>
+                <span style="font-size:12px;font-weight:700;color:var(--bright);" id="bhProgressPct">0%</span>
+              </div>
+              <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+                <div id="bhProgressFill" style="height:100%;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:3px;transition:width 0.4s ease;width:0%;"></div>
+              </div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+            <div style="background:var(--bg-card);padding:10px 12px;">
+              <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:var(--bright);" id="bhStatCost">$0</div>
+              <div style="font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);margin-top:2px;">Total Cost</div>
+            </div>
+            <div style="background:var(--bg-card);padding:10px 12px;">
+              <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:var(--bright);" id="bhStatWinnings">$0</div>
+              <div style="font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);margin-top:2px;">Winnings</div>
+            </div>
+            <div style="background:var(--bg-card);padding:10px 12px;">
+              <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:var(--accent);" id="bhStatAvgX">0x</div>
+              <div style="font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);margin-top:2px;">Avg X</div>
+            </div>
+            <div style="background:var(--bg-card);padding:10px 12px;">
+              <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;" id="bhStatReqX">—</div>
+              <div style="font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);margin-top:2px;">Req X</div>
+            </div>
+            <div style="background:var(--bg-card);padding:10px 12px;">
+              <div style="font-family:'Exo 2',sans-serif;font-size:14px;font-weight:900;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="bhStatBest">—</div>
+              <div style="font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);margin-top:2px;">Best Slot</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add slot -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title">➕ Add Slot</div>
+          <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+            <div style="flex:1;min-width:200px;position:relative;">
+              <input type="text" id="bhSlotSearch" class="form-input" placeholder="Search slots — Pragmatic, Hacksaw, Nolimit..." autocomplete="off" oninput="bhSearchSlots(this.value)" onfocus="bhSearchSlots(this.value)">
+              <div id="bhDropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;z-index:100;max-height:240px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
+              <input type="hidden" id="bhSlotName">
+              <input type="hidden" id="bhSlotProvider">
+            </div>
+            <div style="width:120px;">
+              <input type="number" id="bhBetSize" class="form-input" placeholder="Bet $" min="0.01" step="0.01">
+            </div>
+            <button onclick="bhAddSlot()" class="btn btn-accent" style="padding:11px 20px;white-space:nowrap;">Add Slot</button>
+          </div>
+        </div>
+
+        <!-- Bonus table -->
+        <div class="card" style="margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div class="card-title" style="margin-bottom:0;">Bonus List <span style="color:var(--text-dim);font-weight:500;" id="bhBonusCount"></span></div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;" id="bhTable">
+              <thead>
+                <tr style="border-bottom:1px solid var(--border);">
+                  <th style="text-align:left;padding:6px 10px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);width:36px;">#</th>
+                  <th style="text-align:left;padding:6px 10px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);">Slot</th>
+                  <th style="text-align:left;padding:6px 10px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);">Provider</th>
+                  <th style="text-align:right;padding:6px 10px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);width:70px;">Bet</th>
+                  <th style="text-align:right;padding:6px 10px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);width:140px;">Result</th>
+                  <th style="width:90px;"></th>
+                </tr>
+              </thead>
+              <tbody id="bhTableBody"></tbody>
+            </table>
+            <div id="bhEmpty" style="text-align:center;padding:32px;color:var(--text-dim);font-size:13px;">No slots added yet — search above to add your first bonus.</div>
+          </div>
+        </div>
+
+        <!-- Footer controls -->
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <a href="#" target="_blank" id="bhOverlayLink" style="font-size:12px;color:var(--accent);text-decoration:none;font-weight:600;">🖥 Bonus Hunt Overlay (OBS)</a>
+          <a href="#" target="_blank" id="bhPreviewLink" style="font-size:11px;color:var(--text-dim);text-decoration:none;opacity:0.7;">▶ Preview</a>
+          <button onclick="bhResetHunt()" style="margin-left:auto;background:none;border:1px solid rgba(255,71,87,0.3);border-radius:6px;color:var(--red);font-size:12px;cursor:pointer;padding:6px 14px;">🗑 Reset Hunt</button>
+        </div>
+
+      </div>
+    </div>
+
   </div><!-- end main -->
 </div><!-- end app -->
 
@@ -1064,13 +1243,15 @@ function showPage(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', commands:'Commands', leaderboard:'Leaderboard', verified:'Verified Users', settings:'Settings', help:'Help' };
+  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', commands:'Commands', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', overlays:'Overlays', settings:'Settings', help:'Help' };
   document.getElementById('topbarTitle').textContent = titles[id] || id;
   if (id === 'verified') loadVerifiedUsers();
   if (id === 'points') loadTopViewers();
   if (id === 'gtb') loadGTBGuesses();
   if (id === 'leaderboard') loadLeaderboards();
   if (id === 'store') { loadStoreItems(); loadRedemptions(); }
+  if (id === 'bonushunt') loadBonusHunt();
+  if (id === 'overlays')  wireOverlayLinks();
 }
 
 // ── FLASH ──
@@ -1118,6 +1299,8 @@ function onAuthReady(user) {
   const chan = profile?.kickChannel || '';
   const overlayLink = document.getElementById('overlayLink');
   if (overlayLink && chan) overlayLink.href = `/overlay-winner.html?channel=${encodeURIComponent(chan)}`;
+  const overlayPreviewLink = document.getElementById('overlayPreviewLink');
+  if (overlayPreviewLink && chan) overlayPreviewLink.href = `/overlay-winner.html?channel=${encodeURIComponent(chan)}&demo=1`;
   const overlayEntriesLink = document.getElementById('overlayEntriesLink');
   if (overlayEntriesLink && chan) overlayEntriesLink.href = `/overlay-giveaway.html?channel=${encodeURIComponent(chan)}`;
 
@@ -2027,6 +2210,506 @@ async function submitFinalize() {
   btn.disabled = false;
   btn.textContent = 'Save Winners';
 }
+
+// ── OVERLAYS ─────────────────────────────────────────────────────────────────
+
+function wireOverlayLinks() {
+  const chan = profile?.kickChannel || '';
+  if (!chan) return;
+  const base = window.location.origin;
+
+  const links = [
+    { url: 'obsSpinnerUrl',  preview: 'obsSpinnerPreview',  path: `/overlay-winner.html?channel=${encodeURIComponent(chan)}`,     demo: `/overlay-winner.html?channel=${encodeURIComponent(chan)}&demo=1` },
+    { url: 'obsEntriesUrl',  preview: 'obsEntriesPreview',  path: `/overlay-giveaway.html?channel=${encodeURIComponent(chan)}`,   demo: `/overlay-giveaway.html?channel=${encodeURIComponent(chan)}&demo=1` },
+    { url: 'obsBonusUrl',    preview: 'obsBonusPreview',    path: `/overlay-bonus-hunt.html?channel=${encodeURIComponent(chan)}`, demo: `/overlay-bonus-hunt.html?channel=${encodeURIComponent(chan)}&demo=1` },
+  ];
+
+  links.forEach(({ url, preview, path, demo }) => {
+    const urlEl = document.getElementById(url);
+    const preEl = document.getElementById(preview);
+    if (urlEl) urlEl.textContent = base + path;
+    if (preEl) preEl.href = demo;
+  });
+}
+
+function copyOverlay(elId) {
+  const el  = document.getElementById(elId);
+  const txt = el?.textContent?.trim();
+  if (!txt || txt === '—') return;
+  navigator.clipboard.writeText(txt).then(() => flash('Copied to clipboard!')).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    flash('Copied!');
+  });
+}
+
+// ── BONUS HUNT ──────────────────────────────────────────────────────────────
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+const BH_SLOTS = [
+  // Pragmatic Play
+  { name:'5 Lions Megaways', provider:'Pragmatic Play' },
+  { name:'Aztec Bonanza', provider:'Pragmatic Play' },
+  { name:'Big Bass Bonanza', provider:'Pragmatic Play' },
+  { name:'Big Bass Christmas Bash', provider:'Pragmatic Play' },
+  { name:'Big Bass Keeping it Reel', provider:'Pragmatic Play' },
+  { name:'Big Bass Splash', provider:'Pragmatic Play' },
+  { name:'Book of Golden Sands', provider:'Pragmatic Play' },
+  { name:'Buffalo King', provider:'Pragmatic Play' },
+  { name:'Buffalo King Megaways', provider:'Pragmatic Play' },
+  { name:'Bull Fiesta', provider:'Pragmatic Play' },
+  { name:'Cash Bonanza', provider:'Pragmatic Play' },
+  { name:'Chilli Heat Megaways', provider:'Pragmatic Play' },
+  { name:'Firecracker Blast', provider:'Pragmatic Play' },
+  { name:'Floating Dragon', provider:'Pragmatic Play' },
+  { name:'Fruit Party', provider:'Pragmatic Play' },
+  { name:'Fruit Party 2', provider:'Pragmatic Play' },
+  { name:'Gates of Olympus', provider:'Pragmatic Play' },
+  { name:'Gates of Olympus 1000', provider:'Pragmatic Play' },
+  { name:'Gem Bonanza', provider:'Pragmatic Play' },
+  { name:'Piggy Bankers', provider:'Pragmatic Play' },
+  { name:'Power of Thor Megaways', provider:'Pragmatic Play' },
+  { name:'Starlight Princess', provider:'Pragmatic Play' },
+  { name:'Starlight Princess 1000', provider:'Pragmatic Play' },
+  { name:'Sugar Rush', provider:'Pragmatic Play' },
+  { name:'Sugar Rush 1000', provider:'Pragmatic Play' },
+  { name:'Sweet Bonanza', provider:'Pragmatic Play' },
+  { name:'Sweet Bonanza 1000', provider:'Pragmatic Play' },
+  { name:'Sweet Bonanza 2500', provider:'Pragmatic Play' },
+  { name:'The Dog House', provider:'Pragmatic Play' },
+  { name:'The Dog House Megaways', provider:'Pragmatic Play' },
+  { name:'Vampire vs Wolves', provider:'Pragmatic Play' },
+  { name:'Wild Wild Riches', provider:'Pragmatic Play' },
+  { name:'Wisdom of Athena', provider:'Pragmatic Play' },
+  { name:'Wolf Gold', provider:'Pragmatic Play' },
+  { name:'Zeus vs Hades', provider:'Pragmatic Play' },
+  // Hacksaw Gaming
+  { name:'Aiko and the Wind Spirit', provider:'Hacksaw Gaming' },
+  { name:'Chaos Crew', provider:'Hacksaw Gaming' },
+  { name:'Chaos Crew 2', provider:'Hacksaw Gaming' },
+  { name:'Circle of Life', provider:'Hacksaw Gaming' },
+  { name:'Cubes', provider:'Hacksaw Gaming' },
+  { name:'Cubes 2', provider:'Hacksaw Gaming' },
+  { name:'Dorks of the Deep', provider:'Hacksaw Gaming' },
+  { name:'Eye of Medusa', provider:'Hacksaw Gaming' },
+  { name:'Hand of Anubis', provider:'Hacksaw Gaming' },
+  { name:'Le Bandit', provider:'Hacksaw Gaming' },
+  { name:'Le Cowboy', provider:'Hacksaw Gaming' },
+  { name:'Le Fisherman', provider:'Hacksaw Gaming' },
+  { name:'Le King', provider:'Hacksaw Gaming' },
+  { name:'Le Santa', provider:'Hacksaw Gaming' },
+  { name:'Le Zeus', provider:'Hacksaw Gaming' },
+  { name:'Oktoberfest', provider:'Hacksaw Gaming' },
+  { name:'RIP City', provider:'Hacksaw Gaming' },
+  { name:'Stick \'Em', provider:'Hacksaw Gaming' },
+  { name:'Stormborn', provider:'Hacksaw Gaming' },
+  { name:'The Bowery Boys', provider:'Hacksaw Gaming' },
+  { name:'The Luxe', provider:'Hacksaw Gaming' },
+  { name:'Wanted Dead or a Wild', provider:'Hacksaw Gaming' },
+  { name:'Xmas Wonderland', provider:'Hacksaw Gaming' },
+  // Nolimit City
+  { name:'Barbarian Fury', provider:'Nolimit City' },
+  { name:'Das xBoot', provider:'Nolimit City' },
+  { name:'Das xBoot 2', provider:'Nolimit City' },
+  { name:'Deadwood', provider:'Nolimit City' },
+  { name:'Deadwood xNudge', provider:'Nolimit City' },
+  { name:'Din Tai Fung', provider:'Nolimit City' },
+  { name:'East Coast vs West Coast', provider:'Nolimit City' },
+  { name:'El Paso Gunfight', provider:'Nolimit City' },
+  { name:'Evil Goblins xBomb', provider:'Nolimit City' },
+  { name:'Fire in the Hole 2', provider:'Nolimit City' },
+  { name:'Fire in the Hole xBomb', provider:'Nolimit City' },
+  { name:'Folsom Prison', provider:'Nolimit City' },
+  { name:'Infectious 5 xWays', provider:'Nolimit City' },
+  { name:'Mental', provider:'Nolimit City' },
+  { name:'Mental 2', provider:'Nolimit City' },
+  { name:'Milky Way', provider:'Nolimit City' },
+  { name:'Misery Mining', provider:'Nolimit City' },
+  { name:'Pixies vs Pirates', provider:'Nolimit City' },
+  { name:'Punk Rocker', provider:'Nolimit City' },
+  { name:'Road Rage', provider:'Nolimit City' },
+  { name:'San Quentin xWays', provider:'Nolimit City' },
+  { name:'Thor Hammer Time', provider:'Nolimit City' },
+  { name:'Tombstone', provider:'Nolimit City' },
+  { name:'Tombstone No Mercy', provider:'Nolimit City' },
+  { name:'Tombstone RIP', provider:'Nolimit City' },
+  { name:'Wolf Hollow xWays', provider:'Nolimit City' },
+  { name:'Xtreme Hotter Reloaded', provider:'Nolimit City' },
+  // Play'n GO
+  { name:'Annihilator', provider:"Play'n GO" },
+  { name:"Baker's Treat", provider:"Play'n GO" },
+  { name:'Book of Dead', provider:"Play'n GO" },
+  { name:'Crystal Rift', provider:"Play'n GO" },
+  { name:'Eye of the Storm', provider:"Play'n GO" },
+  { name:'Fire Joker', provider:"Play'n GO" },
+  { name:'Gemix', provider:"Play'n GO" },
+  { name:'Honey Rush 100', provider:"Play'n GO" },
+  { name:'Legacy of Dead', provider:"Play'n GO" },
+  { name:'Moon Princess', provider:"Play'n GO" },
+  { name:'Moon Princess 100', provider:"Play'n GO" },
+  { name:'Raging Rex', provider:"Play'n GO" },
+  { name:'Raging Rex 2', provider:"Play'n GO" },
+  { name:'Reactoonz', provider:"Play'n GO" },
+  { name:'Reactoonz 2', provider:"Play'n GO" },
+  { name:'Rich Wilde and the Tome of Insanity', provider:"Play'n GO" },
+  { name:'Rise of Olympus', provider:"Play'n GO" },
+  { name:'Rise of Olympus 100', provider:"Play'n GO" },
+  { name:'Tome of Madness', provider:"Play'n GO" },
+  // Push Gaming
+  { name:'Cash Patrol', provider:'Push Gaming' },
+  { name:'Fat Banker', provider:'Push Gaming' },
+  { name:'Fat Santa', provider:'Push Gaming' },
+  { name:"Jammin' Jars", provider:'Push Gaming' },
+  { name:"Jammin' Jars 2", provider:'Push Gaming' },
+  { name:'Joker Troupe', provider:'Push Gaming' },
+  { name:'Razor Returns', provider:'Push Gaming' },
+  { name:'Razor Shark', provider:'Push Gaming' },
+  { name:'Retro Sweets', provider:'Push Gaming' },
+  { name:'Wild Swarm', provider:'Push Gaming' },
+  { name:'Wild Swarm 2', provider:'Push Gaming' },
+  // Relax Gaming
+  { name:'Cluster Tumble', provider:'Relax Gaming' },
+  { name:'Gold Digger Megaways', provider:'Relax Gaming' },
+  { name:'Money Train', provider:'Relax Gaming' },
+  { name:'Money Train 2', provider:'Relax Gaming' },
+  { name:'Money Train 3', provider:'Relax Gaming' },
+  { name:'Money Train 4', provider:'Relax Gaming' },
+  { name:'Multipli$her', provider:'Relax Gaming' },
+  { name:'Snake Arena', provider:'Relax Gaming' },
+  { name:'Volatile Express', provider:'Relax Gaming' },
+  // Big Time Gaming
+  { name:'Bonanza Megaways', provider:'Big Time Gaming' },
+  { name:'Chocolates', provider:'Big Time Gaming' },
+  { name:'Danger High Voltage', provider:'Big Time Gaming' },
+  { name:'Extra Chilli Megaways', provider:'Big Time Gaming' },
+  { name:'Giga Jar', provider:'Big Time Gaming' },
+  { name:'Lil Devil', provider:'Big Time Gaming' },
+  { name:'Millionaire Megaways', provider:'Big Time Gaming' },
+  { name:'Primal Megaways', provider:'Big Time Gaming' },
+  { name:'White Rabbit', provider:'Big Time Gaming' },
+  // ELK Studios
+  { name:'Cygnus', provider:'ELK Studios' },
+  { name:'Cygnus 2', provider:'ELK Studios' },
+  { name:'Gold Cash', provider:'ELK Studios' },
+  { name:'Nitropolis', provider:'ELK Studios' },
+  { name:'Nitropolis 2', provider:'ELK Studios' },
+  { name:'Nitropolis 3', provider:'ELK Studios' },
+  { name:'Nitropolis 4', provider:'ELK Studios' },
+  { name:'Nitropolis 5', provider:'ELK Studios' },
+  { name:'Toro', provider:'ELK Studios' },
+  { name:'Vortex', provider:'ELK Studios' },
+  { name:'Vortex 2', provider:'ELK Studios' },
+  // Blueprint Gaming
+  { name:"Fishin' Frenzy", provider:'Blueprint Gaming' },
+  { name:"Fishin' Frenzy Megaways", provider:'Blueprint Gaming' },
+  { name:'Genie Jackpots', provider:'Blueprint Gaming' },
+  { name:'Ted', provider:'Blueprint Gaming' },
+  // Thunderkick
+  { name:'1429 Uncharted Seas', provider:'Thunderkick' },
+  { name:"Beat the Beast: Kraken's Lair", provider:'Thunderkick' },
+  { name:'Pink Elephants', provider:'Thunderkick' },
+  { name:'Pink Elephants 2', provider:'Thunderkick' },
+  { name:'Riders of the Storm', provider:'Thunderkick' },
+  // NetEnt
+  { name:'Dead or Alive', provider:'NetEnt' },
+  { name:'Dead or Alive 2', provider:'NetEnt' },
+  { name:"Gonzo's Quest", provider:'NetEnt' },
+  { name:'Starburst', provider:'NetEnt' },
+  // Yggdrasil
+  { name:'Vikings Go Berzerk', provider:'Yggdrasil' },
+  { name:'Vikings Go to Hell', provider:'Yggdrasil' },
+  // Avatarux
+  { name:'Gigarise', provider:'Avatarux' },
+  { name:'Megapop', provider:'Avatarux' },
+  { name:'Popok! Wins', provider:'Avatarux' },
+];
+
+let bhHunt      = null;
+let bhResultRow = null; // id of bonus currently awaiting result entry
+
+async function loadBonusHunt() {
+  if (!fb.currentUser) return;
+  const uid = fb.currentUser.uid;
+
+  // Wire OBS links with channel
+  const chan = profile?.kickChannel || '';
+  const obsEl = document.getElementById('bhOverlayLink');
+  const preEl = document.getElementById('bhPreviewLink');
+  if (obsEl && chan) obsEl.href = `/overlay-bonus-hunt.html?channel=${encodeURIComponent(chan)}`;
+  if (preEl && chan) preEl.href = `/overlay-bonus-hunt.html?channel=${encodeURIComponent(chan)}&demo=1`;
+
+  try {
+    const doc = await fb.db.collection('streamers').doc(uid)
+      .collection('bonus_hunt').doc('current').get();
+    bhHunt = doc.exists ? doc.data() : null;
+    bhRender();
+  } catch (e) {
+    console.error('loadBonusHunt', e);
+    flash('Failed to load bonus hunt', 'error');
+  }
+}
+
+function bhRender() {
+  const active = bhHunt && bhHunt.active;
+  document.getElementById('bhNoHunt').style.display  = active ? 'none' : '';
+  document.getElementById('bhActive').style.display  = active ? ''     : 'none';
+  document.getElementById('bhLiveBadge').style.display = active ? '' : 'none';
+  if (!active) return;
+
+  const bonuses   = bhHunt.bonuses || [];
+  const totalCost = bhHunt.totalCost || 0;
+  const played    = bonuses.filter(b => b.payout != null);
+  const remaining = bonuses.filter(b => b.payout == null);
+  const total     = bonuses.length;
+  const opened    = played.length;
+
+  const winnings  = played.reduce((s, b) => s + b.payout, 0);
+  const multis    = played.filter(b => b.multiplier != null).map(b => b.multiplier);
+  const avgX      = multis.length ? multis.reduce((s, x) => s + x, 0) / multis.length : 0;
+  const remCost   = remaining.reduce((s, b) => s + (b.betSize || 0), 0);
+  const reqX      = remaining.length > 0 && remCost > 0 ? (totalCost - winnings) / remCost : null;
+  const bestBonus = played.reduce((best, b) => (b.multiplier || 0) > (best?.multiplier || 0) ? b : best, null);
+
+  const pct = total ? Math.round((opened / total) * 100) : 0;
+  document.getElementById('bhProgressFill').style.width = pct + '%';
+  document.getElementById('bhProgressLabel').textContent = `${opened} of ${total} played`;
+  document.getElementById('bhProgressPct').textContent   = pct + '%';
+
+  document.getElementById('bhStatCost').textContent     = bhFmt(totalCost);
+  const wEl = document.getElementById('bhStatWinnings');
+  wEl.textContent = bhFmt(winnings);
+  wEl.style.color = winnings >= totalCost ? 'var(--green)' : 'var(--bright)';
+
+  document.getElementById('bhStatAvgX').textContent = avgX.toFixed(1) + 'x';
+
+  const rEl = document.getElementById('bhStatReqX');
+  if (reqX !== null) {
+    rEl.textContent  = reqX.toFixed(1) + 'x';
+    rEl.style.color  = reqX <= avgX ? 'var(--green)' : 'var(--red)';
+  } else if (total > 0 && remaining.length === 0) {
+    rEl.textContent = winnings >= totalCost ? '✅ Profit' : '🔴 Loss';
+    rEl.style.color = winnings >= totalCost ? 'var(--green)' : 'var(--red)';
+  } else {
+    rEl.textContent = '—';
+    rEl.style.color = 'var(--bright)';
+  }
+
+  const bEl = document.getElementById('bhStatBest');
+  if (bestBonus) {
+    bEl.textContent = `${bestBonus.name} (${bestBonus.multiplier.toFixed(0)}x)`;
+    bEl.title       = bestBonus.name;
+  } else {
+    bEl.textContent = '—';
+  }
+
+  document.getElementById('bhBonusCount').textContent = `(${total})`;
+  document.getElementById('bhEmpty').style.display    = total === 0 ? '' : 'none';
+  document.getElementById('bhTable').style.display    = total === 0 ? 'none' : '';
+
+  const tbody = document.getElementById('bhTableBody');
+  tbody.innerHTML = bonuses.map((b, i) => {
+    const isPlayed = b.payout != null;
+    const isBest   = bestBonus && b.id === bestBonus.id;
+
+    let resultCell;
+    if (bhResultRow === b.id) {
+      resultCell = `<div style="display:flex;gap:6px;align-items:center;">
+        <input type="number" id="bhResultInput_${b.id}" class="form-input" placeholder="Payout $" min="0" step="0.01" style="width:100px;padding:6px 8px;font-size:12px;">
+        <button onclick="bhSubmitResult('${b.id}',${b.betSize})" class="btn btn-accent" style="padding:6px 10px;font-size:11px;">✓</button>
+        <button onclick="bhCancelResult()" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:16px;line-height:1;">✕</button>
+      </div>`;
+    } else if (isPlayed) {
+      const x   = b.multiplier || 0;
+      const col = isBest ? 'var(--gold)' : x >= 200 ? 'var(--green)' : x >= 50 ? 'var(--orange)' : x >= 10 ? 'var(--bright)' : 'var(--red)';
+      resultCell = `<span style="color:${col};font-weight:700;">${bhFmt(b.payout)}</span>
+                    <span style="color:var(--text-dim);font-size:11px;margin-left:4px;">${x.toFixed(1)}x</span>
+                    ${isBest ? '<span style="margin-left:4px;font-size:10px;">🥇</span>' : ''}`;
+    } else {
+      resultCell = `<button onclick="bhOpenResult('${b.id}')" style="background:none;border:1px solid var(--border);border-radius:5px;color:var(--text-dim);font-size:11px;cursor:pointer;padding:4px 10px;">Enter Result</button>`;
+    }
+
+    const rowBg = isBest ? 'rgba(255,215,0,0.04)' : '';
+    return `<tr style="border-top:1px solid var(--border);background:${rowBg};">
+      <td style="padding:8px 10px;color:var(--text-dim);font-size:11px;">${i + 1}</td>
+      <td style="padding:8px 10px;color:var(--bright);font-weight:500;">${escHtml(b.name)}</td>
+      <td style="padding:8px 10px;color:var(--text-dim);font-size:11px;">${escHtml(b.provider)}</td>
+      <td style="padding:8px 10px;text-align:right;color:var(--text-dim);font-size:12px;">$${Number(b.betSize).toLocaleString()}</td>
+      <td style="padding:8px 10px;text-align:right;">${resultCell}</td>
+      <td style="padding:8px 10px;text-align:right;">
+        <button onclick="bhRemoveSlot('${b.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:14px;opacity:0.5;line-height:1;" title="Remove">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function bhFmt(n) {
+  if (n >= 1000000) return '$' + (n / 1000000).toFixed(2) + 'M';
+  if (n >= 1000)    return '$' + (n / 1000).toFixed(1) + 'k';
+  return '$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
+
+async function startBonusHunt() {
+  const cost = parseFloat(document.getElementById('bhCostInput').value);
+  if (!cost || cost <= 0) { flash('Enter the total amount spent on bonuses', 'error'); return; }
+  if (!fb.currentUser) return;
+
+  try {
+    await fb.db.collection('streamers').doc(fb.currentUser.uid)
+      .collection('bonus_hunt').doc('current').set({
+        active:    true,
+        totalCost: cost,
+        bonuses:   [],
+        startedAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    bhHunt = { active: true, totalCost: cost, bonuses: [] };
+    bhRender();
+    flash('Bonus hunt started!');
+  } catch (e) {
+    flash('Failed to start hunt: ' + e.message, 'error');
+  }
+}
+
+function bhSearchSlots(query) {
+  const drop = document.getElementById('bhDropdown');
+  const q    = (query || '').toLowerCase().trim();
+  if (q.length < 1) { drop.style.display = 'none'; return; }
+
+  const matches = BH_SLOTS.filter(s =>
+    s.name.toLowerCase().includes(q) || s.provider.toLowerCase().includes(q)
+  ).slice(0, 10);
+
+  if (!matches.length) { drop.style.display = 'none'; return; }
+
+  drop.innerHTML = matches.map(s => `
+    <div onclick="bhSelectSlot(${JSON.stringify(s.name)},${JSON.stringify(s.provider)})"
+         style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);"
+         onmouseover="this.style.background='rgba(0,229,255,0.06)'"
+         onmouseout="this.style.background=''">
+      <div style="font-size:13px;color:var(--bright);font-weight:500;">${escHtml(s.name)}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${escHtml(s.provider)}</div>
+    </div>`).join('');
+  drop.style.display = '';
+}
+
+function bhSelectSlot(name, provider) {
+  document.getElementById('bhSlotSearch').value   = name;
+  document.getElementById('bhSlotName').value      = name;
+  document.getElementById('bhSlotProvider').value  = provider;
+  document.getElementById('bhDropdown').style.display = 'none';
+  document.getElementById('bhBetSize').focus();
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#bhSlotSearch') && !e.target.closest('#bhDropdown')) {
+    const drop = document.getElementById('bhDropdown');
+    if (drop) drop.style.display = 'none';
+  }
+});
+
+async function bhAddSlot() {
+  const name     = document.getElementById('bhSlotName').value.trim()
+                || document.getElementById('bhSlotSearch').value.trim();
+  const provider = document.getElementById('bhSlotProvider').value.trim() || 'Unknown';
+  const betSize  = parseFloat(document.getElementById('bhBetSize').value);
+
+  if (!name)                 { flash('Select a slot from the search', 'error'); return; }
+  if (!betSize || betSize <= 0) { flash('Enter a valid bet size', 'error'); return; }
+  if (!bhHunt)               return;
+
+  const bonus = {
+    id:         Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    name,
+    provider,
+    betSize,
+    payout:     null,
+    multiplier: null,
+    playedAt:   null,
+  };
+
+  const bonuses = [...(bhHunt.bonuses || []), bonus];
+  try {
+    await fb.db.collection('streamers').doc(fb.currentUser.uid)
+      .collection('bonus_hunt').doc('current').update({ bonuses, updatedAt: Date.now() });
+    bhHunt.bonuses = bonuses;
+    // Clear form
+    document.getElementById('bhSlotSearch').value  = '';
+    document.getElementById('bhSlotName').value    = '';
+    document.getElementById('bhSlotProvider').value = '';
+    document.getElementById('bhBetSize').value     = '';
+    document.getElementById('bhDropdown').style.display = 'none';
+    bhRender();
+  } catch (e) {
+    flash('Failed to add slot: ' + e.message, 'error');
+  }
+}
+
+function bhOpenResult(id) {
+  bhResultRow = id;
+  bhRender();
+  const inp = document.getElementById('bhResultInput_' + id);
+  if (inp) inp.focus();
+}
+
+function bhCancelResult() {
+  bhResultRow = null;
+  bhRender();
+}
+
+async function bhSubmitResult(id, betSize) {
+  const inp    = document.getElementById('bhResultInput_' + id);
+  const payout = parseFloat(inp?.value);
+  if (payout == null || isNaN(payout) || payout < 0) {
+    flash('Enter a valid payout amount', 'error'); return;
+  }
+
+  const bonuses = (bhHunt.bonuses || []).map(b => {
+    if (b.id !== id) return b;
+    const multiplier = betSize > 0 ? payout / betSize : 0;
+    return { ...b, payout, multiplier, playedAt: Date.now() };
+  });
+
+  try {
+    await fb.db.collection('streamers').doc(fb.currentUser.uid)
+      .collection('bonus_hunt').doc('current').update({ bonuses, updatedAt: Date.now() });
+    bhHunt.bonuses = bonuses;
+    bhResultRow    = null;
+    bhRender();
+  } catch (e) {
+    flash('Failed to save result: ' + e.message, 'error');
+  }
+}
+
+async function bhRemoveSlot(id) {
+  const bonuses = (bhHunt.bonuses || []).filter(b => b.id !== id);
+  try {
+    await fb.db.collection('streamers').doc(fb.currentUser.uid)
+      .collection('bonus_hunt').doc('current').update({ bonuses, updatedAt: Date.now() });
+    bhHunt.bonuses = bonuses;
+    bhRender();
+  } catch (e) {
+    flash('Failed to remove slot: ' + e.message, 'error');
+  }
+}
+
+async function bhResetHunt() {
+  if (!confirm('Reset the current bonus hunt? This cannot be undone.')) return;
+  try {
+    await fb.db.collection('streamers').doc(fb.currentUser.uid)
+      .collection('bonus_hunt').doc('current').set({ active: false });
+    bhHunt = null;
+    bhRender();
+    flash('Bonus hunt reset.');
+  } catch (e) {
+    flash('Failed to reset: ' + e.message, 'error');
+  }
+}
+
+// ── END BONUS HUNT ───────────────────────────────────────────────────────────
 </script>
 
 <!-- Finalize Month Modal -->

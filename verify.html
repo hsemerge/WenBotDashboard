@@ -256,7 +256,7 @@
         document.getElementById('formSection').style.display = 'none';
         const affiliateMsg = data.underAffiliate
           ? `<strong>${escHtml(data.kickUsername)}</strong> has been linked to <strong>${escHtml(data.affiliateUsername)}</strong> on ${escHtml(data.casinoName || casinoName)}.<br><br>You can now enter giveaways in <strong>${escHtml(channel)}</strong>'s stream!`
-          : `<strong>${escHtml(data.kickUsername)}</strong> has been linked to <strong>${escHtml(data.affiliateUsername)}</strong> on ${escHtml(data.casinoName || casinoName)}.<br><br><em style="color:var(--text-dim);font-size:12px;">Note: your account wasn't found under ${escHtml(channel)}'s affiliate code, so you won't be eligible for wager-based giveaways — but you're verified for general giveaways!</em>`;
+          : `<strong>${escHtml(data.kickUsername)}</strong> has been linked to <strong>${escHtml(data.affiliateUsername)}</strong> on ${escHtml(data.casinoName || casinoName)}.<br><br><em style="color:var(--text-dim);font-size:12px;">Note: your account wasn't found under ${escHtml(channel)}'s affiliate code, so you won't be eligible for code-based giveaways — but you're verified for general giveaways!</em>`;
         document.getElementById('successMsg').innerHTML = affiliateMsg;
         showSuccess();
       } else {
