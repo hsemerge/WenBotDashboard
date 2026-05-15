@@ -161,7 +161,7 @@ exports.handler = async (event) => {
     }
 
     await db.collection("streamers").doc(streamerUid)
-      .collection("verified_users").doc(kickKey).set({
+      .collection("verified_users").doc(`${kickKey}_${provider}`).set({
         kickName:               kickUsername,
         providerUsername:       resultUsername,
         providerUsername_lower: affiliateKey,

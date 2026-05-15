@@ -937,8 +937,8 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Kick Username</th><th>Provider Username</th><th>Wager</th><th>Verified At</th><th></th></tr></thead>
-            <tbody id="verifiedTable"><tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;">Loading...</td></tr></tbody>
+            <thead><tr><th>Kick Username</th><th>Casino Username</th><th>Casino</th><th>Status</th><th>Wager</th><th>Verified At</th><th></th></tr></thead>
+            <tbody id="verifiedTable"><tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:20px;">Loading...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -1460,7 +1460,7 @@ async function saveEarnRates() {
 
 async function loadTopViewers() {
   const tbody = document.getElementById('topViewersTable');
-  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px;">Loading...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:16px;">Loading...</td></tr>';
   try {
     const snap = await fb.db.collection('streamers').doc(fb.currentUser.uid)
       .collection('viewers').orderBy('points','desc').limit(20).get();
@@ -1643,20 +1643,28 @@ async function deleteCommand(id) {
 // ── VERIFIED USERS ──
 async function loadVerifiedUsers() {
   const tbody = document.getElementById('verifiedTable');
-  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px;">Loading...</td></tr>';
-  const snap = await fb.db.collection('streamers').doc(fb.currentUser.uid).collection('verified_users').get();
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:16px;">Loading...</td></tr>';
+  const activeProvider = profile?.activeProvider || 'gambulls';
+  const snap = await fb.db.collection('streamers').doc(fb.currentUser.uid).collection('verified_users')
+    .where('provider', '==', activeProvider).get();
   document.getElementById('verifiedCountLabel').textContent = snap.size;
   document.getElementById('statVerified').textContent = snap.size;
-  if (snap.empty) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px;">No verified users yet</td></tr>'; return; }
+  if (snap.empty) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:16px;">No verified users yet</td></tr>'; return; }
   tbody.innerHTML = snap.docs.map(d => {
     const v = d.data();
     const ts = v.verifiedAt ? new Date(v.verifiedAt).toLocaleDateString() : '—';
+    const statusBadge = v.underAffiliate
+      ? `<span style="background:rgba(0,255,136,0.1);color:#00ff88;border:1px solid rgba(0,255,136,0.3);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;">Under Code</span>`
+      : `<span style="background:rgba(139,148,158,0.1);color:#8b949e;border:1px solid rgba(139,148,158,0.3);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;">General</span>`;
+    const casinoName = { gambulls:'Gambulls', stake:'Stake', rainbet:'Rainbet', thrill:'Thrill', winna:'Winna', shuffle:'Shuffle', duel:'Duel', roobet:'Roobet', bcgame:'BC.Game', '500casino':'500 Casino', gamdom:'Gamdom', duelbits:'Duelbits', rollbit:'Rollbit', chipsgg:'Chips.gg' }[v.provider] || v.provider || '—';
     return `<tr>
-      <td class="td-highlight">${d.id}</td>
+      <td class="td-highlight">${v.kickName || d.id}</td>
       <td>${v.providerUsername || '—'}</td>
+      <td style="color:var(--text-dim);font-size:12px;">${casinoName}</td>
+      <td>${statusBadge}</td>
       <td class="td-green">${v.wagerAmount ? '$'+Number(v.wagerAmount).toLocaleString() : '—'}</td>
       <td style="color:var(--text-dim);">${ts}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="removeVerified('${d.id}')">Remove</button></td>
+      <td><button class="btn btn-danger btn-sm" onclick="removeVerified('${v.kickName?.toLowerCase()}')">Remove</button></td>
     </tr>`;
   }).join('');
 }
@@ -1667,7 +1675,8 @@ async function loadVerifiedCount() {
 }
 
 async function removeVerified(kickName) {
-  await fb.db.collection('streamers').doc(fb.currentUser.uid).collection('verified_users').doc(kickName).delete();
+  const provider = profile?.activeProvider || 'gambulls';
+  await fb.db.collection('streamers').doc(fb.currentUser.uid).collection('verified_users').doc(`${kickName}_${provider}`).delete();
   flash('User removed.');
   loadVerifiedUsers();
 }
