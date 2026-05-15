@@ -138,10 +138,11 @@ exports.handler = async (event) => {
       return res(409, { error: `"${affiliateUsername}" is already linked to another Kick account. Contact a mod if this is an error.` });
     }
 
-    let resultUsername = affiliateUsername;
+    let resultUsername  = affiliateUsername;
+    let underAffiliate  = false;
 
     if (API_CASINOS.has(provider)) {
-      // Full API verification
+      // Full API verification against streamer's leaderboard
       const providerDoc = await db.collection("streamers").doc(streamerUid)
         .collection("providers").doc(provider).get();
       if (!providerDoc.exists) {
@@ -149,12 +150,15 @@ exports.handler = async (event) => {
       }
       const { apiKey } = providerDoc.data();
       const result = await lookupAffiliate(provider, apiKey, affiliateUsername);
-      if (!result) {
-        return res(404, { error: `"${affiliateUsername}" was not found on the ${CASINO_NAMES[provider]} leaderboard for this channel. Make sure you're using your exact ${CASINO_NAMES[provider]} username.` });
+      if (result) {
+        resultUsername = result.username;
+        underAffiliate = true;
       }
-      resultUsername = result.username;
+      // Not found on leaderboard = not under affiliate code, but still save as verified
+    } else {
+      // Honor-system casino — no API check, username taken at face value
+      underAffiliate = false;
     }
-    // For honor-system casinos: save without API check — username taken at face value
 
     await db.collection("streamers").doc(streamerUid)
       .collection("verified_users").doc(kickKey).set({
@@ -162,7 +166,8 @@ exports.handler = async (event) => {
         providerUsername:       resultUsername,
         providerUsername_lower: affiliateKey,
         provider,
-        apiVerified:            API_CASINOS.has(provider),
+        apiVerified:            API_CASINOS.has(provider) && underAffiliate,
+        underAffiliate,
         verifiedAt:             Date.now(),
       });
 
@@ -172,7 +177,8 @@ exports.handler = async (event) => {
       affiliateUsername: resultUsername,
       provider,
       casinoName:       CASINO_NAMES[provider],
-      apiVerified:      API_CASINOS.has(provider),
+      apiVerified:      API_CASINOS.has(provider) && underAffiliate,
+      underAffiliate,
     });
 
   } catch (err) {
