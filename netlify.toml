@@ -19,6 +19,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/resolve-verify-token"
+  to     = "/.netlify/functions/resolve-verify-token"
+  status = 200
+
+[[redirects]]
   from   = "/api/overlay-data"
   to     = "/.netlify/functions/overlay-data"
   status = 200

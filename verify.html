@@ -179,14 +179,13 @@
     rollbit: 'Rollbit', chipsgg: 'Chips.gg',
   };
 
-  const params       = new URLSearchParams(window.location.search);
-  const channel      = params.get('channel') || '';
-  const kickUsername = params.get('kick')    || '';
-  const casino       = (params.get('casino') || 'gambulls').toLowerCase();
-  const casinoName   = CASINO_NAMES[casino]  || casino;
+  const params     = new URLSearchParams(window.location.search);
+  const channel    = params.get('channel') || '';
+  const token      = params.get('token')   || '';
+  const casino     = (params.get('casino') || 'gambulls').toLowerCase();
+  const casinoName = CASINO_NAMES[casino]  || casino;
 
-  // Populate static fields
-  document.getElementById('kickUsernameDisplay').textContent = kickUsername || 'Unknown';
+  let resolvedKickUsername = null;
 
   if (channel) {
     document.getElementById('channelBadge').textContent = channel;
@@ -195,19 +194,43 @@
     document.getElementById('channelBadge').textContent = 'Unknown channel';
   }
 
-  // Update all copy to show the specific casino
   document.getElementById('verifyTitle').textContent = `Connect Your ${casinoName} Account`;
   document.getElementById('verifyDesc').textContent  =
     `Connect your ${casinoName} username to your Kick account so WenBot can track your wagers for giveaways.`;
-  document.getElementById('affiliateLabel').textContent      = `${casinoName} Username`;
-  document.getElementById('affiliateInput').placeholder      = `Enter your exact ${casinoName} username...`;
-  document.getElementById('providerHint').textContent        =
+  document.getElementById('affiliateLabel').textContent = `${casinoName} Username`;
+  document.getElementById('affiliateInput').placeholder = `Enter your exact ${casinoName} username...`;
+  document.getElementById('providerHint').textContent   =
     `Enter the username you use at ${casinoName}. It must be registered under this streamer's affiliate link.`;
 
-  if (!channel || !kickUsername) {
-    showError('Invalid verification link. Make sure you clicked the link from WenBot in Kick chat.');
-    document.getElementById('formSection').style.display = 'none';
+  // Resolve token on page load to display the Kick username
+  async function resolveToken() {
+    if (!token || !channel) {
+      showError('Invalid verification link. Make sure you clicked the link from WenBot in Kick chat.');
+      document.getElementById('formSection').style.display = 'none';
+      return;
+    }
+
+    document.getElementById('kickUsernameDisplay').textContent = 'Loading...';
+
+    try {
+      const resp = await fetch(`/api/resolve-verify-token?token=${encodeURIComponent(token)}&channel=${encodeURIComponent(channel)}`);
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        showError(data.error || 'Invalid or expired verification link.');
+        document.getElementById('formSection').style.display = 'none';
+        return;
+      }
+
+      resolvedKickUsername = data.kickUsername;
+      document.getElementById('kickUsernameDisplay').textContent = resolvedKickUsername;
+    } catch (err) {
+      showError('Network error. Check your connection and try again.');
+      document.getElementById('formSection').style.display = 'none';
+    }
   }
+
+  resolveToken();
 
   async function submitVerify() {
     const affiliateUsername = document.getElementById('affiliateInput').value.trim();
@@ -225,7 +248,7 @@
       const resp = await fetch('/api/verify-affiliate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channel, kickUsername, affiliateUsername, casino }),
+        body: JSON.stringify({ channel, token, affiliateUsername, casino }),
       });
       const data = await resp.json();
 

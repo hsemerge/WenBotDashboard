@@ -82,9 +82,9 @@ exports.handler = async (event) => {
   let body;
   try { body = JSON.parse(event.body || "{}"); } catch { return res(400, { error: "Invalid JSON" }); }
 
-  const { channel, kickUsername, affiliateUsername, casino } = body;
-  if (!channel || !kickUsername || !affiliateUsername) {
-    return res(400, { error: "Missing channel, kickUsername, or affiliateUsername" });
+  const { channel, token, affiliateUsername, casino } = body;
+  if (!channel || !token || !affiliateUsername) {
+    return res(400, { error: "Missing channel, token, or affiliateUsername" });
   }
 
   const provider = (casino || "gambulls").toLowerCase();
@@ -101,6 +101,21 @@ exports.handler = async (event) => {
     const streamerDoc  = snap.docs[0];
     const streamerUid  = streamerDoc.id;
     const streamerData = streamerDoc.data();
+
+    // Resolve and consume the one-time token — kickUsername comes from server only
+    const tokenRef = db.collection("streamers").doc(streamerUid)
+      .collection("verify_tokens").doc(token);
+
+    let kickUsername;
+    await db.runTransaction(async (txn) => {
+      const tokenDoc = await txn.get(tokenRef);
+      if (!tokenDoc.exists)              throw Object.assign(new Error("Invalid or expired verification link."), { status: 404 });
+      const td = tokenDoc.data();
+      if (td.used)                       throw Object.assign(new Error("This verification link has already been used."), { status: 410 });
+      if (Date.now() > td.expiresAt)     throw Object.assign(new Error("This verification link has expired. Type !verify in chat to get a new one."), { status: 410 });
+      kickUsername = td.kickUsername;
+      txn.update(tokenRef, { used: true });
+    });
 
     const kickKey      = kickUsername.toLowerCase();
     const affiliateKey = affiliateUsername.toLowerCase();
@@ -161,6 +176,6 @@ exports.handler = async (event) => {
     });
 
   } catch (err) {
-    return res(500, { error: err.message });
+    return res(err.status || 500, { error: err.message });
   }
 };
