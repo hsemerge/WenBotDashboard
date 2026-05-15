@@ -2586,7 +2586,8 @@ function bhSearchSlots(query) {
   if (!matches.length) { drop.style.display = 'none'; return; }
 
   drop.innerHTML = matches.map(s => `
-    <div onclick="bhSelectSlot(${JSON.stringify(s.name)},${JSON.stringify(s.provider)})"
+    <div data-name="${escHtml(s.name)}" data-provider="${escHtml(s.provider)}"
+         onmousedown="bhSelectSlotEl(this)"
          style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);"
          onmouseover="this.style.background='rgba(0,229,255,0.06)'"
          onmouseout="this.style.background=''">
@@ -2594,6 +2595,10 @@ function bhSearchSlots(query) {
       <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${escHtml(s.provider)}</div>
     </div>`).join('');
   drop.style.display = '';
+}
+
+function bhSelectSlotEl(el) {
+  bhSelectSlot(el.dataset.name, el.dataset.provider);
 }
 
 function bhSelectSlot(name, provider) {
