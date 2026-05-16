@@ -34,6 +34,46 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/discord-interaction"
+  to     = "/.netlify/functions/discord-interaction"
+  status = 200
+
+[[redirects]]
+  from   = "/api/discord-notify"
+  to     = "/.netlify/functions/discord-notify"
+  status = 200
+
+[[redirects]]
+  from   = "/api/discord-save-guild"
+  to     = "/.netlify/functions/discord-save-guild"
+  status = 200
+
+[[redirects]]
+  from   = "/api/discord-channels"
+  to     = "/.netlify/functions/discord-channels"
+  status = 200
+
+[[redirects]]
+  from   = "/api/discord-link-account"
+  to     = "/.netlify/functions/discord-link-account"
+  status = 200
+
+[[redirects]]
+  from   = "/api/discord-register-commands"
+  to     = "/.netlify/functions/discord-register-commands"
+  status = 200
+
+[[redirects]]
+  from   = "/api/slot-request-data"
+  to     = "/.netlify/functions/slot-request-data"
+  status = 200
+
+[[redirects]]
+  from   = "/api/slot-request-add"
+  to     = "/.netlify/functions/slot-request-add"
+  status = 200
+
+[[redirects]]
   from   = "/api/leaderboard-live"
   to     = "/.netlify/functions/leaderboard-live"
   status = 200

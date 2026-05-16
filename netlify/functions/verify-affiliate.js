@@ -82,9 +82,13 @@ exports.handler = async (event) => {
   let body;
   try { body = JSON.parse(event.body || "{}"); } catch { return res(400, { error: "Invalid JSON" }); }
 
-  const { channel, token, affiliateUsername, casino } = body;
-  if (!channel || !token || !affiliateUsername) {
+  const { channel, token, dtoken, affiliateUsername, casino, kickUsername: bodyKickUsername } = body;
+  if (!channel || (!token && !dtoken) || !affiliateUsername) {
     return res(400, { error: "Missing channel, token, or affiliateUsername" });
+  }
+  // dtoken path requires an explicit Kick username from the form
+  if (dtoken && !bodyKickUsername) {
+    return res(400, { error: "Missing kickUsername" });
   }
 
   const provider = (casino || "gambulls").toLowerCase();
@@ -102,20 +106,42 @@ exports.handler = async (event) => {
     const streamerUid  = streamerDoc.id;
     const streamerData = streamerDoc.data();
 
-    // Resolve and consume the one-time token — kickUsername comes from server only
-    const tokenRef = db.collection("streamers").doc(streamerUid)
-      .collection("verify_tokens").doc(token);
-
+    // Resolve and consume the one-time token
     let kickUsername;
-    await db.runTransaction(async (txn) => {
-      const tokenDoc = await txn.get(tokenRef);
-      if (!tokenDoc.exists)              throw Object.assign(new Error("Invalid or expired verification link."), { status: 404 });
-      const td = tokenDoc.data();
-      if (td.used)                       throw Object.assign(new Error("This verification link has already been used."), { status: 410 });
-      if (Date.now() > td.expiresAt)     throw Object.assign(new Error("This verification link has expired. Type !verify in chat to get a new one."), { status: 410 });
-      kickUsername = td.kickUsername;
-      txn.update(tokenRef, { used: true });
-    });
+    let discordUserId   = null;
+    let discordUsername = null;
+
+    if (token) {
+      // Kick-chat initiated: token proves Kick identity, kickUsername is server-resolved
+      const tokenRef = db.collection("streamers").doc(streamerUid)
+        .collection("verify_tokens").doc(token);
+
+      await db.runTransaction(async (txn) => {
+        const tokenDoc = await txn.get(tokenRef);
+        if (!tokenDoc.exists)          throw Object.assign(new Error("Invalid or expired verification link."), { status: 404 });
+        const td = tokenDoc.data();
+        if (td.used)                   throw Object.assign(new Error("This verification link has already been used."), { status: 410 });
+        if (Date.now() > td.expiresAt) throw Object.assign(new Error("This verification link has expired. Type !verify in chat to get a new one."), { status: 410 });
+        kickUsername = td.kickUsername;
+        txn.update(tokenRef, { used: true });
+      });
+    } else {
+      // Discord-initiated: dtoken proves Discord identity, kickUsername is self-reported
+      const dtokenRef = db.collection("discord_verify_tokens").doc(dtoken);
+
+      await db.runTransaction(async (txn) => {
+        const dtokenDoc = await txn.get(dtokenRef);
+        if (!dtokenDoc.exists)          throw Object.assign(new Error("Invalid or expired verification link."), { status: 404 });
+        const td = dtokenDoc.data();
+        if (td.used)                    throw Object.assign(new Error("This verification link has already been used."), { status: 410 });
+        if (Date.now() > td.expiresAt)  throw Object.assign(new Error("This verification link has expired. Use /register in Discord to get a new one."), { status: 410 });
+        discordUserId   = td.discordUserId;
+        discordUsername = td.discordUsername;
+        txn.update(dtokenRef, { used: true });
+      });
+
+      kickUsername = bodyKickUsername.trim();
+    }
 
     const kickKey      = kickUsername.toLowerCase();
     const affiliateKey = affiliateUsername.toLowerCase();
@@ -171,6 +197,16 @@ exports.handler = async (event) => {
         verifiedAt:             Date.now(),
       });
 
+    // Discord-initiated flow: also save the discord_link
+    if (discordUserId) {
+      await db.collection("streamers").doc(streamerUid)
+        .collection("discord_links").doc(discordUserId).set({
+          kickUsername,
+          discordUsername,
+          linkedAt: Date.now(),
+        });
+    }
+
     return res(200, {
       success:          true,
       kickUsername,
@@ -179,6 +215,8 @@ exports.handler = async (event) => {
       casinoName:       CASINO_NAMES[provider],
       apiVerified:      API_CASINOS.has(provider) && underAffiliate,
       underAffiliate,
+      discordLinked:    !!discordUserId,
+      discordUsername:  discordUsername || null,
     });
 
   } catch (err) {

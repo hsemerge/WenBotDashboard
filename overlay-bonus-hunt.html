@@ -40,11 +40,14 @@
 
     /* ── HEADER ── */
     .header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
       padding: 10px 14px 8px;
       border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 7px;
     }
     .header-title {
       font-family: 'Exo 2', sans-serif;
@@ -54,12 +57,6 @@
       letter-spacing: 0.08em;
       text-transform: uppercase;
       white-space: nowrap;
-    }
-    .progress-wrap {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      gap: 8px;
     }
     .progress-bar {
       flex: 1;
@@ -74,6 +71,61 @@
       border-radius: 3px;
       transition: width 0.4s ease;
       width: 0%;
+    }
+    .header-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .progress-labels {
+      display: flex;
+      gap: 14px;
+    }
+    .prog-item {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+    .prog-val {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--bright);
+    }
+    .prog-lbl {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+    .header-best {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .header-best-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+    .header-best-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--bright);
+      max-width: 130px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .header-best-x {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 12px;
+      font-weight: 900;
+      color: var(--gold);
+      white-space: nowrap;
     }
     .progress-count {
       font-family: 'Exo 2', sans-serif;
@@ -150,13 +202,12 @@
     /* ── TABLE ── */
     .table-wrap {
       max-height: 280px;
-      overflow-y: auto;
-      scrollbar-width: thin;
-      scrollbar-color: rgba(0,229,255,0.2) transparent;
+      overflow: hidden;
+      position: relative;
     }
-    .table-wrap::-webkit-scrollbar { width: 4px; }
-    .table-wrap::-webkit-scrollbar-track { background: transparent; }
-    .table-wrap::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.2); border-radius: 2px; }
+    .table-scroll-inner {
+      will-change: transform;
+    }
 
     table { width: 100%; border-collapse: collapse; }
     thead th {
@@ -237,12 +288,29 @@
 
 <div class="panel" id="panel" style="display:none;">
 
-  <!-- Header + progress -->
+  <!-- Header -->
   <div class="header">
-    <div class="header-title">🎰 Bonus Hunt</div>
-    <div class="progress-wrap">
+    <div class="header-top">
+      <div class="header-title">🎰 Bonus Hunt</div>
       <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-      <div class="progress-count" id="progressCount">0 / 0</div>
+      <div class="progress-count" id="progressCount">0/0</div>
+    </div>
+    <div class="header-bottom">
+      <div class="progress-labels">
+        <div class="prog-item">
+          <div class="prog-val" id="progOpened">0</div>
+          <div class="prog-lbl">Opened</div>
+        </div>
+        <div class="prog-item">
+          <div class="prog-val" id="progRemaining">0</div>
+          <div class="prog-lbl">Remaining</div>
+        </div>
+      </div>
+      <div class="header-best" id="headerBest" style="display:none;">
+        <div class="header-best-label">🥇 Best</div>
+        <div class="header-best-name" id="headerBestName">—</div>
+        <div class="header-best-x" id="headerBestX">—</div>
+      </div>
     </div>
   </div>
 
@@ -250,7 +318,7 @@
   <div class="stats-row">
     <div class="stat">
       <div class="stat-val" id="statCost">$0</div>
-      <div class="stat-lbl">Cost</div>
+      <div class="stat-lbl">Start</div>
     </div>
     <div class="stat">
       <div class="stat-val" id="statWinnings">$0</div>
@@ -266,26 +334,21 @@
     </div>
   </div>
 
-  <!-- Best slot -->
-  <div class="best-row" id="bestRow" style="display:none;">
-    <div class="best-label">🥇 Best</div>
-    <div class="best-slot" id="bestSlotName">—</div>
-    <div class="best-x" id="bestSlotX">—</div>
-  </div>
-
   <!-- Table -->
   <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Slot</th>
-          <th>Bet</th>
-          <th>Result</th>
-        </tr>
-      </thead>
-      <tbody id="tableBody"></tbody>
-    </table>
+    <div class="table-scroll-inner" id="tableScrollInner">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Slot</th>
+            <th>Bet</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
   </div>
 
 </div>
@@ -336,8 +399,10 @@
 
     // Progress
     const pct = total ? (opened / total) * 100 : 0;
-    document.getElementById('progressFill').style.width = pct + '%';
-    document.getElementById('progressCount').textContent = opened + ' / ' + total;
+    document.getElementById('progressFill').style.width  = pct + '%';
+    document.getElementById('progressCount').textContent  = opened + '/' + total;
+    document.getElementById('progOpened').textContent     = opened;
+    document.getElementById('progRemaining').textContent  = remaining.length;
 
     // Stats
     document.getElementById('statCost').textContent     = fmt(totalCost);
@@ -355,13 +420,13 @@
     }
 
     // Best
-    const bestRow = document.getElementById('bestRow');
+    const headerBest = document.getElementById('headerBest');
     if (bestBonus) {
-      bestRow.style.display = '';
-      document.getElementById('bestSlotName').textContent = bestBonus.name;
-      document.getElementById('bestSlotX').textContent    = fmtX(bestBonus.multiplier);
+      headerBest.style.display = '';
+      document.getElementById('headerBestName').textContent = bestBonus.name;
+      document.getElementById('headerBestX').textContent    = fmtX(bestBonus.multiplier);
     } else {
-      bestRow.style.display = 'none';
+      headerBest.style.display = 'none';
     }
 
     // Table
@@ -387,7 +452,7 @@
 
       return `<tr class="${cls}">
         <td>${i + 1}</td>
-        <td>${escHtml(b.name)}</td>
+        <td>${escHtml(b.name)}${b.notes ? `<span style="opacity:0.5;font-size:10px;font-weight:400;margin-left:5px;">(${escHtml(b.notes)})</span>` : ''}</td>
         <td>$${(b.betSize || 0).toLocaleString()}</td>
         <td>${resultHtml}</td>
       </tr>`;
@@ -404,18 +469,24 @@
       active: true,
       totalCost: 50000,
       bonuses: [
-        { id:'1', name:'Gates of Olympus', provider:'Pragmatic Play', betSize:4, payout:3248, multiplier:812 },
-        { id:'2', name:'Sweet Bonanza', provider:'Pragmatic Play', betSize:4, payout:840, multiplier:210 },
-        { id:'3', name:'Fire in the Hole xBomb', provider:'Nolimit City', betSize:5, payout:null, multiplier:null },
-        { id:'4', name:'Wanted Dead or a Wild', provider:'Hacksaw Gaming', betSize:2, payout:null, multiplier:null },
-        { id:'5', name:'Razor Shark', provider:'Push Gaming', betSize:3, payout:null, multiplier:null },
-        { id:'6', name:'San Quentin xWays', provider:'Nolimit City', betSize:1, payout:null, multiplier:null },
-        { id:'7', name:'Money Train 4', provider:'Relax Gaming', betSize:8, payout:null, multiplier:null },
-        { id:'8', name:'Nitropolis 5', provider:'ELK Studios', betSize:2, payout:null, multiplier:null },
+        { id:'1',  name:'Gates of Olympus',       provider:'Pragmatic Play',  betSize:4,  payout:3248,  multiplier:812,  notes:'got the super' },
+        { id:'2',  name:'Sweet Bonanza',           provider:'Pragmatic Play',  betSize:4,  payout:840,   multiplier:210  },
+        { id:'3',  name:'Fire in the Hole xBomb',  provider:'Nolimit City',    betSize:5,  payout:62,    multiplier:12.4 },
+        { id:'4',  name:'Wanted Dead or a Wild',   provider:'Hacksaw Gaming',  betSize:2,  payout:18,    multiplier:9    },
+        { id:'5',  name:'Razor Shark',             provider:'Push Gaming',     betSize:3,  payout:480,   multiplier:160  },
+        { id:'6',  name:'San Quentin xWays',       provider:'Nolimit City',    betSize:1,  payout:22,    multiplier:22   },
+        { id:'7',  name:'Money Train 4',           provider:'Relax Gaming',    betSize:8,  payout:null,  multiplier:null },
+        { id:'8',  name:'Nitropolis 5',            provider:'ELK Studios',     betSize:2,  payout:null,  multiplier:null },
+        { id:'9',  name:'Starlight Princess 1000', provider:'Pragmatic Play',  betSize:5,  payout:null,  multiplier:null },
+        { id:'10', name:'Tombstone RIP',           provider:'Nolimit City',    betSize:3,  payout:null,  multiplier:null },
+        { id:'11', name:'Chaos Crew 2',            provider:'Hacksaw Gaming',  betSize:2,  payout:null,  multiplier:null },
+        { id:'12', name:'Bonanza Megaways',        provider:'Big Time Gaming', betSize:4,  payout:null,  multiplier:null },
+        { id:'13', name:'Dead or Alive 2',         provider:'NetEnt',          betSize:1,  payout:null,  multiplier:null },
+        { id:'14', name:'Hand of Anubis',          provider:'Hacksaw Gaming',  betSize:3,  payout:null,  multiplier:null },
+        { id:'15', name:'Pink Elephants 2',        provider:'Thunderkick',     betSize:2,  payout:null,  multiplier:null },
       ],
     };
-    seenPayouts.add('1');
-    seenPayouts.add('2');
+    ['1','2','3','4','5','6'].forEach(id => seenPayouts.add(id));
     render(demoHunt);
   } else {
     async function poll() {
@@ -430,6 +501,81 @@
     }
     poll();
   }
+
+  // ── AUTO-SCROLL ──
+  // Smoothly scrolls the table down, pauses at the bottom, then jumps back to top
+  (function autoScroll() {
+    const SPEED      = 0.3;   // px per frame
+    const PAUSE_MS   = 1500;  // pause at loop point
+    const MIN_ROWS   = 1;     // min extra rows needed before scrolling
+
+    let offset  = 0;
+    let paused  = false;
+    let loopH   = 0;
+    let running = false;
+
+    function setup() {
+      const tbody  = document.getElementById('tableBody');
+      const inner  = document.getElementById('tableScrollInner');
+      const wrap   = document.querySelector('.table-wrap');
+      if (!tbody || !inner || !wrap) return;
+
+      // Remove old clones
+      tbody.querySelectorAll('tr.scroll-clone').forEach(r => r.remove());
+      inner.style.transform = 'translateY(0px)';
+      offset = 0;
+
+      const origRows = tbody.querySelectorAll('tr:not(.scroll-clone)');
+      loopH = inner.offsetHeight;
+
+      // Only scroll if content overflows the wrap
+      if (loopH <= wrap.offsetHeight + 10) { running = false; return; }
+
+      // Spacer row to create a visible break between end and start of loop
+      const spacer = document.createElement('tr');
+      spacer.classList.add('scroll-clone');
+      spacer.innerHTML = `<td colspan="4" style="height:40px;border-top:1px solid rgba(0,229,255,0.1);"></td>`;
+      tbody.appendChild(spacer);
+
+      // Clone rows so the loop is seamless
+      origRows.forEach(row => {
+        const clone = row.cloneNode(true);
+        clone.classList.add('scroll-clone');
+        tbody.appendChild(clone);
+      });
+
+      running = true;
+    }
+
+    function step() {
+      requestAnimationFrame(step);
+      if (!running || paused) return;
+
+      const inner = document.getElementById('tableScrollInner');
+      if (!inner || loopH < 1) return;
+
+      offset += SPEED;
+
+      if (offset >= loopH) {
+        paused = true;
+        offset = 0;
+        inner.style.transform = 'translateY(0px)';
+        setTimeout(() => { paused = false; }, PAUSE_MS);
+      } else {
+        inner.style.transform = `translateY(-${offset}px)`;
+      }
+    }
+
+    // Hook into render so setup re-runs after table is rebuilt
+    const origRender = render;
+    render = function(data) {
+      origRender(data);
+      setTimeout(setup, 80);
+    };
+
+    setTimeout(setup, 1500);
+    requestAnimationFrame(step);
+  })();
 </script>
 </body>
 </html>

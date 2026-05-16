@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discord Linked — WenBot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0d1117; font-family: 'Inter', sans-serif; color: #c9d1d9;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 20px;
+    }
+    .card {
+      background: #161b22; border: 1px solid #30363d; border-radius: 16px;
+      padding: 40px; max-width: 440px; width: 100%; text-align: center;
+    }
+    .icon { font-size: 48px; margin-bottom: 16px; }
+    .title {
+      font-family: 'Exo 2', sans-serif; font-size: 22px; font-weight: 900;
+      color: #f0f6fc; margin-bottom: 8px;
+    }
+    .sub { font-size: 14px; color: #8b949e; line-height: 1.6; margin-bottom: 20px; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.25);
+      border-radius: 100px; padding: 6px 16px;
+      font-size: 13px; font-weight: 600; color: #00e5ff; margin-bottom: 12px;
+    }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid rgba(0,229,255,0.2); border-top-color: #00e5ff;
+      border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error { color: #ff4757; }
+  </style>
+</head>
+<body>
+<div class="card" id="card">
+  <div class="spinner"></div>
+  <div class="title">Linking Discord…</div>
+  <div class="sub">Connecting your account, just a moment.</div>
+</div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const code   = params.get('code');
+  const state  = params.get('state');
+
+  function showSuccess(discordUsername, kickUsername) {
+    document.getElementById('card').innerHTML = `
+      <div class="icon">🎉</div>
+      <div class="title">Discord Linked!</div>
+      <div class="sub">Your accounts are now connected. You can use <strong>/points</strong>, <strong>/buy</strong>, and <strong>/join</strong> in the Discord server.</div>
+      <div class="pill">💬 ${kickUsername} → 🎮 ${discordUsername}</div>`;
+  }
+
+  function showError(msg) {
+    document.getElementById('card').innerHTML = `
+      <div class="icon">❌</div>
+      <div class="title">Linking Failed</div>
+      <div class="sub class="error">${msg}</div>`;
+  }
+
+  async function run() {
+    if (!code || !state) {
+      showError('Missing authorization data. Please try again from the verification page.');
+      return;
+    }
+    try {
+      const resp = await fetch('/api/discord-link-account', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ code, state }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'Unknown error');
+      showSuccess(data.discordUsername, data.kickUsername);
+    } catch (e) {
+      showError('Failed to link: ' + e.message);
+    }
+  }
+
+  run();
+</script>
+</body>
+</html>

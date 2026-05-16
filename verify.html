@@ -133,14 +133,19 @@
     </div>
 
     <div class="info-row">
-      <div class="info-icon">💬</div>
+      <div class="info-icon" id="identityIcon">💬</div>
       <div>
-        <div class="label">Kick Username</div>
+        <div class="label" id="identityLabel">Kick Username</div>
         <div class="value" id="kickUsernameDisplay">...</div>
       </div>
     </div>
 
     <div id="formSection">
+      <div class="form-group" id="kickUsernameGroup" style="display:none;">
+        <label>Your Kick Username</label>
+        <input type="text" class="form-input" id="kickUsernameInput" placeholder="Enter your Kick username..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <div class="provider-hint">The username you use in Kick chat.</div>
+      </div>
       <div class="form-group">
         <label id="affiliateLabel">Casino Username</label>
         <input type="text" class="form-input" id="affiliateInput" placeholder="Enter your exact casino username..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
@@ -154,6 +159,18 @@
       <div class="status-icon">✅</div>
       <h3>Verified!</h3>
       <p id="successMsg">Your account has been linked successfully.</p>
+      <div id="discordLinkSection" style="margin-top:20px; padding-top:18px; border-top:1px solid rgba(255,255,255,0.08);">
+        <p style="font-size:13px; color:#8b949e; margin-bottom:12px;">Also in the Discord server? Link your Discord to use <strong style="color:#c9d1d9;">/points</strong> and <strong style="color:#c9d1d9;">/buy</strong>.</p>
+        <button onclick="linkDiscord()" style="
+          background: #5865F2; border: none; border-radius: 8px; cursor: pointer;
+          font-family: 'Exo 2', sans-serif; font-size: 14px; font-weight: 800;
+          color: #fff; padding: 10px 20px; display: inline-flex; align-items: center; gap: 8px;
+        ">
+          <svg width="18" height="14" viewBox="0 0 71 55" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M60.1 4.9A58.6 58.6 0 0 0 45.5.4a40 40 0 0 0-1.8 3.7 54.2 54.2 0 0 0-16.3 0A38 38 0 0 0 25.6.4 58.8 58.8 0 0 0 11 4.9C1.6 19 -1 32.7.3 46.3a59.1 59.1 0 0 0 18 9.1 43.5 43.5 0 0 0 3.8-6.2 38.4 38.4 0 0 1-6-2.9l1.4-1.1a42 42 0 0 0 36 0l1.5 1.1a38.2 38.2 0 0 1-6 2.9 43.2 43.2 0 0 0 3.8 6.2 58.8 58.8 0 0 0 18-9.1C72.3 30.6 68.4 17 60.1 4.9ZM23.8 38.2c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.2 6.4 7.2c0 4-2.9 7.2-6.4 7.2Zm23.7 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.2 6.4 7.2c0 4-2.8 7.2-6.4 7.2Z"/></svg>
+          Connect Discord
+        </button>
+        <p id="discordLinked" style="display:none; color:#00ff88; font-size:13px; margin-top:10px; font-weight:600;">✅ Discord linked!</p>
+      </div>
     </div>
 
     <div class="status-box error" id="errorBox">
@@ -182,8 +199,10 @@
   const params     = new URLSearchParams(window.location.search);
   const channel    = params.get('channel') || '';
   const token      = params.get('token')   || '';
+  const dtoken     = params.get('dtoken')  || '';
   const casino     = (params.get('casino') || 'gambulls').toLowerCase();
   const casinoName = CASINO_NAMES[casino]  || casino;
+  const discordMode = !!dtoken && !token;
 
   let resolvedKickUsername = null;
 
@@ -194,16 +213,28 @@
     document.getElementById('channelBadge').textContent = 'Unknown channel';
   }
 
-  document.getElementById('verifyTitle').textContent = `Connect Your ${casinoName} Account`;
-  document.getElementById('verifyDesc').textContent  =
-    `Connect your ${casinoName} username to your Kick account so WenBot can track your wagers for giveaways.`;
+  document.getElementById('verifyTitle').textContent = discordMode
+    ? `Link Your Account via Discord`
+    : `Connect Your ${casinoName} Account`;
+  document.getElementById('verifyDesc').textContent = discordMode
+    ? `Enter your Kick username and ${casinoName} username to link everything in one step.`
+    : `Connect your ${casinoName} username to your Kick account so WenBot can track your wagers for giveaways.`;
   document.getElementById('affiliateLabel').textContent = `${casinoName} Username`;
   document.getElementById('affiliateInput').placeholder = `Enter your exact ${casinoName} username...`;
   document.getElementById('providerHint').textContent   =
     `Enter the username you use at ${casinoName}. If you're wagering under ${channel}'s affiliate code you'll qualify for wager giveaways too.`;
 
-  // Resolve token on page load to display the Kick username
+  if (discordMode) {
+    document.getElementById('identityIcon').textContent = '🎮';
+    document.getElementById('identityLabel').textContent = 'Linking via Discord';
+    document.getElementById('kickUsernameDisplay').textContent = 'Enter your Kick username below';
+    document.getElementById('kickUsernameGroup').style.display = 'block';
+  }
+
+  // Resolve token on page load to display the Kick username (Kick-chat flow only)
   async function resolveToken() {
+    if (discordMode) return;
+
     if (!token || !channel) {
       showError('Invalid verification link. Make sure you clicked the link from WenBot in Kick chat.');
       document.getElementById('formSection').style.display = 'none';
@@ -234,9 +265,12 @@
 
   async function submitVerify() {
     const affiliateUsername = document.getElementById('affiliateInput').value.trim();
-    if (!affiliateUsername) {
-      document.getElementById('affiliateInput').focus();
-      return;
+    if (!affiliateUsername) { document.getElementById('affiliateInput').focus(); return; }
+
+    let kickUsernameInput = '';
+    if (discordMode) {
+      kickUsernameInput = document.getElementById('kickUsernameInput').value.trim();
+      if (!kickUsernameInput) { document.getElementById('kickUsernameInput').focus(); return; }
     }
 
     const btn = document.getElementById('verifyBtn');
@@ -245,19 +279,28 @@
     hideStatus();
 
     try {
+      const payload = discordMode
+        ? { channel, dtoken, affiliateUsername, casino, kickUsername: kickUsernameInput }
+        : { channel, token, affiliateUsername, casino };
+
       const resp = await fetch('/api/verify-affiliate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channel, token, affiliateUsername, casino }),
+        body: JSON.stringify(payload),
       });
       const data = await resp.json();
 
       if (resp.ok && data.success) {
         document.getElementById('formSection').style.display = 'none';
+        const discordNote = data.discordLinked
+          ? `<br><br>🎮 <strong>Discord linked!</strong> You can now use <strong>/points</strong> and <strong>/buy</strong> in the server.`
+          : '';
         const affiliateMsg = data.underAffiliate
-          ? `<strong>${escHtml(data.kickUsername)}</strong> has been linked to <strong>${escHtml(data.affiliateUsername)}</strong> on ${escHtml(data.casinoName || casinoName)}.<br><br>You can now enter giveaways in <strong>${escHtml(channel)}</strong>'s stream!`
-          : `<strong>${escHtml(data.kickUsername)}</strong> has been linked to <strong>${escHtml(data.affiliateUsername)}</strong> on ${escHtml(data.casinoName || casinoName)}.<br><br><em style="color:var(--text-dim);font-size:12px;">Note: your account wasn't found under ${escHtml(channel)}'s affiliate code, so you won't be eligible for code-based giveaways — but you're verified for general giveaways!</em>`;
+          ? `<strong>${escHtml(data.kickUsername)}</strong> has been linked to <strong>${escHtml(data.affiliateUsername)}</strong> on ${escHtml(data.casinoName || casinoName)}.<br><br>You can now enter giveaways in <strong>${escHtml(channel)}</strong>'s stream!${discordNote}`
+          : `<strong>${escHtml(data.kickUsername)}</strong> has been linked to <strong>${escHtml(data.affiliateUsername)}</strong> on ${escHtml(data.casinoName || casinoName)}.<br><br><em style="color:var(--text-dim);font-size:12px;">Note: your account wasn't found under ${escHtml(channel)}'s affiliate code, so you won't be eligible for code-based giveaways — but you're verified for general giveaways!</em>${discordNote}`;
         document.getElementById('successMsg').innerHTML = affiliateMsg;
+        // Hide the Discord link section if we already linked via dtoken
+        if (data.discordLinked) document.getElementById('discordLinkSection').style.display = 'none';
         showSuccess();
       } else {
         showError(data.error || 'Verification failed. Please try again.');
@@ -303,6 +346,19 @@
   document.getElementById('affiliateInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') submitVerify();
   });
+
+  function linkDiscord() {
+    if (!resolvedKickUsername || !channel) return;
+    const state = btoa(JSON.stringify({ k: resolvedKickUsername, c: channel }));
+    const params = new URLSearchParams({
+      client_id:     '1505048778770481173',
+      response_type: 'code',
+      scope:         'identify',
+      redirect_uri:  'https://wenbot.gg/discord-verify-callback.html',
+      state,
+    });
+    window.location.href = 'https://discord.com/oauth2/authorize?' + params.toString();
+  }
 
   function escHtml(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');

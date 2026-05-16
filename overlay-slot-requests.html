@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slot Requests — WenBot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       rgba(13,17,23,0.93);
+      --border:   rgba(0,229,255,0.25);
+      --text:     #c9d1d9;
+      --text-dim: #8b949e;
+      --bright:   #f0f6fc;
+      --accent:   #00e5ff;
+      --green:    #00ff88;
+      --purple:   #a78bfa;
+    }
+
+    body {
+      background: transparent;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      padding: 12px;
+      width: 360px;
+    }
+
+    .panel {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,229,255,0.05);
+    }
+
+    .header {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-title {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 12px;
+      font-weight: 900;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .header-count {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-dim);
+    }
+    .header-count span {
+      color: var(--accent);
+    }
+
+    /* Scroll container — overflow hidden, translate for animation */
+    .scroll-wrap {
+      overflow: hidden;
+      position: relative;
+    }
+
+    .scroll-inner {
+      will-change: transform;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .row:last-child { border-bottom: none; }
+
+    .row-num {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 11px;
+      font-weight: 900;
+      color: var(--text-dim);
+      width: 18px;
+      flex-shrink: 0;
+      text-align: right;
+    }
+    .row-num.first {
+      color: var(--accent);
+    }
+
+    .row-slot {
+      flex: 1;
+      min-width: 0;
+    }
+    .row-slot-name {
+      font-weight: 600;
+      color: var(--bright);
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .row-slot-user {
+      font-size: 11px;
+      color: var(--accent);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      opacity: 0.8;
+    }
+
+    .spacer-row {
+      height: 32px;
+      border-bottom: 1px solid rgba(0,229,255,0.08);
+    }
+
+    .empty {
+      padding: 24px 14px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+
+    .cmd-hint {
+      padding: 7px 14px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.04em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .cmd-hint code {
+      color: var(--accent);
+      font-family: monospace;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+<div class="panel">
+  <div class="header">
+    <div class="header-title">🎰 Slot Requests</div>
+    <div class="header-count" id="headerCount"><span id="countNum">0</span> in queue</div>
+  </div>
+
+  <div class="scroll-wrap" id="scrollWrap">
+    <div class="scroll-inner" id="scrollInner">
+      <div class="empty" id="emptyState">No requests yet — type <code style="color:var(--accent);font-family:monospace;">!sr &lt;slot name&gt;</code></div>
+    </div>
+  </div>
+
+  <div class="cmd-hint">Type <code>!sr &lt;slot name&gt;</code> to request a slot</div>
+</div>
+
+<script>
+  const params  = new URLSearchParams(location.search);
+  const CHANNEL = params.get('channel') || '';
+  const DEMO    = params.get('demo') === '1';
+  const POLL_MS = 800;
+
+  const DEMO_DATA = [
+    { id:'1', kickUsername:'xX_SlotKing_Xx', slotName:'Gates of Olympus' },
+    { id:'2', kickUsername:'BigWinHunter',   slotName:'Wanted Dead or a Wild' },
+    { id:'3', kickUsername:'CryptoGambler',  slotName:'Razor Shark' },
+    { id:'4', kickUsername:'NightOwlStreams', slotName:'Hand of Midas' },
+    { id:'5', kickUsername:'LuckyDegen99',   slotName:'Fire in the Hole 2' },
+  ];
+
+  // ── SCROLL ──
+  const SPEED    = 0.4;   // px per frame
+  const PAUSE_MS = 1500;  // pause at top before looping
+  const ROW_H    = 40;    // approximate row height (matches padding)
+
+  let offset   = 0;
+  let paused   = false;
+  let pauseEnd = 0;
+  let totalH   = 0;       // height of original rows (half of cloned content)
+  let rafId    = null;
+
+  const scrollInner = document.getElementById('scrollInner');
+  const scrollWrap  = document.getElementById('scrollWrap');
+
+  function buildRows(requests) {
+    if (requests.length === 0) {
+      scrollInner.innerHTML = '<div class="empty" id="emptyState">No requests yet — type <code style="color:var(--accent);font-family:monospace;">!sr &lt;slot name&gt;</code></div>';
+      document.getElementById('countNum').textContent = '0';
+      scrollWrap.style.maxHeight = '';
+      cancelAnimationFrame(rafId);
+      totalH = 0;
+      return;
+    }
+
+    document.getElementById('countNum').textContent = requests.length;
+
+    function makeRow(req, idx, clone) {
+      const div = document.createElement('div');
+      div.className = 'row' + (clone ? ' scroll-clone' : '');
+      const isFirst = !clone && idx === 0;
+      div.innerHTML = `
+        <div class="row-num${isFirst ? ' first' : ''}">${idx + 1}</div>
+        <div class="row-slot">
+          <div class="row-slot-name">${esc(req.slotName)}</div>
+          <div class="row-slot-user">@${esc(req.kickUsername)}</div>
+        </div>`;
+      return div;
+    }
+
+    // Only scroll if more than 3 requests (otherwise static)
+    const VISIBLE = 5;
+    const maxH = VISIBLE * ROW_H;
+    scrollWrap.style.maxHeight = maxH + 'px';
+
+    if (requests.length <= 3) {
+      // Static — no scroll
+      cancelAnimationFrame(rafId);
+      scrollInner.innerHTML = '';
+      requests.forEach((r, i) => scrollInner.appendChild(makeRow(r, i, false)));
+      scrollInner.style.transform = 'translateY(0)';
+      offset = 0;
+      totalH = 0;
+      return;
+    }
+
+    // Build original + spacer + clones for seamless loop
+    scrollInner.innerHTML = '';
+    const origRows = requests.map((r, i) => makeRow(r, i, false));
+    origRows.forEach(r => scrollInner.appendChild(r));
+
+    const spacer = document.createElement('div');
+    spacer.className = 'spacer-row scroll-clone';
+    scrollInner.appendChild(spacer);
+
+    requests.forEach((r, i) => scrollInner.appendChild(makeRow(r, i, true)));
+
+    // Measure after paint
+    requestAnimationFrame(() => {
+      const allRows = scrollInner.querySelectorAll('.row:not(.scroll-clone), .spacer-row:not(.scroll-clone)');
+      let h = 0;
+      allRows.forEach(r => h += r.offsetHeight);
+      // Include spacer in total
+      totalH = h + spacer.offsetHeight;
+      cancelAnimationFrame(rafId);
+      animate();
+    });
+  }
+
+  function animate() {
+    rafId = requestAnimationFrame(animate);
+    const now = Date.now();
+    if (paused) {
+      if (now >= pauseEnd) paused = false;
+      return;
+    }
+    offset += SPEED;
+    if (offset >= totalH) {
+      offset = 0;
+      paused = true;
+      pauseEnd = now + PAUSE_MS;
+    }
+    scrollInner.style.transform = `translateY(-${offset}px)`;
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── POLL ──
+  let lastJson = '';
+
+  async function poll() {
+    if (DEMO) {
+      buildRows(DEMO_DATA);
+      return;
+    }
+    if (!CHANNEL) {
+      document.getElementById('scrollInner').innerHTML = '<div class="empty">Missing ?channel= parameter</div>';
+      return;
+    }
+    try {
+      const r = await fetch(`/api/slot-request-data?channel=${encodeURIComponent(CHANNEL)}`);
+      const d = await r.json();
+      const json = JSON.stringify(d.requests);
+      if (json !== lastJson) {
+        lastJson = json;
+        buildRows(d.requests || []);
+      }
+    } catch {}
+  }
+
+  poll();
+  if (!DEMO) setInterval(poll, POLL_MS);
+</script>
+</body>
+</html>
