@@ -11,7 +11,8 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
-        "npm:firebase-admin@12"
+        "npm:firebase-admin@12",
+        "npm:tweetnacl@^1.0.3"
       ]
     }
   }

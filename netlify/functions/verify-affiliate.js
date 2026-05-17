@@ -186,16 +186,24 @@ exports.handler = async (event) => {
       underAffiliate = false;
     }
 
-    await db.collection("streamers").doc(streamerUid)
-      .collection("verified_users").doc(`${kickKey}_${provider}`).set({
-        kickName:               kickUsername,
-        providerUsername:       resultUsername,
-        providerUsername_lower: affiliateKey,
-        provider,
-        apiVerified:            API_CASINOS.has(provider) && underAffiliate,
-        underAffiliate,
-        verifiedAt:             Date.now(),
-      });
+    const batch = db.batch();
+    const newDocRef = db.collection("streamers").doc(streamerUid)
+      .collection("verified_users").doc(`${kickKey}_${provider}`);
+    batch.set(newDocRef, {
+      kickName:               kickUsername,
+      providerUsername:       resultUsername,
+      providerUsername_lower: affiliateKey,
+      provider,
+      apiVerified:            API_CASINOS.has(provider) && underAffiliate,
+      underAffiliate,
+      verifiedAt:             Date.now(),
+    });
+    // Clean up legacy docs that used just kickKey as doc ID (no _provider suffix)
+    const legacyRef = db.collection("streamers").doc(streamerUid)
+      .collection("verified_users").doc(kickKey);
+    const legacySnap = await legacyRef.get();
+    if (legacySnap.exists) batch.delete(legacyRef);
+    await batch.commit();
 
     // Discord-initiated flow: also save the discord_link
     if (discordUserId) {

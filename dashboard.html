@@ -514,10 +514,10 @@
           </div>
         </div>
         <div class="giveaway-type-row">
-          <button class="type-btn active" id="typeCode" onclick="setType('code')">🔑 Code Users</button>
-          <button class="type-btn" id="typeEveryone" onclick="setType('everyone')">🌐 Everyone</button>
+          <button class="type-btn active" id="typeEveryone" onclick="setType('everyone')">🌐 Everyone</button>
+          <button class="type-btn" id="typeCode" onclick="setType('code')">🔑 Code Users</button>
         </div>
-        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:4px;">
+        <div style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;margin-top:12px;">
           <button class="btn btn-accent btn-xl" id="startGiveawayBtn" onclick="startGiveaway()">🎉 Start Giveaway</button>
           <button class="btn btn-danger" id="stopGiveawayBtn" style="display:none;" onclick="stopGiveaway()">⏹ Stop Giveaway</button>
           <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;font-family:'Exo 2',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.04em;">
@@ -950,8 +950,8 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Kick Username</th><th>Casino Username</th><th>Casino</th><th>Status</th><th>Wager</th><th>Verified At</th><th></th></tr></thead>
-            <tbody id="verifiedTable"><tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:20px;">Loading...</td></tr></tbody>
+            <thead><tr><th>Kick Username</th><th>Casino Username</th><th>Casino</th><th>Status</th><th>Discord</th><th>Wager</th><th>Verified At</th><th></th></tr></thead>
+            <tbody id="verifiedTable"><tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:20px;">Loading...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -1275,16 +1275,29 @@
 
       <!-- No hunt active -->
       <div id="bhNoHunt">
-        <div class="card" style="text-align:center;padding:52px 36px;max-width:480px;margin:0 auto;">
+        <div class="card" style="text-align:center;padding:52px 36px;max-width:480px;margin:0 auto 24px;">
           <div style="font-size:52px;margin-bottom:16px;">🎰</div>
           <h2 style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--bright);margin-bottom:8px;">No Active Bonus Hunt</h2>
-          <p style="color:var(--text-dim);font-size:13px;margin-bottom:28px;line-height:1.6;">Enter the total amount you spent buying bonuses, then add each slot as you hunt through them.</p>
+          <p style="color:var(--text-dim);font-size:13px;margin-bottom:28px;line-height:1.6;">Enter the total amount you will spend on this bonus hunt, then add each slot as you hunt through them.</p>
           <div style="max-width:320px;margin:0 auto;">
             <div class="field">
               <label>Total Amount Spent on Bonuses ($)</label>
               <input type="number" id="bhCostInput" class="form-input" placeholder="e.g. 25000" min="0" step="1">
             </div>
             <button onclick="startBonusHunt()" class="btn btn-accent" style="width:100%;margin-top:4px;padding:13px;">🎰 Start Bonus Hunt</button>
+          </div>
+        </div>
+
+        <!-- Past hunts -->
+        <div class="card" id="bhHistoryCard" style="display:none;">
+          <div class="card-title" style="justify-content:space-between;">
+            <span>📜 Past Hunts</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Slots</th><th>Spent</th><th>Winnings</th><th>P&L</th><th></th></tr></thead>
+              <tbody id="bhHistoryTable"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -1384,7 +1397,8 @@
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
           <a href="#" target="_blank" id="bhOverlayLink" style="font-size:12px;color:var(--accent);text-decoration:none;font-weight:600;">🖥 Bonus Hunt Overlay (OBS)</a>
           <a href="#" target="_blank" id="bhPreviewLink" style="font-size:11px;color:var(--text-dim);text-decoration:none;opacity:0.7;">▶ Preview</a>
-          <button onclick="bhResetHunt()" style="margin-left:auto;background:none;border:1px solid rgba(255,71,87,0.3);border-radius:6px;color:var(--red);font-size:12px;cursor:pointer;padding:6px 14px;">🗑 Reset Hunt</button>
+          <button onclick="bhEndHunt()" style="margin-left:auto;background:linear-gradient(135deg,var(--green),#00c96a);border:none;border-radius:6px;color:#0d1117;font-size:12px;font-weight:800;font-family:'Exo 2',sans-serif;cursor:pointer;padding:6px 14px;">✓ End Hunt</button>
+          <button onclick="bhResetHunt()" style="background:none;border:1px solid rgba(255,71,87,0.3);border-radius:6px;color:var(--red);font-size:12px;cursor:pointer;padding:6px 14px;">🗑 Discard</button>
         </div>
 
       </div>
@@ -1431,7 +1445,7 @@ function showPage(id, el) {
   if (id === 'gtb') loadGTBGuesses();
   if (id === 'leaderboard') loadLeaderboards();
   if (id === 'store') { loadStoreItems(); loadRedemptions(); }
-  if (id === 'bonushunt')   loadBonusHunt();
+  if (id === 'bonushunt')   { loadBonusHunt(); loadBhHistory(); }
   if (id === 'slotrequest') loadSlotRequests();
   if (id === 'overlays')    wireOverlayLinks();
 }
@@ -1447,7 +1461,7 @@ function flash(msg, type='success') {
 
 // ── AUTH ──
 let profile = null;
-let currentGiveawayType = 'code';
+let currentGiveawayType = 'everyone';
 let gtbActive = false;
 let gtbSessionId = null;
 let activeGuesses = [];
@@ -1485,7 +1499,7 @@ function onAuthReady(user) {
   // Restore giveaway state if it was active before refresh
   if (profile?.giveawayActive) {
     giveawayActive = true;
-    currentGiveawayType = profile.giveawayType || 'code';
+    currentGiveawayType = profile.giveawayType || 'everyone';
     setType(currentGiveawayType);
     if (profile.giveawayKeyword) document.getElementById('giveawayKeyword').value = profile.giveawayKeyword;
     if (profile.giveawayMinWager > 0) {
@@ -1818,7 +1832,7 @@ function spinPicker() {
     spinningNow = false;
     flash('🏆 Winner: ' + winner.username);
     addRecentWinner(winner.username);
-    discordNotify('giveaway_winner', { winner: winner.username, totalEntries: entries.length });
+    if (gwTarget === 'discord') discordNotify('giveaway_winner', { winner: winner.username, totalEntries: entries.length });
 
     // Post winner to chat + trigger OBS overlay
     const uid = fb.currentUser?.uid;
@@ -2047,29 +2061,53 @@ async function deleteCommand(id) {
 
 // ── VERIFIED USERS ──
 async function loadVerifiedUsers() {
+  const uid   = fb.currentUser.uid;
   const tbody = document.getElementById('verifiedTable');
-  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:16px;">Loading...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:16px;">Loading...</td></tr>';
   const activeProvider = profile?.activeProvider || 'gambulls';
-  const snap = await fb.db.collection('streamers').doc(fb.currentUser.uid).collection('verified_users')
-    .where('provider', '==', activeProvider).get();
+
+  let snap, discordSnap;
+  try {
+    [snap, discordSnap] = await Promise.all([
+      fb.db.collection('streamers').doc(uid).collection('verified_users')
+        .where('provider', '==', activeProvider).get(),
+      fb.db.collection('streamers').doc(uid).collection('discord_links').get(),
+    ]);
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--red);padding:16px;">Error: ${e.message}</td></tr>`;
+    return;
+  }
+
+  const discordMap = {};
+  discordSnap.docs.forEach(d => {
+    const data = d.data();
+    if (data.kickUsername) discordMap[data.kickUsername.toLowerCase()] = data.discordUsername;
+  });
+
   document.getElementById('verifiedCountLabel').textContent = snap.size;
   document.getElementById('statVerified').textContent = snap.size;
-  if (snap.empty) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:16px;">No verified users yet</td></tr>'; return; }
-  tbody.innerHTML = snap.docs.map(d => {
-    const v = d.data();
+  if (snap.empty) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:16px;">No verified users yet</td></tr>'; return; }
+  const CASINO_NAMES_MAP = { gambulls:'Gambulls', stake:'Stake', rainbet:'Rainbet', thrill:'Thrill', winna:'Winna', shuffle:'Shuffle', duel:'Duel', roobet:'Roobet', bcgame:'BC.Game', '500casino':'500 Casino', gamdom:'Gamdom', duelbits:'Duelbits', rollbit:'Rollbit', chipsgg:'Chips.gg' };
+  tbody.innerHTML = snap.docs.map(doc => {
+    const v = doc.data();
     const ts = v.verifiedAt ? new Date(v.verifiedAt).toLocaleDateString() : '—';
     const statusBadge = v.underAffiliate
       ? `<span style="background:rgba(0,255,136,0.1);color:#00ff88;border:1px solid rgba(0,255,136,0.3);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;">Under Code</span>`
       : `<span style="background:rgba(139,148,158,0.1);color:#8b949e;border:1px solid rgba(139,148,158,0.3);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;">General</span>`;
-    const casinoName = { gambulls:'Gambulls', stake:'Stake', rainbet:'Rainbet', thrill:'Thrill', winna:'Winna', shuffle:'Shuffle', duel:'Duel', roobet:'Roobet', bcgame:'BC.Game', '500casino':'500 Casino', gamdom:'Gamdom', duelbits:'Duelbits', rollbit:'Rollbit', chipsgg:'Chips.gg' }[v.provider] || v.provider || '—';
+    const casinoName = CASINO_NAMES_MAP[v.provider] || v.provider || '—';
+    const discordUser = discordMap[v.kickName?.toLowerCase()];
+    const discordCell = discordUser
+      ? `<span style="color:#5865F2;font-weight:600;font-size:12px;">@${discordUser}</span>`
+      : `<span style="color:var(--text-dim);font-size:12px;">—</span>`;
     return `<tr>
-      <td class="td-highlight">${v.kickName || d.id}</td>
+      <td class="td-highlight">${v.kickName || doc.id}</td>
       <td>${v.providerUsername || '—'}</td>
       <td style="color:var(--text-dim);font-size:12px;">${casinoName}</td>
       <td>${statusBadge}</td>
+      <td>${discordCell}</td>
       <td class="td-green">${v.wagerAmount ? '$'+Number(v.wagerAmount).toLocaleString() : '—'}</td>
       <td style="color:var(--text-dim);">${ts}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="removeVerified('${v.kickName?.toLowerCase()}')">Remove</button></td>
+      <td><button class="btn btn-danger btn-sm" onclick="removeVerified('${doc.id}')">Remove</button></td>
     </tr>`;
   }).join('');
 }
@@ -2079,9 +2117,8 @@ async function loadVerifiedCount() {
   document.getElementById('statVerified').textContent = snap.size;
 }
 
-async function removeVerified(kickName) {
-  const provider = profile?.activeProvider || 'gambulls';
-  await fb.db.collection('streamers').doc(fb.currentUser.uid).collection('verified_users').doc(`${kickName}_${provider}`).delete();
+async function removeVerified(docId) {
+  await fb.db.collection('streamers').doc(fb.currentUser.uid).collection('verified_users').doc(docId).delete();
   flash('User removed.');
   loadVerifiedUsers();
 }
@@ -2381,8 +2418,14 @@ async function deleteStoreItem(id) {
 async function loadRedemptions() {
   const uid   = fb.currentUser.uid;
   const tbody = document.getElementById('redemptionsTable');
-  const snap  = await fb.db.collection('streamers').doc(uid)
-    .collection('store_redemptions').where('status','==','pending').orderBy('redeemedAt','asc').get();
+  let snap;
+  try {
+    snap = await fb.db.collection('streamers').doc(uid)
+      .collection('store_redemptions').where('status','==','pending').get();
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--red);padding:20px;">Error loading redemptions: ${e.message}</td></tr>`;
+    return;
+  }
 
   if (snap.empty) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:20px;">No pending redemptions</td></tr>';
@@ -2395,7 +2438,12 @@ async function loadRedemptions() {
   badge.textContent = snap.size;
 
   const currency = profile?.currencyName || 'points';
-  tbody.innerHTML = snap.docs.map(doc => {
+  const sorted = snap.docs.slice().sort((a, b) => {
+    const ta = a.data().redeemedAt?.toMillis?.() ?? 0;
+    const tb = b.data().redeemedAt?.toMillis?.() ?? 0;
+    return ta - tb;
+  });
+  tbody.innerHTML = sorted.map(doc => {
     const d      = doc.data();
     const ts     = d.redeemedAt?.toDate ? d.redeemedAt.toDate().toLocaleTimeString() : '—';
     const source = d.source === 'discord'
@@ -2837,8 +2885,6 @@ function bhRender() {
 }
 
 function bhFmt(n) {
-  if (n >= 1000000) return '$' + (n / 1000000).toFixed(2) + 'M';
-  if (n >= 1000)    return '$' + (n / 1000).toFixed(1) + 'k';
   return '$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
 }
 
@@ -3026,17 +3072,97 @@ async function bhSaveCost() {
   } catch (e) { flash('Failed to update cost: ' + e.message, 'error'); }
 }
 
+async function bhEndHunt() {
+  if (!bhHunt) return;
+  const bonuses  = bhHunt.bonuses || [];
+  const played   = bonuses.filter(b => b.payout != null);
+  const winnings = played.reduce((s, b) => s + b.payout, 0);
+  const cost     = bhHunt.totalCost || 0;
+  const pnl      = winnings - cost;
+
+  if (!confirm(`End this hunt?\n\nSpent: ${bhFmt(cost)}\nWinnings: ${bhFmt(winnings)}\nP&L: ${pnl >= 0 ? '+' : ''}${bhFmt(pnl)}\n\nThis will save the hunt to your history.`)) return;
+
+  const uid = fb.currentUser.uid;
+  const db  = fb.db;
+  try {
+    await db.collection('streamers').doc(uid).collection('bonus_hunt_history').add({
+      ...bhHunt,
+      active:   false,
+      endedAt:  Date.now(),
+      winnings,
+      pnl,
+    });
+    await db.collection('streamers').doc(uid).collection('bonus_hunt').doc('current').set({ active: false });
+    bhHunt = null;
+    bhRender();
+    loadBhHistory();
+    flash(`Hunt ended! P&L: ${pnl >= 0 ? '+' : ''}${bhFmt(pnl)}`);
+  } catch (e) {
+    flash('Failed to end hunt: ' + e.message, 'error');
+  }
+}
+
 async function bhResetHunt() {
-  if (!confirm('Reset the current bonus hunt? This cannot be undone.')) return;
+  if (!confirm('Discard this hunt? All data will be lost permanently.')) return;
   try {
     await fb.db.collection('streamers').doc(fb.currentUser.uid)
       .collection('bonus_hunt').doc('current').set({ active: false });
     bhHunt = null;
     bhRender();
-    flash('Bonus hunt reset.');
+    flash('Hunt discarded.');
   } catch (e) {
-    flash('Failed to reset: ' + e.message, 'error');
+    flash('Failed to discard: ' + e.message, 'error');
   }
+}
+
+async function loadBhHistory() {
+  const uid  = fb.currentUser?.uid;
+  if (!uid) return;
+  const snap = await fb.db.collection('streamers').doc(uid)
+    .collection('bonus_hunt_history').orderBy('endedAt', 'desc').limit(20).get();
+
+  const card = document.getElementById('bhHistoryCard');
+  const tbody = document.getElementById('bhHistoryTable');
+  if (snap.empty) { card.style.display = 'none'; return; }
+
+  card.style.display = '';
+  tbody.innerHTML = snap.docs.map(doc => {
+    const d       = doc.data();
+    const date    = d.endedAt ? new Date(d.endedAt).toLocaleDateString() : '—';
+    const slots   = (d.bonuses || []).length;
+    const spent   = bhFmt(d.totalCost || 0);
+    const win     = bhFmt(d.winnings  || 0);
+    const pnl     = d.pnl || 0;
+    const pnlCls  = pnl >= 0 ? 'color:var(--green)' : 'color:var(--red)';
+    const pnlStr  = (pnl >= 0 ? '+' : '') + bhFmt(pnl);
+    return `<tr>
+      <td style="color:var(--text-dim);">${date}</td>
+      <td>${slots}</td>
+      <td>${spent}</td>
+      <td style="color:var(--green);">${win}</td>
+      <td style="${pnlCls};font-weight:700;">${pnlStr}</td>
+      <td style="display:flex;gap:6px;"><button class="btn btn-ghost btn-sm" onclick="bhViewHistory('${doc.id}')">View</button><button class="btn btn-danger btn-sm" onclick="bhDeleteHistory('${doc.id}')">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function bhDeleteHistory(id) {
+  if (!confirm('Delete this past hunt? This cannot be undone.')) return;
+  await fb.db.collection('streamers').doc(fb.currentUser.uid)
+    .collection('bonus_hunt_history').doc(id).delete();
+  flash('Hunt deleted.');
+  loadBhHistory();
+}
+
+async function bhViewHistory(id) {
+  const uid  = fb.currentUser?.uid;
+  const snap = await fb.db.collection('streamers').doc(uid).collection('bonus_hunt_history').doc(id).get();
+  if (!snap.exists) return;
+  const d       = snap.data();
+  const bonuses = d.bonuses || [];
+  const played  = bonuses.filter(b => b.payout != null);
+  const lines   = played.map(b => `${b.name}: ${bhFmt(b.payout)} (${b.multiplier?.toFixed(1)}x)`).join('\n');
+  alert(`Hunt on ${new Date(d.endedAt).toLocaleDateString()}\nSpent: ${bhFmt(d.totalCost)}\nWinnings: ${bhFmt(d.winnings)}\nP&L: ${(d.pnl>=0?'+':'')+bhFmt(d.pnl)}\n\n${lines || 'No results recorded.'}`);
 }
 
 // ── DISCORD SETTINGS ─────────────────────────────────────────────────────────

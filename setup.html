@@ -161,13 +161,25 @@
           <label>Affiliate Platform</label>
           <select id="setupProvider" onchange="updateProviderInfo()">
             <option value="gambulls">Gambulls</option>
-            <option value="csbattle">CSBattle</option>
+            <option value="stake">Stake</option>
+            <option value="rainbet">Rainbet</option>
+            <option value="shuffle">Shuffle</option>
+            <option value="roobet">Roobet</option>
+            <option value="rollbit">Rollbit</option>
+            <option value="duelbits">Duelbits</option>
+            <option value="chipsgg">Chips.gg</option>
+            <option value="bcgame">BC.Game</option>
+            <option value="gamdom">Gamdom</option>
+            <option value="500casino">500 Casino</option>
+            <option value="thrill">Thrill</option>
+            <option value="winna">Winna</option>
+            <option value="duel">Duel</option>
           </select>
         </div>
 
-        <div class="setup-field" id="apiKeyField">
+        <div class="setup-field" id="apiKeyField" style="display:none;">
           <label id="apiKeyLabel">Gambulls Streamer API Key</label>
-          <input type="password" id="setupApiKey" required placeholder="sk_...">
+          <input type="password" id="setupApiKey" placeholder="sk_...">
           <span class="hint" id="apiKeyHint">Found in your Gambulls streamer dashboard</span>
           <div class="provider-info" id="providerInfo">
             <strong>Where to find this:</strong><br>
@@ -181,16 +193,33 @@
           <input type="text" id="setupDisplayName" placeholder="How viewers see your name">
         </div>
 
-        <div class="setup-field">
-          <label>Points Currency Name</label>
+        <div class="setup-field" id="currencyField">
+          <label style="display:flex;align-items:center;gap:8px;">
+            Points Currency Name
+            <span id="currencyUpgradeBadge" style="display:none;font-size:10px;font-weight:700;background:rgba(167,139,250,0.15);color:#a78bfa;border:1px solid rgba(167,139,250,0.3);border-radius:4px;padding:2px 7px;letter-spacing:0.05em;">PRO</span>
+          </label>
           <input type="text" id="setupCurrencyName" placeholder="e.g. Chips, Skulls, Coins" maxlength="20">
           <span class="hint">What viewers earn for chatting (default: points)</span>
         </div>
 
-        <div class="setup-field">
-          <label>Points Per Message</label>
+        <div class="setup-field" id="pointsField">
+          <label style="display:flex;align-items:center;gap:8px;">
+            Points Per Message
+            <span id="pointsUpgradeBadge" style="display:none;font-size:10px;font-weight:700;background:rgba(167,139,250,0.15);color:#a78bfa;border:1px solid rgba(167,139,250,0.3);border-radius:4px;padding:2px 7px;letter-spacing:0.05em;">PRO</span>
+          </label>
           <input type="number" id="setupPointsPerMessage" placeholder="1" min="0" max="100" value="1">
           <span class="hint">How many points viewers earn per chat message</span>
+        </div>
+
+        <!-- Stripe payment block (shown for paid plans that haven't paid yet) -->
+        <div id="stripePaymentBlock" style="display:none;background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.2);border-radius:10px;padding:16px 18px;">
+          <div style="font-family:'Exo 2',sans-serif;font-weight:800;color:var(--text-bright);font-size:14px;margin-bottom:6px;">💳 Payment Required</div>
+          <div style="font-size:13px;color:var(--text-dim);margin-bottom:14px;" id="stripePaymentDesc">Subscribe to complete setup.</div>
+          <button type="button" class="btn btn-accent" style="width:100%;padding:11px;font-size:14px;" id="stripeBtn" onclick="goToStripe()">Subscribe Now →</button>
+        </div>
+
+        <div id="stripeSuccessBlock" style="display:none;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.25);border-radius:10px;padding:12px 16px;">
+          <div style="color:#00ff88;font-size:13px;font-weight:600;">✅ Subscription active — you're all set!</div>
         </div>
 
         <button type="submit" class="btn btn-accent setup-submit" id="setupBtn">Complete Setup</button>
@@ -209,7 +238,14 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/kick-auth.js"></script>
   <script>
-    function onAuthReady(user) {
+    const PLAN_LABELS = { starter: 'Starter — Free', pro: 'Pro — $30/mo', elite: 'Elite — $50/mo', agency: 'Agency — $80/mo' };
+    const PLAN_PRICES = { pro: '$30/mo', elite: '$50/mo', agency: '$80/mo' };
+    // API-verified casinos (require streamer API key on setup)
+    const API_CASINOS = new Set(['gambulls']);
+    // Test account — bypass all gating
+    const TEST_ACCOUNTS = new Set(['emergeonkick']);
+
+    async function onAuthReady(user) {
       if (fb.streamerProfile && fb.streamerProfile.onboarded) {
         window.location.href = "dashboard.html";
         return;
@@ -221,18 +257,87 @@
         if (fb.streamerProfile.displayName) {
           document.getElementById("setupDisplayName").value = fb.streamerProfile.displayName;
         }
-        // Show Kick connected state if already linked
         if (fb.streamerProfile.kickUserId) {
           showKickConnected(fb.streamerProfile.kickUsername, fb.streamerProfile.kickAvatar);
         }
       }
+
       // Handle return from Kick OAuth
-      if (new URLSearchParams(window.location.search).get("kick") === "connected") {
-        loadStreamerProfile(user.uid).then(() => {
-          if (fb.streamerProfile?.kickUserId) {
-            showKickConnected(fb.streamerProfile.kickUsername, fb.streamerProfile.kickAvatar);
-          }
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("kick") === "connected") {
+        await loadStreamerProfile(user.uid);
+        if (fb.streamerProfile?.kickUserId) {
+          showKickConnected(fb.streamerProfile.kickUsername, fb.streamerProfile.kickAvatar);
+        }
+      }
+
+      applyTierGating(user);
+
+      // Handle return from Stripe
+      if (params.get("stripe") === "success") {
+        await pollStripeActivation(user.uid);
+      }
+    }
+
+    function applyTierGating(user) {
+      const plan    = fb.streamerProfile?.plan || 'starter';
+      const channel = fb.streamerProfile?.kickChannel || '';
+      const isTest  = TEST_ACCOUNTS.has(channel.toLowerCase());
+      const isPaid  = plan !== 'starter';
+      const hasPaid = fb.streamerProfile?.stripeSubscriptionActive === true;
+
+      // Points fields — Pro+ only
+      if (!isPaid && !isTest) {
+        ['setupCurrencyName', 'setupPointsPerMessage'].forEach(id => {
+          const el = document.getElementById(id);
+          el.disabled = true;
+          el.style.opacity = '0.4';
+          el.style.cursor  = 'not-allowed';
         });
+        document.getElementById('currencyUpgradeBadge').style.display = '';
+        document.getElementById('pointsUpgradeBadge').style.display   = '';
+      }
+
+      // Stripe payment block — paid plans that haven't subscribed
+      if (isPaid && !hasPaid && !isTest) {
+        document.getElementById('stripePaymentBlock').style.display = '';
+        document.getElementById('stripePaymentDesc').textContent =
+          `You selected the ${PLAN_LABELS[plan]} plan. Subscribe to activate your account.`;
+        document.getElementById('setupBtn').disabled = true;
+        document.getElementById('setupBtn').style.opacity = '0.4';
+      } else if (isPaid && hasPaid) {
+        document.getElementById('stripeSuccessBlock').style.display = '';
+      }
+    }
+
+    async function pollStripeActivation(uid, attempts = 0) {
+      if (attempts > 10) return; // give up after ~10s
+      await loadStreamerProfile(uid);
+      if (fb.streamerProfile?.stripeSubscriptionActive) {
+        document.getElementById('stripePaymentBlock').style.display = 'none';
+        document.getElementById('stripeSuccessBlock').style.display = '';
+        document.getElementById('setupBtn').disabled    = false;
+        document.getElementById('setupBtn').style.opacity = '1';
+        return;
+      }
+      setTimeout(() => pollStripeActivation(uid, attempts + 1), 1000);
+    }
+
+    async function goToStripe() {
+      const btn = document.getElementById('stripeBtn');
+      btn.disabled = true; btn.textContent = 'Redirecting...';
+      try {
+        const idToken = await fb.currentUser.getIdToken();
+        const resp = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + idToken },
+        });
+        const data = await resp.json();
+        if (data.url) { window.location.href = data.url; }
+        else { showSetupError(data.error || 'Failed to start checkout.'); btn.disabled = false; btn.textContent = 'Subscribe Now →'; }
+      } catch (e) {
+        showSetupError('Failed to connect to Stripe. Try again.');
+        btn.disabled = false; btn.textContent = 'Subscribe Now →';
       }
     }
 
@@ -268,23 +373,30 @@
     initFirebase();
 
     function updateProviderInfo() {
-      const provider = document.getElementById("setupProvider").value;
-      const label = document.getElementById("apiKeyLabel");
-      const hint  = document.getElementById("apiKeyHint");
-      const info  = document.getElementById("providerInfo");
-      const input = document.getElementById("setupApiKey");
-      if (provider === "gambulls") {
-        label.textContent = "Gambulls Streamer API Key";
-        hint.textContent  = "Found in your Gambulls streamer dashboard";
-        input.placeholder = "sk_...";
-        info.innerHTML    = '<strong>Where to find this:</strong><br>Log into Gambulls &rarr; Streamer Dashboard &rarr; API Settings &rarr; copy your Streamer API Key. It starts with <strong>sk_</strong>';
-      } else if (provider === "csbattle") {
-        label.textContent = "CSBattle Affiliate ID";
-        hint.textContent  = "Found in your CSBattle affiliate dashboard";
-        input.placeholder = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx";
-        info.innerHTML    = '<strong>Where to find this:</strong><br>Log into CSBattle &rarr; Affiliate Dashboard &rarr; copy your Affiliate ID (UUID format).';
+      const provider   = document.getElementById("setupProvider").value;
+      const apiKeyField = document.getElementById("apiKeyField");
+      const label      = document.getElementById("apiKeyLabel");
+      const hint       = document.getElementById("apiKeyHint");
+      const info       = document.getElementById("providerInfo");
+      const input      = document.getElementById("setupApiKey");
+
+      if (API_CASINOS.has(provider)) {
+        apiKeyField.style.display = '';
+        input.required = true;
+        if (provider === "gambulls") {
+          label.textContent = "Gambulls Streamer API Key";
+          hint.textContent  = "Found in your Gambulls streamer dashboard";
+          input.placeholder = "sk_...";
+          info.innerHTML    = '<strong>Where to find this:</strong><br>Log into Gambulls &rarr; Streamer Dashboard &rarr; API Settings &rarr; copy your Streamer API Key. It starts with <strong>sk_</strong>';
+        }
+      } else {
+        apiKeyField.style.display = 'none';
+        input.required = false;
       }
     }
+
+    // Init provider info on load
+    updateProviderInfo();
 
     function showSetupError(msg) {
       const el = document.getElementById("setupError");
@@ -307,19 +419,36 @@
         const pointsPerMessage = parseInt(document.getElementById("setupPointsPerMessage").value, 10) || 1;
 
         if (!kickChannel) throw new Error("Enter your Kick channel username.");
-        if (!apiKey) throw new Error("Enter your affiliate API key.");
+        if (API_CASINOS.has(provider) && !apiKey) throw new Error("Enter your affiliate API key.");
 
-        await saveStreamerProfile({
+        const plan    = fb.streamerProfile?.plan || 'starter';
+        const isTest  = TEST_ACCOUNTS.has(kickChannel.toLowerCase());
+        const isPaid  = plan !== 'starter';
+        const hasPaid = fb.streamerProfile?.stripeSubscriptionActive === true;
+
+        // Block setup for paid plans that haven't subscribed (except test accounts)
+        if (isPaid && !hasPaid && !isTest) {
+          throw new Error("Please complete your subscription before finishing setup.");
+        }
+
+        const profileUpdate = {
           kickChannel,
           displayName: displayName || kickChannel,
           activeProvider: provider,
-          currencyName,
-          pointsPerMessage,
           onboarded: true,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        });
+        };
 
-        await saveProviderConfig(provider, { apiKey, enabled: true });
+        // Points fields only saved for Pro+ or test accounts
+        if (plan !== 'starter' || isTest) {
+          profileUpdate.currencyName     = currencyName;
+          profileUpdate.pointsPerMessage = pointsPerMessage;
+        }
+
+        await saveStreamerProfile(profileUpdate);
+        if (API_CASINOS.has(provider) && apiKey) {
+          await saveProviderConfig(provider, { apiKey, enabled: true });
+        }
 
         window.location.href = "dashboard.html";
       } catch (err) {

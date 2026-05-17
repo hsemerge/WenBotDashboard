@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WenBot — Verification System Overview</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --card: #1a2030;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --dim: #8b949e;
+    --bright: #f0f6fc;
+    --accent: #00e5ff;
+    --green: #00ff88;
+    --purple: #5865F2;
+    --gold: #ffd700;
+    --red: #ff4757;
+    --orange: #ff9f43;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 48px 40px;
+    max-width: 960px;
+    margin: 0 auto;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  /* ── HEADER ── */
+  .doc-header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+  .doc-logo {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--accent);
+    text-shadow: 0 0 32px rgba(0,229,255,0.3);
+    margin-bottom: 8px;
+  }
+  .doc-title {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--bright);
+    margin-bottom: 6px;
+  }
+  .doc-subtitle { color: var(--dim); font-size: 13px; }
+
+  /* ── SECTION ── */
+  .section { margin-bottom: 40px; }
+  .section-title {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--bright);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title .num {
+    background: var(--accent);
+    color: #0d1117;
+    border-radius: 50%;
+    width: 22px; height: 22px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 900; flex-shrink: 0;
+  }
+
+  /* ── FLOW CARDS ── */
+  .flow-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .flow-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .flow-card.kick  { border-top: 3px solid var(--green); }
+  .flow-card.discord { border-top: 3px solid var(--purple); }
+  .flow-card-title {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--bright);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 100px;
+  }
+  .badge.kick    { background: rgba(0,255,136,0.15); color: var(--green); border: 1px solid rgba(0,255,136,0.3); }
+  .badge.discord { background: rgba(88,101,242,0.15); color: var(--purple); border: 1px solid rgba(88,101,242,0.3); }
+  .badge.api     { background: rgba(255,159,67,0.15); color: var(--orange); border: 1px solid rgba(255,159,67,0.3); }
+  .badge.honor   { background: rgba(139,148,158,0.15); color: var(--dim); border: 1px solid rgba(139,148,158,0.3); }
+  .badge.optional { background: rgba(0,229,255,0.1); color: var(--accent); border: 1px solid rgba(0,229,255,0.25); }
+
+  /* ── STEPS ── */
+  .steps { list-style: none; }
+  .steps li {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: flex-start;
+  }
+  .step-num {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--dim);
+    border-radius: 50%;
+    width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .step-text { color: var(--text); flex: 1; }
+  .step-text strong { color: var(--bright); }
+  .step-text code {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 11px;
+    color: var(--accent);
+    font-family: 'Courier New', monospace;
+  }
+  .step-text .note {
+    display: block;
+    margin-top: 3px;
+    font-size: 11px;
+    color: var(--dim);
+    font-style: italic;
+  }
+
+  /* ── VALIDATION TABLE ── */
+  .val-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .val-table th {
+    background: var(--card);
+    color: var(--dim);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .val-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(48,54,61,0.5);
+    vertical-align: top;
+  }
+  .val-table tr:last-child td { border-bottom: none; }
+  .val-table td:first-child { color: var(--bright); font-weight: 600; white-space: nowrap; }
+  .val-table td:nth-child(2) { color: var(--dim); font-size: 12px; }
+  .val-table td:nth-child(3) { color: var(--text); font-size: 12px; }
+
+  .check { color: var(--green); font-weight: 700; }
+  .warn  { color: var(--orange); font-weight: 700; }
+  .fail  { color: var(--red); font-weight: 700; }
+
+  /* ── FIRESTORE MAP ── */
+  .fs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .fs-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .fs-path {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    margin-bottom: 10px;
+    word-break: break-all;
+  }
+  .fs-fields { list-style: none; }
+  .fs-fields li {
+    font-size: 11px;
+    color: var(--dim);
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(48,54,61,0.4);
+    display: flex;
+    gap: 6px;
+  }
+  .fs-fields li:last-child { border-bottom: none; }
+  .fs-fields .field-name { color: var(--text); font-family: 'Courier New', monospace; flex-shrink: 0; }
+  .fs-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+  }
+
+  /* ── GIVEAWAY ELIGIBILITY ── */
+  .elig-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .elig-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .elig-title {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--bright);
+    margin-bottom: 10px;
+  }
+  .elig-reqs { list-style: none; }
+  .elig-reqs li {
+    font-size: 11px;
+    color: var(--dim);
+    padding: 3px 0;
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+  }
+  .elig-reqs li::before { content: '→'; color: var(--accent); flex-shrink: 0; }
+
+  /* ── INFO BOX ── */
+  .info-box {
+    background: rgba(0,229,255,0.05);
+    border: 1px solid rgba(0,229,255,0.2);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--text);
+  }
+  .info-box strong { color: var(--accent); }
+
+  /* ── PRINT ── */
+  @media print {
+    body { background: white; color: #111; padding: 20px; }
+    :root {
+      --bg: white; --panel: #f5f5f5; --card: #eee;
+      --border: #ddd; --text: #333; --dim: #666;
+      --bright: #000; --accent: #0077aa; --green: #008844;
+      --purple: #5865F2; --red: #cc0000; --orange: #cc6600;
+    }
+    .doc-logo { text-shadow: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="doc-header">
+  <div class="doc-logo">WenBot</div>
+  <div class="doc-title">Verification System — How It Works</div>
+  <div class="doc-subtitle">All flows, validations, and cross-checks · v1.0 · May 2026</div>
+</div>
+
+<!-- ── OVERVIEW ── -->
+<div class="section">
+  <div class="section-title"><span class="num">1</span> Overview</div>
+  <p style="color:var(--dim); margin-bottom:16px;">
+    Verification connects a viewer's <strong style="color:var(--bright)">Kick username</strong> to their <strong style="color:var(--bright)">casino account</strong> and optionally their <strong style="color:var(--purple)">Discord account</strong>. This unlocks giveaway eligibility, points tracking, and Discord commands like <code style="background:var(--card);border:1px solid var(--border);padding:1px 5px;border-radius:4px;color:var(--accent);font-family:monospace;">/buy</code> and <code style="background:var(--card);border:1px solid var(--border);padding:1px 5px;border-radius:4px;color:var(--accent);font-family:monospace;">/points</code>.
+    There are two entry points — Kick chat and Discord — both funnel to the same verification page.
+  </p>
+  <div class="flow-grid">
+    <div class="flow-card kick">
+      <div class="flow-card-title">💬 Kick Chat Flow <span class="badge kick">!verify</span></div>
+      <ol class="steps">
+        <li><span class="step-num">1</span><span class="step-text">Viewer types <code>!verify</code> in Kick chat</span></li>
+        <li><span class="step-num">2</span><span class="step-text">WenBot generates a <strong>one-time token</strong> tied to their Kick username and posts a link (5 min expiry)</span></li>
+        <li><span class="step-num">3</span><span class="step-text">Viewer opens <code>verify.html</code> — Kick username is pre-filled and locked</span></li>
+        <li><span class="step-num">4</span><span class="step-text">Viewer enters their <strong>casino username</strong> and submits</span></li>
+        <li><span class="step-num">5</span><span class="step-text">Casino account verified ✅ — record saved to Firestore</span></li>
+        <li><span class="step-num">6</span><span class="step-text"><span class="badge optional">Optional</span> "Connect Discord" OAuth button appears — viewer can link their Discord account too</span></li>
+      </ol>
+    </div>
+    <div class="flow-card discord">
+      <div class="flow-card-title">🎮 Discord Flow <span class="badge discord">/register</span></div>
+      <ol class="steps">
+        <li><span class="step-num">1</span><span class="step-text">Viewer runs <code>/register</code> in the Discord server</span></li>
+        <li><span class="step-num">2</span><span class="step-text">WenBot generates a <strong>Discord token (dtoken)</strong> tied to their Discord user ID and sends a private link (10 min expiry)</span></li>
+        <li><span class="step-num">3</span><span class="step-text">Viewer opens <code>verify.html</code> — Discord identity is pre-confirmed, they enter both Kick username and casino username</span></li>
+        <li><span class="step-num">4</span><span class="step-text">Casino account verified AND Discord linked in <strong>one step</strong> ✅</span></li>
+        <li><span class="step-num">5</span><span class="step-text">Viewer can now use <code>/points</code>, <code>/buy</code>, and <code>/join</code> in Discord immediately</span></li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<!-- ── VALIDATIONS ── -->
+<div class="section">
+  <div class="section-title"><span class="num">2</span> Validations &amp; Cross-Checks (in order)</div>
+  <table class="val-table">
+    <thead>
+      <tr><th>Check</th><th>What is validated</th><th>If it fails</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>🔑 Token validity</td>
+        <td>Token exists in Firestore and has not been used yet (<code>used: false</code>). Runs inside a <strong>Firestore transaction</strong> to prevent race conditions.</td>
+        <td><span class="fail">❌ Blocked</span> — "Invalid or expired verification link"</td>
+      </tr>
+      <tr>
+        <td>⏱ Token expiry</td>
+        <td>Token's <code>expiresAt</code> timestamp has not passed. Kick tokens expire in <strong>5 minutes</strong>; Discord tokens in <strong>10 minutes</strong>.</td>
+        <td><span class="fail">❌ Blocked</span> — "Link has expired, get a new one"</td>
+      </tr>
+      <tr>
+        <td>🎰 Active casino match</td>
+        <td>The casino in the link matches the streamer's currently active casino (<code>activeProvider</code> on their profile). Prevents verifying at the wrong casino.</td>
+        <td><span class="fail">❌ Blocked</span> — "Streamer is at [Casino X], verify there instead"</td>
+      </tr>
+      <tr>
+        <td>🔒 Casino username uniqueness</td>
+        <td>The casino username being submitted is not already linked to a <em>different</em> Kick account. Prevents sharing casino accounts.</td>
+        <td><span class="fail">❌ Blocked</span> — "Already linked to another Kick account"</td>
+      </tr>
+      <tr>
+        <td>📡 API leaderboard check <span class="badge api">Gambulls / CSBattle</span></td>
+        <td>For API-backed casinos, the casino username is looked up live on the streamer's leaderboard. Determines whether the user is wagering <strong>under the streamer's affiliate code</strong>.</td>
+        <td><span class="warn">⚠ Soft-pass</span> — User is still verified as "General" (not "Under Code"). They can enter non-code giveaways.</td>
+      </tr>
+      <tr>
+        <td>🤝 Honor-system casinos <span class="badge honor">All others</span></td>
+        <td>For non-API casinos (Stake, Rainbet, etc.) the username is taken at face value — no API check is possible. Streamer accepts on trust.</td>
+        <td>N/A — always passes if username is entered</td>
+      </tr>
+      <tr>
+        <td>🧹 Legacy doc cleanup</td>
+        <td>If the viewer previously verified under an old doc ID format (just <code>kickUsername</code> without casino suffix), that old doc is deleted and replaced with the new <code>kickUsername_casino</code> format.</td>
+        <td>N/A — automatic cleanup, no user impact</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── DISCORD OAUTH ── -->
+<div class="section">
+  <div class="section-title"><span class="num">3</span> Discord Linking (Kick-Initiated Optional Step)</div>
+  <p style="color:var(--dim); margin-bottom:16px;">After a successful Kick-chat verification, the viewer sees a <strong style="color:var(--purple)">"Connect Discord"</strong> button. This runs a standard Discord OAuth flow:</p>
+  <ol class="steps">
+    <li><span class="step-num">1</span><span class="step-text">Viewer clicks "Connect Discord" → redirected to Discord OAuth (scope: <code>identify</code>)</span></li>
+    <li><span class="step-num">2</span><span class="step-text">Discord redirects back to <code>discord-verify-callback.html</code> with an auth code</span></li>
+    <li><span class="step-num">3</span><span class="step-text">Callback page exchanges code for an access token, then calls <code>/users/@me</code> to get the Discord user ID and username</span></li>
+    <li><span class="step-num">4</span><span class="step-text">Saves <code>discord_links/{discordUserId}</code> in Firestore, linking their Discord ID → Kick username</span></li>
+    <li><span class="step-num">5</span><span class="step-text">Viewer can now use Discord bot commands immediately</span></li>
+  </ol>
+  <div class="info-box">
+    <strong>Note:</strong> The Discord <code>/register</code> flow skips this OAuth step entirely — it already knows the Discord user ID from the slash command interaction, so casino verification and Discord linking happen in a single form submission.
+  </div>
+</div>
+
+<!-- ── GIVEAWAY ELIGIBILITY ── -->
+<div class="section">
+  <div class="section-title"><span class="num">4</span> Giveaway Entry Eligibility Checks</div>
+  <p style="color:var(--dim); margin-bottom:16px;">When a viewer types the giveaway keyword in chat (or clicks Join in Discord), these checks run in order:</p>
+  <div class="elig-grid">
+    <div class="elig-card">
+      <div class="elig-title" style="color:var(--accent)">Code Giveaway</div>
+      <ul class="elig-reqs">
+        <li>Giveaway must be active</li>
+        <li>Not already entered</li>
+        <li>Sub-only check (if enabled)</li>
+        <li>Must be casino-verified at streamer's active casino</li>
+        <li>Verified casino must match current <code>activeProvider</code></li>
+        <li>If leaderboard available: must appear on it</li>
+        <li>Min wager must be met (if set)</li>
+        <li>Extra tickets awarded per $1,000 wagered (if wager luck &gt; 1)</li>
+      </ul>
+    </div>
+    <div class="elig-card">
+      <div class="elig-title" style="color:var(--purple)">Verified Giveaway</div>
+      <ul class="elig-reqs">
+        <li>Giveaway must be active</li>
+        <li>Not already entered</li>
+        <li>Sub-only check (if enabled)</li>
+        <li>If "Verified Casino" required: must be casino-verified</li>
+        <li>If "Verified Discord" required: must have Discord linked</li>
+        <li>At least one verification type must be required</li>
+      </ul>
+    </div>
+    <div class="elig-card">
+      <div class="elig-title" style="color:var(--green)">Everyone Giveaway</div>
+      <ul class="elig-reqs">
+        <li>Giveaway must be active</li>
+        <li>Not already entered</li>
+        <li>Sub-only check (if enabled)</li>
+        <li>No verification required — any viewer can enter</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ── DISCORD COMMANDS ── -->
+<div class="section">
+  <div class="section-title"><span class="num">5</span> Discord Command Requirements</div>
+  <table class="val-table">
+    <thead>
+      <tr><th>Command</th><th>Requires Discord Link</th><th>Requires Casino Verify</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>/points</td>
+        <td><span class="check">✅ Yes</span></td>
+        <td><span class="check">✅ Yes</span></td>
+        <td>Looks up points balance by Kick username resolved from Discord link</td>
+      </tr>
+      <tr>
+        <td>/store</td>
+        <td><span class="fail">No</span></td>
+        <td><span class="fail">No</span></td>
+        <td>Anyone can browse the store</td>
+      </tr>
+      <tr>
+        <td>/buy</td>
+        <td><span class="check">✅ Yes</span></td>
+        <td><span class="check">✅ Yes</span></td>
+        <td>Deducts points, writes redemption to Firestore, announces in Discord channel</td>
+      </tr>
+      <tr>
+        <td>/join</td>
+        <td><span class="fail">No</span></td>
+        <td>Depends on giveaway type</td>
+        <td>Code giveaways require Discord link to resolve casino identity</td>
+      </tr>
+      <tr>
+        <td>/register</td>
+        <td><span class="fail">No</span></td>
+        <td><span class="fail">No</span></td>
+        <td>Starts the verification flow — this IS the link step</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── FIRESTORE ── -->
+<div class="section">
+  <div class="section-title"><span class="num">6</span> Firestore Data Structure</div>
+  <div class="fs-grid">
+    <div class="fs-card">
+      <div class="fs-title">Casino verification record</div>
+      <div class="fs-path">streamers/{uid}/verified_users/{kickKey}_{provider}</div>
+      <ul class="fs-fields">
+        <li><span class="field-name">kickName</span> Display name from Kick</li>
+        <li><span class="field-name">providerUsername</span> Casino username (API-normalized)</li>
+        <li><span class="field-name">providerUsername_lower</span> Lowercase for dedup checks</li>
+        <li><span class="field-name">provider</span> gambulls / stake / etc.</li>
+        <li><span class="field-name">underAffiliate</span> true if on streamer's leaderboard</li>
+        <li><span class="field-name">apiVerified</span> true if confirmed via live API</li>
+        <li><span class="field-name">verifiedAt</span> Unix timestamp</li>
+      </ul>
+    </div>
+    <div class="fs-card">
+      <div class="fs-title">Discord link record</div>
+      <div class="fs-path">streamers/{uid}/discord_links/{discordUserId}</div>
+      <ul class="fs-fields">
+        <li><span class="field-name">kickUsername</span> Linked Kick username</li>
+        <li><span class="field-name">discordUsername</span> Discord display name</li>
+        <li><span class="field-name">linkedAt</span> Unix timestamp</li>
+      </ul>
+    </div>
+    <div class="fs-card">
+      <div class="fs-title">Kick verify token (one-time)</div>
+      <div class="fs-path">streamers/{uid}/verify_tokens/{token}</div>
+      <ul class="fs-fields">
+        <li><span class="field-name">kickUsername</span> Proven by Kick chat identity</li>
+        <li><span class="field-name">expiresAt</span> 5 minutes from issue</li>
+        <li><span class="field-name">used</span> Flipped to true on consumption</li>
+      </ul>
+    </div>
+    <div class="fs-card">
+      <div class="fs-title">Discord verify token (one-time)</div>
+      <div class="fs-path">discord_verify_tokens/{dtoken}</div>
+      <ul class="fs-fields">
+        <li><span class="field-name">discordUserId</span> Proven by Discord slash command</li>
+        <li><span class="field-name">discordUsername</span> Discord display name</li>
+        <li><span class="field-name">guildId</span> Which server it was issued in</li>
+        <li><span class="field-name">streamerUid</span> Which streamer's server</li>
+        <li><span class="field-name">expiresAt</span> 10 minutes from issue</li>
+        <li><span class="field-name">used</span> Flipped to true on consumption</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ── FOOTER ── -->
+<div style="margin-top:48px; padding-top:24px; border-top:1px solid var(--border); text-align:center; color:var(--dim); font-size:11px;">
+  WenBot Verification System · Internal documentation · Generated May 2026
+</div>
+
+<script>
+  // Auto-open print dialog for easy PDF save
+  // Remove this if you just want to view the page
+  // window.onload = () => window.print();
+</script>
+
+</body>
+</html>

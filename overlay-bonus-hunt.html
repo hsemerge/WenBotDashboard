@@ -361,9 +361,7 @@
   let seenPayouts = new Set(); // track which bonus ids have already been revealed
 
   function fmt(n) {
-    if (n >= 1000000) return '$' + (n/1000000).toFixed(2) + 'M';
-    if (n >= 1000)    return '$' + (n/1000).toFixed(1) + 'k';
-    return '$' + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    return '$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
   }
 
   function fmtX(x) { return x.toFixed(1) + 'x'; }
