@@ -1025,7 +1025,7 @@
             <div style="font-size:32px;">⭐</div>
             <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:#ffd700;">Elite Feature</div>
             <div style="font-size:13px;color:rgba(255,255,255,0.55);max-width:320px;line-height:1.5;">Discord integration is included in the Elite plan ($50/mo).</div>
-            <button onclick="upgradeTarget='elite';upgradeNow()" class="btn btn-accent" style="padding:10px 24px;margin-top:4px;">Upgrade to Elite</button>
+            <button onclick="upgradeTarget='elite';upgradeNow(this)" class="btn btn-accent" style="padding:10px 24px;margin-top:4px;">Upgrade to Elite</button>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
             <div class="card-title" style="margin-bottom:0;">🔗 Discord Integration</div>
@@ -1720,7 +1720,7 @@
           <h2 style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--bright);margin-bottom:8px;" id="upgradeHeadline">This feature requires a higher plan</h2>
           <p style="color:var(--text-dim);font-size:13px;margin-bottom:28px;line-height:1.6;" id="upgradeSubtext">Upgrade to unlock this and more.</p>
           <div id="upgradePlanCard" style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;text-align:left;"></div>
-          <button onclick="upgradeNow()" id="upgradeBtn" class="btn btn-accent" style="width:100%;padding:14px;font-size:15px;margin-bottom:12px;">Upgrade Now</button>
+          <button onclick="upgradeNow(this)" id="upgradeBtn" class="btn btn-accent" style="width:100%;padding:14px;font-size:15px;margin-bottom:12px;">Upgrade Now</button>
           <div id="upgradeStatus" style="font-size:12px;color:var(--text-dim);min-height:16px;"></div>
         </div>
       </div>
@@ -1944,13 +1944,12 @@ function renderUpgradeWall(pageId) {
     ${info.features.map(f => `<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-dim);padding:4px 0;"><span style="color:var(--green);">✓</span>${f}</div>`).join('')}`;
 }
 
-async function upgradeNow() {
+async function upgradeNow(callerBtn) {
   if (!upgradeTarget) return;
-  const btn    = document.getElementById('upgradeBtn');
+  const btn    = callerBtn || document.getElementById('upgradeBtn');
   const status = document.getElementById('upgradeStatus');
-  btn.disabled = true;
-  btn.textContent = 'Redirecting to checkout…';
-  status.textContent = '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Redirecting to checkout…'; }
+  if (status) status.textContent = '';
   try {
     const idToken = await fb.currentUser.getIdToken();
     const r = await fetch('/api/create-checkout-session', {
@@ -1959,12 +1958,15 @@ async function upgradeNow() {
       body: JSON.stringify({ targetPlan: upgradeTarget, fromDashboard: true }),
     });
     const data = await r.json();
-    if (!r.ok) { status.textContent = data.error || 'Checkout failed.'; btn.disabled = false; btn.textContent = `Upgrade to ${PLAN_INFO[upgradeTarget]?.label}`; return; }
+    if (!r.ok) {
+      if (status) status.textContent = data.error || 'Checkout failed.';
+      if (btn) { btn.disabled = false; btn.textContent = `Upgrade to ${PLAN_INFO[upgradeTarget]?.label}`; }
+      return;
+    }
     window.location.href = data.url;
   } catch (e) {
-    status.textContent = 'Error: ' + e.message;
-    btn.disabled = false;
-    btn.textContent = `Upgrade to ${PLAN_INFO[upgradeTarget]?.label}`;
+    if (status) status.textContent = 'Error: ' + e.message;
+    if (btn) { btn.disabled = false; btn.textContent = `Upgrade to ${PLAN_INFO[upgradeTarget]?.label}`; }
   }
 }
 
@@ -1993,7 +1995,7 @@ function renderBillingPage() {
             <div style="font-size:14px;font-weight:700;color:var(--bright);">${pi.price}</div>
           </div>
           <div style="font-size:13px;color:var(--text-dim);margin-bottom:14px;">${pi.features.map(f=>`<div>✓ ${f}</div>`).join('')}</div>
-          <button onclick="upgradeTarget='${p}';upgradeNow()" class="btn btn-accent" style="width:100%;padding:10px;">Upgrade to ${pi.label}</button>
+          <button onclick="upgradeTarget='${p}';upgradeNow(this)" class="btn btn-accent" style="width:100%;padding:10px;">Upgrade to ${pi.label}</button>
         </div>`;
       }).join('')
     : (isOwnerAcct
