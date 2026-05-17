@@ -1198,7 +1198,18 @@
 
         <!-- Settings -->
         <div class="card">
-          <div class="card-title" style="margin-bottom:16px;">⚙️ Settings</div>
+          <div class="card-title" style="justify-content:space-between;margin-bottom:16px;">
+            <span>⚙️ Settings</span>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;">
+              <span style="font-size:13px;color:var(--text-dim);font-weight:500;">Slot Requests</span>
+              <div style="position:relative;width:44px;height:24px;" onclick="srToggleEnabled()">
+                <input type="checkbox" id="srEnabled" style="opacity:0;position:absolute;width:0;height:0;">
+                <div id="srEnabledTrack" style="position:absolute;inset:0;border-radius:12px;background:var(--bg-card);border:1px solid var(--border);transition:background 0.2s;"></div>
+                <div id="srEnabledThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--text-dim);transition:all 0.2s;"></div>
+              </div>
+              <span id="srEnabledLabel" style="font-size:12px;font-weight:700;color:var(--text-dim);">OFF</span>
+            </label>
+          </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
             <div class="field">
               <label>Who can use !sr</label>
@@ -1350,6 +1361,15 @@
               <div style="font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);margin-top:2px;">Best Slot</div>
             </div>
           </div>
+        </div>
+
+        <!-- Slot Requests panel (shown when srRequests has entries) -->
+        <div class="card" id="bhSrPanel" style="margin-bottom:16px;display:none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <div class="card-title" style="margin-bottom:0;">📋 Slot Requests <span id="bhSrCount" style="color:var(--text-dim);font-weight:500;font-size:13px;"></span></div>
+            <button onclick="loadSlotRequestsForBh()" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:12px;cursor:pointer;padding:4px 10px;">↻</button>
+          </div>
+          <div id="bhSrList" style="display:flex;flex-direction:column;gap:6px;"></div>
         </div>
 
         <!-- Add slot -->
@@ -2779,12 +2799,43 @@ async function loadBonusHunt() {
   }
 }
 
+async function loadSlotRequestsForBh() {
+  if (!fb.currentUser) return;
+  try {
+    const snap = await fb.db.collection('streamers').doc(fb.currentUser.uid)
+      .collection('slot_requests').where('status', '==', 'pending').get();
+    const reqs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
+    // Keep srRequests in sync so the existing Add-to-Hunt modal works
+    srRequests = reqs;
+    const panel = document.getElementById('bhSrPanel');
+    const list  = document.getElementById('bhSrList');
+    const count = document.getElementById('bhSrCount');
+    if (!reqs.length) { panel.style.display = 'none'; return; }
+    panel.style.display = '';
+    count.textContent = `(${reqs.length})`;
+    list.innerHTML = reqs.map(r => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;">
+        <div style="flex:1;min-width:0;">
+          <span style="font-weight:600;color:var(--bright);font-size:13px;">${escHtml(r.slotName)}</span>
+          <span style="color:var(--text-dim);font-size:11px;margin-left:8px;">by @${escHtml(r.kickUsername)}</span>
+        </div>
+        <button data-sr-id="${escHtml(r.id)}" data-sr-slot="${escHtml(r.slotName)}"
+          onmousedown="srAddToHunt(this.dataset.srId, this.dataset.srSlot)"
+          style="background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);border-radius:6px;color:var(--accent);font-size:11px;font-weight:600;cursor:pointer;padding:5px 12px;white-space:nowrap;flex-shrink:0;">
+          + Add to Hunt
+        </button>
+      </div>`).join('');
+  } catch {}
+}
+
 function bhRender() {
   const active = bhHunt && bhHunt.active;
   document.getElementById('bhNoHunt').style.display  = active ? 'none' : '';
   document.getElementById('bhActive').style.display  = active ? ''     : 'none';
   document.getElementById('bhLiveBadge').style.display = active ? '' : 'none';
-  if (!active) return;
+  if (!active) { document.getElementById('bhSrPanel').style.display = 'none'; return; }
+  loadSlotRequestsForBh();
 
   const bonuses   = bhHunt.bonuses || [];
   const totalCost = bhHunt.totalCost || 0;
@@ -3250,6 +3301,7 @@ async function loadSlotRequests() {
       const s = settingsDoc.data();
       if (s.eligibility) document.getElementById('srEligibility').value = s.eligibility;
       if (s.cooldownMins !== undefined) document.getElementById('srCooldown').value = s.cooldownMins;
+      srSetEnabledUI(s.enabled !== false);
     }
   } catch {}
 
@@ -3258,9 +3310,9 @@ async function loadSlotRequests() {
     const snap = await fb.db.collection('streamers').doc(uid)
       .collection('slot_requests')
       .where('status', '==', 'pending')
-      .orderBy('requestedAt', 'asc')
       .get();
-    srRequests = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    srRequests = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
     srRenderQueue();
   } catch (e) {
     flash('Failed to load slot requests: ' + e.message, 'error');
@@ -3323,13 +3375,29 @@ function srTimeAgo(ts) {
   return `${Math.floor(mins / 60)}h ago`;
 }
 
+function srSetEnabledUI(on) {
+  document.getElementById('srEnabled').checked = on;
+  document.getElementById('srEnabledTrack').style.background = on ? 'var(--green)' : 'var(--bg-card)';
+  document.getElementById('srEnabledThumb').style.background = on ? '#0d1117' : 'var(--text-dim)';
+  document.getElementById('srEnabledThumb').style.left = on ? '23px' : '3px';
+  document.getElementById('srEnabledLabel').textContent = on ? 'ON' : 'OFF';
+  document.getElementById('srEnabledLabel').style.color = on ? 'var(--green)' : 'var(--text-dim)';
+}
+
+async function srToggleEnabled() {
+  const current = document.getElementById('srEnabled').checked;
+  srSetEnabledUI(!current);
+  await srSaveSettings();
+}
+
 async function srSaveSettings() {
   if (!fb.currentUser) return;
   const eligibility  = document.getElementById('srEligibility').value;
   const cooldownMins = parseInt(document.getElementById('srCooldown').value, 10) || 0;
+  const enabled      = document.getElementById('srEnabled').checked;
   try {
     await fb.db.collection('streamers').doc(fb.currentUser.uid)
-      .collection('sr_settings').doc('config').set({ eligibility, cooldownMins });
+      .collection('sr_settings').doc('config').set({ eligibility, cooldownMins, enabled });
     flash('Settings saved.');
   } catch (e) {
     flash('Failed to save settings: ' + e.message, 'error');
@@ -3404,6 +3472,7 @@ async function srConfirmAddToHunt() {
 
     srRequests = srRequests.filter(r => r.id !== id);
     srRenderQueue();
+    loadSlotRequestsForBh();
     srCloseHuntModal();
     flash(`"${slotName}" added to bonus hunt!`);
   } catch (e) {

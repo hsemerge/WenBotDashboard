@@ -59,8 +59,13 @@ exports.handler = async (event) => {
     const settingsDoc = await db.collection("streamers").doc(uid)
       .collection("sr_settings").doc("config").get();
     const settings = settingsDoc.exists ? settingsDoc.data() : {};
+    const enabled      = settings.enabled !== false;
     const eligibility  = settings.eligibility  || "everyone";
     const cooldownMins = settings.cooldownMins  ?? 5;
+
+    if (!enabled) {
+      return res(200, { success: false, message: `@${kickUsername} Slot requests are currently closed.` });
+    }
 
     // Eligibility check
     if (eligibility === "verified") {
