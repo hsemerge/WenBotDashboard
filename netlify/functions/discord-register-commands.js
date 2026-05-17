@@ -12,8 +12,24 @@ exports.handler = async (event) => {
     return { statusCode: 401, body: "Unauthorized" };
   }
 
-  const appId = process.env.DISCORD_APPLICATION_ID;
-  const token = process.env.DISCORD_BOT_TOKEN;
+  const appId   = process.env.DISCORD_APPLICATION_ID;
+  const token   = process.env.DISCORD_BOT_TOKEN;
+  const body    = event.body ? JSON.parse(event.body) : {};
+
+  // If clearGuildId is passed, wipe guild-specific commands (removes duplicates)
+  if (body.clearGuildId) {
+    const r = await fetch(`https://discord.com/api/v10/applications/${appId}/guilds/${body.clearGuildId}/commands`, {
+      method:  "PUT",
+      headers: { "Authorization": `Bot ${token}`, "Content-Type": "application/json" },
+      body:    JSON.stringify([]),
+    });
+    const data = await r.json();
+    return {
+      statusCode: r.ok ? 200 : r.status,
+      headers:    { "Content-Type": "application/json" },
+      body:       JSON.stringify({ ok: r.ok, cleared: data }),
+    };
+  }
 
   const commands = [
     {
@@ -25,7 +41,7 @@ exports.handler = async (event) => {
       description: "Spend your points on a store item",
       options: [{
         name:        "item",
-        description: "The item ID to purchase",
+        description: "The item name to purchase (use /store to see available items)",
         type:        3,
         required:    true,
       }],
@@ -33,6 +49,10 @@ exports.handler = async (event) => {
     {
       name:        "join",
       description: "Join the active giveaway",
+    },
+    {
+      name:        "store",
+      description: "Browse available store items",
     },
     {
       name:        "register",
