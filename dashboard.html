@@ -474,14 +474,9 @@
       </div>
       <div class="sidebar-section" style="margin-top:8px;">
         <div class="sidebar-label">Account</div>
+        <div class="nav-item" onclick="showPage('billing',this)"><span class="icon">💳</span> Plan &amp; Billing <span id="planBadge" class="nav-lock-pill pro-pill" style="margin-left:auto;">Starter</span></div>
         <div class="nav-item" onclick="showPage('settings',this)"><span class="icon">⚙️</span> Settings</div>
         <div class="nav-item" onclick="showPage('help',this)"><span class="icon">❓</span> Help</div>
-        <div id="planBadgeRow" onclick="showPage('billing',this)"
-          style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:6px;cursor:pointer;margin-top:4px;background:rgba(255,255,255,0.03);border:1px solid var(--border);">
-          <span style="font-size:11px;color:var(--text-dim);">Plan:</span>
-          <span id="planBadge" style="font-size:11px;font-weight:800;color:var(--accent);">Starter</span>
-          <span style="font-size:10px;color:var(--text-dim);margin-left:auto;">Upgrade ↗</span>
-        </div>
       </div>
     </div>
     <div class="sidebar-bot-status">
@@ -2005,15 +2000,20 @@ function applyTierLocks() {
     discordLock.style.display = locked ? 'flex' : 'none';
   }
 
-  // Update plan badge in sidebar
-  const info = PLAN_INFO[userPlan] || PLAN_INFO.starter;
+  // Update plan badge pill in sidebar nav item
+  const info  = PLAN_INFO[userPlan] || PLAN_INFO.starter;
   const badge = document.getElementById('planBadge');
   if (badge) {
     badge.textContent = info.label;
-    badge.style.color = info.color;
+    badge.className   = 'nav-lock-pill';
+    if (userPlan === 'elite' || userPlan === 'agency') {
+      badge.style.cssText = 'margin-left:auto;background:rgba(255,215,0,0.15);color:#ffd700;border:1px solid rgba(255,215,0,0.3);font-size:9px;font-weight:800;padding:1px 6px;border-radius:10px;letter-spacing:.03em;';
+    } else if (userPlan === 'pro') {
+      badge.style.cssText = 'margin-left:auto;background:rgba(167,139,250,0.2);color:#a78bfa;border:1px solid rgba(167,139,250,0.3);font-size:9px;font-weight:800;padding:1px 6px;border-radius:10px;letter-spacing:.03em;';
+    } else {
+      badge.style.cssText = 'margin-left:auto;background:rgba(255,255,255,0.06);color:var(--text-dim);border:1px solid var(--border);font-size:9px;font-weight:800;padding:1px 6px;border-radius:10px;letter-spacing:.03em;';
+    }
   }
-  const badgeRow = document.getElementById('planBadgeRow');
-  if (badgeRow && isOwnerAcct) badgeRow.style.display = 'none';
 }
 
 function renderUpgradeWall(pageId) {
