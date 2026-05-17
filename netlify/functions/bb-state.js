@@ -5,9 +5,13 @@ const admin = require("firebase-admin");
 
 function getDb() {
   if (!admin.apps.length) {
-    const raw  = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, "base64").toString("utf8");
-    const cred = JSON.parse(raw);
-    admin.initializeApp({ credential: admin.credential.cert(cred) });
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId:   process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey:  (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+      }),
+    });
   }
   return admin.firestore();
 }
