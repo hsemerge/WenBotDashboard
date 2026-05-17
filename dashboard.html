@@ -1887,7 +1887,7 @@ const PLAN_INFO = {
 
 let userPlan      = 'starter';
 let isOwnerAcct   = false;
-let upgradeTarget = null; // plan user needs when hitting upgrade wall
+var upgradeTarget = null;
 
 function isPageLocked(pageId) {
   if (isOwnerAcct) return false;
