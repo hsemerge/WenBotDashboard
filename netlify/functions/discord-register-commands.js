@@ -12,13 +12,14 @@ exports.handler = async (event) => {
     return { statusCode: 401, body: "Unauthorized" };
   }
 
-  const appId   = process.env.DISCORD_APPLICATION_ID;
-  const token   = process.env.DISCORD_BOT_TOKEN;
-  const body    = event.body ? JSON.parse(event.body) : {};
+  const appId      = process.env.DISCORD_APPLICATION_ID;
+  const token      = process.env.DISCORD_BOT_TOKEN;
+  const params     = event.queryStringParameters || {};
+  const clearGuild = params.clearGuildId;
 
-  // If clearGuildId is passed, wipe guild-specific commands (removes duplicates)
-  if (body.clearGuildId) {
-    const r = await fetch(`https://discord.com/api/v10/applications/${appId}/guilds/${body.clearGuildId}/commands`, {
+  // If clearGuildId query param is passed, wipe guild-specific commands (removes duplicates)
+  if (clearGuild) {
+    const r = await fetch(`https://discord.com/api/v10/applications/${appId}/guilds/${clearGuild}/commands`, {
       method:  "PUT",
       headers: { "Authorization": `Bot ${token}`, "Content-Type": "application/json" },
       body:    JSON.stringify([]),
