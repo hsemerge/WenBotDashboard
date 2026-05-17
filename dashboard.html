@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <link rel="icon" type="image/png" href="/wentransparent.png">
+  <link rel="icon" type="image/png" href="/wenside.png" sizes="32x32">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WenBot — Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -397,10 +397,57 @@
     .store-item-name { font-size: 13px; font-weight: 600; color: var(--bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .store-item-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
     .store-toggle { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+
+    /* ── MOBILE ── */
+    .hamburger {
+      display: none; flex-direction: column; justify-content: center;
+      gap: 5px; background: none; border: none; cursor: pointer;
+      padding: 4px; flex-shrink: 0;
+    }
+    .hamburger span { display: block; width: 20px; height: 2px; background: var(--text); border-radius: 2px; transition: all 0.2s; }
+
+    .sidebar-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6); z-index: 199;
+    }
+    .sidebar-overlay.active { display: block; }
+
+    @media (max-width: 768px) {
+      .hamburger { display: flex; }
+      html, body { overflow: auto; }
+      .app { flex-direction: column; height: auto; min-height: 100vh; }
+      .sidebar {
+        position: fixed; top: 0; left: 0; bottom: 0;
+        z-index: 200; transform: translateX(-100%);
+        transition: transform 0.25s ease; width: 260px;
+      }
+      .sidebar.open { transform: translateX(0); }
+      .main { overflow: visible; }
+      .page { overflow: visible; }
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
-<div class="app">
+
+<!-- Auth loading overlay — hidden once Firebase resolves -->
+<div id="authLoader" style="position:fixed;inset:0;background:#0d1117;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:24px;">
+  <img src="wenbotlogo2.png" alt="WenBot" style="height:100px;mix-blend-mode:lighten;opacity:0.95;">
+  <div id="authLoaderSpinner" style="width:36px;height:36px;border:3px solid rgba(255,255,255,0.1);border-top-color:#00e5ff;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+  <div id="authLoaderError" style="display:none;color:#8b949e;font-size:13px;text-align:center;">Something went wrong.<br><a href="" style="color:#00e5ff;" onclick="location.reload();return false;">Tap to refresh</a></div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+<script>
+  setTimeout(function() {
+    var l = document.getElementById('authLoader');
+    if (l && l.style.display !== 'none') {
+      document.getElementById('authLoaderSpinner').style.display = 'none';
+      document.getElementById('authLoaderError').style.display = '';
+    }
+  }, 8000);
+</script>
+
+<div class="app" id="appRoot" style="visibility:hidden;">
 
   <!-- SIDEBAR -->
   <aside class="sidebar">
@@ -453,6 +500,9 @@
   <!-- MAIN -->
   <div class="main">
     <div class="topbar">
+      <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
       <div class="topbar-title" id="topbarTitle">Overview</div>
       <div class="topbar-pill" id="channelPill">⚡ <span id="channelPillName">Loading...</span></div>
       <div class="topbar-pill live" id="giveawayPill" style="display:none;">🔴 Giveaway Live</div>
@@ -1729,31 +1779,62 @@
 
     <!-- ── BILLING ── -->
     <div class="page" id="page-billing">
-      <div style="max-width:560px;margin:0 auto;">
+      <div style="max-width:600px;margin:0 auto;">
         <h1 style="font-family:'Exo 2',sans-serif;font-size:24px;font-weight:900;color:var(--bright);margin-bottom:24px;">Plan &amp; Billing</h1>
-        <div class="card" style="margin-bottom:16px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-            <div>
-              <div style="font-size:11px;color:var(--text-dim);margin-bottom:2px;">CURRENT PLAN</div>
-              <div style="font-size:22px;font-weight:900;font-family:'Exo 2',sans-serif;" id="billingCurrentPlan">—</div>
-            </div>
-            <div id="billingPlanBadge" style="font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;"></div>
+
+        <!-- Payment failed warning -->
+        <div id="billingFailedBanner" style="display:none;background:rgba(255,71,87,0.1);border:1px solid rgba(255,71,87,0.3);border-radius:10px;padding:16px 20px;margin-bottom:16px;align-items:center;gap:14px;">
+          <div style="font-size:22px;flex-shrink:0;">⚠️</div>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:700;color:var(--red);margin-bottom:2px;">Payment Failed</div>
+            <div style="font-size:12px;color:var(--text-dim);">Update your payment method to keep your subscription active.</div>
           </div>
-          <div id="billingCurrentFeatures" style="font-size:13px;color:var(--text-dim);line-height:1.8;margin-bottom:16px;"></div>
-          <div id="billingManageRow" style="display:none;padding-top:12px;border-top:1px solid var(--border);">
-            <button onclick="openCustomerPortal()" style="padding:9px 18px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:13px;cursor:pointer;font-weight:600;">⚙️ Manage Subscription</button>
-            <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">Cancel, update payment method, or view invoices via Stripe.</div>
+          <button onclick="openCustomerPortal()" style="padding:8px 16px;background:rgba(255,71,87,0.15);border:1px solid rgba(255,71,87,0.4);border-radius:7px;color:var(--red);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">Update Payment</button>
+        </div>
+
+        <!-- Current plan card -->
+        <div class="card" style="margin-bottom:16px;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
+            <div>
+              <div style="font-size:11px;color:var(--text-dim);letter-spacing:.06em;margin-bottom:4px;">CURRENT PLAN</div>
+              <div style="font-family:'Exo 2',sans-serif;font-size:26px;font-weight:900;" id="billingCurrentPlan">—</div>
+            </div>
+            <div id="billingStatusBadge" style="font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;margin-top:4px;"></div>
+          </div>
+
+          <!-- Price + billing date row -->
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;" id="billingInfoRow">
+            <div>
+              <div style="font-size:10px;color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">Price</div>
+              <div id="billingPrice" style="font-size:18px;font-weight:700;color:var(--bright);">—</div>
+            </div>
+            <div id="billingNextBill" style="text-align:right;"></div>
+          </div>
+
+          <!-- Features list -->
+          <div id="billingCurrentFeatures" style="font-size:13px;color:var(--text-dim);line-height:2;margin-bottom:4px;"></div>
+
+          <!-- Manage subscription button (paid users only) -->
+          <div id="billingManageRow" style="display:none;padding-top:14px;margin-top:4px;border-top:1px solid var(--border);">
+            <button onclick="openCustomerPortal()" class="btn btn-ghost" style="width:100%;padding:11px;font-size:13px;">⚙️ Manage Subscription</button>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:6px;text-align:center;">Cancel, update payment method, or view invoices via Stripe.</div>
           </div>
         </div>
+
+        <!-- Upgrade cards (Starter users) / top-plan message -->
         <div id="billingUpgradeSection"></div>
-        <div id="billingStripeSuccess" style="display:none;" class="card" style="text-align:center;padding:20px;background:rgba(83,224,119,0.07);border:1px solid rgba(83,224,119,0.2);">
+
+        <!-- Stripe return success banner -->
+        <div id="billingStripeSuccess" style="display:none;text-align:center;padding:20px;background:rgba(83,224,119,0.07);border:1px solid rgba(83,224,119,0.2);border-radius:10px;margin-top:16px;">
           <div style="color:#53e077;font-size:15px;font-weight:700;margin-bottom:4px;">✅ Subscription activated!</div>
-          <div style="font-size:13px;color:var(--text-dim);">Your plan has been upgraded. Refresh the page if features haven't unlocked yet.</div>
+          <div style="font-size:13px;color:var(--text-dim);">Your plan has been upgraded. Refresh if features haven't unlocked yet.</div>
         </div>
       </div>
     </div>
 
   </div><!-- end main -->
+  <!-- Mobile sidebar backdrop -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 </div><!-- end app -->
 
 <!-- Bonus Battle result modal -->
@@ -1808,6 +1889,10 @@ async function discordNotify(type, data) {
 
 // ── NAV ──
 function showPage(id, el) {
+  // Close mobile sidebar on navigation
+  document.querySelector('.sidebar')?.classList.remove('open');
+  document.getElementById('sidebarOverlay')?.classList.remove('active');
+
   // Tier gate — redirect locked pages to upgrade wall
   if (isPageLocked(id)) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1972,43 +2057,91 @@ async function upgradeNow(callerBtn) {
 }
 
 function renderBillingPage() {
-  const info  = PLAN_INFO[userPlan] || PLAN_INFO.starter;
-  document.getElementById('billingCurrentPlan').textContent = info.label;
-  const pb = document.getElementById('billingPlanBadge');
-  pb.textContent = info.price === 'Free' ? 'Free Plan' : 'Active Subscription';
-  pb.style.cssText = 'font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;background:rgba(83,224,119,0.1);color:#53e077;border:1px solid rgba(83,224,119,0.25);';
+  const p        = profile || {};
+  const plan     = userPlan;
+  const info     = PLAN_INFO[plan] || PLAN_INFO.starter;
+  const isActive = p.stripeSubscriptionActive === true;
+  const isFailed = p.stripePaymentFailed === true;
+  const isStarter= plan === 'starter';
+  const periodEnd= p.stripePeriodEnd ? new Date(p.stripePeriodEnd) : null;
+  const fmtDate  = d => d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
 
-  document.getElementById('billingCurrentFeatures').innerHTML = info.features
-    .map(f => `<div>✓ ${f}</div>`).join('');
+  // Plan name + color
+  const planEl = document.getElementById('billingCurrentPlan');
+  planEl.textContent = info.label;
+  planEl.style.color = info.color;
 
-  // Show manage button only if they have an active paid subscription
-  const hasSub = profile?.stripeSubscriptionActive === true;
-  document.getElementById('billingManageRow').style.display = hasSub ? '' : 'none';
+  // Status badge
+  const badge = document.getElementById('billingStatusBadge');
+  if (isOwnerAcct) {
+    badge.textContent = 'Owner';
+    badge.style.cssText = 'font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;margin-top:4px;background:rgba(0,229,255,0.1);color:var(--accent);border:1px solid rgba(0,229,255,0.25);';
+  } else if (isFailed) {
+    badge.textContent = 'Past Due';
+    badge.style.cssText = 'font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;margin-top:4px;background:rgba(255,71,87,0.12);color:var(--red);border:1px solid rgba(255,71,87,0.3);';
+  } else if (isActive) {
+    badge.textContent = 'Active';
+    badge.style.cssText = 'font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;margin-top:4px;background:rgba(0,255,136,0.1);color:var(--green);border:1px solid rgba(0,255,136,0.25);';
+  } else if (isStarter) {
+    badge.textContent = 'Free';
+    badge.style.cssText = 'font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;margin-top:4px;background:rgba(255,255,255,0.05);color:var(--text-dim);border:1px solid var(--border);';
+  } else {
+    badge.textContent = 'Cancelled';
+    badge.style.cssText = 'font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;margin-top:4px;background:rgba(255,179,71,0.1);color:var(--orange);border:1px solid rgba(255,179,71,0.3);';
+  }
 
-  // Show upgrade options for plans above current
-  const upgradable = ['pro','elite','agency'].filter(p => (PLAN_RANK[p] ?? 0) > (PLAN_RANK[userPlan] ?? 0));
-  document.getElementById('billingUpgradeSection').innerHTML = upgradable.length && !isOwnerAcct
-    ? upgradable.map(p => {
-        const pi = PLAN_INFO[p];
-        return `<div class="card" style="margin-bottom:12px;">
+  // Price
+  document.getElementById('billingPrice').textContent = info.price;
+
+  // Next billing / period end info
+  const nextBillEl = document.getElementById('billingNextBill');
+  if (isStarter && !isActive) {
+    nextBillEl.innerHTML = '';
+  } else if (isFailed && periodEnd) {
+    nextBillEl.innerHTML = `<div style="font-size:10px;color:var(--red);letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">Grace Period Ends</div><div style="font-size:15px;font-weight:700;color:var(--red);">${fmtDate(periodEnd)}</div>`;
+  } else if (isActive && periodEnd) {
+    nextBillEl.innerHTML = `<div style="font-size:10px;color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">Next Billing Date</div><div style="font-size:15px;font-weight:700;color:var(--bright);">${fmtDate(periodEnd)}</div>`;
+  } else if (!isActive && periodEnd) {
+    nextBillEl.innerHTML = `<div style="font-size:10px;color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">Access Until</div><div style="font-size:15px;font-weight:700;color:var(--orange);">${fmtDate(periodEnd)}</div>`;
+  } else {
+    nextBillEl.innerHTML = '';
+  }
+
+  // Payment failed banner
+  const failBanner = document.getElementById('billingFailedBanner');
+  failBanner.style.display = isFailed ? 'flex' : 'none';
+
+  // Features list
+  document.getElementById('billingCurrentFeatures').innerHTML =
+    info.features.map(f => `<div>✓ ${f}</div>`).join('');
+
+  // Manage button — shown for any active paid subscription
+  document.getElementById('billingManageRow').style.display = isActive && !isStarter ? '' : 'none';
+
+  // Upgrade section (Pro + Elite only — Agency is contact-only)
+  const upgradable = ['pro', 'elite'].filter(u => (PLAN_RANK[u] ?? 0) > (PLAN_RANK[plan] ?? 0));
+  if (isOwnerAcct) {
+    document.getElementById('billingUpgradeSection').innerHTML =
+      '<div class="card" style="text-align:center;padding:24px;color:var(--text-dim);">Full access — owner account</div>';
+  } else if (upgradable.length) {
+    document.getElementById('billingUpgradeSection').innerHTML =
+      `<div style="font-family:'Exo 2',sans-serif;font-size:11px;font-weight:700;color:var(--text-dim);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px;">Upgrade Your Plan</div>` +
+      upgradable.map(u => {
+        const pi = PLAN_INFO[u];
+        return `<div class="card" style="margin-bottom:12px;border-color:${pi.color}33;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-            <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:${pi.color};">${pi.label}</div>
-            <div style="font-size:14px;font-weight:700;color:var(--bright);">${pi.price}</div>
+            <div style="font-family:'Exo 2',sans-serif;font-size:18px;font-weight:900;color:${pi.color};">${pi.label}</div>
+            <div style="font-size:16px;font-weight:700;color:var(--bright);">${pi.price}</div>
           </div>
-          <div style="font-size:13px;color:var(--text-dim);margin-bottom:14px;">${pi.features.map(f=>`<div>✓ ${f}</div>`).join('')}</div>
-          <button onclick="upgradeTarget='${p}';upgradeNow(this)" class="btn btn-accent" style="width:100%;padding:10px;">Upgrade to ${pi.label}</button>
+          <div style="font-size:13px;color:var(--text-dim);margin-bottom:14px;line-height:2;">${pi.features.map(f=>`<div>✓ ${f}</div>`).join('')}</div>
+          <button onclick="upgradeTarget='${u}';upgradeNow(this)" class="btn btn-accent" style="width:100%;padding:11px;font-size:14px;">Upgrade to ${pi.label} — ${pi.price}</button>
         </div>`;
-      }).join('')
-    : (isOwnerAcct
-        ? '<div class="card" style="text-align:center;padding:24px;color:var(--text-dim);">Full access — owner account</div>'
-        : userPlan !== 'starter' ? '<div class="card" style="text-align:center;padding:24px;color:var(--text-dim);">You\'re on the highest plan 🎉</div>' : '');
-
-  // Show success banner if returning from Stripe
-  const urlPlan = new URLSearchParams(window.location.search).get('plan');
-  if (new URLSearchParams(window.location.search).get('stripe') === 'success') {
-    document.getElementById('billingStripeSuccess').style.display = '';
-    // Clean URL
-    history.replaceState({}, '', window.location.pathname);
+      }).join('');
+  } else if (plan === 'elite' || plan === 'agency') {
+    document.getElementById('billingUpgradeSection').innerHTML =
+      '<div class="card" style="text-align:center;padding:24px;color:var(--text-dim);">You\'re on our highest self-serve plan 🎉<br><span style="font-size:12px;">Contact us at <a href="mailto:support@logicplaystudios.com" style="color:var(--accent);">support@logicplaystudios.com</a> for Agency/custom options.</span></div>';
+  } else {
+    document.getElementById('billingUpgradeSection').innerHTML = '';
   }
 }
 
@@ -2033,6 +2166,8 @@ let gtbSessionId = null;
 let activeGuesses = [];
 
 function onAuthReady(user) {
+  document.getElementById('authLoader').style.display  = 'none';
+  document.getElementById('appRoot').style.visibility = '';
   profile = fb.streamerProfile;
 
   // Tier / plan setup
@@ -2060,9 +2195,13 @@ function onAuthReady(user) {
   loadDiscordSettings();
   updatePlatformDisplays();
 
-  // Auto-navigate to billing page if returning from Stripe checkout
+  // Auto-navigate to billing page and show success banner if returning from Stripe
   if (new URLSearchParams(window.location.search).get('stripe') === 'success') {
     showPage('billing', document.querySelector('.nav-item[onclick*="billing"]'));
+    const banner = document.getElementById('billingStripeSuccess');
+    if (banner) banner.style.display = '';
+    // Clean the URL so refresh doesn't re-show it
+    history.replaceState({}, '', window.location.pathname);
   }
   updateLeaderboardLink(profile?.activeProvider || 'gambulls');
 
@@ -2108,6 +2247,11 @@ function onAuthReady(user) {
 }
 
 function onAuthNotLoggedIn() { window.location.href = 'login.html'; }
+
+function toggleSidebar() {
+  document.querySelector('.sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('active');
+}
 initFirebase();
 
 // ── GIVEAWAY ──

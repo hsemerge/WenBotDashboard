@@ -18,10 +18,30 @@ function getDb() {
   return admin.firestore();
 }
 
+async function checkRateLimit(db, ip, bucket, maxReqs = 10, windowSecs = 60) {
+  const key = `${bucket}_${(ip || 'unknown').replace(/[^a-z0-9]/gi, '_').slice(0, 64)}`;
+  const ref  = db.collection('_rate_limits').doc(key);
+  const now  = Date.now();
+  try {
+    const allowed = await db.runTransaction(async txn => {
+      const doc   = await txn.get(ref);
+      const d     = doc.exists ? doc.data() : {};
+      const reset = d.resetAt || 0;
+      const count = reset > now ? (d.count || 0) : 0;
+      if (count >= maxReqs) return false;
+      txn.set(ref, { count: count + 1, resetAt: reset > now ? reset : now + windowSecs * 1000 });
+      return true;
+    });
+    return allowed;
+  } catch {
+    return true;
+  }
+}
+
 function res(statusCode, body) {
   return {
     statusCode,
-    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "https://wenbot.gg" },
     body: JSON.stringify(body),
   };
 }
@@ -36,6 +56,12 @@ exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
   if (event.httpMethod !== "POST") return res(405, { error: "Method not allowed" });
 
+  const ip = event.headers["x-forwarded-for"]?.split(",")[0].trim() || "unknown";
+  const db = getDb();
+  if (!(await checkRateLimit(db, ip, "checkout", 5, 60))) {
+    return res(429, { error: "Too many requests. Please wait a moment and try again." });
+  }
+
   const authHeader = event.headers["authorization"] || "";
   const idToken = authHeader.replace("Bearer ", "").trim();
   if (!idToken) return res(401, { error: "Missing auth token" });
@@ -49,7 +75,6 @@ exports.handler = async (event) => {
 
   let uid, existingCustomerId;
   try {
-    const db       = getDb();
     const decoded  = await admin.auth().verifyIdToken(idToken);
     uid            = decoded.uid;
     // Reuse existing Stripe customer if present (avoids duplicate customers)

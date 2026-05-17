@@ -23,7 +23,7 @@ function res(statusCode, body) {
     statusCode,
     headers: {
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": "https://wenbot.gg",
     },
     body: JSON.stringify(body),
   };

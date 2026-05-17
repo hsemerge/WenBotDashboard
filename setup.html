@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <link rel="icon" type="image/png" href="/wentransparent.png">
+  <link rel="icon" type="image/png" href="/wenside.png" sizes="32x32">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WenBot - Setup</title>
   <link rel="stylesheet" href="css/styles.css">
@@ -121,10 +121,27 @@
   </style>
 </head>
 <body>
-  <div class="setup-container">
+<!-- Auth loading overlay -->
+<div id="authLoader" style="position:fixed;inset:0;background:var(--bg-primary,#0d0f14);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:24px;">
+  <img src="wenbotlogo2.png" alt="WenBot" style="height:100px;mix-blend-mode:lighten;opacity:0.95;">
+  <div id="authLoaderSpinner" style="width:36px;height:36px;border:3px solid rgba(255,255,255,0.1);border-top-color:var(--accent,#00e5ff);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+  <div id="authLoaderError" style="display:none;color:#8b949e;font-size:13px;text-align:center;">Something went wrong.<br><a href="" style="color:#00e5ff;" onclick="location.reload();return false;">Tap to refresh</a></div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+<script>
+  setTimeout(function() {
+    var l = document.getElementById('authLoader');
+    if (l && l.style.display !== 'none') {
+      document.getElementById('authLoaderSpinner').style.display = 'none';
+      document.getElementById('authLoaderError').style.display = '';
+    }
+  }, 8000);
+</script>
+
+  <div class="setup-container" id="setupContainer" style="visibility:hidden;">
     <div class="setup-card">
       <div style="text-align:center;margin-bottom:4px;">
-        <img src="wenbotlogo.png" alt="WenBot" style="height:80px;mix-blend-mode:lighten;">
+        <img src="wenbotlogo2.png" alt="WenBot" style="height:80px;mix-blend-mode:lighten;">
       </div>
       <div class="setup-subtitle">Let's get you set up</div>
       <div class="setup-step">Connect your Kick channel and affiliate platform</div>
@@ -251,6 +268,8 @@
         window.location.href = "dashboard.html";
         return;
       }
+      document.getElementById('authLoader').style.display  = 'none';
+      document.getElementById('setupContainer').style.visibility = '';
       if (fb.streamerProfile) {
         if (fb.streamerProfile.kickChannel) {
           document.getElementById("setupKickChannel").value = fb.streamerProfile.kickChannel;
@@ -281,11 +300,14 @@
     }
 
     function applyTierGating(user) {
-      const plan    = fb.streamerProfile?.plan || 'starter';
-      const channel = fb.streamerProfile?.kickChannel || '';
-      const isTest  = TEST_ACCOUNTS.has(channel.toLowerCase());
-      const isPaid  = plan !== 'starter';
-      const hasPaid = fb.streamerProfile?.stripeSubscriptionActive === true;
+      // pendingPlan: what user selected at signup (not yet paid)
+      // plan: what the server has confirmed via Stripe webhook
+      const plan        = fb.streamerProfile?.plan || 'starter';
+      const pendingPlan = fb.streamerProfile?.pendingPlan || plan;
+      const channel     = fb.streamerProfile?.kickChannel || '';
+      const isTest      = TEST_ACCOUNTS.has(channel.toLowerCase());
+      const isPaid      = pendingPlan !== 'starter';
+      const hasPaid     = fb.streamerProfile?.stripeSubscriptionActive === true;
 
       // Points fields — Pro+ only
       if (!isPaid && !isTest) {
@@ -303,7 +325,7 @@
       if (isPaid && !hasPaid && !isTest) {
         document.getElementById('stripePaymentBlock').style.display = '';
         document.getElementById('stripePaymentDesc').textContent =
-          `You selected the ${PLAN_LABELS[plan]} plan. Subscribe to activate your account.`;
+          `You selected the ${PLAN_LABELS[pendingPlan] || PLAN_LABELS[plan]} plan. Subscribe to activate your account.`;
         document.getElementById('setupBtn').disabled = true;
         document.getElementById('setupBtn').style.opacity = '0.4';
       } else if (isPaid && hasPaid) {
@@ -326,7 +348,7 @@
 
     async function goToStripe() {
       const btn       = document.getElementById('stripeBtn');
-      const targetPlan = fb.streamerProfile?.plan || 'pro';
+      const targetPlan = fb.streamerProfile?.pendingPlan || fb.streamerProfile?.plan || 'pro';
       btn.disabled = true; btn.textContent = 'Redirecting...';
       try {
         const idToken = await fb.currentUser.getIdToken();
@@ -425,14 +447,16 @@
         const currencyName     = document.getElementById("setupCurrencyName").value.trim() || "points";
         const pointsPerMessage = parseInt(document.getElementById("setupPointsPerMessage").value, 10) || 1;
 
-        const isElitePlus = ['elite', 'agency'].includes(plan) || isTest;
         if (!kickChannel) throw new Error("Enter your Kick channel username.");
-        if (API_CASINOS.has(provider) && isElitePlus && !apiKey) throw new Error("Enter your affiliate API key.");
 
-        const plan    = fb.streamerProfile?.plan || 'starter';
+        const plan        = fb.streamerProfile?.plan || 'starter';
+        const pendingPlan = fb.streamerProfile?.pendingPlan || plan;
         const isTest  = TEST_ACCOUNTS.has(kickChannel.toLowerCase());
-        const isPaid  = plan !== 'starter';
+        const isPaid  = pendingPlan !== 'starter';
         const hasPaid = fb.streamerProfile?.stripeSubscriptionActive === true;
+        const isElitePlus = ['elite', 'agency'].includes(pendingPlan) || isTest;
+
+        if (API_CASINOS.has(provider) && isElitePlus && !apiKey) throw new Error("Enter your affiliate API key.");
 
         // Block setup for paid plans that haven't subscribed (except test accounts)
         if (isPaid && !hasPaid && !isTest) {
@@ -448,7 +472,7 @@
         };
 
         // Points fields only saved for Pro+ or test accounts
-        if (plan !== 'starter' || isTest) {
+        if (pendingPlan !== 'starter' || isTest) {
           profileUpdate.currencyName     = currencyName;
           profileUpdate.pointsPerMessage = pointsPerMessage;
         }

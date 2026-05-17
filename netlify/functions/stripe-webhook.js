@@ -86,6 +86,7 @@ exports.handler = async (event) => {
       const update = { stripeSubscriptionActive: isActive };
       if (newPlan) update.plan = newPlan;
       if (!isActive) update.plan = "starter";
+      if (sub.current_period_end) update.stripePeriodEnd = sub.current_period_end * 1000;
       await snap.docs[0].ref.set(update, { merge: true });
     }
   }
@@ -118,7 +119,10 @@ exports.handler = async (event) => {
     const snap    = await db.collection("streamers")
       .where("stripeCustomerId", "==", invoice.customer).limit(1).get();
     if (!snap.empty) {
-      await snap.docs[0].ref.set({ stripePaymentFailed: false }, { merge: true });
+      const update = { stripePaymentFailed: false };
+      const periodEnd = invoice.lines?.data?.[0]?.period?.end;
+      if (periodEnd) update.stripePeriodEnd = periodEnd * 1000;
+      await snap.docs[0].ref.set(update, { merge: true });
     }
   }
 

@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <link rel="icon" type="image/png" href="/wenside.png" sizes="32x32">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Get Started — WenBot</title>
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -237,8 +238,8 @@
     <div class="tier-card" id="tier-agency" onclick="selectTier('agency')">
       <div class="tier-check">✓</div>
       <div class="tier-name">Agency</div>
-      <div class="tier-price">$80<span>/mo</span></div>
-      <div class="tier-sub">Starting price · custom scope</div>
+      <div class="tier-price">$80<span>+/mo</span></div>
+      <div class="tier-sub">Custom scope · contact us</div>
       <ul class="tier-features">
         <li>Everything in Elite</li>
         <li>Multi-channel dashboard</li>
@@ -275,7 +276,7 @@
     </form>
 
     <div class="signin-link">Already have an account? <a href="login.html">Sign in</a></div>
-    <div class="terms">By creating an account you agree to our Terms of Service.</div>
+    <div class="terms">By creating an account you agree to our <a href="terms.html" target="_blank" style="color:var(--accent);">Terms of Service</a>.</div>
   </div>
 </div>
 
@@ -302,6 +303,9 @@
     document.getElementById('tier-' + plan).classList.add('selected');
     selectedPlan = plan;
     document.getElementById('planLabel').textContent = PLAN_LABELS[plan];
+    // Agency is contact-only — swap button label
+    const btn = document.getElementById('signupBtn');
+    btn.textContent = plan === 'agency' ? 'Contact Us →' : 'Create Account →';
   }
 
   let justSignedUp = false;
@@ -325,6 +329,12 @@
     e.preventDefault();
     hideError();
 
+    // Agency is not self-serve — redirect to contact
+    if (selectedPlan === 'agency') {
+      window.location.href = 'mailto:support@logicplaystudios.com?subject=WenBot Agency Inquiry';
+      return;
+    }
+
     const password = document.getElementById('signupPassword').value;
     const confirm  = document.getElementById('signupConfirm').value;
     if (password !== confirm) { showError("Passwords don't match."); return; }
@@ -337,9 +347,11 @@
       const email = document.getElementById('signupEmail').value;
       justSignedUp = true;
       const cred  = await firebase.auth().createUserWithEmailAndPassword(email, password);
+      // Always write plan:'starter' from client — paid plan is set server-side by Stripe webhook.
+      // pendingPlan carries the user's selection into setup so the right Stripe price is loaded.
       await firebase.firestore().collection('streamers').doc(cred.user.uid).set({
-        plan:      selectedPlan,
-        createdAt: Date.now(),
+        pendingPlan: selectedPlan,
+        createdAt:   Date.now(),
       }, { merge: true });
       window.location.href = 'setup.html';
     } catch (err) {
