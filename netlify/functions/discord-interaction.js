@@ -328,10 +328,24 @@ exports.handler = async (event) => {
   if (body.type === 2) {
     const name = body.data?.name;
     if (name === "points")   return handlePoints(body);
-    if (name === "buy")      return handleBuy(body);
     if (name === "store")    return handleStore(body);
     if (name === "join")     return handleJoinGiveaway(body);
     if (name === "register") return handleRegister(body);
+
+    // /buy deferred: trigger background function then return "thinking" immediately
+    if (name === "buy") {
+      const base = process.env.URL || "https://wenbot.gg";
+      await fetch(`${base}/.netlify/functions/discord-process-background`, {
+        method:  "POST",
+        headers: {
+          "Content-Type":  "application/json",
+          "x-process-key": process.env.WENBOT_ADMIN_KEY,
+        },
+        body: JSON.stringify({ command: "buy", interaction: body }),
+      }).catch(() => {});
+      return respond(200, { type: 5, data: { flags: 64 } });
+    }
+
     return message("❓ Unknown command.");
   }
 
