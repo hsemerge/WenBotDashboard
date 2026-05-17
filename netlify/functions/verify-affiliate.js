@@ -5,7 +5,7 @@
 const admin = require("firebase-admin");
 
 // Casinos with live API verification
-const API_CASINOS = new Set(["gambulls", "csbattle"]);
+const API_CASINOS = new Set(["gambulls"]);
 
 // Display names for all supported casinos
 const CASINO_NAMES = {
@@ -56,20 +56,6 @@ async function lookupAffiliate(provider, apiKey, affiliateUsername) {
       e => (e.user?.name || "").toLowerCase() === affiliateUsername.toLowerCase()
     );
     return match ? { username: match.user.name, wagerAmount: match.wagerAmount || 0 } : null;
-  }
-
-  if (provider === "csbattle") {
-    const resp = await fetch(
-      `https://api.csbattle.com/leaderboards/affiliates/${apiKey}?from=2025-01-01%2000:00:00&to=2030-12-31%2023:59:59&limit=200`,
-      { headers: { "Accept": "application/json" } }
-    );
-    if (!resp.ok) return null;
-    const data = await resp.json();
-    if (!Array.isArray(data)) return null;
-    const match = data.find(
-      e => (e.username || e.name || "").toLowerCase() === affiliateUsername.toLowerCase()
-    );
-    return match ? { username: match.username || match.name, wagerAmount: match.wagered || match.amount || 0 } : null;
   }
 
   return null;

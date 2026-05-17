@@ -94,7 +94,8 @@
         return;
       }
 
-      const isWenBot = state && state.startsWith("wenbot_");
+      const isWenBot  = state && state.startsWith("wenbot_");
+      const isViewer  = state && state.startsWith("viewer_");
 
       try {
         // 1. Exchange code for tokens (server-side, keeps client_secret safe)
@@ -110,7 +111,33 @@
         sessionStorage.removeItem("kick_code_verifier");
         sessionStorage.removeItem("kick_auth_purpose");
 
-        if (isWenBot) {
+        if (isViewer) {
+          // 2c. Viewer login — fetch Kick profile and redirect back to battle page
+          setDetail("Fetching your Kick profile...");
+          const userResp = await fetch("https://api.kick.com/public/v1/users", {
+            headers: { "Authorization": `Bearer ${tokens.access_token}` },
+          });
+          const userData = await userResp.json();
+          if (!userResp.ok) throw new Error("Failed to fetch Kick profile");
+          const kickUser = userData.data?.[0];
+          if (!kickUser) throw new Error("No Kick user data returned");
+
+          const channel = state.replace("viewer_", "");
+          // Store session in localStorage for the battle page to pick up
+          localStorage.setItem("bb_viewer_session", JSON.stringify({
+            kickUsername:  kickUser.name,
+            kickUserId:    kickUser.user_id,
+            accessToken:   tokens.access_token,
+            expiresAt:     Date.now() + (tokens.expires_in * 1000),
+            channel,
+          }));
+
+          showCheck();
+          setStatus(`Welcome, @${kickUser.name}!`, "success");
+          setDetail("Redirecting back...");
+          setTimeout(() => window.location.href = `/bonus-battle.html?channel=${encodeURIComponent(channel)}`, 1200);
+
+        } else if (isWenBot) {
           // 2a. WenBot admin flow — store tokens in Netlify Blobs
           setDetail("Storing WenBot credentials...");
           const adminKey  = state.replace("wenbot_", "");
@@ -169,7 +196,9 @@
     }
 
     function redirectBack(delay) {
-      const dest = state && state.startsWith("wenbot_") ? "/admin/wenbot-auth.html" : "/setup.html";
+      let dest = "/setup.html";
+      if (state && state.startsWith("wenbot_")) dest = "/admin/wenbot-auth.html";
+      else if (state && state.startsWith("viewer_")) dest = `/bonus-battle.html?channel=${encodeURIComponent(state.replace("viewer_", ""))}`;
       setTimeout(() => window.location.href = dest, delay);
     }
 

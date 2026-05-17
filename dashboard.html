@@ -67,6 +67,11 @@
     .nav-item .icon { font-size: 15px; width: 18px; text-align: center; }
     .nav-badge { margin-left: auto; background: var(--accent); color: #0d1117; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; }
     .nav-badge.red { background: var(--red); color: #fff; }
+    .nav-item.nav-locked { opacity: 0.45; }
+    .nav-item.nav-locked:hover { background: none; color: var(--text-dim); cursor: default; }
+    .nav-lock-pill { margin-left: auto; font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 10px; letter-spacing: .03em; }
+    .nav-lock-pill.pro-pill  { background: rgba(167,139,250,0.2); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
+    .nav-lock-pill.elite-pill { background: rgba(255,215,0,0.15); color: #ffd700; border: 1px solid rgba(255,215,0,0.3); }
 
     .sidebar-bot-status {
       margin-top: auto;
@@ -407,6 +412,8 @@
         <div class="nav-item" onclick="showPage('bonushunt',this)"><span class="icon">🎰</span> Bonus Hunt <span class="nav-badge" id="bhLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
         <div class="nav-item" onclick="showPage('slotrequest',this)"><span class="icon">📋</span> Slot Requests</div>
         <div class="nav-item" onclick="showPage('gtb',this)"><span class="icon">🎲</span> Guess the Balance</div>
+        <div class="nav-item" onclick="showPage('bonusbattle',this)"><span class="icon">⚔️</span> Bonus Battles <span class="nav-badge" id="bbLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
+        <div class="nav-item" onclick="showPage('tournament',this)"><span class="icon">🏆</span> Tournaments <span class="nav-badge" id="tnLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
       </div>
       <div class="sidebar-section" style="margin-top:8px;">
         <div class="sidebar-label">Manage</div>
@@ -421,6 +428,12 @@
         <div class="sidebar-label">Account</div>
         <div class="nav-item" onclick="showPage('settings',this)"><span class="icon">⚙️</span> Settings</div>
         <div class="nav-item" onclick="showPage('help',this)"><span class="icon">❓</span> Help</div>
+        <div id="planBadgeRow" onclick="showPage('billing',this)"
+          style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:6px;cursor:pointer;margin-top:4px;background:rgba(255,255,255,0.03);border:1px solid var(--border);">
+          <span style="font-size:11px;color:var(--text-dim);">Plan:</span>
+          <span id="planBadge" style="font-size:11px;font-weight:800;color:var(--accent);">Starter</span>
+          <span style="font-size:10px;color:var(--text-dim);margin-left:auto;">Upgrade ↗</span>
+        </div>
       </div>
     </div>
     <div class="sidebar-bot-status">
@@ -1005,8 +1018,15 @@
       </div>
 
       <!-- Discord Integration -->
-      <div style="margin-top:16px;">
-        <div class="card">
+      <div style="margin-top:16px;" id="discordSection">
+        <div class="card" style="position:relative;overflow:hidden;">
+          <!-- Elite lock overlay — shown when plan < elite -->
+          <div id="discordLockOverlay" style="display:none;position:absolute;inset:0;background:rgba(13,17,23,0.88);backdrop-filter:blur(4px);border-radius:inherit;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center;">
+            <div style="font-size:32px;">⭐</div>
+            <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:#ffd700;">Elite Feature</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.55);max-width:320px;line-height:1.5;">Discord integration is included in the Elite plan ($50/mo).</div>
+            <button onclick="upgradeTarget='elite';upgradeNow()" class="btn btn-accent" style="padding:10px 24px;margin-top:4px;">Upgrade to Elite</button>
+          </div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
             <div class="card-title" style="margin-bottom:0;">🔗 Discord Integration</div>
             <div id="discordStatusBadge" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(255,255,255,0.06);color:var(--text-dim);">Not connected</div>
@@ -1225,14 +1245,17 @@
               <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">0 = no cooldown</div>
             </div>
           </div>
+          <div style="margin-top:14px;display:flex;align-items:center;gap:10px;">
+            <input type="checkbox" id="srAllowMultiple" onchange="srSaveSettings()" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
+            <label for="srAllowMultiple" style="font-size:13px;color:var(--text-dim);cursor:pointer;margin:0;">Allow viewers to have multiple slots pending in queue at once</label>
+          </div>
         </div>
 
         <!-- Queue -->
         <div class="card">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-            <div class="card-title" style="margin-bottom:0;">Queue <span style="color:var(--text-dim);font-weight:500;font-size:13px;" id="srQueueCount"></span></div>
+            <div class="card-title" style="margin-bottom:0;">Queue <span style="color:var(--text-dim);font-weight:500;font-size:13px;" id="srQueueCount"></span> <span style="font-size:10px;color:var(--accent);font-weight:500;opacity:0.7;">● LIVE</span></div>
             <div style="display:flex;gap:8px;">
-              <button onclick="loadSlotRequests()" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:12px;cursor:pointer;padding:5px 12px;">↻ Refresh</button>
               <button onclick="srClearAll()" style="background:none;border:1px solid rgba(255,71,87,0.3);border-radius:6px;color:var(--red);font-size:12px;cursor:pointer;padding:5px 12px;">🗑 Clear All</button>
             </div>
           </div>
@@ -1267,9 +1290,22 @@
 
     <!-- Add-to-Hunt modal for slot requests -->
     <div id="srHuntModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:500;align-items:center;justify-content:center;">
-      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:28px;width:100%;max-width:400px;">
-        <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:var(--bright);margin-bottom:6px;">Add to Bonus Hunt</div>
-        <div style="font-size:13px;color:var(--text-dim);margin-bottom:18px;" id="srHuntSlotLabel"></div>
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:28px;width:100%;max-width:440px;">
+        <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:var(--bright);margin-bottom:4px;">Add to Bonus Hunt</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px;">Viewer requested: <strong id="srHuntSlotLabel" style="color:var(--bright);"></strong></div>
+
+        <!-- Slot picker -->
+        <div class="field" style="margin-bottom:14px;">
+          <label>Slot <span id="srHuntMatchNote" style="color:var(--accent);font-weight:500;font-style:normal;"></span></label>
+          <div style="position:relative;">
+            <input type="text" id="srHuntSlotInput" class="form-input" placeholder="Search or confirm slot name..." autocomplete="off"
+              oninput="srHuntSlotSearch(this.value)" onfocus="srHuntSlotSearch(this.value)">
+            <div id="srHuntSlotDrop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;z-index:200;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
+            <input type="hidden" id="srHuntSlotName">
+            <input type="hidden" id="srHuntSlotProvider">
+          </div>
+        </div>
+
         <div class="field" style="margin-bottom:16px;">
           <label>Bet Size ($)</label>
           <input type="number" id="srHuntBet" class="form-input" placeholder="e.g. 4.00" min="0.01" step="0.01">
@@ -1277,6 +1313,28 @@
         <div style="display:flex;gap:10px;justify-content:flex-end;">
           <button onclick="srCloseHuntModal()" style="padding:9px 18px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:13px;cursor:pointer;">Cancel</button>
           <button onclick="srConfirmAddToHunt()" style="padding:9px 18px;background:linear-gradient(135deg,#00e5ff,#00b8d4);border:none;border-radius:8px;color:#0d1117;font-family:'Exo 2',sans-serif;font-size:14px;font-weight:800;cursor:pointer;">Add to Hunt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Slot modal for bonus hunt rows -->
+    <div id="bhEditSlotModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:500;align-items:center;justify-content:center;">
+      <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:28px;width:100%;max-width:440px;">
+        <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:var(--bright);margin-bottom:4px;">Change Slot</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px;">Currently: <strong id="bhEditSlotCurrent" style="color:var(--bright);"></strong></div>
+        <div class="field" style="margin-bottom:16px;">
+          <label>Search slot</label>
+          <div style="position:relative;">
+            <input type="text" id="bhEditSlotInput" class="form-input" placeholder="Search slot name..." autocomplete="off"
+              oninput="bhEditSlotSearch(this.value)" onfocus="bhEditSlotSearch(this.value)">
+            <div id="bhEditSlotDrop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;z-index:200;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
+            <input type="hidden" id="bhEditSlotName">
+            <input type="hidden" id="bhEditSlotProvider">
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button onclick="bhCloseEditSlotModal()" style="padding:9px 18px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:13px;cursor:pointer;">Cancel</button>
+          <button onclick="bhConfirmEditSlot()" style="padding:9px 18px;background:linear-gradient(135deg,#00e5ff,#00b8d4);border:none;border-radius:8px;color:#0d1117;font-family:'Exo 2',sans-serif;font-size:14px;font-weight:800;cursor:pointer;">Update Slot</button>
         </div>
       </div>
     </div>
@@ -1363,13 +1421,17 @@
           </div>
         </div>
 
-        <!-- Slot Requests panel (shown when srRequests has entries) -->
+        <!-- Slot Requests panel -->
         <div class="card" id="bhSrPanel" style="margin-bottom:16px;display:none;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <div class="card-title" style="margin-bottom:0;">📋 Slot Requests <span id="bhSrCount" style="color:var(--text-dim);font-weight:500;font-size:13px;"></span></div>
-            <button onclick="loadSlotRequestsForBh()" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:12px;cursor:pointer;padding:4px 10px;">↻</button>
+            <div class="card-title" style="margin-bottom:0;">📋 Slot Requests <span id="bhSrCount" style="color:var(--text-dim);font-weight:500;font-size:13px;"></span> <span id="bhSrLiveDot" style="font-size:10px;color:var(--accent);font-weight:500;opacity:0.7;">● LIVE</span></div>
+            <button id="bhSrToggleBtn" onclick="srToggleFromBh()"
+              style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);cursor:pointer;color:var(--text-dim);">
+              Turn Off
+            </button>
           </div>
-          <div id="bhSrList" style="display:flex;flex-direction:column;gap:6px;"></div>
+          <div id="bhSrList" style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;padding-right:2px;"></div>
+          <div id="bhSrOffMsg" style="display:none;text-align:center;padding:14px 0;color:var(--text-dim);font-size:12px;">Slot requests are off</div>
         </div>
 
         <!-- Add slot -->
@@ -1402,6 +1464,7 @@
                   <th style="text-align:left;padding:6px 10px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);">Slot</th>
                   <th style="text-align:left;padding:6px 10px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);">Provider</th>
                   <th style="text-align:right;padding:6px 10px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);width:70px;">Bet</th>
+                  <th style="text-align:left;padding:6px 10px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);width:90px;">Viewer</th>
                   <th style="text-align:left;padding:6px 10px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);">Notes</th>
                   <th style="text-align:right;padding:6px 10px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);width:140px;">Result</th>
                   <th style="width:56px;"></th>
@@ -1424,8 +1487,298 @@
       </div>
     </div>
 
+    <!-- ── BONUS BATTLES ── -->
+    <div class="page" id="page-bonusbattle">
+
+      <!-- No battle active -->
+      <div id="bbNoBattle">
+        <div class="card" style="text-align:center;padding:52px 36px;max-width:520px;margin:0 auto 24px;">
+          <div style="font-size:52px;margin-bottom:16px;">⚔️</div>
+          <h2 style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--bright);margin-bottom:8px;">No Active Bonus Battle</h2>
+          <p style="color:var(--text-dim);font-size:13px;margin-bottom:28px;line-height:1.6;">Set up a series of head-to-head slot matches. Viewers use their points to bet on which slot will hit the higher multiplier.</p>
+          <div style="max-width:360px;margin:0 auto;text-align:left;">
+            <div class="field" style="margin-bottom:14px;">
+              <label>Battle Title (optional)</label>
+              <input type="text" id="bbTitle" class="form-input" placeholder="e.g. Friday Night Battles">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+              <div class="field">
+                <label>Min Bet (points)</label>
+                <input type="number" id="bbMinBet" class="form-input" value="100" min="1">
+              </div>
+              <div class="field">
+                <label>Max Bet (points)</label>
+                <input type="number" id="bbMaxBet" class="form-input" value="10000" min="1">
+              </div>
+            </div>
+            <button onclick="bbStart()" class="btn btn-accent" style="width:100%;padding:13px;">⚔️ Start Bonus Battle</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Battle active -->
+      <div id="bbActive" style="display:none;max-width:900px;">
+
+        <!-- Stats bar -->
+        <div class="card" style="margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:11px;color:var(--text-dim);margin-bottom:2px;">BATTLE</div>
+              <div style="font-size:18px;font-weight:900;color:var(--bright);font-family:'Exo 2',sans-serif;" id="bbTitleDisplay">—</div>
+            </div>
+            <div style="text-align:center;min-width:60px;">
+              <div style="font-size:11px;color:var(--text-dim);">Matches</div>
+              <div style="font-size:22px;font-weight:800;color:var(--bright);" id="bbMatchCount">0</div>
+            </div>
+            <div style="text-align:center;min-width:80px;">
+              <div style="font-size:11px;color:var(--text-dim);">Total Pool</div>
+              <div style="font-size:22px;font-weight:800;color:var(--gold);" id="bbTotalPool">0</div>
+            </div>
+            <div style="text-align:center;min-width:60px;">
+              <div style="font-size:11px;color:var(--text-dim);">Voters</div>
+              <div style="font-size:22px;font-weight:800;color:var(--accent);" id="bbTotalVoters">0</div>
+            </div>
+            <button onclick="bbEndBattle()" style="padding:8px 16px;background:none;border:1px solid rgba(255,71,87,0.35);border-radius:8px;color:var(--red);font-size:12px;cursor:pointer;font-weight:600;">End Battle</button>
+          </div>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+            <a href="#" id="bbViewerLink" target="_blank" style="font-size:12px;color:var(--accent);text-decoration:none;font-weight:600;">🔗 Viewer Betting Page</a>
+            <a href="#" id="bbOverlayLink" target="_blank" style="font-size:12px;color:var(--text-dim);text-decoration:none;opacity:0.8;">🖥 OBS Overlay</a>
+            <span style="font-size:10px;color:var(--accent);font-weight:600;opacity:0.7;margin-left:auto;">● LIVE</span>
+          </div>
+        </div>
+
+        <!-- Add match -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title" style="margin-bottom:14px;">➕ Add Match</div>
+          <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;">
+            <div style="flex:1;min-width:180px;">
+              <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:6px;font-weight:600;">SLOT 1</label>
+              <div style="position:relative;">
+                <input type="text" id="bbSlot1Search" class="form-input" placeholder="Search slot…" autocomplete="off"
+                  oninput="bbSearchSlots(1,this.value)" onfocus="bbSearchSlots(1,this.value)">
+                <div id="bbSlot1Drop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;z-index:200;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
+                <input type="hidden" id="bbSlot1Name"><input type="hidden" id="bbSlot1Provider">
+              </div>
+            </div>
+            <div style="padding-bottom:10px;font-size:16px;font-weight:900;color:var(--text-dim);flex-shrink:0;">VS</div>
+            <div style="flex:1;min-width:180px;">
+              <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:6px;font-weight:600;">SLOT 2</label>
+              <div style="position:relative;">
+                <input type="text" id="bbSlot2Search" class="form-input" placeholder="Search slot…" autocomplete="off"
+                  oninput="bbSearchSlots(2,this.value)" onfocus="bbSearchSlots(2,this.value)">
+                <div id="bbSlot2Drop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;z-index:200;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
+                <input type="hidden" id="bbSlot2Name"><input type="hidden" id="bbSlot2Provider">
+              </div>
+            </div>
+            <div style="flex-shrink:0;">
+              <button onclick="bbAddMatch()" class="btn btn-accent" style="padding:10px 20px;">Add Match</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Match list -->
+        <div id="bbMatchList"></div>
+
+      </div>
+    </div>
+
+    <!-- ── TOURNAMENTS ── -->
+    <div class="page" id="page-tournament">
+
+      <!-- No tournament -->
+      <div id="tnNoTournament">
+        <div class="card" style="text-align:center;padding:52px 36px;max-width:560px;margin:0 auto 24px;">
+          <div style="font-size:52px;margin-bottom:16px;">🏆</div>
+          <h2 style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--bright);margin-bottom:8px;">No Active Tournament</h2>
+          <p style="color:var(--text-dim);font-size:13px;margin-bottom:28px;line-height:1.6;">Run a single-elimination bracket where viewers spend points to enter and compete. Prize pool is split among top finishers.</p>
+          <div style="text-align:left;max-width:380px;margin:0 auto;">
+            <div class="field" style="margin-bottom:14px;">
+              <label class="label">Tournament Title</label>
+              <input type="text" id="tnTitle" class="form-input" placeholder="e.g. Friday Showdown" maxlength="60">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+              <div class="field">
+                <label class="label">Bracket Size</label>
+                <select id="tnBracketSize" class="form-input">
+                  <option value="4">4 players</option>
+                  <option value="8" selected>8 players</option>
+                  <option value="16">16 players</option>
+                  <option value="32">32 players</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="label">Entry Cost (pts)</label>
+                <input type="number" id="tnEntryCost" class="form-input" placeholder="500" min="0" value="500">
+              </div>
+            </div>
+            <div class="field" style="margin-bottom:14px;">
+              <label class="label">Prize Distribution</label>
+              <select id="tnPrizePreset" class="form-input" onchange="tnPresetChange()">
+                <option value="winner">Winner Takes All (100%)</option>
+                <option value="top2">Top 2 (65 / 35%)</option>
+                <option value="top3" selected>Top 3 (50 / 30 / 20%)</option>
+                <option value="top4">Top 4 (40 / 25 / 20 / 15%)</option>
+                <option value="custom">Custom…</option>
+              </select>
+            </div>
+            <div id="tnCustomPrize" style="display:none;margin-bottom:14px;padding:12px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;">
+              <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">Enter % for each place (must sum to 100)</div>
+              <div id="tnCustomRows"></div>
+              <button onclick="tnAddCustomRow()" style="margin-top:8px;padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:11px;cursor:pointer;">+ Add place</button>
+            </div>
+            <button onclick="tnCreate()" class="btn btn-accent" style="width:100%;padding:13px;margin-top:4px;">🏆 Create Tournament</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Registration open -->
+      <div id="tnRegistration" style="display:none;max-width:760px;">
+        <div class="card" style="margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:11px;color:var(--text-dim);margin-bottom:2px;">TOURNAMENT</div>
+              <div style="font-size:18px;font-weight:900;color:var(--bright);font-family:'Exo 2',sans-serif;" id="tnTitleDisplay">—</div>
+            </div>
+            <div style="text-align:center;min-width:60px;">
+              <div style="font-size:11px;color:var(--text-dim);">Entered</div>
+              <div style="font-size:22px;font-weight:800;color:var(--accent);" id="tnEnteredCount">0</div>
+            </div>
+            <div style="text-align:center;min-width:60px;">
+              <div style="font-size:11px;color:var(--text-dim);">Slots Left</div>
+              <div style="font-size:22px;font-weight:800;color:var(--bright);" id="tnSlotsLeft">8</div>
+            </div>
+            <div style="text-align:center;min-width:80px;">
+              <div style="font-size:11px;color:var(--text-dim);">Prize Pool</div>
+              <div style="font-size:22px;font-weight:800;color:var(--gold);" id="tnPrizePool">0 pts</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <button onclick="tnStartBracket()" id="tnStartBtn" class="btn btn-accent" style="padding:8px 14px;font-size:12px;">Start Bracket</button>
+              <button onclick="tnCancel()" style="padding:8px 14px;background:none;border:1px solid rgba(255,71,87,0.35);border-radius:8px;color:var(--red);font-size:12px;cursor:pointer;font-weight:600;">Cancel</button>
+            </div>
+          </div>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+            <a href="#" id="tnViewerRegLink" target="_blank" style="font-size:12px;color:var(--accent);text-decoration:none;font-weight:600;">🔗 Viewer Registration Page</a>
+            <span style="font-size:10px;color:#53e077;font-weight:600;opacity:0.9;margin-left:auto;">● REGISTRATION OPEN</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="margin-bottom:14px;">Participants</div>
+          <div id="tnParticipantList" style="display:flex;flex-direction:column;gap:6px;"></div>
+          <div id="tnParticipantEmpty" style="color:var(--text-dim);font-size:13px;text-align:center;padding:24px 0;">No one has entered yet.</div>
+        </div>
+      </div>
+
+      <!-- Active bracket -->
+      <div id="tnActive" style="display:none;max-width:900px;">
+        <div class="card" style="margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:11px;color:var(--text-dim);margin-bottom:2px;">TOURNAMENT</div>
+              <div style="font-size:18px;font-weight:900;color:var(--bright);font-family:'Exo 2',sans-serif;" id="tnActiveTitleDisplay">—</div>
+            </div>
+            <div style="text-align:center;min-width:60px;">
+              <div style="font-size:11px;color:var(--text-dim);">Round</div>
+              <div style="font-size:22px;font-weight:800;color:var(--accent);" id="tnCurrentRound">1</div>
+            </div>
+            <div style="text-align:center;min-width:70px;">
+              <div style="font-size:11px;color:var(--text-dim);">Remaining</div>
+              <div style="font-size:22px;font-weight:800;color:var(--bright);" id="tnRemaining">0</div>
+            </div>
+            <div style="text-align:center;min-width:80px;">
+              <div style="font-size:11px;color:var(--text-dim);">Prize Pool</div>
+              <div style="font-size:22px;font-weight:800;color:var(--gold);" id="tnActivePrizePool">0 pts</div>
+            </div>
+            <button onclick="tnCancel()" style="padding:8px 14px;background:none;border:1px solid rgba(255,71,87,0.35);border-radius:8px;color:var(--red);font-size:12px;cursor:pointer;font-weight:600;">End Tournament</button>
+          </div>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+            <a href="#" id="tnViewerActiveLink" target="_blank" style="font-size:12px;color:var(--accent);text-decoration:none;font-weight:600;">🔗 Viewer Bracket Page</a>
+            <a href="#" id="tnOverlayLink" target="_blank" style="font-size:12px;color:var(--text-dim);text-decoration:none;opacity:0.8;">🖥 OBS Overlay</a>
+            <span style="font-size:10px;color:var(--red);font-weight:600;opacity:0.9;margin-left:auto;">● LIVE</span>
+          </div>
+        </div>
+        <div id="tnBracketView"></div>
+      </div>
+
+      <!-- Complete -->
+      <div id="tnComplete" style="display:none;max-width:600px;">
+        <div class="card" style="text-align:center;padding:36px;margin-bottom:16px;">
+          <div style="font-size:40px;margin-bottom:12px;">🏆</div>
+          <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--bright);margin-bottom:4px;" id="tnCompleteTitleDisplay">—</div>
+          <div style="color:var(--text-dim);font-size:13px;margin-bottom:24px;">Tournament Complete</div>
+          <div id="tnFinalStandings" style="text-align:left;margin-bottom:24px;"></div>
+          <button onclick="tnResetUI()" class="btn btn-accent" style="padding:11px 24px;">Start New Tournament</button>
+        </div>
+      </div>
+
+    </div><!-- end page-tournament -->
+
+    <!-- ── UPGRADE WALL ── -->
+    <div class="page" id="page-upgrade">
+      <div style="max-width:560px;margin:0 auto;">
+        <div class="card" style="text-align:center;padding:48px 36px;">
+          <div style="font-size:48px;margin-bottom:16px;" id="upgradeIcon">🔒</div>
+          <h2 style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--bright);margin-bottom:8px;" id="upgradeHeadline">This feature requires a higher plan</h2>
+          <p style="color:var(--text-dim);font-size:13px;margin-bottom:28px;line-height:1.6;" id="upgradeSubtext">Upgrade to unlock this and more.</p>
+          <div id="upgradePlanCard" style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;text-align:left;"></div>
+          <button onclick="upgradeNow()" id="upgradeBtn" class="btn btn-accent" style="width:100%;padding:14px;font-size:15px;margin-bottom:12px;">Upgrade Now</button>
+          <div id="upgradeStatus" style="font-size:12px;color:var(--text-dim);min-height:16px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── BILLING ── -->
+    <div class="page" id="page-billing">
+      <div style="max-width:560px;margin:0 auto;">
+        <h1 style="font-family:'Exo 2',sans-serif;font-size:24px;font-weight:900;color:var(--bright);margin-bottom:24px;">Plan &amp; Billing</h1>
+        <div class="card" style="margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <div>
+              <div style="font-size:11px;color:var(--text-dim);margin-bottom:2px;">CURRENT PLAN</div>
+              <div style="font-size:22px;font-weight:900;font-family:'Exo 2',sans-serif;" id="billingCurrentPlan">—</div>
+            </div>
+            <div id="billingPlanBadge" style="font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;"></div>
+          </div>
+          <div id="billingCurrentFeatures" style="font-size:13px;color:var(--text-dim);line-height:1.8;margin-bottom:16px;"></div>
+          <div id="billingManageRow" style="display:none;padding-top:12px;border-top:1px solid var(--border);">
+            <button onclick="openCustomerPortal()" style="padding:9px 18px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:13px;cursor:pointer;font-weight:600;">⚙️ Manage Subscription</button>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">Cancel, update payment method, or view invoices via Stripe.</div>
+          </div>
+        </div>
+        <div id="billingUpgradeSection"></div>
+        <div id="billingStripeSuccess" style="display:none;" class="card" style="text-align:center;padding:20px;background:rgba(83,224,119,0.07);border:1px solid rgba(83,224,119,0.2);">
+          <div style="color:#53e077;font-size:15px;font-weight:700;margin-bottom:4px;">✅ Subscription activated!</div>
+          <div style="font-size:13px;color:var(--text-dim);">Your plan has been upgraded. Refresh the page if features haven't unlocked yet.</div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- end main -->
 </div><!-- end app -->
+
+<!-- Bonus Battle result modal -->
+<div id="bbResultModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:500;align-items:center;justify-content:center;">
+  <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:28px;width:100%;max-width:420px;">
+    <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:var(--bright);margin-bottom:4px;">Enter Match Result</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:20px;">Enter the final multiplier for each slot. The higher multiplier wins.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+      <div class="field">
+        <label id="bbResultLabel1" style="font-weight:700;color:var(--bright);">Slot 1</label>
+        <input type="number" id="bbResult1" class="form-input" placeholder="e.g. 47.5" min="0" step="0.01" oninput="bbResultNote()">
+        <div style="font-size:11px;color:var(--text-dim);margin-top:3px;">multiplier (x)</div>
+      </div>
+      <div class="field">
+        <label id="bbResultLabel2" style="font-weight:700;color:var(--bright);">Slot 2</label>
+        <input type="number" id="bbResult2" class="form-input" placeholder="e.g. 120.0" min="0" step="0.01" oninput="bbResultNote()">
+        <div style="font-size:11px;color:var(--text-dim);margin-top:3px;">multiplier (x)</div>
+      </div>
+    </div>
+    <div id="bbResultNote" style="font-size:12px;color:var(--text-dim);margin-bottom:16px;min-height:16px;"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button onclick="bbCloseResult()" style="padding:9px 18px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:13px;cursor:pointer;">Cancel</button>
+      <button onclick="bbSubmitResult()" style="padding:9px 20px;background:linear-gradient(135deg,#00e5ff,#00b8d4);border:none;border-radius:8px;color:#0d1117;font-family:'Exo 2',sans-serif;font-size:14px;font-weight:800;cursor:pointer;">Submit & Pay Out</button>
+    </div>
+  </div>
+</div>
 
 <div class="flash" id="flash"></div>
 
@@ -1454,20 +1807,38 @@ async function discordNotify(type, data) {
 
 // ── NAV ──
 function showPage(id, el) {
+  // Tier gate — redirect locked pages to upgrade wall
+  if (isPageLocked(id)) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-upgrade').classList.add('active');
+    if (el) el.classList.add('active');
+    renderUpgradeWall(id);
+    return;
+  }
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', commands:'Commands', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotrequest:'Slot Requests', overlays:'Overlays', settings:'Settings', help:'Help' };
+  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', commands:'Commands', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', settings:'Settings', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade' };
   document.getElementById('topbarTitle').textContent = titles[id] || id;
+  // Tear down SR listeners when leaving their pages
+  if (id !== 'slotrequest' && srUnsub) { srUnsub(); srUnsub = null; }
+  if (id !== 'bonushunt') { unsubBhSr(); }
+  if (id !== 'bonusbattle' && bbUnsub) { bbUnsub(); bbUnsub = null; }
+  if (id !== 'tournament'  && tnUnsub) { tnUnsub(); tnUnsub = null; }
   if (id === 'verified') loadVerifiedUsers();
   if (id === 'points') loadTopViewers();
   if (id === 'gtb') loadGTBGuesses();
   if (id === 'leaderboard') loadLeaderboards();
   if (id === 'store') { loadStoreItems(); loadRedemptions(); }
   if (id === 'bonushunt')   { loadBonusHunt(); loadBhHistory(); }
-  if (id === 'slotrequest') loadSlotRequests();
+  if (id === 'slotrequest')  loadSlotRequests();
+  if (id === 'bonusbattle') loadBonusBattle();
+  if (id === 'tournament')  loadTournament();
   if (id === 'overlays')    wireOverlayLinks();
+  if (id === 'billing')     renderBillingPage();
 }
 
 // ── FLASH ──
@@ -1479,6 +1850,178 @@ function flash(msg, type='success') {
   el._t = setTimeout(() => el.classList.remove('show'), 3000);
 }
 
+// ── TIER / PLAN ───────────────────────────────────────────────────────────────
+
+const PLAN_RANK = { starter: 0, pro: 1, elite: 2, agency: 3 };
+
+// Which plan is required to access each page (pages not listed are always accessible)
+const PAGE_PLAN = {
+  slotrequest: 'pro',
+  gtb:         'pro',
+  points:      'pro',
+  store:       'pro',
+  commands:    'pro',
+  leaderboard: 'elite',
+  bonusbattle: 'elite',
+  tournament:  'elite',
+};
+
+const PLAN_INFO = {
+  starter: {
+    label: 'Starter', color: '#53e077', price: 'Free',
+    features: ['Giveaway bot', 'Casino verification (!verify)', 'Bonus hunt tracker + OBS overlay', 'Spin picker + winner overlay', 'Up to 50 verified viewers'],
+  },
+  pro: {
+    label: 'Pro', color: '#a78bfa', price: '$30/mo',
+    features: ['Everything in Starter', 'Points system + custom currency', 'Viewer store & redemptions', 'Guess the Balance + OBS overlay', 'Slot request queue + OBS overlay', 'Custom commands'],
+  },
+  elite: {
+    label: 'Elite', color: '#ffd700', price: '$50/mo',
+    features: ['Everything in Pro', 'Wager leaderboard (public page)', 'Bonus Battles — viewer betting', 'Tournaments — viewer bracket', 'Discord integration', 'Priority support'],
+  },
+  agency: {
+    label: 'Agency', color: '#00e5ff', price: '$80+/mo',
+    features: ['Everything in Elite', 'Multi-channel dashboard', 'White-label overlays', 'Custom feature development'],
+  },
+};
+
+let userPlan      = 'starter';
+let isOwnerAcct   = false;
+let upgradeTarget = null; // plan user needs when hitting upgrade wall
+
+function isPageLocked(pageId) {
+  if (isOwnerAcct) return false;
+  const required = PAGE_PLAN[pageId];
+  if (!required) return false;
+  return (PLAN_RANK[required] ?? 0) > (PLAN_RANK[userPlan] ?? 0);
+}
+
+function applyTierLocks() {
+  document.querySelectorAll('.nav-item[onclick]').forEach(el => {
+    const m = (el.getAttribute('onclick') || '').match(/showPage\('([^']+)'/);
+    if (!m) return;
+    const pageId = m[1];
+    if (!isPageLocked(pageId)) { el.classList.remove('nav-locked'); return; }
+    el.classList.add('nav-locked');
+    if (!el.querySelector('.nav-lock-pill')) {
+      const required = PAGE_PLAN[pageId];
+      const pill = document.createElement('span');
+      pill.className = `nav-lock-pill ${required}-pill`;
+      pill.textContent = required.charAt(0).toUpperCase() + required.slice(1);
+      el.appendChild(pill);
+    }
+  });
+
+  // Lock inline sections (Discord lives inside Settings, not its own page)
+  const discordLock = document.getElementById('discordLockOverlay');
+  if (discordLock) {
+    const locked = !isOwnerAcct && (PLAN_RANK[userPlan] ?? 0) < PLAN_RANK['elite'];
+    discordLock.style.display = locked ? 'flex' : 'none';
+  }
+
+  // Update plan badge in sidebar
+  const info = PLAN_INFO[userPlan] || PLAN_INFO.starter;
+  const badge = document.getElementById('planBadge');
+  if (badge) {
+    badge.textContent = info.label;
+    badge.style.color = info.color;
+  }
+  const badgeRow = document.getElementById('planBadgeRow');
+  if (badgeRow && isOwnerAcct) badgeRow.style.display = 'none';
+}
+
+function renderUpgradeWall(pageId) {
+  const required = PAGE_PLAN[pageId];
+  upgradeTarget  = required || 'pro';
+  const info     = PLAN_INFO[upgradeTarget];
+  document.getElementById('upgradeIcon').textContent    = upgradeTarget === 'elite' ? '⭐' : '🚀';
+  document.getElementById('upgradeHeadline').textContent = `${info.label} feature`;
+  document.getElementById('upgradeSubtext').textContent  = `This feature is included in the ${info.label} plan (${info.price}).`;
+  document.getElementById('upgradeBtn').textContent      = `Upgrade to ${info.label} — ${info.price}`;
+  document.getElementById('upgradeStatus').textContent   = '';
+  document.getElementById('upgradePlanCard').innerHTML   = `
+    <div style="font-size:12px;font-weight:700;color:${info.color};margin-bottom:10px;">${info.label} — ${info.price}</div>
+    ${info.features.map(f => `<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-dim);padding:4px 0;"><span style="color:var(--green);">✓</span>${f}</div>`).join('')}`;
+}
+
+async function upgradeNow() {
+  if (!upgradeTarget) return;
+  const btn    = document.getElementById('upgradeBtn');
+  const status = document.getElementById('upgradeStatus');
+  btn.disabled = true;
+  btn.textContent = 'Redirecting to checkout…';
+  status.textContent = '';
+  try {
+    const idToken = await fb.currentUser.getIdToken();
+    const r = await fetch('/api/create-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ targetPlan: upgradeTarget, fromDashboard: true }),
+    });
+    const data = await r.json();
+    if (!r.ok) { status.textContent = data.error || 'Checkout failed.'; btn.disabled = false; btn.textContent = `Upgrade to ${PLAN_INFO[upgradeTarget]?.label}`; return; }
+    window.location.href = data.url;
+  } catch (e) {
+    status.textContent = 'Error: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = `Upgrade to ${PLAN_INFO[upgradeTarget]?.label}`;
+  }
+}
+
+function renderBillingPage() {
+  const info  = PLAN_INFO[userPlan] || PLAN_INFO.starter;
+  document.getElementById('billingCurrentPlan').textContent = info.label;
+  const pb = document.getElementById('billingPlanBadge');
+  pb.textContent = info.price === 'Free' ? 'Free Plan' : 'Active Subscription';
+  pb.style.cssText = 'font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;background:rgba(83,224,119,0.1);color:#53e077;border:1px solid rgba(83,224,119,0.25);';
+
+  document.getElementById('billingCurrentFeatures').innerHTML = info.features
+    .map(f => `<div>✓ ${f}</div>`).join('');
+
+  // Show manage button only if they have an active paid subscription
+  const hasSub = profile?.stripeSubscriptionActive === true;
+  document.getElementById('billingManageRow').style.display = hasSub ? '' : 'none';
+
+  // Show upgrade options for plans above current
+  const upgradable = ['pro','elite','agency'].filter(p => (PLAN_RANK[p] ?? 0) > (PLAN_RANK[userPlan] ?? 0));
+  document.getElementById('billingUpgradeSection').innerHTML = upgradable.length && !isOwnerAcct
+    ? upgradable.map(p => {
+        const pi = PLAN_INFO[p];
+        return `<div class="card" style="margin-bottom:12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:${pi.color};">${pi.label}</div>
+            <div style="font-size:14px;font-weight:700;color:var(--bright);">${pi.price}</div>
+          </div>
+          <div style="font-size:13px;color:var(--text-dim);margin-bottom:14px;">${pi.features.map(f=>`<div>✓ ${f}</div>`).join('')}</div>
+          <button onclick="upgradeTarget='${p}';upgradeNow()" class="btn btn-accent" style="width:100%;padding:10px;">Upgrade to ${pi.label}</button>
+        </div>`;
+      }).join('')
+    : (isOwnerAcct
+        ? '<div class="card" style="text-align:center;padding:24px;color:var(--text-dim);">Full access — owner account</div>'
+        : userPlan !== 'starter' ? '<div class="card" style="text-align:center;padding:24px;color:var(--text-dim);">You\'re on the highest plan 🎉</div>' : '');
+
+  // Show success banner if returning from Stripe
+  const urlPlan = new URLSearchParams(window.location.search).get('plan');
+  if (new URLSearchParams(window.location.search).get('stripe') === 'success') {
+    document.getElementById('billingStripeSuccess').style.display = '';
+    // Clean URL
+    history.replaceState({}, '', window.location.pathname);
+  }
+}
+
+async function openCustomerPortal() {
+  try {
+    const idToken = await fb.currentUser.getIdToken();
+    const r = await fetch('/api/create-portal-session', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${idToken}` },
+    });
+    const data = await r.json();
+    if (data.url) { window.location.href = data.url; }
+    else { flash(data.error || 'Could not open portal.', 'error'); }
+  } catch (e) { flash('Error: ' + e.message, 'error'); }
+}
+
 // ── AUTH ──
 let profile = null;
 let currentGiveawayType = 'everyone';
@@ -1488,6 +2031,14 @@ let activeGuesses = [];
 
 function onAuthReady(user) {
   profile = fb.streamerProfile;
+
+  // Tier / plan setup
+  const OWNER_EMAILS   = ['cscogland@gmail.com'];
+  const OWNER_CHANNELS = ['emergeonkick'];
+  isOwnerAcct = OWNER_EMAILS.includes(user.email?.toLowerCase()) ||
+                OWNER_CHANNELS.includes((profile?.kickChannel || '').toLowerCase());
+  userPlan    = isOwnerAcct ? 'agency' : (profile?.plan || 'starter');
+  applyTierLocks();
   document.getElementById('sidebarUser').textContent = user.email;
   document.getElementById('botStatusChannel').textContent = profile?.kickChannel || '—';
   document.getElementById('botDot').classList.add('online');
@@ -1505,6 +2056,11 @@ function onAuthReady(user) {
   loadProviderSettings();
   loadDiscordSettings();
   updatePlatformDisplays();
+
+  // Auto-navigate to billing page if returning from Stripe checkout
+  if (new URLSearchParams(window.location.search).get('stripe') === 'success') {
+    showPage('billing', document.querySelector('.nav-item[onclick*="billing"]'));
+  }
   updateLeaderboardLink(profile?.activeProvider || 'gambulls');
 
   // Set OBS overlay link using the streamer's kick channel
@@ -2799,34 +3355,113 @@ async function loadBonusHunt() {
   }
 }
 
-async function loadSlotRequestsForBh() {
+let bhSrUnsub = null;
+let bhSrSettingsUnsub = null;
+let bhSrEnabled = true;
+let bhSrReqs = [];
+
+function bhSrRenderPanel() {
+  const panel   = document.getElementById('bhSrPanel');
+  const list    = document.getElementById('bhSrList');
+  const count   = document.getElementById('bhSrCount');
+  const offMsg  = document.getElementById('bhSrOffMsg');
+  const liveD   = document.getElementById('bhSrLiveDot');
+  const toggleB = document.getElementById('bhSrToggleBtn');
+
+  panel.style.display = '';
+
+  if (!bhSrEnabled) {
+    list.style.display    = 'none';
+    offMsg.style.display  = '';
+    count.textContent     = '';
+    liveD.style.display   = 'none';
+    toggleB.textContent   = 'Turn On';
+    toggleB.style.color   = 'var(--accent)';
+    toggleB.style.borderColor = 'rgba(0,229,255,0.3)';
+    return;
+  }
+
+  list.style.display   = '';
+  offMsg.style.display = 'none';
+  liveD.style.display  = '';
+  toggleB.textContent  = 'Turn Off';
+  toggleB.style.color  = 'var(--text-dim)';
+  toggleB.style.borderColor = 'var(--border)';
+  count.textContent = bhSrReqs.length ? `(${bhSrReqs.length})` : '';
+
+  list.innerHTML = bhSrReqs.length ? bhSrReqs.map(r => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;">
+      <div style="flex:1;min-width:0;">
+        <span style="font-weight:600;color:var(--bright);font-size:13px;">${escHtml(r.slotName)}</span>
+        <span style="color:var(--text-dim);font-size:11px;margin-left:8px;">by @${escHtml(r.kickUsername)}</span>
+      </div>
+      <button data-sr-id="${escHtml(r.id)}" data-sr-slot="${escHtml(r.slotName)}"
+        onmousedown="srAddToHunt(this.dataset.srId, this.dataset.srSlot)"
+        style="background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);border-radius:6px;color:var(--accent);font-size:11px;font-weight:600;cursor:pointer;padding:5px 12px;white-space:nowrap;flex-shrink:0;">
+        + Add to Hunt
+      </button>
+      <button data-sr-id="${escHtml(r.id)}"
+        onmousedown="srDismissFromBh(this.dataset.srId)"
+        style="background:none;border:1px solid rgba(255,71,87,0.25);border-radius:6px;color:var(--red);font-size:11px;cursor:pointer;padding:5px 10px;white-space:nowrap;flex-shrink:0;opacity:0.7;"
+        title="Dismiss request">
+        ✕
+      </button>
+    </div>`).join('')
+  : `<div style="text-align:center;padding:10px 0;color:var(--text-dim);font-size:12px;">No pending requests</div>`;
+}
+
+function loadSlotRequestsForBh() {
+  if (!fb.currentUser || bhSrUnsub) return; // already subscribed
+  const uid = fb.currentUser.uid;
+
+  // Listen to enabled state
+  if (!bhSrSettingsUnsub) {
+    bhSrSettingsUnsub = fb.db.collection('streamers').doc(uid)
+      .collection('sr_settings').doc('config')
+      .onSnapshot(snap => {
+        bhSrEnabled = snap.exists ? snap.data().enabled !== false : true;
+        bhSrRenderPanel();
+        // Also sync with SR page toggle if it's open
+        const el = document.getElementById('srEnabled');
+        if (el) { el.checked = bhSrEnabled; srSetEnabledUI(bhSrEnabled); }
+      }, () => {});
+  }
+
+  // Listen to pending requests
+  bhSrUnsub = fb.db.collection('streamers').doc(uid)
+    .collection('slot_requests').where('status', '==', 'pending')
+    .onSnapshot(snap => {
+      bhSrReqs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
+      srRequests = bhSrReqs;
+      bhSrRenderPanel();
+    }, () => {});
+}
+
+function unsubBhSr() {
+  if (bhSrUnsub)         { bhSrUnsub(); bhSrUnsub = null; }
+  if (bhSrSettingsUnsub) { bhSrSettingsUnsub(); bhSrSettingsUnsub = null; }
+  const panel = document.getElementById('bhSrPanel');
+  if (panel) panel.style.display = 'none';
+}
+
+async function srToggleFromBh() {
   if (!fb.currentUser) return;
+  const newVal = !bhSrEnabled;
   try {
-    const snap = await fb.db.collection('streamers').doc(fb.currentUser.uid)
-      .collection('slot_requests').where('status', '==', 'pending').get();
-    const reqs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
-    // Keep srRequests in sync so the existing Add-to-Hunt modal works
-    srRequests = reqs;
-    const panel = document.getElementById('bhSrPanel');
-    const list  = document.getElementById('bhSrList');
-    const count = document.getElementById('bhSrCount');
-    if (!reqs.length) { panel.style.display = 'none'; return; }
-    panel.style.display = '';
-    count.textContent = `(${reqs.length})`;
-    list.innerHTML = reqs.map(r => `
-      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;">
-        <div style="flex:1;min-width:0;">
-          <span style="font-weight:600;color:var(--bright);font-size:13px;">${escHtml(r.slotName)}</span>
-          <span style="color:var(--text-dim);font-size:11px;margin-left:8px;">by @${escHtml(r.kickUsername)}</span>
-        </div>
-        <button data-sr-id="${escHtml(r.id)}" data-sr-slot="${escHtml(r.slotName)}"
-          onmousedown="srAddToHunt(this.dataset.srId, this.dataset.srSlot)"
-          style="background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);border-radius:6px;color:var(--accent);font-size:11px;font-weight:600;cursor:pointer;padding:5px 12px;white-space:nowrap;flex-shrink:0;">
-          + Add to Hunt
-        </button>
-      </div>`).join('');
-  } catch {}
+    await fb.db.collection('streamers').doc(fb.currentUser.uid)
+      .collection('sr_settings').doc('config')
+      .set({ enabled: newVal }, { merge: true });
+    // bhSrEnabled and UI update via the onSnapshot listener
+  } catch (e) { flash('Failed to toggle slot requests: ' + e.message, 'error'); }
+}
+
+async function srDismissFromBh(id) {
+  if (!fb.currentUser || !id) return;
+  try {
+    await fb.db.collection('streamers').doc(fb.currentUser.uid)
+      .collection('slot_requests').doc(id).update({ status: 'dismissed' });
+  } catch (e) { flash('Failed to dismiss: ' + e.message, 'error'); }
 }
 
 function bhRender() {
@@ -2834,7 +3469,7 @@ function bhRender() {
   document.getElementById('bhNoHunt').style.display  = active ? 'none' : '';
   document.getElementById('bhActive').style.display  = active ? ''     : 'none';
   document.getElementById('bhLiveBadge').style.display = active ? '' : 'none';
-  if (!active) { document.getElementById('bhSrPanel').style.display = 'none'; return; }
+  if (!active) { unsubBhSr(); return; }
   loadSlotRequestsForBh();
 
   const bonuses   = bhHunt.bonuses || [];
@@ -2920,12 +3555,36 @@ function bhRender() {
       onfocus="this.dataset.orig=this.value;this.style.borderBottomColor='var(--accent)';this.style.color='var(--bright)'"
       onblur="bhSaveNotesInline(this);this.style.borderBottomColor='transparent';this.style.color='var(--text-dim)'">`;
 
+    const safeProvider = escHtml(b.provider || '').replace(/'/g, '&#39;');
+    const safeName = escHtml(b.name).replace(/'/g, '&#39;');
+    const nameCell = `<button onclick="bhOpenEditSlotModal('${b.id}','${safeName}','${safeProvider}')"
+      title="Click to change slot"
+      style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.18);border-radius:6px;padding:5px 10px;cursor:pointer;color:var(--bright);font-size:13px;font-weight:500;font-family:'Inter',sans-serif;text-align:left;max-width:190px;transition:background 0.15s,border-color 0.15s;"
+      onmouseover="this.style.background='rgba(0,229,255,0.12)';this.style.borderColor='rgba(0,229,255,0.4)'"
+      onmouseout="this.style.background='rgba(0,229,255,0.06)';this.style.borderColor='rgba(0,229,255,0.18)'">
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(b.name)}</span>
+      <span style="font-size:10px;flex-shrink:0;opacity:0.6;">✏️</span>
+    </button>`;
+    const betCell = `<div style="display:inline-flex;align-items:center;gap:3px;">
+      <span style="color:var(--text-dim);font-size:12px;">$</span>
+      <input type="number" value="${b.betSize}" data-id="${b.id}" data-field="betSize" min="0.01" step="0.01"
+        title="Click to edit bet"
+        style="width:58px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:5px;padding:4px 6px;color:var(--bright);font-size:13px;font-weight:500;text-align:right;font-family:'Inter',sans-serif;outline:none;cursor:pointer;transition:border-color 0.15s;"
+        onfocus="this.style.borderColor='var(--accent)';this.dataset.orig=this.value;this.style.cursor='text';"
+        onblur="bhSaveFieldInline(this);this.style.borderColor='var(--border)';this.style.cursor='pointer';"
+        onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.value=this.dataset.orig||'';this.blur();}">
+    </div>`;
+    const viewerCell = b.suggestedBy
+      ? `<span style="color:var(--accent);font-size:11px;font-weight:600;">@${escHtml(b.suggestedBy)}</span>`
+      : `<span style="color:var(--border);font-size:11px;">—</span>`;
+
     const rowBg = isBest ? 'rgba(255,215,0,0.04)' : '';
     return `<tr style="border-top:1px solid var(--border);background:${rowBg};">
       <td style="padding:8px 10px;color:var(--text-dim);font-size:11px;">${i + 1}</td>
-      <td style="padding:8px 10px;color:var(--bright);font-weight:500;">${escHtml(b.name)}</td>
+      <td style="padding:6px 10px;">${nameCell}</td>
       <td style="padding:8px 10px;color:var(--text-dim);font-size:11px;">${escHtml(b.provider)}</td>
-      <td style="padding:8px 10px;text-align:right;color:var(--text-dim);font-size:12px;">$${Number(b.betSize).toLocaleString()}</td>
+      <td style="padding:6px 10px;text-align:right;">${betCell}</td>
+      <td style="padding:8px 10px;">${viewerCell}</td>
       <td style="padding:6px 10px;">${notesCell}</td>
       <td style="padding:8px 10px;text-align:right;">${resultCell}</td>
       <td style="padding:8px 6px;text-align:right;">
@@ -3001,6 +3660,10 @@ document.addEventListener('click', e => {
     const drop = document.getElementById('bhDropdown');
     if (drop) drop.style.display = 'none';
   }
+  if (!e.target.closest('#bhEditSlotInput') && !e.target.closest('#bhEditSlotDrop')) {
+    const drop = document.getElementById('bhEditSlotDrop');
+    if (drop) drop.style.display = 'none';
+  }
 });
 
 async function bhAddSlot() {
@@ -3009,7 +3672,7 @@ async function bhAddSlot() {
   const provider = document.getElementById('bhSlotProvider').value.trim() || 'Unknown';
   const betSize  = parseFloat(document.getElementById('bhBetSize').value);
 
-  if (!name)                 { flash('Select a slot from the search', 'error'); return; }
+  if (!name)                 { flash('Type a slot name or select from the list', 'error'); return; }
   if (!betSize || betSize <= 0) { flash('Enter a valid bet size', 'error'); return; }
   if (!bhHunt)               return;
 
@@ -3093,13 +3756,96 @@ async function bhSaveNotesInline(input) {
   const id    = input.dataset.id;
   const notes = input.value.trim();
   const existing = (bhHunt.bonuses || []).find(b => b.id === id);
-  if (!existing || notes === (existing.notes || '')) return; // no change
+  if (!existing || notes === (existing.notes || '')) return;
   const bonuses = (bhHunt.bonuses || []).map(b => b.id === id ? { ...b, notes } : b);
   try {
     await fb.db.collection('streamers').doc(fb.currentUser.uid)
       .collection('bonus_hunt').doc('current').update({ bonuses, updatedAt: Date.now() });
     bhHunt.bonuses = bonuses;
   } catch (e) { flash('Failed to save note: ' + e.message, 'error'); }
+}
+
+// Name / bet inline edit — auto-save on blur
+async function bhSaveFieldInline(input) {
+  const id    = input.dataset.id;
+  const field = input.dataset.field;
+  let val = field === 'betSize' ? parseFloat(input.value) : input.value.trim();
+  if (field === 'betSize' && (!val || val <= 0)) { input.value = input.dataset.orig || ''; return; }
+  if (field === 'name' && !val) { input.value = input.dataset.orig || ''; return; }
+  const existing = (bhHunt.bonuses || []).find(b => b.id === id);
+  if (!existing || val === existing[field]) return;
+  const bonuses = (bhHunt.bonuses || []).map(b => b.id === id ? { ...b, [field]: val } : b);
+  try {
+    await fb.db.collection('streamers').doc(fb.currentUser.uid)
+      .collection('bonus_hunt').doc('current').update({ bonuses, updatedAt: Date.now() });
+    bhHunt.bonuses = bonuses;
+    if (field === 'name') flash(`Slot renamed to "${val}"`);
+    if (field === 'betSize') flash(`Bet updated to $${val}`);
+  } catch (e) { flash('Failed to save: ' + e.message, 'error'); }
+}
+
+// Edit slot modal (row slot-switch)
+let bhEditSlotTarget = null;
+
+function bhOpenEditSlotModal(id, name, provider) {
+  bhEditSlotTarget = id;
+  document.getElementById('bhEditSlotCurrent').textContent = name;
+  document.getElementById('bhEditSlotInput').value = name;
+  document.getElementById('bhEditSlotName').value = name;
+  document.getElementById('bhEditSlotProvider').value = provider || '';
+  document.getElementById('bhEditSlotDrop').style.display = 'none';
+  document.getElementById('bhEditSlotModal').style.display = 'flex';
+  setTimeout(() => { const inp = document.getElementById('bhEditSlotInput'); if (inp) { inp.focus(); inp.select(); } }, 50);
+}
+
+function bhEditSlotSearch(q) {
+  const drop = document.getElementById('bhEditSlotDrop');
+  const query = (q || '').toLowerCase().trim();
+  if (query.length < 1) { drop.style.display = 'none'; return; }
+  const matches = BH_SLOTS.filter(s =>
+    s.name.toLowerCase().includes(query) || s.provider.toLowerCase().includes(query)
+  ).slice(0, 10);
+  if (!matches.length) { drop.style.display = 'none'; return; }
+  drop.innerHTML = matches.map(s => `
+    <div data-name="${escHtml(s.name)}" data-provider="${escHtml(s.provider)}"
+         onmousedown="bhEditSlotPick(this.dataset.name,this.dataset.provider)"
+         style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);"
+         onmouseover="this.style.background='rgba(0,229,255,0.06)'"
+         onmouseout="this.style.background=''">
+      <div style="font-size:13px;color:var(--bright);font-weight:500;">${escHtml(s.name)}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${escHtml(s.provider)}</div>
+    </div>`).join('');
+  drop.style.display = '';
+}
+
+function bhEditSlotPick(name, provider) {
+  document.getElementById('bhEditSlotInput').value = name;
+  document.getElementById('bhEditSlotName').value = name;
+  document.getElementById('bhEditSlotProvider').value = provider;
+  document.getElementById('bhEditSlotDrop').style.display = 'none';
+}
+
+async function bhConfirmEditSlot() {
+  const id       = bhEditSlotTarget;
+  const name     = document.getElementById('bhEditSlotName').value.trim()
+                || document.getElementById('bhEditSlotInput').value.trim();
+  const provider = document.getElementById('bhEditSlotProvider').value.trim() || 'Unknown';
+  if (!id || !name) { flash('Enter a slot name', 'error'); return; }
+  const bonuses = (bhHunt.bonuses || []).map(b => b.id === id ? { ...b, name, provider } : b);
+  try {
+    await fb.db.collection('streamers').doc(fb.currentUser.uid)
+      .collection('bonus_hunt').doc('current').update({ bonuses, updatedAt: Date.now() });
+    bhHunt.bonuses = bonuses;
+    bhCloseEditSlotModal();
+    bhRender();
+    flash(`Slot updated to "${name}"`);
+  } catch (e) { flash('Failed to update: ' + e.message, 'error'); }
+}
+
+function bhCloseEditSlotModal() {
+  document.getElementById('bhEditSlotModal').style.display = 'none';
+  document.getElementById('bhEditSlotDrop').style.display = 'none';
+  bhEditSlotTarget = null;
 }
 
 // Edit total cost
@@ -3288,12 +4034,13 @@ async function saveDiscordSettings() {
 
 let srRequests = [];
 let srPendingHunt = null; // { id, slotName } awaiting bet input
+let srUnsub = null;
 
 async function loadSlotRequests() {
   if (!fb.currentUser) return;
   const uid = fb.currentUser.uid;
 
-  // Load settings
+  // Load settings (one-shot)
   try {
     const settingsDoc = await fb.db.collection('streamers').doc(uid)
       .collection('sr_settings').doc('config').get();
@@ -3301,27 +4048,27 @@ async function loadSlotRequests() {
       const s = settingsDoc.data();
       if (s.eligibility) document.getElementById('srEligibility').value = s.eligibility;
       if (s.cooldownMins !== undefined) document.getElementById('srCooldown').value = s.cooldownMins;
+      document.getElementById('srAllowMultiple').checked = !!s.allowMultiple;
       srSetEnabledUI(s.enabled !== false);
     }
   } catch {}
 
-  // Load queue
-  try {
-    const snap = await fb.db.collection('streamers').doc(uid)
-      .collection('slot_requests')
-      .where('status', '==', 'pending')
-      .get();
-    srRequests = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
-    srRenderQueue();
-  } catch (e) {
-    flash('Failed to load slot requests: ' + e.message, 'error');
-  }
+  // Live queue listener
+  if (srUnsub) { srUnsub(); srUnsub = null; }
+  srUnsub = fb.db.collection('streamers').doc(uid)
+    .collection('slot_requests')
+    .where('status', '==', 'pending')
+    .onSnapshot(snap => {
+      srRequests = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
+      srRenderQueue();
+    }, e => {
+      flash('Slot requests error: ' + e.message, 'error');
+    });
 
   // Wire overlay links
   const chan = profile?.kickChannel || '';
   if (chan) {
-    const base = window.location.origin;
     const ol = document.getElementById('srOverlayLink');
     const pl = document.getElementById('srPreviewLink');
     if (ol) ol.href = `/overlay-slot-requests.html?channel=${encodeURIComponent(chan)}`;
@@ -3392,12 +4139,13 @@ async function srToggleEnabled() {
 
 async function srSaveSettings() {
   if (!fb.currentUser) return;
-  const eligibility  = document.getElementById('srEligibility').value;
-  const cooldownMins = parseInt(document.getElementById('srCooldown').value, 10) || 0;
-  const enabled      = document.getElementById('srEnabled').checked;
+  const eligibility   = document.getElementById('srEligibility').value;
+  const cooldownMins  = parseInt(document.getElementById('srCooldown').value, 10) || 0;
+  const enabled       = document.getElementById('srEnabled').checked;
+  const allowMultiple = document.getElementById('srAllowMultiple').checked;
   try {
     await fb.db.collection('streamers').doc(fb.currentUser.uid)
-      .collection('sr_settings').doc('config').set({ eligibility, cooldownMins, enabled });
+      .collection('sr_settings').doc('config').set({ eligibility, cooldownMins, enabled, allowMultiple });
     flash('Settings saved.');
   } catch (e) {
     flash('Failed to save settings: ' + e.message, 'error');
@@ -3416,17 +4164,69 @@ async function srDismiss(id) {
   }
 }
 
+function srHuntSlotSearch(q) {
+  const drop = document.getElementById('srHuntSlotDrop');
+  if (!q || q.length < 1) { drop.style.display = 'none'; return; }
+  const matches = BH_SLOTS.filter(s =>
+    s.name.toLowerCase().includes(q.toLowerCase()) || s.provider.toLowerCase().includes(q.toLowerCase())
+  ).slice(0, 8);
+  if (!matches.length) { drop.style.display = 'none'; return; }
+  drop.style.display = 'block';
+  drop.innerHTML = matches.map(s => `
+    <div onmousedown="srHuntSlotPick('${escHtml(s.name)}','${escHtml(s.provider)}')"
+      style="padding:10px 14px;cursor:pointer;border-bottom:1px solid rgba(48,54,61,0.5);"
+      onmouseover="this.style.background='rgba(0,229,255,0.05)'" onmouseout="this.style.background=''">
+      <div style="font-size:13px;font-weight:600;color:var(--bright);">${escHtml(s.name)}</div>
+      <div style="font-size:11px;color:var(--text-dim);">${escHtml(s.provider)}</div>
+    </div>`).join('');
+}
+
+function srHuntSlotPick(name, provider) {
+  document.getElementById('srHuntSlotInput').value   = name;
+  document.getElementById('srHuntSlotName').value    = name;
+  document.getElementById('srHuntSlotProvider').value = provider;
+  document.getElementById('srHuntSlotDrop').style.display = 'none';
+}
+
 function srAddToHunt(id, slotName) {
-  srPendingHunt = { id, slotName };
-  document.getElementById('srHuntSlotLabel').textContent = `Adding "${slotName}" to the bonus hunt.`;
+  const req = srRequests.find(r => r.id === id);
+  srPendingHunt = { id, slotName, suggestedBy: req?.kickUsername || null };
+  document.getElementById('srHuntSlotLabel').textContent = slotName;
   document.getElementById('srHuntBet').value = '';
-  const modal = document.getElementById('srHuntModal');
-  modal.style.display = 'flex';
+
+  // Find matches in BH_SLOTS
+  const exact   = BH_SLOTS.find(s => s.name.toLowerCase() === slotName.toLowerCase());
+  const matches = BH_SLOTS.filter(s => s.name.toLowerCase().includes(slotName.toLowerCase()));
+  const note    = document.getElementById('srHuntMatchNote');
+
+  if (exact) {
+    // Single exact match — pre-fill and tell streamer
+    document.getElementById('srHuntSlotInput').value    = exact.name;
+    document.getElementById('srHuntSlotName').value     = exact.name;
+    document.getElementById('srHuntSlotProvider').value = exact.provider;
+    note.textContent = `— matched: ${exact.provider}`;
+  } else if (matches.length > 0) {
+    // Partial matches — pre-fill input so dropdown appears, streamer picks
+    document.getElementById('srHuntSlotInput').value    = slotName;
+    document.getElementById('srHuntSlotName').value     = '';
+    document.getElementById('srHuntSlotProvider').value = '';
+    note.textContent = `— ${matches.length} suggestion${matches.length > 1 ? 's' : ''} below`;
+    srHuntSlotSearch(slotName);
+  } else {
+    // No match — let streamer search manually
+    document.getElementById('srHuntSlotInput').value    = slotName;
+    document.getElementById('srHuntSlotName').value     = slotName;
+    document.getElementById('srHuntSlotProvider').value = 'Unknown';
+    note.textContent = '— not in slot list, adding as-is';
+  }
+
+  document.getElementById('srHuntModal').style.display = 'flex';
   setTimeout(() => document.getElementById('srHuntBet').focus(), 50);
 }
 
 function srCloseHuntModal() {
   document.getElementById('srHuntModal').style.display = 'none';
+  document.getElementById('srHuntSlotDrop').style.display = 'none';
   srPendingHunt = null;
 }
 
@@ -3435,11 +4235,11 @@ async function srConfirmAddToHunt() {
   const bet = parseFloat(document.getElementById('srHuntBet').value);
   if (!bet || bet <= 0) { flash('Enter a valid bet size', 'error'); return; }
 
-  const { id, slotName } = srPendingHunt;
+  const { id } = srPendingHunt;
+  const slotName = document.getElementById('srHuntSlotName').value || document.getElementById('srHuntSlotInput').value;
+  const provider = document.getElementById('srHuntSlotProvider').value || 'Unknown';
 
-  // Find matching slot in BH_SLOTS for provider
-  const match = BH_SLOTS.find(s => s.name.toLowerCase() === slotName.toLowerCase());
-  const provider = match?.provider || 'Unknown';
+  if (!slotName) { flash('Select a slot first', 'error'); return; }
 
   // Check if hunt is active
   const uid = fb.currentUser.uid;
@@ -3454,13 +4254,15 @@ async function srConfirmAddToHunt() {
     const hunt = huntDoc.data();
     const bonuses = hunt.bonuses || [];
     const newBonus = {
-      id:        Date.now().toString(),
-      name:      slotName,
+      id:          Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      name:        slotName,
       provider,
-      bet,
-      result:    null,
-      notes:     '',
-      addedAt:   Date.now(),
+      betSize:     bet,
+      payout:      null,
+      multiplier:  null,
+      notes:       '',
+      suggestedBy: srPendingHunt.suggestedBy || null,
+      addedAt:     Date.now(),
     };
     bonuses.push(newBonus);
     await fb.db.collection('streamers').doc(uid)
@@ -3470,9 +4272,12 @@ async function srConfirmAddToHunt() {
     await fb.db.collection('streamers').doc(uid)
       .collection('slot_requests').doc(id).update({ status: 'added_to_hunt' });
 
+    // Update local bhHunt so the bonus list refreshes immediately without a full reload
+    bhHunt = { ...hunt, bonuses };
+    bhRender();
+
     srRequests = srRequests.filter(r => r.id !== id);
     srRenderQueue();
-    loadSlotRequestsForBh();
     srCloseHuntModal();
     flash(`"${slotName}" added to bonus hunt!`);
   } catch (e) {
@@ -3501,6 +4306,750 @@ async function srClearAll() {
 }
 
 // ── END SLOT REQUESTS ─────────────────────────────────────────────────────────
+
+// ── BONUS BATTLES ─────────────────────────────────────────────────────────────
+
+let bbBattle     = null;
+let bbUnsub      = null;
+let bbResultId   = null; // matchId being resolved
+
+function loadBonusBattle() {
+  if (!fb.currentUser) return;
+  const uid = fb.currentUser.uid;
+  if (bbUnsub) { bbUnsub(); bbUnsub = null; }
+
+  bbUnsub = fb.db.collection('streamers').doc(uid)
+    .collection('bonus_battles').doc('current')
+    .onSnapshot(snap => {
+      bbBattle = snap.exists ? snap.data() : null;
+      bbRender();
+    });
+
+  // Resolve kickChannel — profile may not be populated yet, fall back to Firestore
+  async function setbbLinks() {
+    let chan = profile?.kickChannel || '';
+    if (!chan) {
+      try {
+        const snap = await fb.db.collection('streamers').doc(uid).get();
+        chan = snap.exists ? (snap.data().kickChannel || '') : '';
+      } catch {}
+    }
+    if (chan) {
+      document.getElementById('bbViewerLink').href  = `${window.location.origin}/bonus-battle.html?channel=${encodeURIComponent(chan)}`;
+      document.getElementById('bbOverlayLink').href = `${window.location.origin}/overlay-bonus-battle.html?channel=${encodeURIComponent(chan)}`;
+    }
+  }
+  setbbLinks();
+}
+
+function bbRender() {
+  const active = bbBattle?.active;
+  document.getElementById('bbNoBattle').style.display  = active ? 'none' : '';
+  document.getElementById('bbActive').style.display    = active ? ''     : 'none';
+  document.getElementById('bbLiveBadge').style.display = active ? ''     : 'none';
+  if (!active) return;
+
+  const matches     = bbBattle.matches || [];
+  const totalPool   = matches.reduce((s, m) => s + (m.slot1Pool || 0) + (m.slot2Pool || 0), 0);
+  const totalVoters = matches.reduce((s, m) => s + (m.slot1Votes || 0) + (m.slot2Votes || 0), 0);
+
+  document.getElementById('bbTitleDisplay').textContent = bbBattle.title || 'Bonus Battle';
+  document.getElementById('bbMatchCount').textContent   = matches.length;
+  document.getElementById('bbTotalPool').textContent    = totalPool.toLocaleString() + ' pts';
+  document.getElementById('bbTotalVoters').textContent  = totalVoters;
+
+  document.getElementById('bbMatchList').innerHTML = matches.length
+    ? matches.map((m, i) => bbMatchCard(m, i)).join('')
+    : `<div class="card" style="text-align:center;padding:28px;color:var(--text-dim);font-size:13px;">No matches yet — add the first one above.</div>`;
+}
+
+function bbMatchCard(m, i) {
+  const statusColor = { upcoming:'var(--text-dim)', voting:'var(--green)', locked:'var(--orange)', complete:'var(--accent)' };
+  const statusLabel = { upcoming:'UPCOMING', voting:'🟢 VOTING OPEN', locked:'🔒 LOCKED', complete:'✅ COMPLETE' };
+
+  const totalPool = (m.slot1Pool || 0) + (m.slot2Pool || 0);
+  const s1pct = totalPool ? Math.round((m.slot1Pool || 0) / totalPool * 100) : 50;
+  const s2pct = 100 - s1pct;
+  const w1 = m.winner === 1, w2 = m.winner === 2;
+
+  const slotCardStyle = (winner, loser) =>
+    `text-align:center;padding:14px 10px;border-radius:8px;border:1px solid ${winner ? 'rgba(255,215,0,0.35)' : loser ? 'rgba(255,71,87,0.15)' : 'var(--border)'};background:${winner ? 'rgba(255,215,0,0.05)' : 'rgba(255,255,255,0.02)'};`;
+
+  const slotNameColor = (winner, loser, complete) =>
+    complete ? (winner ? 'var(--gold)' : 'var(--text-dim)') : 'var(--bright)';
+
+  const complete = m.status === 'complete';
+
+  let actionBtns = '';
+  if (m.status === 'upcoming') {
+    actionBtns = `<button onclick="bbOpenVoting('${m.id}')" style="padding:5px 14px;background:rgba(83,224,119,0.12);border:1px solid rgba(83,224,119,0.35);border-radius:6px;color:var(--green);font-size:11px;font-weight:700;cursor:pointer;">Open Voting</button>`;
+  } else if (m.status === 'voting') {
+    actionBtns = `<button onclick="bbLockVoting('${m.id}')" style="padding:5px 14px;background:rgba(255,167,38,0.12);border:1px solid rgba(255,167,38,0.35);border-radius:6px;color:var(--orange);font-size:11px;font-weight:700;cursor:pointer;">Lock Voting</button>`;
+  } else if (m.status === 'locked') {
+    actionBtns = `<button onclick="bbOpenResult('${m.id}')" style="padding:5px 14px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);border-radius:6px;color:var(--accent);font-size:11px;font-weight:700;cursor:pointer;">Enter Result</button>`;
+  }
+
+  return `
+  <div class="card" style="margin-bottom:12px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+      <span style="font-size:11px;color:var(--text-dim);font-weight:700;letter-spacing:.05em;">MATCH ${i + 1}</span>
+      <span style="font-size:10px;font-weight:700;color:${statusColor[m.status]};padding:2px 8px;border-radius:4px;background:rgba(255,255,255,0.04);">${statusLabel[m.status]}</span>
+      <div style="flex:1;"></div>
+      ${actionBtns}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 64px 1fr;gap:10px;align-items:center;">
+      <div style="${slotCardStyle(w1, w2)}">
+        ${w1 ? '<div style="font-size:10px;color:var(--gold);font-weight:800;margin-bottom:4px;">🥇 WINNER</div>' : ''}
+        <div style="font-size:14px;font-weight:700;color:${slotNameColor(w1, w2, complete)};">${escHtml(m.slot1.name)}</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">${escHtml(m.slot1.provider)}</div>
+        <div style="font-size:18px;font-weight:800;color:var(--gold);">${(m.slot1Pool||0).toLocaleString()}</div>
+        <div style="font-size:11px;color:var(--text-dim);">${m.slot1Votes||0} voter${m.slot1Votes!==1?'s':''}</div>
+        ${m.slot1Multiplier != null ? `<div style="margin-top:6px;font-size:15px;font-weight:800;color:var(--accent);">${m.slot1Multiplier.toFixed(2)}x</div>` : ''}
+      </div>
+
+      <div style="text-align:center;">
+        <div style="font-size:14px;font-weight:900;color:var(--text-dim);">VS</div>
+        ${totalPool > 0 ? `
+        <div style="margin-top:10px;">
+          <div style="height:6px;background:var(--bg-card);border-radius:3px;overflow:hidden;margin-bottom:4px;">
+            <div style="height:100%;background:linear-gradient(90deg,var(--accent) ${s1pct}%,var(--orange) ${s1pct}%);"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;">
+            <span style="font-size:10px;color:var(--accent);font-weight:600;">${s1pct}%</span>
+            <span style="font-size:10px;color:var(--orange);font-weight:600;">${s2pct}%</span>
+          </div>
+        </div>` : ''}
+      </div>
+
+      <div style="${slotCardStyle(w2, w1)}">
+        ${w2 ? '<div style="font-size:10px;color:var(--gold);font-weight:800;margin-bottom:4px;">🥇 WINNER</div>' : ''}
+        <div style="font-size:14px;font-weight:700;color:${slotNameColor(w2, w1, complete)};">${escHtml(m.slot2.name)}</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">${escHtml(m.slot2.provider)}</div>
+        <div style="font-size:18px;font-weight:800;color:var(--gold);">${(m.slot2Pool||0).toLocaleString()}</div>
+        <div style="font-size:11px;color:var(--text-dim);">${m.slot2Votes||0} voter${m.slot2Votes!==1?'s':''}</div>
+        ${m.slot2Multiplier != null ? `<div style="margin-top:6px;font-size:15px;font-weight:800;color:var(--accent);">${m.slot2Multiplier.toFixed(2)}x</div>` : ''}
+      </div>
+    </div>
+
+    ${complete && m.payout != null ? `
+    <div style="margin-top:12px;padding:8px 12px;background:rgba(0,229,255,0.04);border-radius:6px;font-size:12px;color:var(--text-dim);text-align:center;">
+      Paid out <strong style="color:var(--gold);">${m.payout.toLocaleString()} pts</strong> to <strong style="color:var(--bright);">${m.winnersCount||0}</strong> winner${m.winnersCount!==1?'s':''} from a pool of ${totalPool.toLocaleString()} pts
+      ${m.winner === 0 ? '— <em>Tie: all bets returned</em>' : ''}
+    </div>` : ''}
+  </div>`;
+}
+
+async function bbStart() {
+  if (!fb.currentUser) return;
+  const title  = document.getElementById('bbTitle').value.trim();
+  const minBet = parseInt(document.getElementById('bbMinBet').value) || 100;
+  const maxBet = parseInt(document.getElementById('bbMaxBet').value) || 10000;
+  try {
+    await fb.db.collection('streamers').doc(fb.currentUser.uid)
+      .collection('bonus_battles').doc('current').set({
+        active: true, title: title || 'Bonus Battle',
+        minBet, maxBet, matches: [], createdAt: Date.now(), updatedAt: Date.now(),
+      });
+    flash('Bonus battle started!');
+  } catch (e) { flash('Failed to start: ' + e.message, 'error'); }
+}
+
+async function bbEndBattle() {
+  if (!confirm('End this bonus battle? Viewers will no longer be able to vote.')) return;
+  try {
+    await fb.db.collection('streamers').doc(fb.currentUser.uid)
+      .collection('bonus_battles').doc('current').update({ active: false, updatedAt: Date.now() });
+    flash('Battle ended.');
+  } catch (e) { flash('Failed: ' + e.message, 'error'); }
+}
+
+function bbSearchSlots(side, query) {
+  const drop = document.getElementById(`bbSlot${side}Drop`);
+  const q = (query || '').toLowerCase().trim();
+  if (q.length < 1) { drop.style.display = 'none'; return; }
+  const matches = BH_SLOTS.filter(s =>
+    s.name.toLowerCase().includes(q) || s.provider.toLowerCase().includes(q)
+  ).slice(0, 10);
+  if (!matches.length) { drop.style.display = 'none'; return; }
+  drop.innerHTML = matches.map(s => `
+    <div data-name="${escHtml(s.name)}" data-provider="${escHtml(s.provider)}"
+         onmousedown="bbSelectSlot(${side},this.dataset.name,this.dataset.provider)"
+         style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);"
+         onmouseover="this.style.background='rgba(0,229,255,0.06)'"
+         onmouseout="this.style.background=''">
+      <div style="font-size:13px;color:var(--bright);font-weight:500;">${escHtml(s.name)}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${escHtml(s.provider)}</div>
+    </div>`).join('');
+  drop.style.display = '';
+}
+
+function bbSelectSlot(side, name, provider) {
+  document.getElementById(`bbSlot${side}Search`).value   = name;
+  document.getElementById(`bbSlot${side}Name`).value     = name;
+  document.getElementById(`bbSlot${side}Provider`).value = provider;
+  document.getElementById(`bbSlot${side}Drop`).style.display = 'none';
+}
+
+async function bbAddMatch() {
+  const s1n = document.getElementById('bbSlot1Name').value.trim() || document.getElementById('bbSlot1Search').value.trim();
+  const s1p = document.getElementById('bbSlot1Provider').value.trim() || 'Unknown';
+  const s2n = document.getElementById('bbSlot2Name').value.trim() || document.getElementById('bbSlot2Search').value.trim();
+  const s2p = document.getElementById('bbSlot2Provider').value.trim() || 'Unknown';
+  if (!s1n || !s2n) { flash('Select both slots', 'error'); return; }
+  if (s1n.toLowerCase() === s2n.toLowerCase()) { flash('Choose two different slots', 'error'); return; }
+
+  const match = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    slot1: { name: s1n, provider: s1p }, slot2: { name: s2n, provider: s2p },
+    status: 'upcoming', slot1Pool: 0, slot2Pool: 0, slot1Votes: 0, slot2Votes: 0,
+    slot1Multiplier: null, slot2Multiplier: null, winner: null, createdAt: Date.now(),
+  };
+  const matches = [...(bbBattle.matches || []), match];
+  try {
+    await fb.db.collection('streamers').doc(fb.currentUser.uid)
+      .collection('bonus_battles').doc('current').update({ matches, updatedAt: Date.now() });
+    ['bbSlot1Search','bbSlot2Search'].forEach(id => document.getElementById(id).value = '');
+    ['bbSlot1Name','bbSlot1Provider','bbSlot2Name','bbSlot2Provider'].forEach(id => document.getElementById(id).value = '');
+    flash('Match added!');
+  } catch (e) { flash('Failed: ' + e.message, 'error'); }
+}
+
+async function bbSetMatchStatus(matchId, status) {
+  if (!bbBattle) return;
+  const matches = (bbBattle.matches || []).map(m => m.id === matchId ? { ...m, status } : m);
+  try {
+    await fb.db.collection('streamers').doc(fb.currentUser.uid)
+      .collection('bonus_battles').doc('current').update({ matches, updatedAt: Date.now() });
+  } catch (e) { flash('Failed: ' + e.message, 'error'); }
+}
+
+function bbOpenVoting(id)  { bbSetMatchStatus(id, 'voting'); }
+function bbLockVoting(id)  { bbSetMatchStatus(id, 'locked'); }
+
+function bbOpenResult(matchId) {
+  const m = (bbBattle?.matches || []).find(m => m.id === matchId);
+  if (!m) return;
+  bbResultId = matchId;
+  document.getElementById('bbResultLabel1').textContent = m.slot1.name;
+  document.getElementById('bbResultLabel2').textContent = m.slot2.name;
+  document.getElementById('bbResult1').value = '';
+  document.getElementById('bbResult2').value = '';
+  document.getElementById('bbResultNote').textContent = '';
+  document.getElementById('bbResultModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('bbResult1').focus(), 50);
+}
+
+function bbCloseResult() {
+  document.getElementById('bbResultModal').style.display = 'none';
+  bbResultId = null;
+}
+
+// Live preview of winner while typing
+function bbResultNote() {
+  const m1 = parseFloat(document.getElementById('bbResult1').value);
+  const m2 = parseFloat(document.getElementById('bbResult2').value);
+  const note = document.getElementById('bbResultNote');
+  if (isNaN(m1) || isNaN(m2)) { note.textContent = ''; return; }
+  const m = (bbBattle?.matches || []).find(m => m.id === bbResultId);
+  if (!m) return;
+  if (m1 === m2) note.textContent = '⚖️ Tie — all bets will be returned';
+  else note.textContent = `🏆 ${m1 > m2 ? m.slot1.name : m.slot2.name} wins`;
+}
+
+async function bbSubmitResult() {
+  const uid = fb.currentUser?.uid;
+  const m1v = parseFloat(document.getElementById('bbResult1').value);
+  const m2v = parseFloat(document.getElementById('bbResult2').value);
+  if (!bbResultId || isNaN(m1v) || isNaN(m2v) || m1v < 0 || m2v < 0) {
+    flash('Enter valid multipliers for both slots', 'error'); return;
+  }
+  const m = (bbBattle?.matches || []).find(m => m.id === bbResultId);
+  if (!m) return;
+
+  const winner     = m1v > m2v ? 1 : m2v > m1v ? 2 : 0;
+  const winnerPool = winner === 1 ? (m.slot1Pool || 0) : winner === 2 ? (m.slot2Pool || 0) : 0;
+  const loserPool  = winner === 1 ? (m.slot2Pool || 0) : winner === 2 ? (m.slot1Pool || 0) : 0;
+
+  try {
+    const votesSnap = await fb.db.collection('streamers').doc(uid)
+      .collection('bb_votes').where('matchId', '==', bbResultId).where('paid', '==', false).get();
+
+    const batch = fb.db.batch();
+    let winnersCount = 0, totalPayout = 0;
+
+    votesSnap.docs.forEach(doc => {
+      const vote = doc.data();
+      let payout = 0;
+      if (winner === 0) {
+        payout = vote.points; // tie: return stake
+      } else if (vote.choice === winner && winnerPool > 0) {
+        payout = vote.points + Math.floor((vote.points / winnerPool) * loserPool);
+        winnersCount++;
+        totalPayout += payout;
+      }
+      if (payout > 0) {
+        batch.update(
+          fb.db.collection('streamers').doc(uid).collection('viewers').doc(vote.kickUsernameKey),
+          { points: firebase.firestore.FieldValue.increment(payout) }
+        );
+      }
+      batch.update(doc.ref, { paid: true, payout });
+    });
+
+    const matches = (bbBattle.matches || []).map(b => b.id === bbResultId ? {
+      ...b, status: 'complete',
+      slot1Multiplier: m1v, slot2Multiplier: m2v,
+      winner, payout: totalPayout, winnersCount, completedAt: Date.now(),
+    } : b);
+
+    batch.update(
+      fb.db.collection('streamers').doc(uid).collection('bonus_battles').doc('current'),
+      { matches, updatedAt: Date.now() }
+    );
+
+    await batch.commit();
+    bbCloseResult();
+
+    const winnerName = winner === 0 ? null : m[`slot${winner}`].name;
+    flash(winner === 0
+      ? `Tie! ${votesSnap.size} bets returned.`
+      : `${winnerName} wins! ${winnersCount} viewer${winnersCount!==1?'s':''} paid out.`);
+  } catch (e) { flash('Failed to submit result: ' + e.message, 'error'); }
+}
+
+// Close slot search dropdowns when clicking outside
+document.addEventListener('click', e => {
+  [1, 2].forEach(side => {
+    if (!e.target.closest(`#bbSlot${side}Search`) && !e.target.closest(`#bbSlot${side}Drop`)) {
+      const d = document.getElementById(`bbSlot${side}Drop`);
+      if (d) d.style.display = 'none';
+    }
+  });
+});
+
+// ── END BONUS BATTLES ─────────────────────────────────────────────────────────
+
+// ── TOURNAMENTS ───────────────────────────────────────────────────────────────
+
+let tnTournament = null;
+let tnUnsub      = null;
+
+const TN_PRESETS = {
+  winner: [{ place: 1, pct: 100 }],
+  top2:   [{ place: 1, pct: 65 }, { place: 2, pct: 35 }],
+  top3:   [{ place: 1, pct: 50 }, { place: 2, pct: 30 }, { place: 3, pct: 20 }],
+  top4:   [{ place: 1, pct: 40 }, { place: 2, pct: 25 }, { place: 3, pct: 20 }, { place: 4, pct: 15 }],
+};
+
+function loadTournament() {
+  if (!fb.currentUser) return;
+  const uid = fb.currentUser.uid;
+  if (tnUnsub) { tnUnsub(); tnUnsub = null; }
+
+  tnUnsub = fb.db.collection('streamers').doc(uid)
+    .collection('tournaments').doc('current')
+    .onSnapshot(snap => {
+      tnTournament = snap.exists ? snap.data() : null;
+      tnRender();
+    });
+
+  async function setTnLinks() {
+    let chan = profile?.kickChannel || '';
+    if (!chan) {
+      try {
+        const snap = await fb.db.collection('streamers').doc(uid).get();
+        chan = snap.exists ? (snap.data().kickChannel || '') : '';
+      } catch {}
+    }
+    if (chan) {
+      const enc = encodeURIComponent(chan);
+      const base = window.location.origin;
+      ['tnViewerRegLink','tnViewerActiveLink'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.href = `${base}/tournament.html?channel=${enc}`;
+      });
+      const ovEl = document.getElementById('tnOverlayLink');
+      if (ovEl) ovEl.href = `${base}/overlay-tournament.html?channel=${enc}`;
+    }
+  }
+  setTnLinks();
+}
+
+function tnRender() {
+  const t = tnTournament;
+  const badge = document.getElementById('tnLiveBadge');
+
+  document.getElementById('tnNoTournament').style.display  = 'none';
+  document.getElementById('tnRegistration').style.display  = 'none';
+  document.getElementById('tnActive').style.display        = 'none';
+  document.getElementById('tnComplete').style.display      = 'none';
+
+  if (!t || !t.active) {
+    document.getElementById('tnNoTournament').style.display = '';
+    badge.style.display = 'none';
+    return;
+  }
+
+  badge.style.display = '';
+
+  if (t.status === 'registration') {
+    document.getElementById('tnRegistration').style.display = '';
+    tnRenderRegistration(t);
+  } else if (t.status === 'active') {
+    document.getElementById('tnActive').style.display = '';
+    tnRenderBracket(t);
+  } else if (t.status === 'complete') {
+    document.getElementById('tnComplete').style.display = '';
+    tnRenderComplete(t);
+    badge.style.display = 'none';
+  }
+}
+
+function tnRenderRegistration(t) {
+  const participants = t.participants || [];
+  const slots = t.bracketSize - participants.length;
+  document.getElementById('tnTitleDisplay').textContent    = t.title || 'Tournament';
+  document.getElementById('tnEnteredCount').textContent    = participants.length;
+  document.getElementById('tnSlotsLeft').textContent       = Math.max(0, slots);
+  document.getElementById('tnPrizePool').textContent       = (t.prizePool || 0).toLocaleString() + ' pts';
+  document.getElementById('tnStartBtn').disabled           = participants.length < 2;
+  document.getElementById('tnStartBtn').style.opacity      = participants.length < 2 ? '0.4' : '1';
+
+  const list  = document.getElementById('tnParticipantList');
+  const empty = document.getElementById('tnParticipantEmpty');
+  if (!participants.length) {
+    list.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  list.innerHTML = participants.map((p, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;">
+      <span style="font-size:13px;color:var(--text-dim);min-width:22px;">#${i+1}</span>
+      <span style="flex:1;font-size:13px;font-weight:600;color:var(--bright);">${escHtml(p.kickUsername)}</span>
+      <button onclick="tnRemoveParticipant('${escHtml(p.kickUsernameKey)}')"
+        style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:2px 6px;opacity:0.6;" title="Remove">✕</button>
+    </div>`).join('');
+}
+
+function tnRenderBracket(t) {
+  document.getElementById('tnActiveTitleDisplay').textContent = t.title || 'Tournament';
+  document.getElementById('tnCurrentRound').textContent      = t.currentRound || 1;
+  document.getElementById('tnActivePrizePool').textContent   = (t.prizePool || 0).toLocaleString() + ' pts';
+  const alive = (t.participants || []).filter(p => !p.eliminated).length;
+  document.getElementById('tnRemaining').textContent         = alive;
+
+  const rounds = t.rounds || [];
+  const container = document.getElementById('tnBracketView');
+  container.innerHTML = rounds.map(r => tnRoundCard(r, t.currentRound)).join('');
+}
+
+function tnRoundCard(r, currentRound) {
+  const isCurrent = r.round === currentRound;
+  const matches = r.matches.map(m => {
+    const p1name = m.p1 ? escHtml(m.p1.kickUsername) : '<span style="opacity:0.35;">BYE</span>';
+    const p2name = m.p2 ? escHtml(m.p2.kickUsername) : '<span style="opacity:0.35;">BYE</span>';
+    const done   = m.status === 'complete';
+    const w1     = done && m.winner === 'p1';
+    const w2     = done && m.winner === 'p2';
+
+    const advBtn = (side) => isCurrent && !done && m.p1 && m.p2
+      ? `<button onclick="tnAdvance('${escHtml(r.round)}','${escHtml(m.id)}','${side}')"
+           style="padding:3px 10px;font-size:11px;font-weight:700;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);border-radius:6px;color:var(--accent);cursor:pointer;">Advance ▶</button>`
+      : '';
+
+    return `<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid ${isCurrent && !done ? 'rgba(0,229,255,0.2)' : 'var(--border)'};border-radius:10px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        ${w1 ? '<span style="font-size:14px;">🥇</span>' : ''}
+        <span style="font-size:13px;font-weight:${w1?'800':'500'};color:${w1?'var(--gold)':'var(--bright)'};text-decoration:${w2?'line-through':''};opacity:${w2?'0.4':'1'};">${p1name}</span>
+        ${advBtn('p1')}
+      </div>
+      <div style="font-size:12px;font-weight:800;color:var(--text-dim);">VS</div>
+      <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-direction:row-reverse;">
+        ${w2 ? '<span style="font-size:14px;">🥇</span>' : ''}
+        <span style="font-size:13px;font-weight:${w2?'800':'500'};color:${w2?'var(--gold)':'var(--bright)'};text-decoration:${w1?'line-through':''};opacity:${w1?'0.4':'1'};">${p2name}</span>
+        ${advBtn('p2')}
+      </div>
+    </div>`;
+  }).join('');
+
+  const totalMatches = r.matches.length;
+  const doneMatches  = r.matches.filter(m => m.status === 'complete').length;
+
+  return `<div class="card" style="margin-bottom:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="font-weight:800;font-size:14px;color:${isCurrent?'var(--accent)':'var(--text-dim)'};">
+        ${isCurrent ? '▶ ' : ''}Round ${r.round}${r.label ? ' — ' + escHtml(r.label) : ''}
+      </div>
+      <div style="font-size:11px;color:var(--text-dim);">${doneMatches}/${totalMatches} complete</div>
+    </div>
+    ${matches}
+  </div>`;
+}
+
+function tnRenderComplete(t) {
+  document.getElementById('tnCompleteTitleDisplay').textContent = t.title || 'Tournament';
+  const payouts = t.payouts || [];
+  const dist    = t.prizeDistribution || [];
+  const html = payouts.map((p, i) => {
+    const medals = ['🥇','🥈','🥉'];
+    const pct    = dist[i]?.pct || 0;
+    const prize  = Math.floor((t.prizePool || 0) * pct / 100);
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;">
+      <span style="font-size:20px;">${medals[i] || '🏅'}</span>
+      <span style="flex:1;font-size:14px;font-weight:700;color:var(--bright);">${escHtml(p.kickUsername)}</span>
+      <span style="font-size:13px;font-weight:800;color:var(--gold);">+${prize.toLocaleString()} pts</span>
+      <span style="font-size:11px;color:var(--text-dim);">${pct}%</span>
+    </div>`;
+  }).join('');
+  document.getElementById('tnFinalStandings').innerHTML = html || '<p style="color:var(--text-dim);text-align:center;">No standings recorded.</p>';
+}
+
+// ── Prize preset UI ──
+
+function tnPresetChange() {
+  const preset = document.getElementById('tnPrizePreset').value;
+  const customDiv = document.getElementById('tnCustomPrize');
+  if (preset === 'custom') {
+    customDiv.style.display = '';
+    if (!document.getElementById('tnCustomRows').children.length) {
+      tnAddCustomRow(); tnAddCustomRow(); tnAddCustomRow();
+    }
+  } else {
+    customDiv.style.display = 'none';
+  }
+}
+
+function tnAddCustomRow() {
+  const rows = document.getElementById('tnCustomRows');
+  const idx  = rows.children.length + 1;
+  const row  = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;';
+  row.innerHTML = `<span style="font-size:12px;color:var(--text-dim);min-width:50px;">Place ${idx}</span>
+    <input type="number" class="form-input tn-custom-pct" placeholder="%" min="0" max="100" style="width:80px;padding:6px 8px;font-size:12px;">
+    <span style="font-size:12px;color:var(--text-dim);">%</span>
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 4px;">✕</button>`;
+  rows.appendChild(row);
+}
+
+function tnGetPrizeDistribution() {
+  const preset = document.getElementById('tnPrizePreset').value;
+  if (preset !== 'custom') return TN_PRESETS[preset] || TN_PRESETS.top3;
+  const inputs = [...document.querySelectorAll('.tn-custom-pct')];
+  const dist = inputs.map((el, i) => ({ place: i + 1, pct: parseInt(el.value) || 0 })).filter(d => d.pct > 0);
+  const sum  = dist.reduce((a, d) => a + d.pct, 0);
+  if (sum !== 100) { flash(`Prize percentages must sum to 100 (currently ${sum})`, 'error'); return null; }
+  return dist;
+}
+
+// ── Streamer actions ──
+
+async function tnCreate() {
+  const title       = document.getElementById('tnTitle').value.trim();
+  const bracketSize = parseInt(document.getElementById('tnBracketSize').value);
+  const entryCost   = parseInt(document.getElementById('tnEntryCost').value) || 0;
+  const dist        = tnGetPrizeDistribution();
+  if (!title)  { flash('Enter a tournament title', 'error'); return; }
+  if (!dist)   return;
+
+  try {
+    const uid = fb.currentUser.uid;
+    await fb.db.collection('streamers').doc(uid).collection('tournaments').doc('current').set({
+      title, bracketSize, entryCost,
+      prizeDistribution: dist,
+      participants: [],
+      rounds: [],
+      prizePool: 0,
+      currentRound: 0,
+      payouts: [],
+      status: 'registration',
+      active: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    flash('Tournament created — registration is open!');
+  } catch (e) { flash('Error: ' + e.message, 'error'); }
+}
+
+async function tnRemoveParticipant(kickUsernameKey) {
+  if (!tnTournament) return;
+  try {
+    const uid     = fb.currentUser.uid;
+    const t       = tnTournament;
+    const updated = (t.participants || []).filter(p => p.kickUsernameKey !== kickUsernameKey);
+    const refunded = t.entryCost || 0;
+    const batch   = fb.db.batch();
+    const tRef    = fb.db.collection('streamers').doc(uid).collection('tournaments').doc('current');
+    batch.update(tRef, {
+      participants: updated,
+      prizePool: Math.max(0, (t.prizePool || 0) - refunded),
+      updatedAt: Date.now(),
+    });
+    if (refunded > 0) {
+      const vRef = fb.db.collection('streamers').doc(uid).collection('viewers').doc(kickUsernameKey);
+      batch.update(vRef, { points: firebase.firestore.FieldValue.increment(refunded) });
+    }
+    await batch.commit();
+    flash('Participant removed and refunded.');
+  } catch (e) { flash('Error: ' + e.message, 'error'); }
+}
+
+async function tnStartBracket() {
+  if (!tnTournament) return;
+  const t = tnTournament;
+  let participants = [...(t.participants || [])];
+  if (participants.length < 2) { flash('Need at least 2 participants', 'error'); return; }
+
+  // Shuffle
+  for (let i = participants.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [participants[i], participants[j]] = [participants[j], participants[i]];
+  }
+  // Pad to bracket size with byes
+  while (participants.length < t.bracketSize) participants.push(null);
+
+  // Build round 1
+  const matches = [];
+  for (let i = 0; i < participants.length; i += 2) {
+    const p1 = participants[i];
+    const p2 = participants[i + 1];
+    const bye = !p2;
+    matches.push({
+      id: `r1m${Math.floor(i/2)+1}`,
+      p1, p2,
+      winner: bye ? 'p1' : null,
+      status: bye ? 'complete' : 'pending',
+    });
+  }
+
+  try {
+    const uid = fb.currentUser.uid;
+    await fb.db.collection('streamers').doc(uid).collection('tournaments').doc('current').update({
+      rounds: [{ round: 1, label: tnRoundLabel(1, t.bracketSize), matches }],
+      currentRound: 1,
+      status: 'active',
+      updatedAt: Date.now(),
+    });
+    flash('Bracket started! Good luck!');
+  } catch (e) { flash('Error: ' + e.message, 'error'); }
+}
+
+function tnRoundLabel(round, bracketSize) {
+  const totalRounds = Math.log2(bracketSize);
+  if (round === totalRounds)     return 'Final';
+  if (round === totalRounds - 1) return 'Semi-Finals';
+  if (round === totalRounds - 2) return 'Quarter-Finals';
+  return '';
+}
+
+async function tnAdvance(roundNum, matchId, winnerSide) {
+  if (!tnTournament) return;
+  const t      = tnTournament;
+  const rounds = JSON.parse(JSON.stringify(t.rounds)); // deep clone
+  const round  = rounds.find(r => r.round === parseInt(roundNum));
+  if (!round) return;
+  const match  = round.matches.find(m => m.id === matchId);
+  if (!match || match.status === 'complete') return;
+
+  const winner = winnerSide === 'p1' ? match.p1 : match.p2;
+  const loser  = winnerSide === 'p1' ? match.p2 : match.p1;
+  match.winner = winnerSide;
+  match.status = 'complete';
+
+  // Mark loser eliminated
+  const participants = JSON.parse(JSON.stringify(t.participants || []));
+  if (loser) {
+    const lp = participants.find(p => p.kickUsernameKey === loser.kickUsernameKey);
+    if (lp) { lp.eliminated = true; lp.eliminatedRound = parseInt(roundNum); }
+  }
+
+  const uid   = fb.currentUser.uid;
+  const tRef  = fb.db.collection('streamers').doc(uid).collection('tournaments').doc('current');
+  const allDone = round.matches.every(m => m.status === 'complete');
+
+  if (allDone) {
+    // Advance winners to next round or end tournament
+    const winners = round.matches.map(m => m.winner === 'p1' ? m.p1 : m.p2).filter(Boolean);
+
+    if (winners.length === 1) {
+      // Tournament over
+      const dist    = t.prizeDistribution || [];
+      const pool    = t.prizePool || 0;
+      const payouts = [];
+      // Build final standings: winner first, then eliminated players sorted by round (latest out = 2nd, etc.)
+      const eliminated = participants.filter(p => p.eliminated)
+        .sort((a, b) => (b.eliminatedRound || 0) - (a.eliminatedRound || 0));
+      const standings = [{ kickUsername: winner.kickUsername, kickUsernameKey: winner.kickUsernameKey }, ...eliminated];
+
+      const batch = fb.db.batch();
+      dist.forEach((d, i) => {
+        const p = standings[i];
+        if (!p) return;
+        const prize = Math.floor(pool * d.pct / 100);
+        payouts.push({ ...p, pct: d.pct, prize });
+        if (prize > 0) {
+          const vRef = fb.db.collection('streamers').doc(uid).collection('viewers').doc(p.kickUsernameKey);
+          batch.update(vRef, { points: firebase.firestore.FieldValue.increment(prize) });
+        }
+      });
+
+      batch.update(tRef, { rounds, participants, payouts, status: 'complete', active: false, updatedAt: Date.now() });
+      await batch.commit();
+      flash('Tournament complete! Prizes distributed.');
+    } else {
+      // Build next round
+      const nextNum = parseInt(roundNum) + 1;
+      const nextMatches = [];
+      for (let i = 0; i < winners.length; i += 2) {
+        const p1 = winners[i];
+        const p2 = winners[i + 1] || null;
+        const bye = !p2;
+        nextMatches.push({
+          id: `r${nextNum}m${Math.floor(i/2)+1}`,
+          p1, p2,
+          winner: bye ? 'p1' : null,
+          status: bye ? 'complete' : 'pending',
+        });
+      }
+      rounds.push({ round: nextNum, label: tnRoundLabel(nextNum, t.bracketSize), matches: nextMatches });
+      await tRef.update({ rounds, participants, currentRound: nextNum, updatedAt: Date.now() });
+      flash(`Round ${roundNum} complete — Round ${nextNum} started!`);
+    }
+  } else {
+    await tRef.update({ rounds, participants, updatedAt: Date.now() });
+  }
+}
+
+async function tnCancel() {
+  if (!confirm('Cancel tournament? Entry points will be refunded to all participants.')) return;
+  try {
+    const uid  = fb.currentUser.uid;
+    const t    = tnTournament;
+    const cost = t?.entryCost || 0;
+    const batch = fb.db.batch();
+    const tRef  = fb.db.collection('streamers').doc(uid).collection('tournaments').doc('current');
+    batch.update(tRef, { active: false, status: 'cancelled', updatedAt: Date.now() });
+    if (cost > 0) {
+      (t?.participants || []).filter(p => p && !p.eliminated).forEach(p => {
+        const vRef = fb.db.collection('streamers').doc(uid).collection('viewers').doc(p.kickUsernameKey);
+        batch.update(vRef, { points: firebase.firestore.FieldValue.increment(cost) });
+      });
+    }
+    await batch.commit();
+    flash('Tournament cancelled. Points refunded.');
+  } catch (e) { flash('Error: ' + e.message, 'error'); }
+}
+
+function tnResetUI() {
+  document.getElementById('tnTitle').value      = '';
+  document.getElementById('tnEntryCost').value  = '500';
+  document.getElementById('tnBracketSize').value = '8';
+  document.getElementById('tnPrizePreset').value = 'top3';
+  document.getElementById('tnCustomPrize').style.display = 'none';
+}
+
+// ── END TOURNAMENTS ────────────────────────────────────────────────────────────
 </script>
 
 <!-- Finalize Month Modal -->

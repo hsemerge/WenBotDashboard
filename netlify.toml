@@ -89,6 +89,31 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/bb-state"
+  to     = "/.netlify/functions/bb-state"
+  status = 200
+
+[[redirects]]
+  from   = "/api/bb-vote"
+  to     = "/.netlify/functions/bb-vote"
+  status = 200
+
+[[redirects]]
+  from   = "/api/tournament-state"
+  to     = "/.netlify/functions/tournament-state"
+  status = 200
+
+[[redirects]]
+  from   = "/api/tournament-enter"
+  to     = "/.netlify/functions/tournament-enter"
+  status = 200
+
+[[redirects]]
+  from   = "/api/create-portal-session"
+  to     = "/.netlify/functions/create-portal-session"
+  status = 200
+
+[[redirects]]
   from   = "/api/create-checkout-session"
   to     = "/.netlify/functions/create-checkout-session"
   status = 200

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bonus Battle Overlay</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: transparent; font-family: 'Exo 2', sans-serif; width: 680px; }
+
+    .overlay { padding: 0; }
+
+    .match-card {
+      background: rgba(13,17,23,0.92);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      overflow: hidden;
+      backdrop-filter: blur(12px);
+      animation: fadeIn 0.4s ease;
+    }
+    @keyframes fadeIn { from { opacity:0; transform: translateY(-8px); } to { opacity:1; transform: translateY(0); } }
+
+    .match-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .battle-title { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.45); letter-spacing: .08em; text-transform: uppercase; }
+    .status-pill {
+      font-size: 10px; font-weight: 800; padding: 3px 10px; border-radius: 20px;
+      letter-spacing: .05em;
+    }
+    .pill-voting  { background: rgba(83,224,119,0.15); color: #53e077; border: 1px solid rgba(83,224,119,0.3); }
+    .pill-locked  { background: rgba(255,167,38,0.15); color: #ffa726; border: 1px solid rgba(255,167,38,0.3); }
+    .pill-complete{ background: rgba(0,229,255,0.1);   color: #00e5ff; border: 1px solid rgba(0,229,255,0.25); }
+
+    .vs-row { display: grid; grid-template-columns: 1fr 60px 1fr; align-items: center; padding: 14px 10px; gap: 0; }
+
+    .slot-side { text-align: center; padding: 10px 12px; }
+    .slot-name { font-size: 16px; font-weight: 900; color: #fff; line-height: 1.2; margin-bottom: 2px; }
+    .slot-prov { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.4); margin-bottom: 8px; letter-spacing: .03em; }
+    .slot-pool { font-size: 22px; font-weight: 900; color: #ffd700; line-height: 1; }
+    .pool-sub  { font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 2px; font-family: 'Inter', sans-serif; }
+    .slot-multi { font-size: 18px; font-weight: 900; color: #00e5ff; margin-top: 6px; }
+    .winner-tag { font-size: 11px; color: #ffd700; font-weight: 800; margin-bottom: 4px; }
+
+    .vs-center { text-align: center; }
+    .vs-label { font-size: 18px; font-weight: 900; color: rgba(255,255,255,0.3); }
+    .pct-row   { display: flex; justify-content: space-between; margin-top: 6px; }
+    .pct-s1    { font-size: 11px; font-weight: 800; color: #00e5ff; }
+    .pct-s2    { font-size: 11px; font-weight: 800; color: #ffa726; }
+
+    .bar-wrap { height: 5px; background: rgba(255,255,255,0.07); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+    .bar-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+
+    .bottom-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 16px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      background: rgba(0,0,0,0.2);
+    }
+    .voters-label { font-family: 'Inter', sans-serif; font-size: 11px; color: rgba(255,255,255,0.4); }
+    .voters-label strong { color: rgba(255,255,255,0.7); }
+    .total-pool { font-family: 'Inter', sans-serif; font-size: 11px; color: rgba(255,255,255,0.4); }
+    .total-pool strong { color: #ffd700; }
+
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+<div class="overlay" id="overlay">
+  <div class="hidden" id="matchCard">
+    <div class="match-card">
+      <div class="match-top">
+        <div class="battle-title" id="ovBattleTitle">Bonus Battle</div>
+        <div class="status-pill" id="ovStatus"></div>
+      </div>
+      <div class="vs-row">
+        <div class="slot-side">
+          <div class="winner-tag" id="ov1Winner" style="display:none;">🥇 WINNER</div>
+          <div class="slot-name" id="ov1Name">—</div>
+          <div class="slot-prov" id="ov1Prov">—</div>
+          <div class="slot-pool" id="ov1Pool">0</div>
+          <div class="pool-sub" id="ov1Votes">0 voters</div>
+          <div class="slot-multi" id="ov1Multi" style="display:none;"></div>
+        </div>
+        <div class="vs-center">
+          <div class="vs-label">VS</div>
+          <div class="pct-row">
+            <span class="pct-s1" id="ovPct1">50%</span>
+            <span class="pct-s2" id="ovPct2">50%</span>
+          </div>
+          <div class="bar-wrap">
+            <div class="bar-fill" id="ovBar" style="background:linear-gradient(90deg,#00e5ff 50%,#ffa726 50%);width:100%;"></div>
+          </div>
+        </div>
+        <div class="slot-side">
+          <div class="winner-tag" id="ov2Winner" style="display:none;">🥇 WINNER</div>
+          <div class="slot-name" id="ov2Name">—</div>
+          <div class="slot-prov" id="ov2Prov">—</div>
+          <div class="slot-pool" id="ov2Pool">0</div>
+          <div class="pool-sub" id="ov2Votes">0 voters</div>
+          <div class="slot-multi" id="ov2Multi" style="display:none;"></div>
+        </div>
+      </div>
+      <div class="bottom-bar">
+        <div class="voters-label">Total voters: <strong id="ovTotalVoters">0</strong></div>
+        <div class="total-pool">Pool: <strong id="ovTotalPool">0 pts</strong></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const channel = new URLSearchParams(window.location.search).get('channel') || '';
+  let lastMatchId = null;
+
+  async function poll() {
+    if (!channel) return;
+    try {
+      const r = await fetch(`/api/bb-state?channel=${encodeURIComponent(channel)}`);
+      if (!r.ok) return;
+      const { battle } = await r.json();
+      render(battle);
+    } catch {}
+  }
+
+  function render(battle) {
+    const card = document.getElementById('matchCard');
+    if (!battle?.active) { card.className = 'hidden'; return; }
+
+    const matches = battle.matches || [];
+    // Show the most recent non-complete match, or the last complete one
+    const live = matches.find(m => m.status === 'voting' || m.status === 'locked')
+               || matches.filter(m => m.status === 'complete').slice(-1)[0];
+    if (!live) { card.className = 'hidden'; return; }
+
+    // Animate in on new match
+    if (live.id !== lastMatchId) { lastMatchId = live.id; card.className = 'hidden'; setTimeout(() => { card.className = ''; }, 50); }
+    else { card.className = ''; }
+
+    const total = (live.slot1Pool || 0) + (live.slot2Pool || 0);
+    const s1pct = total ? Math.round((live.slot1Pool || 0) / total * 100) : 50;
+    const s2pct = 100 - s1pct;
+
+    const statusMap = { voting: ['🟢 VOTING OPEN', 'pill-voting'], locked: ['🔒 LOCKED', 'pill-locked'], complete: ['✅ COMPLETE', 'pill-complete'] };
+    const [statusText, statusClass] = statusMap[live.status] || ['', ''];
+
+    document.getElementById('ovBattleTitle').textContent = battle.title || 'Bonus Battle';
+    const pill = document.getElementById('ovStatus');
+    pill.textContent = statusText;
+    pill.className   = 'status-pill ' + statusClass;
+
+    document.getElementById('ov1Name').textContent  = live.slot1.name;
+    document.getElementById('ov1Prov').textContent  = live.slot1.provider;
+    document.getElementById('ov1Pool').textContent  = (live.slot1Pool || 0).toLocaleString() + ' pts';
+    document.getElementById('ov1Votes').textContent = (live.slot1Votes || 0) + ' voter' + (live.slot1Votes !== 1 ? 's' : '');
+    document.getElementById('ov2Name').textContent  = live.slot2.name;
+    document.getElementById('ov2Prov').textContent  = live.slot2.provider;
+    document.getElementById('ov2Pool').textContent  = (live.slot2Pool || 0).toLocaleString() + ' pts';
+    document.getElementById('ov2Votes').textContent = (live.slot2Votes || 0) + ' voter' + (live.slot2Votes !== 1 ? 's' : '');
+
+    document.getElementById('ovPct1').textContent   = s1pct + '%';
+    document.getElementById('ovPct2').textContent   = s2pct + '%';
+    document.getElementById('ovBar').style.background = `linear-gradient(90deg,#00e5ff ${s1pct}%,#ffa726 ${s1pct}%)`;
+
+    const m1El = document.getElementById('ov1Multi');
+    const m2El = document.getElementById('ov2Multi');
+    if (live.slot1Multiplier != null) { m1El.textContent = live.slot1Multiplier.toFixed(2) + 'x'; m1El.style.display = ''; } else m1El.style.display = 'none';
+    if (live.slot2Multiplier != null) { m2El.textContent = live.slot2Multiplier.toFixed(2) + 'x'; m2El.style.display = ''; } else m2El.style.display = 'none';
+
+    document.getElementById('ov1Winner').style.display = live.winner === 1 ? '' : 'none';
+    document.getElementById('ov2Winner').style.display = live.winner === 2 ? '' : 'none';
+
+    document.getElementById('ovTotalVoters').textContent = ((live.slot1Votes || 0) + (live.slot2Votes || 0)).toLocaleString();
+    document.getElementById('ovTotalPool').textContent   = total.toLocaleString() + ' pts';
+  }
+
+  poll();
+  setInterval(poll, 5000);
+</script>
+</body>
+</html>

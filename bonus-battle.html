@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bonus Battle — WenBot</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { min-height: 100vh; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; padding: 0; margin: 0; }
+
+    .bb-wrap { max-width: 560px; margin: 0 auto; padding: 24px 16px 60px; }
+
+    .bb-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .bb-logo   { font-family: 'Exo 2', sans-serif; font-size: 20px; font-weight: 900; color: var(--accent); letter-spacing: -.5px; }
+    .bb-title  { font-family: 'Exo 2', sans-serif; font-size: 22px; font-weight: 900; color: var(--bright); margin-bottom: 4px; }
+    .bb-sub    { font-size: 12px; color: var(--text-dim); }
+
+    .viewer-bar { display: flex; align-items: center; gap: 10px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; }
+    .viewer-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--bg-card); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; overflow: hidden; }
+    .viewer-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .viewer-name  { font-weight: 600; color: var(--bright); font-size: 14px; }
+    .viewer-pts   { font-size: 12px; color: var(--text-dim); margin-top: 1px; }
+    .viewer-pts strong { color: var(--gold); }
+
+    .login-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; padding: 36px 24px; text-align: center; margin-bottom: 20px; }
+    .login-icon { font-size: 44px; margin-bottom: 14px; }
+    .login-title { font-family: 'Exo 2', sans-serif; font-size: 18px; font-weight: 900; color: var(--bright); margin-bottom: 8px; }
+    .login-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.6; }
+    .btn-kick { display: inline-flex; align-items: center; gap: 8px; background: #53e077; border: none; border-radius: 8px; color: #000; font-family: 'Exo 2', sans-serif; font-size: 14px; font-weight: 800; padding: 12px 24px; cursor: pointer; text-decoration: none; }
+    .btn-kick:hover { background: #3dcf60; }
+
+    .verify-banner { background: rgba(255,167,38,0.08); border: 1px solid rgba(255,167,38,0.3); border-radius: 10px; padding: 14px 16px; margin-bottom:18px; display: flex; align-items: center; gap: 12px; }
+    .verify-banner-icon { font-size: 22px; flex-shrink: 0; }
+    .verify-banner-text { flex: 1; font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+    .verify-banner-text strong { color: var(--orange); display: block; margin-bottom: 2px; }
+    .verify-banner a { color: var(--accent); font-weight: 600; text-decoration: none; font-size: 12px; white-space: nowrap; }
+
+    .match-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
+    .match-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+    .match-num { font-size: 11px; color: var(--text-dim); font-weight: 700; letter-spacing: .05em; }
+    .match-status { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+    .status-voting  { color: var(--green);  background: rgba(83,224,119,0.1); }
+    .status-locked  { color: var(--orange); background: rgba(255,167,38,0.1); }
+    .status-upcoming{ color: var(--text-dim); background: rgba(255,255,255,0.04); }
+    .status-complete{ color: var(--accent);  background: rgba(0,229,255,0.08); }
+
+    .vs-grid { display: grid; grid-template-columns: 1fr 48px 1fr; gap: 0; }
+    .slot-panel { padding: 18px 14px; text-align: center; cursor: pointer; transition: background 0.15s; position: relative; }
+    .slot-panel:hover { background: rgba(255,255,255,0.03); }
+    .slot-panel.voted-here { background: rgba(0,229,255,0.06); }
+    .slot-panel.voted-other { opacity: 0.55; }
+    .slot-panel.winner-panel { background: rgba(255,215,0,0.05); }
+    .slot-winner-badge { font-size: 10px; color: var(--gold); font-weight: 800; margin-bottom: 4px; }
+    .slot-name { font-size: 15px; font-weight: 700; color: var(--bright); margin-bottom: 3px; line-height: 1.3; }
+    .slot-provider { font-size: 11px; color: var(--text-dim); margin-bottom: 10px; }
+    .slot-pool { font-size: 20px; font-weight: 800; color: var(--gold); }
+    .slot-votes { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+    .slot-multi { font-size: 16px; font-weight: 800; color: var(--accent); margin-top: 6px; }
+    .slot-divider { display: flex; flex-direction: column; align-items: center; justify-content: center; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+    .vs-text { font-size: 14px; font-weight: 900; color: var(--text-dim); }
+
+    .pool-bar-wrap { height: 4px; background: var(--bg-card); }
+    .pool-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent) var(--s1pct), var(--orange) var(--s1pct)); transition: width 0.4s; }
+
+    .bet-section { padding: 16px; border-top: 1px solid var(--border); }
+    .bet-label { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+    .bet-label strong { color: var(--bright); }
+    .bet-row { display: flex; gap: 8px; align-items: center; }
+    .bet-input { flex: 1; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--bright); font-size: 15px; font-weight: 600; font-family: 'Inter', sans-serif; outline: none; text-align: right; }
+    .bet-input:focus { border-color: var(--accent); }
+    .bet-quick { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .bet-quick button { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; color: var(--text-dim); font-size: 11px; cursor: pointer; padding: 4px 10px; }
+    .bet-quick button:hover { color: var(--bright); border-color: var(--accent); }
+    .btn-vote { flex-shrink: 0; background: linear-gradient(135deg,#00e5ff,#00b8d4); border: none; border-radius: 8px; color: #0d1117; font-family: 'Exo 2', sans-serif; font-size: 14px; font-weight: 800; padding: 10px 20px; cursor: pointer; white-space: nowrap; }
+    .btn-vote:disabled { opacity: 0.4; cursor: not-allowed; }
+    .voted-msg { padding: 12px 16px; border-top: 1px solid var(--border); font-size: 13px; color: var(--accent); font-weight: 600; text-align: center; }
+
+    .no-battle { text-align: center; padding: 60px 20px; }
+    .no-battle-icon { font-size: 52px; margin-bottom: 16px; }
+    .no-battle-title { font-size: 20px; font-weight: 800; color: var(--bright); margin-bottom: 8px; font-family: 'Exo 2', sans-serif; }
+    .no-battle-sub { font-size: 13px; color: var(--text-dim); }
+
+    .payout-info { padding: 10px 16px; background: rgba(0,229,255,0.04); border-top: 1px solid var(--border); font-size: 12px; color: var(--text-dim); text-align: center; }
+  </style>
+</head>
+<body>
+<div class="bb-wrap">
+
+  <div class="bb-header">
+    <div class="bb-logo">WenBot</div>
+    <div id="logoutBtn" style="display:none;">
+      <button onclick="bbLogout()" style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:11px;cursor:pointer;padding:5px 12px;">Log Out</button>
+    </div>
+  </div>
+
+  <!-- Viewer bar (shown when logged in) -->
+  <div class="viewer-bar" id="viewerBar" style="display:none;">
+    <div class="viewer-avatar" id="viewerAvatar">👤</div>
+    <div style="flex:1;min-width:0;">
+      <div class="viewer-name" id="viewerName">—</div>
+      <div class="viewer-pts">Points: <strong id="viewerPts">—</strong></div>
+    </div>
+  </div>
+
+  <!-- Not verified banner -->
+  <div class="verify-banner" id="verifyBanner" style="display:none;">
+    <div class="verify-banner-icon">⚠️</div>
+    <div class="verify-banner-text">
+      <strong>Not Verified</strong>
+      You can still vote, but verifying your casino account lets you earn bonus points and access exclusive perks.
+    </div>
+    <a href="#" id="verifyLink" target="_blank">Verify →</a>
+  </div>
+
+  <!-- Login prompt -->
+  <div id="loginSection">
+    <div class="login-card">
+      <div class="login-icon">⚔️</div>
+      <div class="login-title">Bonus Battle</div>
+      <div class="login-sub">Log in with your Kick account to bet your points on which slot will win each match.</div>
+      <button class="btn-kick" onclick="bbLogin()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" rx="3" fill="#53e077"/><text x="3" y="12" font-size="10" font-weight="900" fill="#000">K</text></svg>
+        Login with Kick
+      </button>
+    </div>
+  </div>
+
+  <!-- Battle content (shown when logged in) -->
+  <div id="battleSection" style="display:none;">
+    <div style="margin-bottom:20px;">
+      <div class="bb-title" id="battleTitle">Bonus Battle</div>
+      <div class="bb-sub" id="battleSub">—</div>
+    </div>
+
+    <div id="battleContent">
+      <div class="no-battle">
+        <div class="no-battle-icon">⏳</div>
+        <div class="no-battle-title">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="/js/kick-auth.js"></script>
+<script>
+  const urlParams  = new URLSearchParams(window.location.search);
+  const channel    = (urlParams.get('channel') || '').toLowerCase().trim();
+  let   viewer     = null; // { kickUsername, kickUserId, accessToken, channel }
+  let   state      = null; // battle state from bb-state
+  let   pollTimer  = null;
+
+  // ── SESSION ──────────────────────────────────────────────────────────────────
+
+  function loadSession() {
+    try {
+      const raw = localStorage.getItem('bb_viewer_session');
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      if (s.expiresAt && Date.now() > s.expiresAt) { localStorage.removeItem('bb_viewer_session'); return null; }
+      if (s.channel !== channel) return null; // session for a different channel
+      return s;
+    } catch { return null; }
+  }
+
+  function bbLogin() {
+    if (!channel) { alert('Missing channel in URL.'); return; }
+    initiateKickAuth('viewer', channel);
+  }
+
+  function bbLogout() {
+    localStorage.removeItem('bb_viewer_session');
+    viewer = null;
+    clearInterval(pollTimer);
+    document.getElementById('loginSection').style.display  = '';
+    document.getElementById('battleSection').style.display = 'none';
+    document.getElementById('viewerBar').style.display     = 'none';
+    document.getElementById('logoutBtn').style.display     = 'none';
+  }
+
+  // ── INIT ─────────────────────────────────────────────────────────────────────
+
+  async function init() {
+    if (!channel) {
+      document.getElementById('loginSection').innerHTML = '<div class="no-battle"><div class="no-battle-icon">❌</div><div class="no-battle-title">Missing channel</div><div class="no-battle-sub">Open this page with ?channel=channelname</div></div>';
+      return;
+    }
+
+    viewer = loadSession();
+
+    if (viewer) {
+      showLoggedIn();
+      await fetchState();
+      pollTimer = setInterval(fetchState, 8000);
+    }
+  }
+
+  function showLoggedIn() {
+    document.getElementById('loginSection').style.display  = 'none';
+    document.getElementById('battleSection').style.display = '';
+    document.getElementById('viewerBar').style.display     = '';
+    document.getElementById('logoutBtn').style.display     = '';
+    document.getElementById('viewerName').textContent      = '@' + viewer.kickUsername;
+    document.getElementById('viewerPts').textContent       = '…';
+    document.getElementById('verifyLink').href             = `/verify.html?channel=${encodeURIComponent(channel)}`;
+  }
+
+  // ── STATE FETCH ───────────────────────────────────────────────────────────────
+
+  async function fetchState() {
+    if (!viewer || !channel) return;
+    try {
+      const resp = await fetch(`/api/bb-state?channel=${encodeURIComponent(channel)}&kick=${encodeURIComponent(viewer.kickUsername)}`);
+      if (!resp.ok) return;
+      state = await resp.json();
+      renderState();
+    } catch {}
+  }
+
+  function renderState() {
+    if (!state) return;
+
+    // Points
+    if (state.viewerPoints != null) {
+      document.getElementById('viewerPts').textContent = state.viewerPoints.toLocaleString() + ' pts';
+    }
+
+    // Verified banner
+    document.getElementById('verifyBanner').style.display = state.isVerified ? 'none' : '';
+
+    const battle = state.battle;
+
+    if (!battle || !battle.active) {
+      document.getElementById('battleTitle').textContent = 'Bonus Battle';
+      document.getElementById('battleSub').textContent   = 'No active battle right now.';
+      document.getElementById('battleContent').innerHTML = `
+        <div class="no-battle">
+          <div class="no-battle-icon">⚔️</div>
+          <div class="no-battle-title">No Active Battle</div>
+          <div class="no-battle-sub">Check back when the streamer starts a bonus battle!</div>
+        </div>`;
+      return;
+    }
+
+    document.getElementById('battleTitle').textContent = battle.title || 'Bonus Battle';
+    document.getElementById('battleSub').textContent   = `Bet range: ${battle.minBet.toLocaleString()} – ${battle.maxBet.toLocaleString()} pts`;
+
+    const matches = battle.matches || [];
+    if (!matches.length) {
+      document.getElementById('battleContent').innerHTML = `
+        <div class="no-battle">
+          <div class="no-battle-icon">⏳</div>
+          <div class="no-battle-title">Matches Coming Soon</div>
+          <div class="no-battle-sub">The streamer is setting up the matches.</div>
+        </div>`;
+      return;
+    }
+
+    document.getElementById('battleContent').innerHTML = matches.map((m, i) => matchCard(m, i, state.votes || {})).join('');
+  }
+
+  function matchCard(m, i, votes) {
+    const total = (m.slot1Pool || 0) + (m.slot2Pool || 0);
+    const s1pct = total ? Math.round((m.slot1Pool || 0) / total * 100) : 50;
+    const s2pct = 100 - s1pct;
+    const myVote = votes[m.id];
+    const w1 = m.winner === 1, w2 = m.winner === 2;
+    const complete = m.status === 'complete';
+
+    const statusLabels = { upcoming: 'UPCOMING', voting: '🟢 VOTING OPEN', locked: '🔒 LOCKED', complete: '✅ COMPLETE' };
+    const statusClasses = { upcoming: 'status-upcoming', voting: 'status-voting', locked: 'status-locked', complete: 'status-complete' };
+
+    const s1class = complete ? (w1 ? 'winner-panel' : '') : (myVote?.choice === 1 ? 'voted-here' : myVote ? 'voted-other' : '');
+    const s2class = complete ? (w2 ? 'winner-panel' : '') : (myVote?.choice === 2 ? 'voted-here' : myVote ? 'voted-other' : '');
+
+    const canVote = m.status === 'voting' && !myVote;
+
+    const betSection = canVote ? `
+      <div class="bet-section">
+        <div class="bet-label">Bet on <strong id="betOn_${m.id}">a slot</strong>:</div>
+        <div class="bet-row">
+          <input type="number" class="bet-input" id="betAmt_${m.id}"
+            placeholder="${(state.battle.minBet||100).toLocaleString()}"
+            min="${state.battle.minBet||100}" max="${state.battle.maxBet||10000}" step="100">
+          <button class="btn-vote" id="voteBtn_${m.id}" onclick="submitVote('${m.id}')" disabled>Vote</button>
+        </div>
+        <div class="bet-quick">
+          ${[100,500,1000,5000].filter(v => v >= (state.battle.minBet||0) && v <= (state.battle.maxBet||999999))
+            .map(v => `<button onclick="setBet('${m.id}',${v})">${v.toLocaleString()}</button>`).join('')}
+          <button onclick="setBet('${m.id}', ${state.viewerPoints||0})">All In</button>
+        </div>
+        <input type="hidden" id="voteChoice_${m.id}" value="">
+      </div>` : myVote ? `
+      <div class="voted-msg">✅ You bet <strong>${myVote.points.toLocaleString()} pts</strong> on <strong>${myVote.choice === 1 ? m.slot1.name : m.slot2.name}</strong>
+        ${complete && myVote.payout != null ? (myVote.payout > 0 ? ` — Won <strong style="color:var(--gold)">${myVote.payout.toLocaleString()} pts</strong>` : ' — Lost') : ''}</div>` : '';
+
+    return `
+    <div class="match-card">
+      <div class="match-header">
+        <span class="match-num">MATCH ${i + 1}</span>
+        <span class="match-status ${statusClasses[m.status]}">${statusLabels[m.status]}</span>
+      </div>
+      <div class="vs-grid">
+        <div class="slot-panel ${s1class}" id="sp1_${m.id}" onclick="selectSlot('${m.id}',1)" style="border-right:none;">
+          ${w1 ? '<div class="slot-winner-badge">🥇 WINNER</div>' : ''}
+          <div class="slot-name">${escHtml(m.slot1.name)}</div>
+          <div class="slot-provider">${escHtml(m.slot1.provider)}</div>
+          <div class="slot-pool">${(m.slot1Pool||0).toLocaleString()}</div>
+          <div class="slot-votes">${m.slot1Votes||0} voter${m.slot1Votes!==1?'s':''}</div>
+          ${m.slot1Multiplier != null ? `<div class="slot-multi">${m.slot1Multiplier.toFixed(2)}x</div>` : ''}
+        </div>
+        <div class="slot-divider"><span class="vs-text">VS</span></div>
+        <div class="slot-panel ${s2class}" id="sp2_${m.id}" onclick="selectSlot('${m.id}',2)" style="border-left:none;">
+          ${w2 ? '<div class="slot-winner-badge">🥇 WINNER</div>' : ''}
+          <div class="slot-name">${escHtml(m.slot2.name)}</div>
+          <div class="slot-provider">${escHtml(m.slot2.provider)}</div>
+          <div class="slot-pool">${(m.slot2Pool||0).toLocaleString()}</div>
+          <div class="slot-votes">${m.slot2Votes||0} voter${m.slot2Votes!==1?'s':''}</div>
+          ${m.slot2Multiplier != null ? `<div class="slot-multi">${m.slot2Multiplier.toFixed(2)}x</div>` : ''}
+        </div>
+      </div>
+      ${total > 0 ? `<div class="pool-bar-wrap"><div class="pool-bar-fill" style="--s1pct:${s1pct}%;width:100%;"></div></div>` : ''}
+      ${betSection}
+    </div>`;
+  }
+
+  function escHtml(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── VOTING ────────────────────────────────────────────────────────────────────
+
+  function selectSlot(matchId, choice) {
+    const m = (state?.battle?.matches || []).find(m => m.id === matchId);
+    if (!m || m.status !== 'voting' || (state?.votes || {})[matchId]) return;
+
+    document.getElementById('voteChoice_' + matchId).value = choice;
+    document.getElementById('voteBtn_' + matchId).disabled = false;
+
+    const name = choice === 1 ? m.slot1.name : m.slot2.name;
+    document.getElementById('betOn_' + matchId).textContent = name;
+
+    // Highlight selected panel
+    document.getElementById('sp1_' + matchId).className = `slot-panel ${choice === 1 ? 'voted-here' : 'voted-other'}`;
+    document.getElementById('sp2_' + matchId).className = `slot-panel ${choice === 2 ? 'voted-here' : 'voted-other'}`;
+  }
+
+  function setBet(matchId, amt) {
+    const max   = state?.battle?.maxBet || 10000;
+    const pts   = state?.viewerPoints || 0;
+    const clamped = Math.min(amt, max, pts);
+    const el = document.getElementById('betAmt_' + matchId);
+    if (el) el.value = clamped;
+  }
+
+  async function submitVote(matchId) {
+    if (!viewer) return;
+    const choiceEl = document.getElementById('voteChoice_' + matchId);
+    const amtEl    = document.getElementById('betAmt_' + matchId);
+    const btn      = document.getElementById('voteBtn_' + matchId);
+
+    const choice = parseInt(choiceEl.value);
+    const points = parseInt(amtEl.value);
+
+    if (!choice) { alert('Select a slot first.'); return; }
+    if (!points || points < (state?.battle?.minBet || 1)) {
+      alert(`Minimum bet is ${(state?.battle?.minBet || 1).toLocaleString()} pts`); return;
+    }
+
+    btn.disabled   = true;
+    btn.textContent = '…';
+
+    try {
+      const resp = await fetch('/api/bb-vote', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          channel, kickUsername: viewer.kickUsername, accessToken: viewer.accessToken,
+          matchId, choice, points,
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        alert(data.error || 'Vote failed');
+        btn.disabled   = false;
+        btn.textContent = 'Vote';
+        return;
+      }
+      // Update local points
+      if (data.newBalance != null && state) state.viewerPoints = data.newBalance;
+      // Refresh state to show vote
+      await fetchState();
+    } catch (e) {
+      alert('Network error — try again');
+      btn.disabled   = false;
+      btn.textContent = 'Vote';
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

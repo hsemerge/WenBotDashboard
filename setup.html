@@ -163,17 +163,17 @@
             <option value="gambulls">Gambulls</option>
             <option value="stake">Stake</option>
             <option value="rainbet">Rainbet</option>
-            <option value="shuffle">Shuffle</option>
-            <option value="roobet">Roobet</option>
-            <option value="rollbit">Rollbit</option>
-            <option value="duelbits">Duelbits</option>
-            <option value="chipsgg">Chips.gg</option>
-            <option value="bcgame">BC.Game</option>
-            <option value="gamdom">Gamdom</option>
-            <option value="500casino">500 Casino</option>
             <option value="thrill">Thrill</option>
             <option value="winna">Winna</option>
+            <option value="shuffle">Shuffle</option>
             <option value="duel">Duel</option>
+            <option value="roobet">Roobet</option>
+            <option value="bcgame">BC.Game</option>
+            <option value="500casino">500 Casino</option>
+            <option value="gamdom">Gamdom</option>
+            <option value="duelbits">Duelbits</option>
+            <option value="rollbit">Rollbit</option>
+            <option value="chipsgg">Chips.gg</option>
           </select>
         </div>
 
@@ -324,13 +324,15 @@
     }
 
     async function goToStripe() {
-      const btn = document.getElementById('stripeBtn');
+      const btn       = document.getElementById('stripeBtn');
+      const targetPlan = fb.streamerProfile?.plan || 'pro';
       btn.disabled = true; btn.textContent = 'Redirecting...';
       try {
         const idToken = await fb.currentUser.getIdToken();
         const resp = await fetch('/api/create-checkout-session', {
           method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + idToken },
+          headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetPlan }),
         });
         const data = await resp.json();
         if (data.url) { window.location.href = data.url; }
@@ -373,14 +375,18 @@
     initFirebase();
 
     function updateProviderInfo() {
-      const provider   = document.getElementById("setupProvider").value;
+      const provider    = document.getElementById("setupProvider").value;
       const apiKeyField = document.getElementById("apiKeyField");
-      const label      = document.getElementById("apiKeyLabel");
-      const hint       = document.getElementById("apiKeyHint");
-      const info       = document.getElementById("providerInfo");
-      const input      = document.getElementById("setupApiKey");
+      const label       = document.getElementById("apiKeyLabel");
+      const hint        = document.getElementById("apiKeyHint");
+      const info        = document.getElementById("providerInfo");
+      const input       = document.getElementById("setupApiKey");
 
-      if (API_CASINOS.has(provider)) {
+      // API key is only for Elite+ (leaderboard feature); Starter/Pro just need the casino for !verify
+      const plan        = fb.streamerProfile?.plan || 'starter';
+      const isElitePlus = ['elite', 'agency'].includes(plan) || TEST_ACCOUNTS.has((fb.streamerProfile?.kickChannel || '').toLowerCase());
+
+      if (API_CASINOS.has(provider) && isElitePlus) {
         apiKeyField.style.display = '';
         input.required = true;
         if (provider === "gambulls") {
@@ -418,8 +424,9 @@
         const currencyName     = document.getElementById("setupCurrencyName").value.trim() || "points";
         const pointsPerMessage = parseInt(document.getElementById("setupPointsPerMessage").value, 10) || 1;
 
+        const isElitePlus = ['elite', 'agency'].includes(plan) || isTest;
         if (!kickChannel) throw new Error("Enter your Kick channel username.");
-        if (API_CASINOS.has(provider) && !apiKey) throw new Error("Enter your affiliate API key.");
+        if (API_CASINOS.has(provider) && isElitePlus && !apiKey) throw new Error("Enter your affiliate API key.");
 
         const plan    = fb.streamerProfile?.plan || 'starter';
         const isTest  = TEST_ACCOUNTS.has(kickChannel.toLowerCase());

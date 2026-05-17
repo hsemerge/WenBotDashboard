@@ -59,9 +59,10 @@ exports.handler = async (event) => {
     const settingsDoc = await db.collection("streamers").doc(uid)
       .collection("sr_settings").doc("config").get();
     const settings = settingsDoc.exists ? settingsDoc.data() : {};
-    const enabled      = settings.enabled !== false;
-    const eligibility  = settings.eligibility  || "everyone";
-    const cooldownMins = settings.cooldownMins  ?? 5;
+    const enabled       = settings.enabled !== false;
+    const eligibility   = settings.eligibility  || "everyone";
+    const cooldownMins  = settings.cooldownMins  ?? 5;
+    const allowMultiple = !!settings.allowMultiple;
 
     if (!enabled) {
       return res(200, { success: false, message: `@${kickUsername} Slot requests are currently closed.` });
@@ -96,14 +97,16 @@ exports.handler = async (event) => {
       }
     }
 
-    // Check for duplicate pending request from same user
-    const dupSnap = await db.collection("streamers").doc(uid)
-      .collection("slot_requests")
-      .where("kickUsernameKey", "==", userKey)
-      .where("status", "==", "pending")
-      .limit(1).get();
-    if (!dupSnap.empty) {
-      return res(200, { success: false, message: `@${kickUsername} You already have a slot in the queue. Wait for it to be played first.` });
+    // Check for duplicate pending request from same user (skip if allowMultiple is on)
+    if (!allowMultiple) {
+      const dupSnap = await db.collection("streamers").doc(uid)
+        .collection("slot_requests")
+        .where("kickUsernameKey", "==", userKey)
+        .where("status", "==", "pending")
+        .limit(1).get();
+      if (!dupSnap.empty) {
+        return res(200, { success: false, message: `@${kickUsername} You already have a slot in the queue. Wait for it to be played first.` });
+      }
     }
 
     // Add request

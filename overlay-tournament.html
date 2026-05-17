@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tournament Overlay</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: transparent; font-family: 'Exo 2', sans-serif; width: 680px; }
+    .overlay { padding: 0; }
+
+    .bracket-card {
+      background: rgba(13,17,23,0.92);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      overflow: hidden;
+      backdrop-filter: blur(12px);
+      animation: fadeIn 0.4s ease;
+    }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+
+    .top-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .battle-title { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.45); letter-spacing: .08em; text-transform: uppercase; }
+    .status-pill {
+      font-size: 10px; font-weight: 800; padding: 3px 10px; border-radius: 20px; letter-spacing: .05em;
+    }
+    .pill-reg  { background: rgba(83,224,119,0.15); color: #53e077; border: 1px solid rgba(83,224,119,0.3); }
+    .pill-live { background: rgba(255,71,87,0.15); color: #ff4757; border: 1px solid rgba(255,71,87,0.3); }
+    .pill-done { background: rgba(0,229,255,0.1); color: #00e5ff; border: 1px solid rgba(0,229,255,0.25); }
+
+    .match-row {
+      display: grid; grid-template-columns: 1fr 48px 1fr;
+      align-items: center; padding: 12px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .match-row:last-child { border-bottom: none; }
+    .player { font-size: 15px; font-weight: 900; color: #fff; }
+    .player.winner { color: #ffd700; }
+    .player.loser { color: rgba(255,255,255,0.3); text-decoration: line-through; }
+    .player.bye { color: rgba(255,255,255,0.2); font-size: 11px; font-style: italic; }
+    .vs-col { text-align: center; font-size: 13px; font-weight: 900; color: rgba(255,255,255,0.3); }
+    .winner-badge { font-size: 11px; color: #ffd700; font-weight: 800; margin-bottom: 2px; }
+
+    .bottom-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 16px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      background: rgba(0,0,0,0.2);
+    }
+    .info-label { font-family: 'Inter', sans-serif; font-size: 11px; color: rgba(255,255,255,0.4); }
+    .info-label strong { color: rgba(255,255,255,0.75); }
+    .pool-label { font-family: 'Inter', sans-serif; font-size: 11px; color: rgba(255,255,255,0.4); }
+    .pool-label strong { color: #ffd700; }
+
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+<div class="overlay" id="overlay">
+  <div class="hidden" id="bracketCard">
+    <div class="bracket-card">
+      <div class="top-bar">
+        <div class="battle-title" id="ovTitle">Tournament</div>
+        <div class="status-pill" id="ovStatus"></div>
+      </div>
+      <div id="ovMatches"></div>
+      <div class="bottom-bar">
+        <div class="info-label">Round <strong id="ovRound">1</strong> &nbsp;·&nbsp; <strong id="ovRemaining">—</strong> remaining</div>
+        <div class="pool-label">Prize Pool: <strong id="ovPool">0 pts</strong></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const channel = new URLSearchParams(window.location.search).get('channel') || '';
+
+async function poll() {
+  if (!channel) return;
+  try {
+    const r = await fetch(`/api/tournament-state?channel=${encodeURIComponent(channel)}`);
+    if (!r.ok) return;
+    const { tournament } = await r.json();
+    render(tournament);
+  } catch {}
+}
+
+function render(t) {
+  const card = document.getElementById('bracketCard');
+  if (!t?.active) { card.className = 'hidden'; return; }
+  card.className = '';
+
+  document.getElementById('ovTitle').textContent = t.title || 'Tournament';
+
+  const pill = document.getElementById('ovStatus');
+  if (t.status === 'registration') {
+    pill.textContent = '● REGISTRATION OPEN'; pill.className = 'status-pill pill-reg';
+  } else if (t.status === 'active') {
+    pill.textContent = '● LIVE'; pill.className = 'status-pill pill-live';
+  } else {
+    pill.textContent = '✅ COMPLETE'; pill.className = 'status-pill pill-done';
+  }
+
+  document.getElementById('ovRound').textContent     = t.currentRound || '—';
+  document.getElementById('ovPool').textContent      = (t.prizePool || 0).toLocaleString() + ' pts';
+  const alive = (t.participants || []).filter(p => !p.eliminated).length;
+  document.getElementById('ovRemaining').textContent = alive || '—';
+
+  if (t.status === 'registration') {
+    const participants = t.participants || [];
+    document.getElementById('ovMatches').innerHTML = participants.length
+      ? participants.slice(0, 6).map((p, i) =>
+          `<div class="match-row" style="display:flex;align-items:center;gap:10px;padding:8px 16px;">
+            <span style="font-size:11px;color:rgba(255,255,255,0.35);min-width:18px;">#${i+1}</span>
+            <span style="font-size:14px;font-weight:800;color:#fff;">${escHtml(p.kickUsername)}</span>
+          </div>`).join('') + (participants.length > 6 ? `<div style="padding:8px 16px;font-size:11px;color:rgba(255,255,255,0.4);">+${participants.length - 6} more…</div>` : '')
+      : '<div style="padding:14px 16px;font-size:13px;color:rgba(255,255,255,0.35);text-align:center;">Waiting for participants…</div>';
+    return;
+  }
+
+  // Active: show current round matches
+  const rounds = t.rounds || [];
+  const currentRound = rounds.find(r => r.round === t.currentRound);
+  if (!currentRound) { card.className = 'hidden'; return; }
+
+  document.getElementById('ovMatches').innerHTML = currentRound.matches.slice(0, 5).map(m => {
+    const p1done = m.winner === 'p1';
+    const p2done = m.winner === 'p2';
+    const p1cls  = p1done ? 'winner' : (p2done ? 'loser' : '');
+    const p2cls  = p2done ? 'winner' : (p1done ? 'loser' : '');
+    return `<div class="match-row">
+      <div>
+        ${p1done ? '<div class="winner-badge">🥇</div>' : ''}
+        <div class="player ${p1cls}">${m.p1 ? escHtml(m.p1.kickUsername) : '<span class="bye">BYE</span>'}</div>
+      </div>
+      <div class="vs-col">VS</div>
+      <div style="text-align:right;">
+        ${p2done ? '<div class="winner-badge" style="text-align:right;">🥇</div>' : ''}
+        <div class="player ${p2cls}" style="text-align:right;">${m.p2 ? escHtml(m.p2.kickUsername) : '<span class="bye">BYE</span>'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+poll();
+setInterval(poll, 6000);
+</script>
+</body>
+</html>

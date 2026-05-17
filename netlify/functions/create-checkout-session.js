@@ -36,40 +36,55 @@ exports.handler = async (event) => {
   const idToken = authHeader.replace("Bearer ", "").trim();
   if (!idToken) return res(401, { error: "Missing auth token" });
 
-  let uid, plan;
+  let body = {};
+  try { body = JSON.parse(event.body || "{}"); } catch {}
+  const targetPlan = body.targetPlan;
+  if (!targetPlan || !PLAN_PRICES[targetPlan]) {
+    return res(400, { error: `Invalid or missing targetPlan. Must be one of: ${Object.keys(PLAN_PRICES).join(", ")}` });
+  }
+
+  let uid, existingCustomerId;
   try {
     const db       = getDb();
     const decoded  = await admin.auth().verifyIdToken(idToken);
     uid            = decoded.uid;
+    // Reuse existing Stripe customer if present (avoids duplicate customers)
     const profSnap = await db.collection("streamers").doc(uid).get();
-    plan           = profSnap.exists ? (profSnap.data().plan || "starter") : "starter";
+    existingCustomerId = profSnap.exists ? profSnap.data().stripeCustomerId : null;
   } catch {
     return res(401, { error: "Invalid token" });
   }
 
-  const priceId = PLAN_PRICES[plan];
-  if (!priceId) return res(400, { error: `No Stripe price configured for plan: ${plan}` });
+  const priceId = PLAN_PRICES[targetPlan];
+  if (!priceId) return res(400, { error: `No Stripe price configured for plan: ${targetPlan}` });
 
-  const siteUrl = process.env.URL || "https://wenbot.gg";
+  const siteUrl  = process.env.URL || "https://wenbot.gg";
+  const fromDash = body.fromDashboard === true;
+  const successUrl = fromDash
+    ? `${siteUrl}/dashboard.html?stripe=success&plan=${targetPlan}`
+    : `${siteUrl}/setup.html?stripe=success`;
+  const cancelUrl  = fromDash ? `${siteUrl}/dashboard.html` : `${siteUrl}/setup.html`;
+
+  const authHeader64 = Buffer.from(process.env.STRIPE_SECRET_KEY + ":").toString("base64");
 
   try {
+    const params = new URLSearchParams({
+      "mode":                    "subscription",
+      "payment_method_types[]":  "card",
+      "line_items[0][price]":    priceId,
+      "line_items[0][quantity]": "1",
+      "success_url":             successUrl,
+      "cancel_url":              cancelUrl,
+      "client_reference_id":     uid,
+      "metadata[uid]":           uid,
+      "metadata[plan]":          targetPlan,
+    });
+    if (existingCustomerId) params.set("customer", existingCustomerId);
+
     const stripeRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {
       method: "POST",
-      headers: {
-        "Authorization": `Basic ${Buffer.from(process.env.STRIPE_SECRET_KEY + ":").toString("base64")}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        "mode":                       "subscription",
-        "payment_method_types[]":     "card",
-        "line_items[0][price]":       priceId,
-        "line_items[0][quantity]":    "1",
-        "success_url":                `${siteUrl}/setup.html?stripe=success`,
-        "cancel_url":                 `${siteUrl}/setup.html`,
-        "client_reference_id":        uid,
-        "metadata[uid]":              uid,
-        "metadata[plan]":             plan,
-      }).toString(),
+      headers: { "Authorization": `Basic ${authHeader64}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
     });
 
     const session = await stripeRes.json();

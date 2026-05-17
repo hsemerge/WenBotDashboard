@@ -27,9 +27,10 @@ async function generateCodeChallenge(verifier) {
 
 // ---- OAuth Redirect ----
 
-// purpose: "streamer" | "wenbot"
+// purpose: "streamer" | "wenbot" | "viewer"
 // For wenbot, an admin key input with id="adminKeyInput" must be in the DOM
-async function initiateKickAuth(purpose = "streamer") {
+// For viewer, pass channel name as second arg
+async function initiateKickAuth(purpose = "streamer", channel = "") {
   const verifier   = await generateCodeVerifier();
   const challenge  = await generateCodeChallenge(verifier);
 
@@ -45,6 +46,13 @@ async function initiateKickAuth(purpose = "streamer") {
     }
     state  = `wenbot_${adminKey}`;
     scopes = "chat:write user:read";
+  } else if (purpose === "viewer") {
+    if (!channel) {
+      alert("Missing channel.");
+      return;
+    }
+    state  = `viewer_${channel.toLowerCase().trim()}`;
+    scopes = "user:read";
   } else {
     if (typeof fb === "undefined" || !fb.currentUser) {
       alert("You must be signed in first.");
