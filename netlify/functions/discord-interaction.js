@@ -109,29 +109,60 @@ async function handlePoints(interaction) {
   return message(`💰 **@${tag}** you have **${pts.toLocaleString()} ${name}**!`, true);
 }
 
+async function handleStore(interaction) {
+  const guildId = interaction.guild_id;
+  const streamer = await getStreamerByGuild(guildId);
+  if (!streamer) return message("❌ This server isn't linked to a WenBot streamer account.");
+
+  const db       = getDb();
+  const currency = streamer.profile?.currencyName || "points";
+  const snap     = await db.collection("streamers").doc(streamer.uid)
+    .collection("store_items").where("enabled", "==", true).get();
+
+  if (snap.empty) return message("🛒 The store is currently empty.", true);
+
+  const items = snap.docs.map(d => d.data()).sort((a, b) => a.price - b.price);
+  const lines = items.map(item => {
+    const stock = item.stock != null ? ` · ${item.stock} left` : "";
+    const desc  = item.description ? ` — ${item.description}` : "";
+    return `• **${item.name}** — ${item.price.toLocaleString()} ${currency}${stock}${desc}`;
+  }).join("\n");
+
+  return message(`🛒 **Store**\n\n${lines}\n\nUse \`/buy item: <name>\` to purchase.`, true);
+}
+
 async function handleBuy(interaction) {
   const guildId = interaction.guild_id;
   const userId  = interaction.member.user.id;
   const tag     = interaction.member.user.username;
   const itemId  = interaction.data.options?.find(o => o.name === "item")?.value || "";
 
+  if (!itemId) return message("❌ Specify an item to buy.", true);
+
   const streamer = await getStreamerByGuild(guildId);
   if (!streamer) return message("❌ This server isn't linked to a WenBot streamer account.");
 
-  const kickUsername = await getKickUsername(streamer.uid, userId);
+  const db = getDb();
+
+  // Run kick username lookup + item search in parallel
+  const [kickUsername, itemsSnap] = await Promise.all([
+    getKickUsername(streamer.uid, userId),
+    db.collection("streamers").doc(streamer.uid)
+      .collection("store_items").where("enabled", "==", true).get(),
+  ]);
+
   if (!kickUsername) {
     return message("❌ Your Discord isn't linked yet. Use `/register` to connect your account.", true);
   }
 
-  if (!itemId) return message("❌ Specify an item to buy.", true);
+  const matchDoc = itemsSnap.docs.find(d =>
+    d.data().name.toLowerCase() === itemId.toLowerCase()
+  );
+  if (!matchDoc) return message(`❌ Item \`${itemId}\` not found. Use \`/store\` to see available items.`, true);
 
-  const db      = getDb();
-  const itemDoc = await db.collection("streamers").doc(streamer.uid)
-    .collection("store_items").doc(itemId).get();
+  const itemDoc = matchDoc;
+  const item    = itemDoc.data();
 
-  if (!itemDoc.exists) return message(`❌ Item \`${itemId}\` not found.`, true);
-
-  const item     = itemDoc.data();
   const viewerRef = db.collection("streamers").doc(streamer.uid)
     .collection("viewers").doc(kickUsername.toLowerCase());
   const viewerDoc = await viewerRef.get();
@@ -160,22 +191,20 @@ async function handleBuy(interaction) {
     source:          "discord",
   });
   if (item.stock !== undefined) {
-    batch.update(db.collection("streamers").doc(streamer.uid).collection("store_items").doc(itemId), {
-      stock: item.stock - 1,
-    });
+    batch.update(matchDoc.ref, { stock: item.stock - 1 });
   }
   await batch.commit();
 
-  // Announce in the store/announcement channel
+  // Announce in the store/announcement channel (fire and forget — don't block response)
   const cfg = streamer.profile?.discordConfig || {};
   if (cfg.announcementChannelId) {
-    await discordPost(`/channels/${cfg.announcementChannelId}/messages`, {
+    discordPost(`/channels/${cfg.announcementChannelId}/messages`, {
       embeds: [{
         color:       0x00e5ff,
         description: `✅ **${item.name}** was redeemed by <@${userId}> with Kick \`${kickUsername}\``,
         timestamp:   new Date().toISOString(),
       }],
-    });
+    }).catch(() => {});
   }
 
   return message(`✅ You've redeemed **${item.name}**! The streamer will fulfill your order shortly.`, true);
@@ -279,9 +308,10 @@ exports.handler = async (event) => {
   // SLASH COMMANDS
   if (body.type === 2) {
     const name = body.data?.name;
-    if (name === "points") return handlePoints(body);
-    if (name === "buy")    return handleBuy(body);
-    if (name === "join")   return handleJoinGiveaway(body);
+    if (name === "points")   return handlePoints(body);
+    if (name === "buy")      return handleBuy(body);
+    if (name === "store")    return handleStore(body);
+    if (name === "join")     return handleJoinGiveaway(body);
     if (name === "register") return handleRegister(body);
     return message("❓ Unknown command.");
   }
