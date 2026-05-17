@@ -6,13 +6,17 @@ const nacl   = require("tweetnacl");
 const admin  = require("firebase-admin");
 
 // ── FIREBASE ──────────────────────────────────────────────────────────────────
+let _db = null;
 function getDb() {
-  if (!admin.apps.length) {
-    const raw  = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, "base64").toString("utf8");
-    const cred = JSON.parse(raw);
-    admin.initializeApp({ credential: admin.credential.cert(cred) });
+  if (!_db) {
+    if (!admin.apps.length) {
+      const raw  = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, "base64").toString("utf8");
+      const cred = JSON.parse(raw);
+      admin.initializeApp({ credential: admin.credential.cert(cred) });
+    }
+    _db = admin.firestore();
   }
-  return admin.firestore();
+  return _db;
 }
 
 // ── DISCORD SIGNATURE VERIFICATION ───────────────────────────────────────────
@@ -47,31 +51,6 @@ function message(content, ephemeral = true) {
   });
 }
 
-function embed(embeds, ephemeral = false) {
-  return respond(200, {
-    type: 4,
-    data: { embeds, flags: ephemeral ? 64 : 0 },
-  });
-}
-
-// ── GUILD → STREAMER LOOKUP ──────────────────────────────────────────────────
-async function getStreamerByGuild(guildId) {
-  const db   = getDb();
-  const snap = await db.collection("discord_guilds").doc(guildId).get();
-  if (!snap.exists) return null;
-  const { uid } = snap.data();
-  const profSnap = await db.collection("streamers").doc(uid).get();
-  return profSnap.exists ? { uid, profile: profSnap.data() } : null;
-}
-
-// ── DISCORD USER → KICK USERNAME ─────────────────────────────────────────────
-async function getKickUsername(uid, discordUserId) {
-  const db  = getDb();
-  const doc = await db.collection("streamers").doc(uid)
-    .collection("discord_links").doc(discordUserId).get();
-  return doc.exists ? doc.data().kickUsername : null;
-}
-
 // ── DISCORD REST HELPER ───────────────────────────────────────────────────────
 async function discordPost(path, body) {
   const r = await fetch(`https://discord.com/api/v10${path}`, {
@@ -85,43 +64,67 @@ async function discordPost(path, body) {
   return r.ok ? r.json() : null;
 }
 
+// ── SHARED: guild → streamer uid (1 read) ────────────────────────────────────
+async function getStreamerUid(guildId) {
+  const snap = await getDb().collection("discord_guilds").doc(guildId).get();
+  return snap.exists ? snap.data().uid : null;
+}
+
 // ── HANDLERS ──────────────────────────────────────────────────────────────────
 
 async function handlePoints(interaction) {
   const guildId = interaction.guild_id;
   const userId  = interaction.member.user.id;
   const tag     = interaction.member.user.username;
+  const db      = getDb();
 
-  const streamer = await getStreamerByGuild(guildId);
-  if (!streamer) return message("❌ This server isn't linked to a WenBot streamer account.");
+  // Round 1: guild → uid
+  const uid = await getStreamerUid(guildId);
+  if (!uid) return message("❌ This server isn't linked to a WenBot streamer account.");
 
-  const kickUsername = await getKickUsername(streamer.uid, userId);
+  // Round 2: parallel — profile + discord link
+  const [profSnap, linkSnap] = await Promise.all([
+    db.collection("streamers").doc(uid).get(),
+    db.collection("streamers").doc(uid).collection("discord_links").doc(userId).get(),
+  ]);
+
+  if (!profSnap.exists) return message("❌ This server isn't linked to a WenBot streamer account.");
+  const profile      = profSnap.data();
+  const kickUsername = linkSnap.exists ? linkSnap.data().kickUsername : null;
+
   if (!kickUsername) {
     return message("❌ Your Discord isn't linked yet. Use `/register` to connect your account.", true);
   }
 
-  const db   = getDb();
-  const doc  = await db.collection("streamers").doc(streamer.uid)
+  // Round 3: viewer points
+  const doc = await db.collection("streamers").doc(uid)
     .collection("viewers").doc(kickUsername.toLowerCase()).get();
   const pts  = doc.exists ? (doc.data().points || 0) : 0;
-  const name = streamer.profile?.currencyName || "points";
+  const name = profile.currencyName || "points";
 
   return message(`💰 **@${tag}** you have **${pts.toLocaleString()} ${name}**!`, true);
 }
 
 async function handleStore(interaction) {
   const guildId = interaction.guild_id;
-  const streamer = await getStreamerByGuild(guildId);
-  if (!streamer) return message("❌ This server isn't linked to a WenBot streamer account.");
+  const db      = getDb();
 
-  const db       = getDb();
-  const currency = streamer.profile?.currencyName || "points";
-  const snap     = await db.collection("streamers").doc(streamer.uid)
-    .collection("store_items").where("enabled", "==", true).get();
+  // Round 1: guild → uid
+  const uid = await getStreamerUid(guildId);
+  if (!uid) return message("❌ This server isn't linked to a WenBot streamer account.");
 
-  if (snap.empty) return message("🛒 The store is currently empty.", true);
+  // Round 2: parallel — profile + store items
+  const [profSnap, itemsSnap] = await Promise.all([
+    db.collection("streamers").doc(uid).get(),
+    db.collection("streamers").doc(uid).collection("store_items").where("enabled", "==", true).get(),
+  ]);
 
-  const items = snap.docs.map(d => d.data()).sort((a, b) => a.price - b.price);
+  if (!profSnap.exists) return message("❌ This server isn't linked to a WenBot streamer account.");
+  const currency = profSnap.data().currencyName || "points";
+
+  if (itemsSnap.empty) return message("🛒 The store is currently empty.", true);
+
+  const items = itemsSnap.docs.map(d => d.data()).sort((a, b) => a.price - b.price);
   const lines = items.map(item => {
     const stock = item.stock != null ? ` · ${item.stock} left` : "";
     const desc  = item.description ? ` — ${item.description}` : "";
@@ -136,20 +139,24 @@ async function handleBuy(interaction) {
   const userId  = interaction.member.user.id;
   const tag     = interaction.member.user.username;
   const itemId  = interaction.data.options?.find(o => o.name === "item")?.value || "";
+  const db      = getDb();
 
   if (!itemId) return message("❌ Specify an item to buy.", true);
 
-  const streamer = await getStreamerByGuild(guildId);
-  if (!streamer) return message("❌ This server isn't linked to a WenBot streamer account.");
+  // Round 1: guild → uid
+  const uid = await getStreamerUid(guildId);
+  if (!uid) return message("❌ This server isn't linked to a WenBot streamer account.");
 
-  const db = getDb();
-
-  // Run kick username lookup + item search in parallel
-  const [kickUsername, itemsSnap] = await Promise.all([
-    getKickUsername(streamer.uid, userId),
-    db.collection("streamers").doc(streamer.uid)
-      .collection("store_items").where("enabled", "==", true).get(),
+  // Round 2: parallel — profile + discord link + store items
+  const [profSnap, linkSnap, itemsSnap] = await Promise.all([
+    db.collection("streamers").doc(uid).get(),
+    db.collection("streamers").doc(uid).collection("discord_links").doc(userId).get(),
+    db.collection("streamers").doc(uid).collection("store_items").where("enabled", "==", true).get(),
   ]);
+
+  if (!profSnap.exists) return message("❌ This server isn't linked to a WenBot streamer account.");
+  const profile      = profSnap.data();
+  const kickUsername = linkSnap.exists ? linkSnap.data().kickUsername : null;
 
   if (!kickUsername) {
     return message("❌ Your Discord isn't linked yet. Use `/register` to connect your account.", true);
@@ -160,30 +167,29 @@ async function handleBuy(interaction) {
   );
   if (!matchDoc) return message(`❌ Item \`${itemId}\` not found. Use \`/store\` to see available items.`, true);
 
-  const itemDoc = matchDoc;
-  const item    = itemDoc.data();
-
-  const viewerRef = db.collection("streamers").doc(streamer.uid)
-    .collection("viewers").doc(kickUsername.toLowerCase());
-  const viewerDoc = await viewerRef.get();
-  const pts       = viewerDoc.exists ? (viewerDoc.data().points || 0) : 0;
-
-  if (pts < item.price) {
-    return message(`❌ You need **${item.price}** ${streamer.profile?.currencyName || "points"} but only have **${pts}**. Keep watching to earn more!`, true);
-  }
+  const item = matchDoc.data();
 
   if (item.stock !== undefined && item.stock <= 0) {
     return message(`❌ **${item.name}** is out of stock.`, true);
   }
 
-  // Deduct points + add redemption
+  // Round 3: viewer points
+  const viewerRef = db.collection("streamers").doc(uid)
+    .collection("viewers").doc(kickUsername.toLowerCase());
+  const viewerDoc = await viewerRef.get();
+  const pts       = viewerDoc.exists ? (viewerDoc.data().points || 0) : 0;
+
+  if (pts < item.price) {
+    return message(`❌ You need **${item.price}** ${profile.currencyName || "points"} but only have **${pts}**. Keep watching to earn more!`, true);
+  }
+
+  // Round 4: batch write
   const batch = db.batch();
-  batch.update(viewerRef, { points: pts - item.price });
-  batch.set(db.collection("streamers").doc(streamer.uid).collection("store_redemptions").doc(), {
+  batch.set(viewerRef, { points: pts - item.price }, { merge: true });
+  batch.set(db.collection("streamers").doc(uid).collection("store_redemptions").doc(), {
     kickUsername,
     discordUserId:   userId,
     discordUsername: tag,
-    itemId,
     itemName:        item.name,
     pointsSpent:     item.price,
     redeemedAt:      admin.firestore.Timestamp.now(),
@@ -195,8 +201,8 @@ async function handleBuy(interaction) {
   }
   await batch.commit();
 
-  // Announce in the store/announcement channel (fire and forget — don't block response)
-  const cfg = streamer.profile?.discordConfig || {};
+  // Announce (fire and forget)
+  const cfg = profile.discordConfig || {};
   if (cfg.announcementChannelId) {
     discordPost(`/channels/${cfg.announcementChannelId}/messages`, {
       embeds: [{
@@ -214,36 +220,40 @@ async function handleJoinGiveaway(interaction) {
   const guildId = interaction.guild_id;
   const userId  = interaction.member.user.id;
   const tag     = interaction.member.user.username;
+  const db      = getDb();
 
-  const streamer = await getStreamerByGuild(guildId);
-  if (!streamer) return message("❌ Server not linked to WenBot.");
+  // Round 1: guild → uid
+  const uid = await getStreamerUid(guildId);
+  if (!uid) return message("❌ Server not linked to WenBot.");
 
-  const db        = getDb();
-  const snapDoc   = await db.collection("streamers").doc(streamer.uid)
-    .collection("giveaway_state").doc("snapshot").get();
-  const snapshot  = snapDoc.exists ? snapDoc.data() : {};
+  // Round 2: parallel — profile + giveaway state + discord link
+  const [profSnap, snapDoc, linkSnap] = await Promise.all([
+    db.collection("streamers").doc(uid).get(),
+    db.collection("streamers").doc(uid).collection("giveaway_state").doc("snapshot").get(),
+    db.collection("streamers").doc(uid).collection("discord_links").doc(userId).get(),
+  ]);
 
+  const snapshot     = snapDoc.exists ? snapDoc.data() : {};
   if (!snapshot.active) return message("❌ There's no active giveaway right now.", true);
 
-  // Check eligibility type
-  const type = streamer.profile?.giveawayType || "everyone";
-  let kickUsername = await getKickUsername(streamer.uid, userId);
+  const profile      = profSnap.exists ? profSnap.data() : {};
+  const type         = profile.giveawayType || "everyone";
+  const kickUsername = linkSnap.exists ? linkSnap.data().kickUsername : null;
 
   if (type === "code" && !kickUsername) {
     return message("❌ This giveaway is for verified users only. Use `/register` to link your account first.", true);
   }
 
   const entryName = kickUsername || tag;
+  const entries   = snapshot.entries || [];
 
-  // Check if already entered
-  const entries = snapshot.entries || [];
   if (entries.includes(entryName)) {
     return message("✅ You're already in the giveaway! Good luck.", true);
   }
 
-  // Add entry
+  // Round 3: add entry
   const updated = [...entries, entryName];
-  await db.collection("streamers").doc(streamer.uid)
+  await db.collection("streamers").doc(uid)
     .collection("giveaway_state").doc("snapshot").update({
       entries:   updated,
       count:     updated.length,
@@ -257,21 +267,30 @@ async function handleRegister(interaction) {
   const guildId = interaction.guild_id;
   const userId  = interaction.member.user.id;
   const tag     = interaction.member.user.username;
+  const db      = getDb();
 
-  const streamer = await getStreamerByGuild(guildId);
-  if (!streamer) return message("❌ This server isn't linked to a WenBot streamer account.", true);
+  // Round 1: guild → uid
+  const uid = await getStreamerUid(guildId);
+  if (!uid) return message("❌ This server isn't linked to a WenBot streamer account.", true);
 
-  const channel = streamer.profile?.kickChannel;
+  // Round 2: parallel — profile + existing link check
+  const [profSnap, linkSnap] = await Promise.all([
+    db.collection("streamers").doc(uid).get(),
+    db.collection("streamers").doc(uid).collection("discord_links").doc(userId).get(),
+  ]);
+
+  if (!profSnap.exists) return message("❌ This server isn't linked to a WenBot streamer account.", true);
+  const profile = profSnap.data();
+
+  const channel = profile.kickChannel;
   if (!channel) return message("❌ Streamer channel not configured.", true);
 
-  // Check if already linked
-  const existing = await getKickUsername(streamer.uid, userId);
-  if (existing) {
+  if (linkSnap.exists) {
+    const existing = linkSnap.data().kickUsername;
     return message(`✅ You're already linked as Kick user **${existing}**! Use \`/points\` to check your balance.`, true);
   }
 
-  // Generate a short-lived one-time token
-  const db    = getDb();
+  // Round 3: write token
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   const token = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 
@@ -279,12 +298,12 @@ async function handleRegister(interaction) {
     discordUserId:   userId,
     discordUsername: tag,
     guildId,
-    streamerUid:     streamer.uid,
+    streamerUid:     uid,
     expiresAt:       Date.now() + 10 * 60 * 1000,
     used:            false,
   });
 
-  const casino = streamer.profile?.activeProvider || "gambulls";
+  const casino = profile.activeProvider || "gambulls";
   const url    = `https://wenbot.gg/verify.html?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&dtoken=${token}`;
 
   return message(
