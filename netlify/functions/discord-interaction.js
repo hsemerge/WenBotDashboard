@@ -173,7 +173,7 @@ async function handleBuy(interaction) {
 
   const item = matchDoc.data();
 
-  if (item.stock !== undefined && item.stock <= 0) {
+  if (item.stock !== undefined && item.stock !== null && item.stock <= 0) {
     return message(`❌ **${item.name}** is out of stock.`, true);
   }
 
@@ -201,7 +201,7 @@ async function handleBuy(interaction) {
     status:          "pending",
     source:          "discord",
   });
-  if (item.stock !== undefined) {
+  if (item.stock !== undefined && item.stock !== null) {
     batch.update(matchDoc.ref, { stock: item.stock - 1 });
   }
   await batch.commit();
