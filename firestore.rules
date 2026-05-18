@@ -91,6 +91,13 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
+      // bot_status — WenBotServer writes heartbeat + sync timestamps via admin SDK.
+      // Streamer can read for the dashboard's Bot Status card.
+      match /bot_status/{doc} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow create, update, delete: if false;
+      }
+
       // Everything else under the streamer doc — full owner control
       match /{subcollection}/{doc} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
