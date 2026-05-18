@@ -2,28 +2,8 @@
 // Creates a Stripe Customer Portal session so users can manage/cancel their subscription.
 // Requires Firebase ID token in Authorization header.
 
-const admin = require("firebase-admin");
-
-function getDb() {
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId:   process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey:  (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-      }),
-    });
-  }
-  return admin.firestore();
-}
-
-function res(statusCode, body) {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "https://wenbot.gg" },
-    body: JSON.stringify(body),
-  };
-}
+const { getDb, admin } = require("./_lib/firebase");
+const { res }          = require("./_lib/http");
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
@@ -67,6 +47,7 @@ exports.handler = async (event) => {
     if (!stripeRes.ok) return res(500, { error: session.error?.message || "Stripe error" });
     return res(200, { url: session.url });
   } catch (err) {
-    return res(500, { error: err.message });
+    console.error("[create-portal-session] error:", err.message);
+    return res(500, { error: "Internal server error" });
   }
 };

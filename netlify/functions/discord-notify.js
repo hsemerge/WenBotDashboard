@@ -3,21 +3,9 @@
 // Body: { uid, type, data }
 // Types: giveaway_start | giveaway_winner | store_redemption
 
-const admin = require("firebase-admin");
+const { getDb, admin } = require("./_lib/firebase");
 
-function getDb() {
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId:   process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey:  (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-      }),
-    });
-  }
-  return admin.firestore();
-}
-
+// Local res() — no CORS header (internal-only endpoint, not called from browser)
 function res(statusCode, body) {
   return {
     statusCode,
@@ -149,6 +137,7 @@ exports.handler = async (event) => {
 
     return res(200, { success: true });
   } catch (err) {
-    return res(500, { error: err.message });
+    console.error("[discord-notify] error:", err.message);
+    return res(500, { error: "Internal server error" });
   }
 };

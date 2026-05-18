@@ -2,28 +2,8 @@
 // Returns text channels for the streamer's connected Discord guild
 // Auth: Firebase ID token in Authorization header
 
-const admin = require("firebase-admin");
-
-function getDb() {
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId:   process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey:  (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-      }),
-    });
-  }
-  return admin.firestore();
-}
-
-function res(statusCode, body) {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "https://wenbot.gg" },
-    body: JSON.stringify(body),
-  };
-}
+const { getDb, admin } = require("./_lib/firebase");
+const { res }          = require("./_lib/http");
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
@@ -64,6 +44,7 @@ exports.handler = async (event) => {
 
     return res(200, { channels: text, guildId });
   } catch (e) {
-    return res(500, { error: e.message });
+    console.error("[discord-channels] error:", e.message);
+    return res(500, { error: "Internal server error" });
   }
 };

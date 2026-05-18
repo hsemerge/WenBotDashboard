@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/png" href="/wensideimage.png" sizes="32x32">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Email — WenBot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --bg-panel: #161b22; --bg-card: #1a2030;
+      --border: #30363d; --text: #c9d1d9; --text-dim: #8b949e;
+      --bright: #f0f6fc; --accent: #00e5ff; --accent-glow: rgba(0,229,255,0.2);
+      --green: #00ff88; --red: #ff4757;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 0 48px; height: 64px; border-bottom: 1px solid var(--border); }
+    .nav-logo { font-family: 'Exo 2', sans-serif; font-size: 22px; font-weight: 900; color: var(--accent); text-shadow: 0 0 20px var(--accent-glow); }
+    .page-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+    .card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 460px; padding: 48px 40px; text-align: center; }
+    .icon { font-size: 48px; margin-bottom: 16px; }
+    h1 { font-family: 'Exo 2', sans-serif; font-size: 26px; font-weight: 900; color: var(--bright); margin-bottom: 12px; }
+    .lead { font-size: 14px; color: var(--text-dim); line-height: 1.6; margin-bottom: 24px; }
+    .email-pill { display: inline-block; background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px; padding: 6px 16px; font-size: 13px; color: var(--bright); font-weight: 600; margin: 0 0 28px; }
+    .btn { display: inline-block; padding: 12px 24px; border: none; border-radius: 8px; font-family: 'Exo 2', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; transition: all 0.2s; text-decoration: none; }
+    .btn-accent { background: linear-gradient(135deg, #00e5ff, #00b8d4); color: #0d1117; }
+    .btn-accent:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,229,255,0.25); }
+    .btn-accent:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); margin-top: 12px; }
+    .btn-ghost:hover { color: var(--bright); border-color: var(--accent); }
+    .status { font-size: 13px; color: var(--text-dim); margin-top: 18px; min-height: 18px; }
+    .status.ok { color: var(--green); }
+    .status.err { color: var(--red); }
+    .help { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+  </style>
+</head>
+<body>
+<nav>
+  <div class="nav-logo">WenBot</div>
+  <a href="#" onclick="logout(); return false;" style="font-size:13px;color:var(--text-dim);">Sign out</a>
+</nav>
+
+<div class="page-wrap">
+  <div class="card">
+    <div class="icon">📧</div>
+    <h1>Verify Your Email</h1>
+    <p class="lead">We just sent a verification link to:</p>
+    <div class="email-pill" id="emailDisplay">loading...</div>
+    <p class="lead" style="margin-bottom:24px;">Click the link in that email, then come back here. We'll automatically detect once you've verified.</p>
+    <button class="btn btn-accent" id="resendBtn" onclick="resendEmail()">Resend Email</button>
+    <br>
+    <button class="btn btn-ghost" onclick="checkNow()">I've verified — check now</button>
+    <div class="status" id="status"></div>
+    <div class="help">
+      Didn't get the email? Check your spam folder, or click "Resend Email" above.<br>
+      Wrong address? <a href="#" onclick="logout(); return false;" style="color:var(--accent);">Sign out and try again</a>.
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script>
+  const plan = new URLSearchParams(window.location.search).get('plan') || 'starter';
+
+  function setStatus(msg, kind = '') {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function onAuthReady(user) {
+    document.getElementById('emailDisplay').textContent = user.email || '(unknown)';
+    if (user.emailVerified) {
+      // Already verified — go to setup
+      window.location.href = `setup.html?plan=${encodeURIComponent(plan)}`;
+      return;
+    }
+    // Poll every 4 seconds in case they verify in another tab
+    setInterval(checkNow, 4000);
+  }
+
+  function onAuthNotLoggedIn() {
+    window.location.href = 'login.html';
+  }
+
+  async function checkNow() {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+    try {
+      await user.reload();
+      if (user.emailVerified) {
+        setStatus('✅ Verified! Redirecting...', 'ok');
+        setTimeout(() => window.location.href = `setup.html?plan=${encodeURIComponent(plan)}`, 800);
+      }
+    } catch (e) {
+      console.warn('reload failed:', e);
+    }
+  }
+
+  let resendCooldown = 0;
+  async function resendEmail() {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+    if (resendCooldown > 0) return;
+    const btn = document.getElementById('resendBtn');
+    btn.disabled = true;
+    try {
+      await user.sendEmailVerification({
+        url: `${window.location.origin}/setup.html?plan=${encodeURIComponent(plan)}`,
+      });
+      setStatus('Verification email sent — check your inbox.', 'ok');
+      resendCooldown = 30;
+      const tick = setInterval(() => {
+        resendCooldown--;
+        btn.textContent = resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Email';
+        if (resendCooldown <= 0) { clearInterval(tick); btn.disabled = false; }
+      }, 1000);
+    } catch (e) {
+      setStatus('Could not send: ' + (e.code || 'unknown error'), 'err');
+      btn.disabled = false;
+    }
+  }
+
+  async function logout() {
+    await firebase.auth().signOut();
+    window.location.href = 'login.html';
+  }
+
+  initFirebase();
+</script>
+</body>
+</html>

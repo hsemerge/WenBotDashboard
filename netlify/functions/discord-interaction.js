@@ -2,26 +2,8 @@
 // Handles all Discord slash commands and button interactions
 // Verified with Ed25519 signature check (required by Discord)
 
-const nacl   = require("tweetnacl");
-const admin  = require("firebase-admin");
-
-// ── FIREBASE ──────────────────────────────────────────────────────────────────
-let _db = null;
-function getDb() {
-  if (!_db) {
-    if (!admin.apps.length) {
-      admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId:   process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey:  (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-      }),
-    });
-    }
-    _db = admin.firestore();
-  }
-  return _db;
-}
+const nacl = require("tweetnacl");
+const { getDb, admin } = require("./_lib/firebase");
 
 // ── DISCORD SIGNATURE VERIFICATION ───────────────────────────────────────────
 function verifyRequest(event) {

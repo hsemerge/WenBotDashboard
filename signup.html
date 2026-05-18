@@ -370,13 +370,19 @@
       const email = document.getElementById('signupEmail').value;
       justSignedUp = true;
       const cred  = await firebase.auth().createUserWithEmailAndPassword(email, password);
+      // Send verification email immediately — gates dashboard access and Stripe checkout.
+      try {
+        await cred.user.sendEmailVerification({
+          url: `${window.location.origin}/setup.html?plan=${selectedPlan}`,
+        });
+      } catch (e) { console.warn("Failed to send verification email:", e); }
       // Always write plan:'starter' from client — paid plan is set server-side by Stripe webhook.
       // pendingPlan carries the user's selection into setup so the right Stripe price is loaded.
       await firebase.firestore().collection('streamers').doc(cred.user.uid).set({
         pendingPlan: selectedPlan,
         createdAt:   Date.now(),
       }, { merge: true });
-      window.location.href = `setup.html?plan=${selectedPlan}`;
+      window.location.href = `verify-email.html?plan=${selectedPlan}`;
     } catch (err) {
       showError(friendlyError(err.code));
       btn.disabled = false;

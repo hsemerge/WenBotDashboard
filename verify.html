@@ -195,15 +195,9 @@
 </footer>
 
 <script src="/js/kick-auth.js"></script>
+<script src="/js/casinos.js"></script>
+<script src="/js/utils.js"></script>
 <script>
-  const CASINO_NAMES = {
-    gambulls: 'Gambulls', stake: 'Stake', rainbet: 'Rainbet',
-    thrill: 'Thrill', winna: 'Winna', shuffle: 'Shuffle',
-    duel: 'Duel', roobet: 'Roobet', bcgame: 'BC.Game',
-    '500casino': '500 Casino', gamdom: 'Gamdom', duelbits: 'Duelbits',
-    rollbit: 'Rollbit', chipsgg: 'Chips.gg',
-  };
-
   const params     = new URLSearchParams(window.location.search);
   const channel    = params.get('channel') || '';
   const dtoken     = params.get('dtoken')  || '';
@@ -385,9 +379,7 @@
     window.location.href = 'https://discord.com/oauth2/authorize?' + params.toString();
   }
 
-  function escHtml(str) {
-    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
+  // escHtml is provided by /js/utils.js
 </script>
 </body>
 </html>

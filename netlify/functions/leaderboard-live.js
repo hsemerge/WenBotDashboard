@@ -1,36 +1,10 @@
 // GET /api/leaderboard-live?channel=xxx&casino=xxx
 // Proxies the casino's leaderboard API using the streamer's stored API key
 
-const admin = require("firebase-admin");
-
-const CASINO_NAMES = {
-  gambulls: "Gambulls", stake: "Stake", rainbet: "Rainbet",
-  thrill: "Thrill", winna: "Winna", shuffle: "Shuffle",
-  duel: "Duel", roobet: "Roobet", bcgame: "BC.Game",
-  "500casino": "500 Casino", gamdom: "Gamdom", duelbits: "Duelbits",
-  rollbit: "Rollbit", chipsgg: "Chips.gg",
-};
-
-function getDb() {
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId:   process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey:  (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-      }),
-    });
-  }
-  return admin.firestore();
-}
-
-function res(statusCode, body) {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-    body: JSON.stringify(body),
-  };
-}
+const { getDb }        = require("./_lib/firebase");
+const { res: _res }    = require("./_lib/http");
+const { CASINO_NAMES } = require("./_lib/casinos");
+const res = (s, b) => _res(s, b, "*");
 
 async function fetchGambulls(apiKey) {
   const resp = await fetch(
@@ -92,6 +66,7 @@ exports.handler = async (event) => {
     return res(200, { success: true, casino: provider, casinoName: CASINO_NAMES[provider], totalWagered: 0, totalUsers: 0, rankings: [] });
 
   } catch (err) {
-    return res(500, { error: err.message });
+    console.error("[leaderboard-live] error:", err.message);
+    return res(500, { error: "Internal server error" });
   }
 };

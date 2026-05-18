@@ -2,36 +2,9 @@
 // Body: { idToken, casino, period, endDate, winners }
 // Saves a finalized leaderboard month to Firestore (called from dashboard)
 
-const admin = require("firebase-admin");
-
-const CASINO_NAMES = {
-  gambulls: "Gambulls", stake: "Stake", rainbet: "Rainbet",
-  thrill: "Thrill", winna: "Winna", shuffle: "Shuffle",
-  duel: "Duel", roobet: "Roobet", bcgame: "BC.Game",
-  "500casino": "500 Casino", gamdom: "Gamdom", duelbits: "Duelbits",
-  rollbit: "Rollbit", chipsgg: "Chips.gg",
-};
-
-function getDb() {
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId:   process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey:  (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-      }),
-    });
-  }
-  return admin.firestore();
-}
-
-function res(statusCode, body) {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "https://wenbot.gg" },
-    body: JSON.stringify(body),
-  };
-}
+const { getDb, admin } = require("./_lib/firebase");
+const { res }          = require("./_lib/http");
+const { CASINO_NAMES } = require("./_lib/casinos");
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
@@ -83,6 +56,7 @@ exports.handler = async (event) => {
     if (err.code === "auth/argument-error" || err.code === "auth/id-token-expired") {
       return res(401, { error: "Unauthorized" });
     }
-    return res(500, { error: err.message });
+    console.error("[save-leaderboard-period] error:", err.message);
+    return res(500, { error: "Internal server error" });
   }
 };

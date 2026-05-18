@@ -241,6 +241,12 @@
     const TEST_ACCOUNTS = new Set(['emergeonkick']);
 
     async function onAuthReady(user) {
+      // Require verified email — viewers will be sent to verify-email.html until they confirm
+      if (!user.emailVerified) {
+        const plan = new URLSearchParams(location.search).get('plan') || fb.streamerProfile?.pendingPlan || 'starter';
+        window.location.href = `verify-email.html?plan=${encodeURIComponent(plan)}`;
+        return;
+      }
       if (fb.streamerProfile && fb.streamerProfile.onboarded) {
         window.location.href = "dashboard.html";
         return;

@@ -5,15 +5,22 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-
-[[redirects]]
-  from   = "/api/kick-send-message"
-  to     = "/.netlify/functions/kick-send-message"
-  status = 200
+    # Content-Security-Policy
+    # - script-src/style-src 'unsafe-inline' is needed because many pages have inline <script>/<style> blocks.
+    #   CSP still defends against XSS-exfiltration via connect-src restrictions and against clickjacking
+    #   via frame-ancestors. Tightening to nonces would require refactoring every inline block — future work.
+    # - connect-src lists the third parties our pages need to talk to:
+    #   *.googleapis.com (Firebase Auth/Firestore), *.kick.com (Kick API/OAuth), discord.com (OAuth)
+    Content-Security-Policy = "default-src 'self'; script-src 'self' https://www.gstatic.com 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https://files.kick.com https://cdn.discordapp.com data:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://api.kick.com https://id.kick.com https://kick.com https://discord.com; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
 
 [[redirects]]
   from   = "/api/kick-store-wenbot"
   to     = "/.netlify/functions/kick-store-wenbot"
+  status = 200
+
+[[redirects]]
+  from   = "/api/kick-streamer-finalize"
+  to     = "/.netlify/functions/kick-streamer-finalize"
   status = 200
 
 [[redirects]]
@@ -27,8 +34,8 @@
   status = 200
 
 [[redirects]]
-  from   = "/api/resolve-verify-token"
-  to     = "/.netlify/functions/resolve-verify-token"
+  from   = "/api/send-agency-inquiry"
+  to     = "/.netlify/functions/send-agency-inquiry"
   status = 200
 
 [[redirects]]
@@ -74,11 +81,6 @@
 [[redirects]]
   from   = "/api/slot-request-data"
   to     = "/.netlify/functions/slot-request-data"
-  status = 200
-
-[[redirects]]
-  from   = "/api/slot-request-add"
-  to     = "/.netlify/functions/slot-request-add"
   status = 200
 
 [[redirects]]

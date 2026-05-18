@@ -11,28 +11,10 @@
 //
 // Returns: { success: true, kickUsername, kickAvatar } — tokens never returned to client.
 
-const admin = require("firebase-admin");
-
-function getDb() {
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId:   process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey:  (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-      }),
-    });
-  }
-  return admin.firestore();
-}
-
-function res(statusCode, body) {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-    body: JSON.stringify(body),
-  };
-}
+const { getDb, admin } = require("./_lib/firebase");
+const { res: _res }    = require("./_lib/http");
+const { logAudit }     = require("./_lib/audit");
+const res = (s, b) => _res(s, b, "*");
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
@@ -78,7 +60,8 @@ exports.handler = async (event) => {
       return res(400, { error: "Kick token exchange failed", details: tokens });
     }
   } catch (err) {
-    return res(500, { error: "Token exchange error: " + err.message });
+    console.error("[kick-streamer-finalize] token exchange error:", err.message);
+    return res(500, { error: "Token exchange failed" });
   }
 
   // 3. Fetch Kick user profile (proves Kick identity)
@@ -92,7 +75,8 @@ exports.handler = async (event) => {
     kickUser = userData.data?.[0];
     if (!kickUser)               return res(400, { error: "No Kick user data returned" });
   } catch (err) {
-    return res(500, { error: "Kick profile error: " + err.message });
+    console.error("[kick-streamer-finalize] profile fetch error:", err.message);
+    return res(500, { error: "Could not fetch Kick profile" });
   }
 
   // 4. Store via admin SDK (bypasses client-side write rules on protected fields)
@@ -109,8 +93,14 @@ exports.handler = async (event) => {
       kickConnectedAt:    Date.now(),
     }, { merge: true });
   } catch (err) {
-    return res(500, { error: "Failed to save connection: " + err.message });
+    console.error("[kick-streamer-finalize] save error:", err.message);
+    return res(500, { error: "Failed to save connection" });
   }
+
+  logAudit(uid, "kick_connected", {
+    kickUsername: kickUser.name,
+    kickUserId:   String(kickUser.user_id),
+  });
 
   // Return only non-sensitive identity info — tokens never leave the server
   return res(200, {

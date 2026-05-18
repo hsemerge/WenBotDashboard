@@ -2,20 +2,7 @@
 // Requires x-admin-key header matching WENBOT_ADMIN_KEY env var
 // POST body: { access_token, refresh_token, expires_in }
 
-const admin = require("firebase-admin");
-
-function getDb() {
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId:   process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey:  (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-      }),
-    });
-  }
-  return admin.firestore();
-}
+const { getDb } = require("./_lib/firebase");
 
 exports.handler = async (event) => {
   const adminKey    = event.headers["x-admin-key"];
@@ -32,7 +19,8 @@ exports.handler = async (event) => {
       const authenticated = doc.exists && !!doc.data().access_token;
       return res(200, { authenticated, expiresAt: doc.data()?.expires_at || null });
     } catch (err) {
-      return res(500, { error: "Failed to check status: " + err.message });
+      console.error("[kick-store-wenbot] status check error:", err.message);
+      return res(500, { error: "Failed to check status" });
     }
   }
 
@@ -65,10 +53,12 @@ exports.handler = async (event) => {
     await db.collection("system").doc("wenbot").set(tokens);
     return res(200, { success: true, expires_at: tokens.expires_at });
   } catch (err) {
-    return res(500, { error: "Failed to store tokens: " + err.message });
+    console.error("[kick-store-wenbot] store error:", err.message);
+    return res(500, { error: "Failed to store tokens" });
   }
 };
 
+// Local res() — admin-only endpoint, no CORS header (not called from browser pages)
 function res(statusCode, body) {
   return {
     statusCode,

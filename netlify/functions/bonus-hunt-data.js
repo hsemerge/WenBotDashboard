@@ -1,21 +1,9 @@
 // GET /api/bonus-hunt-data?channel=xxx
 // Returns bonus hunt state for OBS overlay — no auth required
 
-const admin = require("firebase-admin");
+const { getDb } = require("./_lib/firebase");
 
-function getDb() {
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId:   process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey:  (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-      }),
-    });
-  }
-  return admin.firestore();
-}
-
+// Local res() — includes Cache-Control: no-store for overlay freshness
 function res(statusCode, body) {
   return {
     statusCode,
@@ -49,6 +37,7 @@ exports.handler = async (event) => {
 
     return res(200, huntDoc.data());
   } catch (err) {
-    return res(500, { error: err.message });
+    console.error("[bonus-hunt-data] error:", err.message);
+    return res(500, { error: "Internal server error" });
   }
 };

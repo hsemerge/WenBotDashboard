@@ -2,28 +2,9 @@
 // Body: { channel, kickUsername, accessToken, matchId, choice (1|2), points }
 // Verifies viewer identity via Kick API, then records vote and deducts points.
 
-const admin = require("firebase-admin");
-
-function getDb() {
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId:   process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey:  (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-      }),
-    });
-  }
-  return admin.firestore();
-}
-
-function res(statusCode, body) {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "https://wenbot.gg" },
-    body: JSON.stringify(body),
-  };
-}
+const { getDb, admin } = require("./_lib/firebase");
+const { res }          = require("./_lib/http");
+const { logAudit }     = require("./_lib/audit");
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
@@ -123,6 +104,11 @@ exports.handler = async (event) => {
 
     const slotName   = choiceNum === 1 ? match.slot1.name : match.slot2.name;
     const newBalance = currentPoints - pointsNum;
+
+    logAudit(uid, "bb_vote", {
+      kickUsername, matchId, choice: choiceNum, points: pointsNum, slotName,
+    });
+
     return res(200, {
       success: true,
       message: `Voted ${pointsNum.toLocaleString()} pts on ${slotName}!`,
@@ -130,6 +116,7 @@ exports.handler = async (event) => {
     });
 
   } catch (err) {
-    return res(500, { error: err.message });
+    console.error("[bb-vote] error:", err.message);
+    return res(500, { error: "Internal server error" });
   }
 };

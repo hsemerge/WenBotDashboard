@@ -4,71 +4,14 @@
 // Kick-chat flow: saves a pending_confirmation and returns a confirm code — bot finalizes on !confirm.
 // Discord flow: saves directly to verified_users (Discord OAuth already proves identity).
 
-const admin  = require("firebase-admin");
-const crypto = require("crypto");
+const { getDb, admin }         = require("./_lib/firebase");
+const { res, checkRateLimit }  = require("./_lib/http");
+const { CASINO_NAMES }         = require("./_lib/casinos");
+const { logAudit }             = require("./_lib/audit");
+const crypto                   = require("crypto");
 
 // Casinos with live API verification
 const API_CASINOS = new Set(["gambulls"]);
-
-// Display names for all supported casinos
-const CASINO_NAMES = {
-  gambulls:   "Gambulls",
-  stake:      "Stake",
-  rainbet:    "Rainbet",
-  thrill:     "Thrill",
-  winna:      "Winna",
-  shuffle:    "Shuffle",
-  duel:       "Duel",
-  roobet:     "Roobet",
-  bcgame:     "BC.Game",
-  "500casino":"500 Casino",
-  gamdom:     "Gamdom",
-  duelbits:   "Duelbits",
-  rollbit:    "Rollbit",
-  chipsgg:    "Chips.gg",
-};
-
-function getDb() {
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId:   process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey:  (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-      }),
-    });
-  }
-  return admin.firestore();
-}
-
-// Simple Firestore-backed rate limiter: maxReqs per windowSecs per IP
-async function checkRateLimit(db, ip, bucket, maxReqs = 20, windowSecs = 60) {
-  const key = `${bucket}_${(ip || 'unknown').replace(/[^a-z0-9]/gi, '_').slice(0, 64)}`;
-  const ref  = db.collection('_rate_limits').doc(key);
-  const now  = Date.now();
-  try {
-    const allowed = await db.runTransaction(async txn => {
-      const doc   = await txn.get(ref);
-      const d     = doc.exists ? doc.data() : {};
-      const reset = d.resetAt || 0;
-      const count = reset > now ? (d.count || 0) : 0;
-      if (count >= maxReqs) return false;
-      txn.set(ref, { count: count + 1, resetAt: reset > now ? reset : now + windowSecs * 1000 });
-      return true;
-    });
-    return allowed;
-  } catch {
-    return true; // fail open on Firestore error
-  }
-}
-
-function res(statusCode, body) {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "https://wenbot.gg" },
-    body: JSON.stringify(body),
-  };
-}
 
 // API-backed lookup — returns { username, wagerAmount } or null
 async function lookupAffiliate(provider, apiKey, affiliateUsername) {
@@ -235,6 +178,15 @@ exports.handler = async (event) => {
       hasExistingDiscordLink = !existingLink.empty;
     }
 
+    // Audit log — best-effort, never blocks the response
+    logAudit(streamerUid, "verify", {
+      kickUsername,
+      providerUsername: resultUsername,
+      provider,
+      underAffiliate,
+      discordLinked: !!discordUserId,
+    });
+
     return res(200, {
       success:           true,
       kickUsername,
@@ -249,6 +201,12 @@ exports.handler = async (event) => {
     });
 
   } catch (err) {
-    return res(err.status || 500, { error: err.message });
+    // 4xx errors (throw Object.assign(new Error(msg), {status:...})) carry safe user-facing messages.
+    // 5xx errors are unexpected — sanitize and log.
+    if (err.status && err.status < 500) {
+      return res(err.status, { error: err.message });
+    }
+    console.error("[verify-affiliate] error:", err.message);
+    return res(500, { error: "Internal server error" });
   }
 };

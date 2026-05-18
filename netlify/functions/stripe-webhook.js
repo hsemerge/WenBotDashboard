@@ -2,21 +2,8 @@
 // Handles Stripe webhook events — updates Firestore when subscription state changes.
 // Must be called with raw body (no JSON parsing) for signature verification.
 
-const admin = require("firebase-admin");
-const crypto = require("crypto");
-
-function getDb() {
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId:   process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey:  (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-      }),
-    });
-  }
-  return admin.firestore();
-}
+const { getDb } = require("./_lib/firebase");
+const crypto    = require("crypto");
 
 // Map Stripe Price IDs → plan names (populated from env vars at runtime)
 function getPricePlanMap() {
@@ -28,13 +15,21 @@ function getPricePlanMap() {
 }
 
 function verifyStripeSignature(rawBody, signature, secret) {
-  const parts     = Object.fromEntries(signature.split(",").map(p => p.split("=")));
-  const timestamp = parts.t;
-  const expected  = parts.v1;
-  const payload   = `${timestamp}.${rawBody}`;
-  const computed  = crypto.createHmac("sha256", secret).update(payload).digest("hex");
-  if (Math.abs(Date.now() / 1000 - parseInt(timestamp)) > 300) return false;
-  return crypto.timingSafeEqual(Buffer.from(computed), Buffer.from(expected));
+  try {
+    const parts     = Object.fromEntries(signature.split(",").map(p => p.split("=")));
+    const timestamp = parts.t;
+    const expected  = parts.v1;
+    if (!timestamp || !expected) return false;
+    if (Math.abs(Date.now() / 1000 - parseInt(timestamp)) > 300) return false;
+    const payload  = `${timestamp}.${rawBody}`;
+    const computed = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+    const a = Buffer.from(computed);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
 }
 
 exports.handler = async (event) => {

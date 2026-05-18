@@ -2055,6 +2055,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <script src="js/firebase-config.js"></script>
+<script src="js/casinos.js"></script>
+<script src="js/utils.js"></script>
 <script>
 // ── DISCORD NOTIFY ───────────────────────────────────────────────────────────
 async function discordNotify(type, data) {
@@ -2361,6 +2363,11 @@ let gtbSessionId = null;
 let activeGuesses = [];
 
 function onAuthReady(user) {
+  // Require verified email before dashboard access
+  if (!user.emailVerified) {
+    window.location.href = 'verify-email.html';
+    return;
+  }
   document.getElementById('authLoader').style.display  = 'none';
   document.getElementById('appRoot').style.visibility = '';
   profile = fb.streamerProfile;
@@ -2988,7 +2995,7 @@ async function deleteCommand(id) {
 let verifiedUnsub     = null;
 let verifiedDiscordMap = {};
 
-const CASINO_NAMES_MAP = { gambulls:'Gambulls', stake:'Stake', rainbet:'Rainbet', thrill:'Thrill', winna:'Winna', shuffle:'Shuffle', duel:'Duel', roobet:'Roobet', bcgame:'BC.Game', '500casino':'500 Casino', gamdom:'Gamdom', duelbits:'Duelbits', rollbit:'Rollbit', chipsgg:'Chips.gg' };
+// CASINO_NAMES is provided by /js/casinos.js
 
 function loadVerifiedUsers() {
   const uid            = fb.currentUser.uid;
@@ -3025,7 +3032,7 @@ function loadVerifiedUsers() {
         const statusBadge = v.underAffiliate
           ? `<span style="background:rgba(0,255,136,0.1);color:#00ff88;border:1px solid rgba(0,255,136,0.3);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;">Under Code</span>`
           : `<span style="background:rgba(139,148,158,0.1);color:#8b949e;border:1px solid rgba(139,148,158,0.3);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;">General</span>`;
-        const casinoName  = CASINO_NAMES_MAP[v.provider] || v.provider || '—';
+        const casinoName  = CASINO_NAMES[v.provider] || v.provider || '—';
         const discordUser = verifiedDiscordMap[v.kickName?.toLowerCase()];
         const discordCell = discordUser
           ? `<span style="color:#5865F2;font-weight:600;font-size:12px;">@${discordUser}</span>`

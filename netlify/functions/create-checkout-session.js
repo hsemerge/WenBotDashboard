@@ -2,49 +2,9 @@
 // Creates a Stripe Checkout session for a paid plan
 // Requires Firebase ID token in Authorization header
 
-const admin = require("firebase-admin");
-const crypto = require("crypto");
-
-function getDb() {
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId:   process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey:  (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-      }),
-    });
-  }
-  return admin.firestore();
-}
-
-async function checkRateLimit(db, ip, bucket, maxReqs = 10, windowSecs = 60) {
-  const key = `${bucket}_${(ip || 'unknown').replace(/[^a-z0-9]/gi, '_').slice(0, 64)}`;
-  const ref  = db.collection('_rate_limits').doc(key);
-  const now  = Date.now();
-  try {
-    const allowed = await db.runTransaction(async txn => {
-      const doc   = await txn.get(ref);
-      const d     = doc.exists ? doc.data() : {};
-      const reset = d.resetAt || 0;
-      const count = reset > now ? (d.count || 0) : 0;
-      if (count >= maxReqs) return false;
-      txn.set(ref, { count: count + 1, resetAt: reset > now ? reset : now + windowSecs * 1000 });
-      return true;
-    });
-    return allowed;
-  } catch {
-    return true;
-  }
-}
-
-function res(statusCode, body) {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "https://wenbot.gg" },
-    body: JSON.stringify(body),
-  };
-}
+const { getDb, admin }        = require("./_lib/firebase");
+const { res, checkRateLimit } = require("./_lib/http");
+const crypto                  = require("crypto");
 
 const PLAN_PRICES = {
   pro:    process.env.STRIPE_PRICE_PRO,
@@ -76,6 +36,9 @@ exports.handler = async (event) => {
   let uid, existingCustomerId;
   try {
     const decoded  = await admin.auth().verifyIdToken(idToken);
+    if (!decoded.email_verified) {
+      return res(403, { error: "Please verify your email before subscribing." });
+    }
     uid            = decoded.uid;
     // Reuse existing Stripe customer if present (avoids duplicate customers)
     const profSnap = await db.collection("streamers").doc(uid).get();
@@ -120,6 +83,7 @@ exports.handler = async (event) => {
     if (!stripeRes.ok) return res(500, { error: session.error?.message || "Stripe error" });
     return res(200, { url: session.url });
   } catch (err) {
-    return res(500, { error: err.message });
+    console.error("[create-checkout-session] error:", err.message);
+    return res(500, { error: "Internal server error" });
   }
 };

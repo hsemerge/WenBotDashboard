@@ -1,20 +1,7 @@
 // Background function — processes slow Discord commands after a deferred response
 // Called by discord-interaction.js; posts followup to Discord webhook
 
-const admin = require("firebase-admin");
-
-function getDb() {
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId:   process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey:  (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-      }),
-    });
-  }
-  return admin.firestore();
-}
+const { getDb, admin } = require("./_lib/firebase");
 
 async function getStreamerByGuild(guildId) {
   const db   = getDb();
