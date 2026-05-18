@@ -779,7 +779,7 @@
         <div class="hero-badge">🎰 Built for Kick Gambling Streamers</div>
         <h1 class="hero-title">The All-In-One<br><span>Streamer Bot</span><br>for Kick</h1>
         <p class="hero-sub">
-          Giveaways, points, wager leaderboards, store redemptions, casino verification, bonus hunt tracking, and Discord integration — all running automatically from a single dashboard while you stream.
+          Giveaways, raffles, points, wager leaderboards, store redemptions, casino verification, bonus hunts, bonus battles, tournaments, and Discord integration — all running automatically from a single dashboard while you stream.
         </p>
         <div class="hero-actions">
           <a href="signup.html" class="btn btn-accent btn-lg">Start Free Today</a>
@@ -787,7 +787,7 @@
         </div>
         <div class="hero-stats">
           <div>
-            <div class="hero-stat-num">10+</div>
+            <div class="hero-stat-num">15+</div>
             <div class="hero-stat-label">Feature Modules</div>
           </div>
           <div>
@@ -836,11 +836,11 @@
             </div>
             <div class="chat-msg viewer3">
               <div class="chat-msg-user">🥇 bigroller</div>
-              <div class="chat-msg-text">!redeem freespin</div>
+              <div class="chat-msg-text">!redeem RaffleTicket</div>
             </div>
             <div class="chat-msg bot">
               <div class="chat-msg-user">🤖 WenBot</div>
-              <div class="chat-msg-text">🎰 @bigroller redeemed <strong>Free Spin</strong>! Added to queue.</div>
+              <div class="chat-msg-text">🎟️ @bigroller redeemed <strong>Raffle Ticket</strong>! Good luck!</div>
             </div>
           </div>
         </div>
@@ -875,7 +875,7 @@
           <div class="feature-icon">🏆</div>
           <div class="feature-title">Wager Leaderboard</div>
           <div class="feature-desc">Live monthly wager rankings pulled directly from your casino affiliate API. Public shareable page with a podium, full rankings table, and archived past winners.</div>
-          <span class="feature-tag tag-pro">Pro</span>
+          <span class="feature-tag tag-elite">Elite</span>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🪙</div>
@@ -886,7 +886,7 @@
         <div class="feature-card">
           <div class="feature-icon">🛒</div>
           <div class="feature-title">Viewer Store</div>
-          <div class="feature-desc">Create custom reward items — Free Spins, Shoutouts, VIP access, anything. Viewers redeem with <strong>!redeem</strong> in chat or <strong>/buy</strong> in Discord. Dashboard queue lets you fulfill with one click.</div>
+          <div class="feature-desc">Create custom reward items — Free Spins, Shoutouts, VIP access, anything. Viewers buy with <strong>!buy</strong> in Kick chat or <strong>/buy</strong> in Discord. Dashboard queue lets you fulfill with one click.</div>
           <span class="feature-tag tag-pro">Pro</span>
         </div>
         <div class="feature-card">
@@ -912,6 +912,24 @@
           <div class="feature-title">Discord Integration</div>
           <div class="feature-desc">Full Discord bot with <strong>/points</strong>, <strong>/buy</strong>, <strong>/join</strong>, and <strong>/register</strong>. Giveaway announcements and store redemptions posted automatically. Viewers link their Kick + casino account via Discord in one step.</div>
           <span class="feature-tag tag-elite">Elite</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎟️</div>
+          <div class="feature-title">Raffles</div>
+          <div class="feature-desc">Two modes: <strong>Wager Raffle</strong> awards tickets based on how much viewers wager during a set period, and <strong>Point Raffle</strong> lets viewers spend points to enter. Draw a winner live with an animated spin wheel.</div>
+          <span class="feature-tag tag-pro">Pro</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚔️</div>
+          <div class="feature-title">Bonus Battles</div>
+          <div class="feature-desc">Head-to-head bonus competitions between two players. Viewers bet points on the outcome and earn from correct predictions. A live OBS overlay shows active bets, both players' results, and the winner in real time.</div>
+          <span class="feature-tag tag-pro">Pro</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🏅</div>
+          <div class="feature-title">Tournaments</div>
+          <div class="feature-desc">Run bracket-style viewer tournaments with up to 32 players. Configure payout splits, advance players round by round, and announce the final winner — all managed from the dashboard without leaving your stream.</div>
+          <span class="feature-tag tag-pro">Pro</span>
         </div>
       </div>
     </div>
@@ -992,7 +1010,7 @@
         <div class="step">
           <div class="step-num">1</div>
           <div class="step-title">Sign Up & Connect</div>
-          <div class="step-desc">Create your account, connect your Kick channel via OAuth, and enter your affiliate platform API key.</div>
+          <div class="step-desc">Create your account, pick your plan, and connect your Kick channel. Takes under two minutes — no technical setup required.</div>
         </div>
         <div class="step">
           <div class="step-num">2</div>
@@ -1058,7 +1076,8 @@
             <li><span class="check">✓</span> Casino verification (!verify)</li>
             <li><span class="check">✓</span> Up to 50 verified viewers</li>
             <li><span class="check">✓</span> Spin picker + winner overlay</li>
-            <li><span class="check">✓</span> Bonus hunt tracker + OBS overlay</li>
+            <li><span class="check">✓</span> Wheel OBS overlay</li>
+            <li><span class="check">✓</span> Bonus hunt tracker</li>
             <li><span class="check">✓</span> WenBot added in your Kick channel</li>
           </ul>
           <a href="signup.html?plan=starter" class="btn btn-ghost pricing-cta">Get Started</a>
@@ -1074,8 +1093,12 @@
             <li><span class="check">✓</span> Everything in Starter</li>
             <li><span class="check">✓</span> Points system + custom currency</li>
             <li><span class="check">✓</span> Viewer store & redemptions</li>
-            <li><span class="check">✓</span> Guess the Balance (GTB) + OBS overlay</li>
-            <li><span class="check">✓</span> Slot request queue + OBS overlay</li>
+            <li><span class="check">✓</span> Raffles — wager & point based</li>
+            <li><span class="check">✓</span> Bonus Battles — viewer betting</li>
+            <li><span class="check">✓</span> Tournaments — bracket system</li>
+            <li><span class="check">✓</span> Guess the Balance (GTB)</li>
+            <li><span class="check">✓</span> Slot request queue</li>
+            <li><span class="check">✓</span> All OBS Overlays</li>
             <li><span class="check">✓</span> Custom commands</li>
           </ul>
           <a href="signup.html?plan=pro" class="btn btn-accent pricing-cta">Start Pro</a>
@@ -1112,7 +1135,7 @@
             <li><span class="check">✓</span> Direct priority support line</li>
             <li><span class="check">✓</span> Custom integrations & API access</li>
           </ul>
-          <a href="mailto:support@logicplaystudios.com" class="btn btn-ghost pricing-cta">Contact Us</a>
+          <a href="signup.html?plan=agency" class="btn btn-ghost pricing-cta">Contact Us</a>
         </div>
 
       </div>

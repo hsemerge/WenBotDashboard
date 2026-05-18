@@ -253,7 +253,7 @@
   </div>
 
   <!-- Signup form -->
-  <div class="signup-box">
+  <div class="signup-box" id="signupBox">
     <h2>Create your account</h2>
     <div class="plan-label">Selected plan: <span id="planLabel">Starter — Free</span></div>
 
@@ -277,6 +277,35 @@
 
     <div class="signin-link">Already have an account? <a href="login.html">Sign in</a></div>
     <div class="terms">By creating an account you agree to our <a href="terms.html" target="_blank" style="color:var(--accent);">Terms of Service</a>.</div>
+  </div>
+
+  <!-- Agency contact form (shown when Agency tier is selected) -->
+  <div class="signup-box" id="agencyBox" style="display:none;">
+    <h2>Contact Us</h2>
+    <div class="plan-label">Agency plan — let's talk about your project</div>
+
+    <div class="error-box" id="agencyErrorBox"></div>
+    <div id="agencySuccessBox" style="display:none;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.25);border-radius:8px;padding:14px;text-align:center;color:#00ff88;font-size:14px;font-weight:600;margin-bottom:16px;">
+      ✅ Message sent! We'll be in touch at <span id="agencyConfirmEmail"></span>.
+    </div>
+
+    <form onsubmit="handleAgencySubmit(event)" id="agencyForm">
+      <div class="field">
+        <label>Your Name</label>
+        <input type="text" id="agencyName" required placeholder="First and last name">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="agencyEmail" required placeholder="you@example.com">
+      </div>
+      <div class="field">
+        <label>Tell us about your project</label>
+        <textarea id="agencyDetails" required placeholder="How many channels, what features you need, timeline, etc." style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:14px;padding:11px 14px;font-family:'Inter',sans-serif;resize:vertical;min-height:100px;"></textarea>
+      </div>
+      <button type="submit" class="btn-signup" id="agencyBtn">Send Inquiry →</button>
+    </form>
+
+    <div class="signin-link" style="margin-top:12px;"><a href="#" onclick="selectTier('starter');return false;" style="color:var(--text-dim);">← Back to plans</a></div>
   </div>
 </div>
 
@@ -303,9 +332,9 @@
     document.getElementById('tier-' + plan).classList.add('selected');
     selectedPlan = plan;
     document.getElementById('planLabel').textContent = PLAN_LABELS[plan];
-    // Agency is contact-only — swap button label
-    const btn = document.getElementById('signupBtn');
-    btn.textContent = plan === 'agency' ? 'Contact Us →' : 'Create Account →';
+    // Agency gets its own contact form; all others get the standard signup box
+    document.getElementById('signupBox').style.display  = plan === 'agency' ? 'none' : '';
+    document.getElementById('agencyBox').style.display  = plan === 'agency' ? ''     : 'none';
   }
 
   let justSignedUp = false;
@@ -329,12 +358,6 @@
     e.preventDefault();
     hideError();
 
-    // Agency is not self-serve — redirect to contact
-    if (selectedPlan === 'agency') {
-      window.location.href = 'mailto:support@logicplaystudios.com?subject=WenBot Agency Inquiry';
-      return;
-    }
-
     const password = document.getElementById('signupPassword').value;
     const confirm  = document.getElementById('signupConfirm').value;
     if (password !== confirm) { showError("Passwords don't match."); return; }
@@ -353,11 +376,42 @@
         pendingPlan: selectedPlan,
         createdAt:   Date.now(),
       }, { merge: true });
-      window.location.href = 'setup.html';
+      window.location.href = `setup.html?plan=${selectedPlan}`;
     } catch (err) {
       showError(friendlyError(err.code));
       btn.disabled = false;
       btn.textContent = 'Create Account →';
+    }
+  }
+
+  async function handleAgencySubmit(e) {
+    e.preventDefault();
+    const btn  = document.getElementById('agencyBtn');
+    const name    = document.getElementById('agencyName').value.trim();
+    const email   = document.getElementById('agencyEmail').value.trim();
+    const details = document.getElementById('agencyDetails').value.trim();
+    const errBox  = document.getElementById('agencyErrorBox');
+    errBox.style.display = 'none';
+
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+
+    try {
+      const resp = await fetch('/api/send-agency-inquiry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, details }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'Failed to send.');
+      document.getElementById('agencyForm').style.display = 'none';
+      document.getElementById('agencyConfirmEmail').textContent = email;
+      document.getElementById('agencySuccessBox').style.display = '';
+    } catch (err) {
+      errBox.textContent = err.message;
+      errBox.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Send Inquiry →';
     }
   }
 

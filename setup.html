@@ -148,6 +148,11 @@
 
       <div class="setup-error" id="setupError"></div>
 
+      <!-- Stripe cancelled notice (shown on return from cancelled checkout) -->
+      <div id="stripeCancelledNotice" style="display:none;background:rgba(255,193,7,0.07);border:1px solid rgba(255,193,7,0.25);border-radius:8px;padding:11px 14px;margin-bottom:16px;font-size:13px;color:#ffc107;">
+        No problem — you can complete setup on Starter and upgrade anytime from the dashboard.
+      </div>
+
       <!-- Kick OAuth connect -->
       <div id="kickConnectSection" style="margin-bottom:20px;">
         <div id="kickNotConnected">
@@ -192,6 +197,7 @@
             <option value="duelbits">Duelbits</option>
             <option value="rollbit">Rollbit</option>
             <option value="chipsgg">Chips.gg</option>
+            <option value="notlisted">Not Listed</option>
           </select>
         </div>
 
@@ -209,35 +215,6 @@
         <div class="setup-field">
           <label>Display Name (optional)</label>
           <input type="text" id="setupDisplayName" placeholder="How viewers see your name">
-        </div>
-
-        <div class="setup-field" id="currencyField">
-          <label style="display:flex;align-items:center;gap:8px;">
-            Points Currency Name
-            <span id="currencyUpgradeBadge" style="display:none;font-size:10px;font-weight:700;background:rgba(167,139,250,0.15);color:#a78bfa;border:1px solid rgba(167,139,250,0.3);border-radius:4px;padding:2px 7px;letter-spacing:0.05em;">PRO</span>
-          </label>
-          <input type="text" id="setupCurrencyName" placeholder="e.g. Chips, Skulls, Coins" maxlength="20">
-          <span class="hint">What viewers earn for chatting (default: points)</span>
-        </div>
-
-        <div class="setup-field" id="pointsField">
-          <label style="display:flex;align-items:center;gap:8px;">
-            Points Per Message
-            <span id="pointsUpgradeBadge" style="display:none;font-size:10px;font-weight:700;background:rgba(167,139,250,0.15);color:#a78bfa;border:1px solid rgba(167,139,250,0.3);border-radius:4px;padding:2px 7px;letter-spacing:0.05em;">PRO</span>
-          </label>
-          <input type="number" id="setupPointsPerMessage" placeholder="1" min="0" max="100" value="1">
-          <span class="hint">How many points viewers earn per chat message</span>
-        </div>
-
-        <!-- Stripe payment block (shown for paid plans that haven't paid yet) -->
-        <div id="stripePaymentBlock" style="display:none;background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.2);border-radius:10px;padding:16px 18px;">
-          <div style="font-family:'Exo 2',sans-serif;font-weight:800;color:var(--text-bright);font-size:14px;margin-bottom:6px;">💳 Payment Required</div>
-          <div style="font-size:13px;color:var(--text-dim);margin-bottom:14px;" id="stripePaymentDesc">Subscribe to complete setup.</div>
-          <button type="button" class="btn btn-accent" style="width:100%;padding:11px;font-size:14px;" id="stripeBtn" onclick="goToStripe()">Subscribe Now →</button>
-        </div>
-
-        <div id="stripeSuccessBlock" style="display:none;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.25);border-radius:10px;padding:12px 16px;">
-          <div style="color:#00ff88;font-size:13px;font-weight:600;">✅ Subscription active — you're all set!</div>
         </div>
 
         <button type="submit" class="btn btn-accent setup-submit" id="setupBtn">Complete Setup</button>
@@ -282,8 +259,9 @@
         }
       }
 
-      // Handle return from Kick OAuth
       const params = new URLSearchParams(window.location.search);
+
+      // Handle return from Kick OAuth
       if (params.get("kick") === "connected") {
         await loadStreamerProfile(user.uid);
         if (fb.streamerProfile?.kickUserId) {
@@ -291,79 +269,32 @@
         }
       }
 
-      applyTierGating(user);
-
-      // Handle return from Stripe
+      // Handle return from Stripe — success: poll until webhook fires, then go to dashboard
       if (params.get("stripe") === "success") {
         await pollStripeActivation(user.uid);
-      }
-    }
-
-    function applyTierGating(user) {
-      // pendingPlan: what user selected at signup (not yet paid)
-      // plan: what the server has confirmed via Stripe webhook
-      const plan        = fb.streamerProfile?.plan || 'starter';
-      const pendingPlan = fb.streamerProfile?.pendingPlan || plan;
-      const channel     = fb.streamerProfile?.kickChannel || '';
-      const isTest      = TEST_ACCOUNTS.has(channel.toLowerCase());
-      const isPaid      = pendingPlan !== 'starter';
-      const hasPaid     = fb.streamerProfile?.stripeSubscriptionActive === true;
-
-      // Points fields — Pro+ only
-      if (!isPaid && !isTest) {
-        ['setupCurrencyName', 'setupPointsPerMessage'].forEach(id => {
-          const el = document.getElementById(id);
-          el.disabled = true;
-          el.style.opacity = '0.4';
-          el.style.cursor  = 'not-allowed';
-        });
-        document.getElementById('currencyUpgradeBadge').style.display = '';
-        document.getElementById('pointsUpgradeBadge').style.display   = '';
+        return;
       }
 
-      // Stripe payment block — paid plans that haven't subscribed
-      if (isPaid && !hasPaid && !isTest) {
-        document.getElementById('stripePaymentBlock').style.display = '';
-        document.getElementById('stripePaymentDesc').textContent =
-          `You selected the ${PLAN_LABELS[pendingPlan] || PLAN_LABELS[plan]} plan. Subscribe to activate your account.`;
-        document.getElementById('setupBtn').disabled = true;
-        document.getElementById('setupBtn').style.opacity = '0.4';
-      } else if (isPaid && hasPaid) {
-        document.getElementById('stripeSuccessBlock').style.display = '';
+      // Handle return from Stripe — cancelled: show soft notice, let them continue on Starter
+      if (params.get("stripe") === "cancelled") {
+        document.getElementById('stripeCancelledNotice').style.display = '';
       }
+
+      updateProviderInfo();
     }
 
     async function pollStripeActivation(uid, attempts = 0) {
-      if (attempts > 10) return; // give up after ~10s
+      if (attempts > 12) {
+        // Webhook too slow — send them to dashboard anyway
+        window.location.href = "dashboard.html";
+        return;
+      }
       await loadStreamerProfile(uid);
       if (fb.streamerProfile?.stripeSubscriptionActive) {
-        document.getElementById('stripePaymentBlock').style.display = 'none';
-        document.getElementById('stripeSuccessBlock').style.display = '';
-        document.getElementById('setupBtn').disabled    = false;
-        document.getElementById('setupBtn').style.opacity = '1';
+        window.location.href = "dashboard.html";
         return;
       }
       setTimeout(() => pollStripeActivation(uid, attempts + 1), 1000);
-    }
-
-    async function goToStripe() {
-      const btn       = document.getElementById('stripeBtn');
-      const targetPlan = fb.streamerProfile?.pendingPlan || fb.streamerProfile?.plan || 'pro';
-      btn.disabled = true; btn.textContent = 'Redirecting...';
-      try {
-        const idToken = await fb.currentUser.getIdToken();
-        const resp = await fetch('/api/create-checkout-session', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ targetPlan }),
-        });
-        const data = await resp.json();
-        if (data.url) { window.location.href = data.url; }
-        else { showSetupError(data.error || 'Failed to start checkout.'); btn.disabled = false; btn.textContent = 'Subscribe Now →'; }
-      } catch (e) {
-        showSetupError('Failed to connect to Stripe. Try again.');
-        btn.disabled = false; btn.textContent = 'Subscribe Now →';
-      }
     }
 
     function showKickConnected(username, avatar) {
@@ -407,7 +338,10 @@
 
       // API key is only for Elite+ (leaderboard feature); Starter/Pro just need the casino for !verify
       const plan        = fb.streamerProfile?.plan || 'starter';
-      const isElitePlus = ['elite', 'agency'].includes(plan) || TEST_ACCOUNTS.has((fb.streamerProfile?.kickChannel || '').toLowerCase());
+      const pendingPlan = fb.streamerProfile?.pendingPlan
+                          || new URLSearchParams(location.search).get('plan')
+                          || plan;
+      const isElitePlus = ['elite', 'agency'].includes(pendingPlan) || TEST_ACCOUNTS.has((fb.streamerProfile?.kickChannel || '').toLowerCase());
 
       if (API_CASINOS.has(provider) && isElitePlus) {
         apiKeyField.style.display = '';
@@ -424,9 +358,6 @@
       }
     }
 
-    // Init provider info on load
-    updateProviderInfo();
-
     function showSetupError(msg) {
       const el = document.getElementById("setupError");
       el.textContent = msg;
@@ -440,46 +371,51 @@
       btn.textContent = "Saving...";
 
       try {
-        const kickChannel      = document.getElementById("setupKickChannel").value.trim().toLowerCase();
-        const provider         = document.getElementById("setupProvider").value;
-        const apiKey           = document.getElementById("setupApiKey").value.trim();
-        const displayName      = document.getElementById("setupDisplayName").value.trim();
-        const currencyName     = document.getElementById("setupCurrencyName").value.trim() || "points";
-        const pointsPerMessage = parseInt(document.getElementById("setupPointsPerMessage").value, 10) || 1;
+        const kickChannel = document.getElementById("setupKickChannel").value.trim().toLowerCase();
+        const provider    = document.getElementById("setupProvider").value;
+        const apiKey      = document.getElementById("setupApiKey").value.trim();
+        const displayName = document.getElementById("setupDisplayName").value.trim();
 
         if (!kickChannel) throw new Error("Enter your Kick channel username.");
 
         const plan        = fb.streamerProfile?.plan || 'starter';
-        const pendingPlan = fb.streamerProfile?.pendingPlan || plan;
-        const isTest  = TEST_ACCOUNTS.has(kickChannel.toLowerCase());
-        const isPaid  = pendingPlan !== 'starter';
-        const hasPaid = fb.streamerProfile?.stripeSubscriptionActive === true;
+        const pendingPlan = fb.streamerProfile?.pendingPlan
+                            || new URLSearchParams(location.search).get('plan')
+                            || plan;
+        const isTest      = TEST_ACCOUNTS.has(kickChannel.toLowerCase());
         const isElitePlus = ['elite', 'agency'].includes(pendingPlan) || isTest;
+        const hasPaid     = fb.streamerProfile?.stripeSubscriptionActive === true;
 
         if (API_CASINOS.has(provider) && isElitePlus && !apiKey) throw new Error("Enter your affiliate API key.");
 
-        // Block setup for paid plans that haven't subscribed (except test accounts)
-        if (isPaid && !hasPaid && !isTest) {
-          throw new Error("Please complete your subscription before finishing setup.");
-        }
-
-        const profileUpdate = {
+        await saveStreamerProfile({
           kickChannel,
           displayName: displayName || kickChannel,
           activeProvider: provider,
           onboarded: true,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        };
+        });
 
-        // Points fields only saved for Pro+ or test accounts
-        if (pendingPlan !== 'starter' || isTest) {
-          profileUpdate.currencyName     = currencyName;
-          profileUpdate.pointsPerMessage = pointsPerMessage;
-        }
-
-        await saveStreamerProfile(profileUpdate);
         if (API_CASINOS.has(provider) && apiKey) {
           await saveProviderConfig(provider, { apiKey, enabled: true });
+        }
+
+        // Paid plan that hasn't subscribed yet — redirect to Stripe
+        if (pendingPlan !== 'starter' && !hasPaid && !isTest) {
+          btn.textContent = "Redirecting to payment...";
+          const idToken = await fb.currentUser.getIdToken();
+          const resp = await fetch('/api/create-checkout-session', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ targetPlan: pendingPlan }),
+          });
+          const data = await resp.json();
+          if (data.url) {
+            window.location.href = data.url;
+          } else {
+            throw new Error(data.error || 'Could not start checkout. You can upgrade from the dashboard.');
+          }
+          return;
         }
 
         window.location.href = "dashboard.html";

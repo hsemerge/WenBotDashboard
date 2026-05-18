@@ -92,7 +92,7 @@ exports.handler = async (event) => {
   const successUrl = fromDash
     ? `${siteUrl}/dashboard.html?stripe=success&plan=${targetPlan}`
     : `${siteUrl}/setup.html?stripe=success`;
-  const cancelUrl  = fromDash ? `${siteUrl}/dashboard.html` : `${siteUrl}/setup.html`;
+  const cancelUrl  = fromDash ? `${siteUrl}/dashboard.html` : `${siteUrl}/setup.html?stripe=cancelled`;
 
   const authHeader64 = Buffer.from(process.env.STRIPE_SECRET_KEY + ":").toString("base64");
 
