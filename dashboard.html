@@ -2095,10 +2095,13 @@ function showPage(id, el) {
   const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', settings:'Settings', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade' };
   document.getElementById('topbarTitle').textContent = titles[id] || id;
   // Tear down SR listeners when leaving their pages
-  if (id !== 'slotrequest' && srUnsub) { srUnsub(); srUnsub = null; }
-  if (id !== 'bonushunt') { unsubBhSr(); }
-  if (id !== 'bonusbattle' && bbUnsub) { bbUnsub(); bbUnsub = null; }
-  if (id !== 'tournament'  && tnUnsub) { tnUnsub(); tnUnsub = null; }
+  if (id !== 'slotrequest' && srUnsub)        { srUnsub(); srUnsub = null; }
+  if (id !== 'bonushunt') { unsubBhSr(); if (bhHistoryUnsub) { bhHistoryUnsub(); bhHistoryUnsub = null; } }
+  if (id !== 'bonusbattle' && bbUnsub)        { bbUnsub(); bbUnsub = null; }
+  if (id !== 'tournament'  && tnUnsub)        { tnUnsub(); tnUnsub = null; }
+  if (id !== 'verified'    && verifiedUnsub)  { verifiedUnsub(); verifiedUnsub = null; }
+  if (id !== 'store'       && redemptionsUnsub) { redemptionsUnsub(); redemptionsUnsub = null; }
+  if (id !== 'raffle'      && raffleHistoryUnsub) { raffleHistoryUnsub(); raffleHistoryUnsub = null; }
   if (id === 'verified') loadVerifiedUsers();
   if (id === 'points') loadTopViewers();
   if (id === 'gtb') loadGTBGuesses();
@@ -2982,56 +2985,65 @@ async function deleteCommand(id) {
 }
 
 // ── VERIFIED USERS ──
-async function loadVerifiedUsers() {
-  const uid   = fb.currentUser.uid;
-  const tbody = document.getElementById('verifiedTable');
-  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:16px;">Loading...</td></tr>';
+let verifiedUnsub     = null;
+let verifiedDiscordMap = {};
+
+const CASINO_NAMES_MAP = { gambulls:'Gambulls', stake:'Stake', rainbet:'Rainbet', thrill:'Thrill', winna:'Winna', shuffle:'Shuffle', duel:'Duel', roobet:'Roobet', bcgame:'BC.Game', '500casino':'500 Casino', gamdom:'Gamdom', duelbits:'Duelbits', rollbit:'Rollbit', chipsgg:'Chips.gg' };
+
+function loadVerifiedUsers() {
+  const uid            = fb.currentUser.uid;
+  const tbody          = document.getElementById('verifiedTable');
   const activeProvider = profile?.activeProvider || 'gambulls';
 
-  let snap, discordSnap;
-  try {
-    [snap, discordSnap] = await Promise.all([
-      fb.db.collection('streamers').doc(uid).collection('verified_users')
-        .where('provider', '==', activeProvider).get(),
-      fb.db.collection('streamers').doc(uid).collection('discord_links').get(),
-    ]);
-  } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--red);padding:16px;">Error: ${e.message}</td></tr>`;
-    return;
-  }
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:16px;">Loading...</td></tr>';
 
-  const discordMap = {};
-  discordSnap.docs.forEach(d => {
-    const data = d.data();
-    if (data.kickUsername) discordMap[data.kickUsername.toLowerCase()] = data.discordUsername;
-  });
+  // Fetch discord links once — they change rarely
+  fb.db.collection('streamers').doc(uid).collection('discord_links').get()
+    .then(snap => {
+      verifiedDiscordMap = {};
+      snap.docs.forEach(d => {
+        const data = d.data();
+        if (data.kickUsername) verifiedDiscordMap[data.kickUsername.toLowerCase()] = data.discordUsername;
+      });
+    }).catch(() => {});
 
-  document.getElementById('verifiedCountLabel').textContent = snap.size;
-  document.getElementById('statVerified').textContent = snap.size;
-  if (snap.empty) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:16px;">No verified users yet</td></tr>'; return; }
-  const CASINO_NAMES_MAP = { gambulls:'Gambulls', stake:'Stake', rainbet:'Rainbet', thrill:'Thrill', winna:'Winna', shuffle:'Shuffle', duel:'Duel', roobet:'Roobet', bcgame:'BC.Game', '500casino':'500 Casino', gamdom:'Gamdom', duelbits:'Duelbits', rollbit:'Rollbit', chipsgg:'Chips.gg' };
-  tbody.innerHTML = snap.docs.map(doc => {
-    const v = doc.data();
-    const ts = v.verifiedAt ? new Date(v.verifiedAt).toLocaleDateString() : '—';
-    const statusBadge = v.underAffiliate
-      ? `<span style="background:rgba(0,255,136,0.1);color:#00ff88;border:1px solid rgba(0,255,136,0.3);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;">Under Code</span>`
-      : `<span style="background:rgba(139,148,158,0.1);color:#8b949e;border:1px solid rgba(139,148,158,0.3);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;">General</span>`;
-    const casinoName = CASINO_NAMES_MAP[v.provider] || v.provider || '—';
-    const discordUser = discordMap[v.kickName?.toLowerCase()];
-    const discordCell = discordUser
-      ? `<span style="color:#5865F2;font-weight:600;font-size:12px;">@${discordUser}</span>`
-      : `<span style="color:var(--text-dim);font-size:12px;">—</span>`;
-    return `<tr>
-      <td class="td-highlight">${v.kickName || doc.id}</td>
-      <td>${v.providerUsername || '—'}</td>
-      <td style="color:var(--text-dim);font-size:12px;">${casinoName}</td>
-      <td>${statusBadge}</td>
-      <td>${discordCell}</td>
-      <td class="td-green">${v.wagerAmount ? '$'+Number(v.wagerAmount).toLocaleString() : '—'}</td>
-      <td style="color:var(--text-dim);">${ts}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="removeVerified('${doc.id}')">Remove</button></td>
-    </tr>`;
-  }).join('');
+  if (verifiedUnsub) { verifiedUnsub(); verifiedUnsub = null; }
+
+  verifiedUnsub = fb.db.collection('streamers').doc(uid)
+    .collection('verified_users')
+    .where('provider', '==', activeProvider)
+    .onSnapshot(snap => {
+      document.getElementById('verifiedCountLabel').textContent = snap.size;
+      document.getElementById('statVerified').textContent = snap.size;
+      if (snap.empty) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:16px;">No verified users yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = snap.docs.map(doc => {
+        const v  = doc.data();
+        const ts = v.verifiedAt ? new Date(v.verifiedAt).toLocaleDateString() : '—';
+        const statusBadge = v.underAffiliate
+          ? `<span style="background:rgba(0,255,136,0.1);color:#00ff88;border:1px solid rgba(0,255,136,0.3);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;">Under Code</span>`
+          : `<span style="background:rgba(139,148,158,0.1);color:#8b949e;border:1px solid rgba(139,148,158,0.3);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600;">General</span>`;
+        const casinoName  = CASINO_NAMES_MAP[v.provider] || v.provider || '—';
+        const discordUser = verifiedDiscordMap[v.kickName?.toLowerCase()];
+        const discordCell = discordUser
+          ? `<span style="color:#5865F2;font-weight:600;font-size:12px;">@${discordUser}</span>`
+          : `<span style="color:var(--text-dim);font-size:12px;">—</span>`;
+        return `<tr>
+          <td class="td-highlight">${v.kickName || doc.id}</td>
+          <td>${v.providerUsername || '—'}</td>
+          <td style="color:var(--text-dim);font-size:12px;">${casinoName}</td>
+          <td>${statusBadge}</td>
+          <td>${discordCell}</td>
+          <td class="td-green">${v.wagerAmount ? '$'+Number(v.wagerAmount).toLocaleString() : '—'}</td>
+          <td style="color:var(--text-dim);">${ts}</td>
+          <td><button class="btn btn-danger btn-sm" onclick="removeVerified('${doc.id}')">Remove</button></td>
+        </tr>`;
+      }).join('');
+    }, e => {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--red);padding:16px;">Error: ${e.message}</td></tr>`;
+    });
 }
 
 async function loadVerifiedCount() {
@@ -3042,7 +3054,6 @@ async function loadVerifiedCount() {
 async function removeVerified(docId) {
   await fb.db.collection('streamers').doc(fb.currentUser.uid).collection('verified_users').doc(docId).delete();
   flash('User removed.');
-  loadVerifiedUsers();
 }
 
 async function clearAllVerified() {
@@ -3052,7 +3063,6 @@ async function clearAllVerified() {
   snap.docs.forEach(d => batch.delete(d.ref));
   await batch.commit();
   flash('All verified users cleared.');
-  loadVerifiedUsers();
 }
 
 // ── SETTINGS ──
@@ -3337,49 +3347,50 @@ async function deleteStoreItem(id) {
   loadStoreItems();
 }
 
-async function loadRedemptions() {
+let redemptionsUnsub = null;
+
+function loadRedemptions() {
   const uid   = fb.currentUser.uid;
   const tbody = document.getElementById('redemptionsTable');
-  let snap;
-  try {
-    snap = await fb.db.collection('streamers').doc(uid)
-      .collection('store_redemptions').where('status','==','pending').get();
-  } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--red);padding:20px;">Error loading redemptions: ${e.message}</td></tr>`;
-    return;
-  }
 
-  if (snap.empty) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:20px;">No pending redemptions</td></tr>';
-    document.getElementById('storeBadge').style.display = 'none';
-    return;
-  }
+  if (redemptionsUnsub) { redemptionsUnsub(); redemptionsUnsub = null; }
 
-  const badge = document.getElementById('storeBadge');
-  badge.style.display = '';
-  badge.textContent = snap.size;
-
-  const currency = profile?.currencyName || 'points';
-  const sorted = snap.docs.slice().sort((a, b) => {
-    const ta = a.data().redeemedAt?.toMillis?.() ?? 0;
-    const tb = b.data().redeemedAt?.toMillis?.() ?? 0;
-    return ta - tb;
-  });
-  tbody.innerHTML = sorted.map(doc => {
-    const d      = doc.data();
-    const ts     = d.redeemedAt?.toDate ? d.redeemedAt.toDate().toLocaleTimeString() : '—';
-    const source = d.source === 'discord'
-      ? `<span style="color:#5865F2;font-size:11px;font-weight:700;">Discord</span>`
-      : `<span style="color:var(--green);font-size:11px;font-weight:700;">Kick</span>`;
-    return `<tr>
-      <td class="td-highlight">@${d.kickUsername}</td>
-      <td>${d.itemName}</td>
-      <td style="color:var(--green);">${(d.pointsSpent||0).toLocaleString()} ${currency}</td>
-      <td>${source}</td>
-      <td style="color:var(--text-dim);">${ts}</td>
-      <td><button class="btn btn-green btn-sm" onclick="fulfillRedemption('${doc.id}')">✓ Fulfill</button></td>
-    </tr>`;
-  }).join('');
+  redemptionsUnsub = fb.db.collection('streamers').doc(uid)
+    .collection('store_redemptions')
+    .where('status', '==', 'pending')
+    .onSnapshot(snap => {
+      const badge = document.getElementById('storeBadge');
+      if (snap.empty) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:20px;">No pending redemptions</td></tr>';
+        badge.style.display = 'none';
+        return;
+      }
+      badge.style.display = '';
+      badge.textContent = snap.size;
+      const currency = profile?.currencyName || 'points';
+      const sorted = snap.docs.slice().sort((a, b) => {
+        const ta = a.data().redeemedAt?.toMillis?.() ?? 0;
+        const tb = b.data().redeemedAt?.toMillis?.() ?? 0;
+        return ta - tb;
+      });
+      tbody.innerHTML = sorted.map(doc => {
+        const d      = doc.data();
+        const ts     = d.redeemedAt?.toDate ? d.redeemedAt.toDate().toLocaleTimeString() : '—';
+        const source = d.source === 'discord'
+          ? `<span style="color:#5865F2;font-size:11px;font-weight:700;">Discord</span>`
+          : `<span style="color:var(--green);font-size:11px;font-weight:700;">Kick</span>`;
+        return `<tr>
+          <td class="td-highlight">@${d.kickUsername}</td>
+          <td>${d.itemName}</td>
+          <td style="color:var(--green);">${(d.pointsSpent||0).toLocaleString()} ${currency}</td>
+          <td>${source}</td>
+          <td style="color:var(--text-dim);">${ts}</td>
+          <td><button class="btn btn-green btn-sm" onclick="fulfillRedemption('${doc.id}')">✓ Fulfill</button></td>
+        </tr>`;
+      }).join('');
+    }, e => {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--red);padding:20px;">Error: ${e.message}</td></tr>`;
+    });
 }
 
 async function fulfillRedemption(id) {
@@ -3392,7 +3403,6 @@ async function fulfillRedemption(id) {
     discordNotify('store_redemption', { kickUsername: d.kickUsername || d.viewer, itemName: d.itemName });
   }
   flash('Marked as fulfilled!');
-  loadRedemptions();
 }
 
 // ── Finalize Month Modal ─────────────────────────────────────────────────────
@@ -4261,35 +4271,44 @@ async function bhResetHunt() {
   }
 }
 
-async function loadBhHistory() {
-  const uid  = fb.currentUser?.uid;
+let bhHistoryUnsub = null;
+
+function loadBhHistory() {
+  const uid = fb.currentUser?.uid;
   if (!uid) return;
-  const snap = await fb.db.collection('streamers').doc(uid)
-    .collection('bonus_hunt_history').orderBy('endedAt', 'desc').limit(20).get();
 
-  const card = document.getElementById('bhHistoryCard');
-  const tbody = document.getElementById('bhHistoryTable');
-  if (snap.empty) { card.style.display = 'none'; return; }
+  if (bhHistoryUnsub) { bhHistoryUnsub(); bhHistoryUnsub = null; }
 
-  card.style.display = '';
-  tbody.innerHTML = snap.docs.map(doc => {
-    const d       = doc.data();
-    const date    = d.endedAt ? new Date(d.endedAt).toLocaleDateString() : '—';
-    const slots   = (d.bonuses || []).length;
-    const spent   = bhFmt(d.totalCost || 0);
-    const win     = bhFmt(d.winnings  || 0);
-    const pnl     = d.pnl || 0;
-    const pnlCls  = pnl >= 0 ? 'color:var(--green)' : 'color:var(--red)';
-    const pnlStr  = (pnl >= 0 ? '+' : '') + bhFmt(pnl);
-    return `<tr>
-      <td style="color:var(--text-dim);">${date}</td>
-      <td>${slots}</td>
-      <td>${spent}</td>
-      <td style="color:var(--green);">${win}</td>
-      <td style="${pnlCls};font-weight:700;">${pnlStr}</td>
-      <td style="display:flex;gap:6px;"><button class="btn btn-ghost btn-sm" onclick="bhViewHistory('${doc.id}')">View</button><button class="btn btn-danger btn-sm" onclick="bhDeleteHistory('${doc.id}')">✕</button></td>
-    </tr>`;
-  }).join('');
+  bhHistoryUnsub = fb.db.collection('streamers').doc(uid)
+    .collection('bonus_hunt_history')
+    .orderBy('endedAt', 'desc')
+    .limit(20)
+    .onSnapshot(snap => {
+      const card  = document.getElementById('bhHistoryCard');
+      const tbody = document.getElementById('bhHistoryTable');
+      if (snap.empty) { card.style.display = 'none'; return; }
+      card.style.display = '';
+      tbody.innerHTML = snap.docs.map(doc => {
+        const d      = doc.data();
+        const date   = d.endedAt ? new Date(d.endedAt).toLocaleDateString() : '—';
+        const slots  = (d.bonuses || []).length;
+        const spent  = bhFmt(d.totalCost || 0);
+        const win    = bhFmt(d.winnings  || 0);
+        const pnl    = d.pnl || 0;
+        const pnlCls = pnl >= 0 ? 'color:var(--green)' : 'color:var(--red)';
+        const pnlStr = (pnl >= 0 ? '+' : '') + bhFmt(pnl);
+        return `<tr>
+          <td style="color:var(--text-dim);">${date}</td>
+          <td>${slots}</td>
+          <td>${spent}</td>
+          <td style="color:var(--green);">${win}</td>
+          <td style="${pnlCls};font-weight:700;">${pnlStr}</td>
+          <td style="display:flex;gap:6px;"><button class="btn btn-ghost btn-sm" onclick="bhViewHistory('${doc.id}')">View</button><button class="btn btn-danger btn-sm" onclick="bhDeleteHistory('${doc.id}')">✕</button></td>
+        </tr>`;
+      }).join('');
+    }, e => {
+      console.error('BH history error:', e.message);
+    });
 }
 
 async function bhDeleteHistory(id) {
@@ -4297,7 +4316,6 @@ async function bhDeleteHistory(id) {
   await fb.db.collection('streamers').doc(fb.currentUser.uid)
     .collection('bonus_hunt_history').doc(id).delete();
   flash('Hunt deleted.');
-  loadBhHistory();
 }
 
 async function bhViewHistory(id) {
@@ -5915,7 +5933,6 @@ function rafSpinToWinner(entries, winnerName, mode) {
     document.getElementById('rafWheelWinner').style.display   = 'block';
     raffleAnimating = false;
     saveRaffleHistory(winnerName, mode, entries);
-    loadRaffleHistory();
   }
   requestAnimationFrame(tick);
 }
@@ -5932,33 +5949,40 @@ async function saveRaffleHistory(winner, mode, entries) {
   }).catch(() => {});
 }
 
-async function loadRaffleHistory() {
+let raffleHistoryUnsub = null;
+
+function loadRaffleHistory() {
   const uid = fb.currentUser?.uid;
   if (!uid) return;
   const el = document.getElementById('raffleHistoryList');
   if (!el) return;
-  try {
-    const snap = await fb.db.collection('streamers').doc(uid).collection('raffle_history')
-      .orderBy('drawnAt', 'desc').limit(10).get();
-    if (snap.empty) {
-      el.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:16px;">No draws yet.</div>';
-      return;
-    }
-    el.innerHTML = snap.docs.map(doc => {
-      const d    = doc.data();
-      const ts   = new Date(d.drawnAt).toLocaleDateString();
-      const badge = d.mode === 'wager'
-        ? `<span style="background:rgba(0,229,255,0.1);color:var(--accent);border:1px solid rgba(0,229,255,0.2);border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700;flex-shrink:0;">WAGER</span>`
-        : `<span style="background:rgba(167,139,250,0.1);color:#a78bfa;border:1px solid rgba(167,139,250,0.2);border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700;flex-shrink:0;">POINT</span>`;
-      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(48,54,61,0.4);">
-        ${badge}
-        <span style="font-weight:700;color:var(--gold);">🏆 ${d.winner}</span>
-        <span style="color:var(--text-dim);font-size:11px;margin-left:auto;">${d.totalEntrants || 0} viewers · ${ts}</span>
-      </div>`;
-    }).join('');
-  } catch(e) {
-    el.innerHTML = `<div style="color:var(--red);font-size:12px;">${e.message}</div>`;
-  }
+
+  if (raffleHistoryUnsub) { raffleHistoryUnsub(); raffleHistoryUnsub = null; }
+
+  raffleHistoryUnsub = fb.db.collection('streamers').doc(uid)
+    .collection('raffle_history')
+    .orderBy('drawnAt', 'desc')
+    .limit(10)
+    .onSnapshot(snap => {
+      if (snap.empty) {
+        el.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:16px;">No draws yet.</div>';
+        return;
+      }
+      el.innerHTML = snap.docs.map(doc => {
+        const d    = doc.data();
+        const ts   = new Date(d.drawnAt).toLocaleDateString();
+        const badge = d.mode === 'wager'
+          ? `<span style="background:rgba(0,229,255,0.1);color:var(--accent);border:1px solid rgba(0,229,255,0.2);border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700;flex-shrink:0;">WAGER</span>`
+          : `<span style="background:rgba(167,139,250,0.1);color:#a78bfa;border:1px solid rgba(167,139,250,0.2);border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700;flex-shrink:0;">POINT</span>`;
+        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(48,54,61,0.4);">
+          ${badge}
+          <span style="font-weight:700;color:var(--gold);">🏆 ${d.winner}</span>
+          <span style="color:var(--text-dim);font-size:11px;margin-left:auto;">${d.totalEntrants || 0} viewers · ${ts}</span>
+        </div>`;
+      }).join('');
+    }, e => {
+      el.innerHTML = `<div style="color:var(--red);font-size:12px;">${e.message}</div>`;
+    });
 }
 
 // ── END RAFFLES ────────────────────────────────────────────────────────────────

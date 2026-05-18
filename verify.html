@@ -210,11 +210,10 @@
 
   const params     = new URLSearchParams(window.location.search);
   const channel    = params.get('channel') || '';
-  const token      = params.get('token')   || '';
   const dtoken     = params.get('dtoken')  || '';
   const casino     = (params.get('casino') || 'gambulls').toLowerCase();
   const casinoName = CASINO_NAMES[casino]  || casino;
-  const discordMode  = !!dtoken && !token;
+  const discordMode   = !!dtoken;
   const kickConnected = params.get('kick') === 'connected';
 
   let resolvedKickUsername = null;
@@ -245,17 +244,17 @@
     document.getElementById('kickUsernameGroup').style.display = 'block';
   }
 
-  // Resolve token on page load — shows Kick OAuth gate first, then form after OAuth
+  // Show Kick OAuth gate on load; after OAuth read identity from localStorage session
   async function resolveToken() {
     if (discordMode) return;
 
-    if (!token || !channel) {
-      showError('Invalid verification link. Make sure you clicked the link from WenBot in Kick chat.');
+    if (!channel) {
+      showError('Invalid verification link.');
       document.getElementById('formSection').style.display = 'none';
       return;
     }
 
-    // Step 1: OAuth not yet done — show the Connect with Kick gate
+    // Step 1: OAuth not yet done — show gate
     if (!kickConnected) {
       document.getElementById('kickUsernameDisplay').textContent = 'Sign in with Kick to continue';
       document.getElementById('formSection').style.display = 'none';
@@ -268,15 +267,24 @@
     try { session = JSON.parse(localStorage.getItem('verify_kick_session') || 'null'); } catch {}
 
     const sessionValid = session &&
-      session.token   === token &&
       session.channel === channel.toLowerCase() &&
       Date.now() < session.expiresAt;
 
     if (!sessionValid) {
       localStorage.removeItem('verify_kick_session');
-      document.getElementById('kickUsernameDisplay').textContent = 'Session expired — sign in again';
+      document.getElementById('kickUsernameDisplay').textContent = 'Session expired';
       document.getElementById('formSection').style.display = 'none';
       document.getElementById('kickGate').style.display = 'block';
+
+      const btn = document.getElementById('connectKickBtn');
+      let count = 3;
+      btn.disabled = true;
+      btn.textContent = `🟢 Reconnecting in ${count}...`;
+      const interval = setInterval(() => {
+        count--;
+        if (count <= 0) { clearInterval(interval); connectKick(); }
+        else { btn.textContent = `🟢 Reconnecting in ${count}...`; }
+      }, 1000);
       return;
     }
 
@@ -284,24 +292,10 @@
     resolvedKickUsername = session.kickUsername;
     document.getElementById('kickUsernameDisplay').textContent = resolvedKickUsername;
     document.getElementById('identityIcon').textContent = '✅';
-
-    // Validate the chat token is still valid server-side
-    try {
-      const resp = await fetch(`/api/resolve-verify-token?token=${encodeURIComponent(token)}&channel=${encodeURIComponent(channel)}`);
-      const data = await resp.json();
-      if (!resp.ok) {
-        showError(data.error || 'Invalid or expired verification link.');
-        document.getElementById('formSection').style.display = 'none';
-      }
-    } catch {
-      showError('Network error. Check your connection and try again.');
-      document.getElementById('formSection').style.display = 'none';
-    }
   }
 
   function connectKick() {
-    // Encode {token, channel, casino} so callback can restore full context
-    const payload = btoa(JSON.stringify({ token, channel: channel.toLowerCase(), casino }));
+    const payload = btoa(JSON.stringify({ channel: channel.toLowerCase(), casino }));
     initiateKickAuth('verify', payload);
   }
 
@@ -325,7 +319,7 @@
     try {
       const payload = discordMode
         ? { channel, dtoken, affiliateUsername, casino, kickUsername: kickUsernameInput }
-        : { channel, token, affiliateUsername, casino, kickAccessToken };
+        : { channel, affiliateUsername, casino, kickAccessToken };
 
       const resp = await fetch('/api/verify-affiliate', {
         method: 'POST',

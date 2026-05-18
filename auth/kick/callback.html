@@ -133,7 +133,6 @@
             kickUserId:   kickUser.user_id,
             accessToken:  tokens.access_token,
             expiresAt:    Date.now() + (tokens.expires_in * 1000),
-            token:        verifyPayload.token   || "",
             channel:      (verifyPayload.channel || "").toLowerCase(),
             casino:       verifyPayload.casino   || "gambulls",
           }));
@@ -142,7 +141,6 @@
           setStatus(`Verified as @${kickUser.name}!`, "success");
           setDetail("Redirecting back...");
           const vp = new URLSearchParams({
-            token:   verifyPayload.token   || "",
             channel: verifyPayload.channel || "",
             casino:  verifyPayload.casino  || "gambulls",
             kick:    "connected",
@@ -240,7 +238,7 @@
       else if (state && state.startsWith("verify_")) {
         try {
           const p = JSON.parse(atob(state.slice("verify_".length)));
-          dest = `/verify.html?token=${encodeURIComponent(p.token||"")}&channel=${encodeURIComponent(p.channel||"")}&casino=${encodeURIComponent(p.casino||"gambulls")}`;
+          dest = `/verify.html?channel=${encodeURIComponent(p.channel||"")}&casino=${encodeURIComponent(p.casino||"gambulls")}`;
         } catch { dest = "/verify.html"; }
       }
       setTimeout(() => window.location.href = dest, delay);

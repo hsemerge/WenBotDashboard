@@ -102,11 +102,10 @@ exports.handler = async (event) => {
   let body;
   try { body = JSON.parse(event.body || "{}"); } catch { return res(400, { error: "Invalid JSON" }); }
 
-  const { channel, token, dtoken, affiliateUsername, casino, kickUsername: bodyKickUsername, kickAccessToken } = body;
-  if (!channel || (!token && !dtoken) || !affiliateUsername) {
-    return res(400, { error: "Missing channel, token, or affiliateUsername" });
+  const { channel, kickAccessToken, dtoken, affiliateUsername, casino, kickUsername: bodyKickUsername } = body;
+  if (!channel || (!kickAccessToken && !dtoken) || !affiliateUsername) {
+    return res(400, { error: "Missing required fields" });
   }
-  // dtoken path requires an explicit Kick username from the form
   if (dtoken && !bodyKickUsername) {
     return res(400, { error: "Missing kickUsername" });
   }
@@ -124,30 +123,13 @@ exports.handler = async (event) => {
     const streamerUid  = streamerDoc.id;
     const streamerData = streamerDoc.data();
 
-    // Resolve and consume the one-time token
+    // Resolve identity
     let kickUsername;
     let discordUserId   = null;
     let discordUsername = null;
 
-    if (token) {
-      // Kick-chat initiated: token proves Kick identity, kickUsername is server-resolved
-      const tokenRef = db.collection("streamers").doc(streamerUid)
-        .collection("verify_tokens").doc(token);
-
-      await db.runTransaction(async (txn) => {
-        const tokenDoc = await txn.get(tokenRef);
-        if (!tokenDoc.exists)          throw Object.assign(new Error("Invalid or expired verification link."), { status: 404 });
-        const td = tokenDoc.data();
-        if (td.used)                   throw Object.assign(new Error("This verification link has already been used."), { status: 410 });
-        if (Date.now() > td.expiresAt) throw Object.assign(new Error("This verification link has expired. Type !verify in chat to get a new one."), { status: 410 });
-        kickUsername = td.kickUsername;
-        txn.update(tokenRef, { used: true });
-      });
-
-      // Require Kick OAuth — validate the provided access_token matches this token's kickUsername
-      if (!kickAccessToken) {
-        throw Object.assign(new Error("Kick identity verification required. Please use the 'Connect with Kick' button on the verification page."), { status: 401 });
-      }
+    if (!dtoken) {
+      // Kick OAuth flow — identity proven via Kick access token
       const kickApiResp = await fetch("https://api.kick.com/public/v1/users", {
         headers: { "Authorization": `Bearer ${kickAccessToken}` },
       });
@@ -155,10 +137,7 @@ exports.handler = async (event) => {
       const kickApiData = await kickApiResp.json();
       const kickApiUser = kickApiData.data?.[0];
       if (!kickApiUser) throw Object.assign(new Error("Could not verify your Kick identity."), { status: 401 });
-      if (kickApiUser.name.toLowerCase() !== kickUsername.toLowerCase()) {
-        throw Object.assign(new Error("This verification link belongs to a different Kick account. Please use your own link from chat."), { status: 403 });
-      }
-
+      kickUsername = kickApiUser.name;
     } else {
       // Discord-initiated: dtoken proves Discord identity, kickUsername is self-reported
       const dtokenRef = db.collection("discord_verify_tokens").doc(dtoken);
