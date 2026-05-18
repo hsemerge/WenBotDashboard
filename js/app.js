@@ -322,9 +322,134 @@ function handleChatMessage(data) {
     return;
   }
 
+  // !points — check balance
+  if (trimmedLower === "!points") {
+    handleKickPoints(sender);
+    return;
+  }
+
+  // !store — list items
+  if (trimmedLower === "!store") {
+    handleKickStore(sender);
+    return;
+  }
+
+  // !buy <item> — purchase item
+  if (trimmedLower.startsWith("!buy ")) {
+    const itemName = content.trim().slice(5).trim();
+    if (itemName) handleKickBuy(sender, itemName);
+    return;
+  }
+
   // Check for giveaway entry
   if (state.accepting && !state.paused) {
     checkEntry(sender, content, badges);
+  }
+}
+
+// ---- KICK STORE COMMANDS ----
+
+async function sendKickChat(message) {
+  const kickUserId = fb.streamerProfile?.kickUserId;
+  if (!kickUserId) return;
+  fetch("/api/kick-send-message", {
+    method:  "POST",
+    headers: { "Content-Type": "application/json" },
+    body:    JSON.stringify({ broadcaster_user_id: kickUserId, message }),
+  }).catch(() => {});
+}
+
+async function handleKickPoints(kickName) {
+  try {
+    const uid      = fb.currentUser.uid;
+    const doc      = await fb.db.collection("streamers").doc(uid).collection("viewers").doc(kickName.toLowerCase()).get();
+    const pts      = doc.exists ? (doc.data().points || 0) : 0;
+    const currency = fb.streamerProfile?.currencyName || "points";
+    sendKickChat(`@${kickName} You have ${pts.toLocaleString()} ${currency}.`);
+  } catch {}
+}
+
+async function handleKickStore(kickName) {
+  try {
+    const uid      = fb.currentUser.uid;
+    const currency = fb.streamerProfile?.currencyName || "points";
+    const snap     = await fb.db.collection("streamers").doc(uid).collection("store_items")
+      .where("enabled", "==", true).get();
+    if (snap.empty) {
+      sendKickChat(`@${kickName} The store is currently empty.`);
+      return;
+    }
+    const list = snap.docs
+      .map(d => {
+        const item  = d.data();
+        const stock = (item.stock !== null && item.stock !== undefined) ? ` (${item.stock} left)` : "";
+        return `${item.name} — ${item.price} ${currency}${stock}`;
+      })
+      .join(" | ");
+    sendKickChat(`🛒 Store: ${list} · Use !buy <name> to purchase`);
+  } catch {}
+}
+
+async function handleKickBuy(kickName, itemName) {
+  try {
+    const uid      = fb.currentUser.uid;
+    const currency = fb.streamerProfile?.currencyName || "points";
+
+    // Find item (case-insensitive)
+    const snap     = await fb.db.collection("streamers").doc(uid).collection("store_items")
+      .where("enabled", "==", true).get();
+    const matchDoc = snap.docs.find(d => d.data().name.toLowerCase() === itemName.toLowerCase());
+
+    if (!matchDoc) {
+      sendKickChat(`@${kickName} Item "${itemName}" not found. Type !store to see available items.`);
+      return;
+    }
+
+    const item = matchDoc.data();
+
+    // Stock check
+    if (item.stock !== undefined && item.stock !== null && item.stock <= 0) {
+      sendKickChat(`@${kickName} "${item.name}" is out of stock.`);
+      return;
+    }
+
+    // Points check
+    const viewerRef = fb.db.collection("streamers").doc(uid).collection("viewers").doc(kickName.toLowerCase());
+    const viewerDoc = await viewerRef.get();
+    const pts       = viewerDoc.exists ? (viewerDoc.data().points || 0) : 0;
+
+    if (pts < item.price) {
+      sendKickChat(`@${kickName} You need ${item.price.toLocaleString()} ${currency} but only have ${pts.toLocaleString()}. Keep watching to earn more!`);
+      return;
+    }
+
+    // Batch: deduct points + write redemption + decrement stock
+    const batch = fb.db.batch();
+    batch.set(viewerRef, { points: pts - item.price }, { merge: true });
+    batch.set(
+      fb.db.collection("streamers").doc(uid).collection("store_redemptions").doc(),
+      {
+        kickUsername: kickName,
+        itemId:       matchDoc.id,
+        itemName:     item.name,
+        pointsSpent:  item.price,
+        redeemedAt:   firebase.firestore.Timestamp.now(),
+        status:       "pending",
+        source:       "kick",
+      }
+    );
+    if (item.stock !== undefined && item.stock !== null) {
+      batch.update(
+        fb.db.collection("streamers").doc(uid).collection("store_items").doc(matchDoc.id),
+        { stock: item.stock - 1 }
+      );
+    }
+    await batch.commit();
+
+    const remaining = pts - item.price;
+    sendKickChat(`@${kickName} You bought "${item.name}" for ${item.price.toLocaleString()} ${currency}! ✅ Remaining balance: ${remaining.toLocaleString()} ${currency}.`);
+  } catch (e) {
+    console.error("!buy error:", e);
   }
 }
 
