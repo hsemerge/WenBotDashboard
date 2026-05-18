@@ -53,6 +53,10 @@ async function initiateKickAuth(purpose = "streamer", channel = "") {
     }
     state  = `viewer_${channel.toLowerCase().trim()}`;
     scopes = "user:read";
+  } else if (purpose === "verify") {
+    // channel arg carries base64-encoded {token, channel, casino}
+    state  = `verify_${channel}`;
+    scopes = "user:read";
   } else {
     if (typeof fb === "undefined" || !fb.currentUser) {
       alert("You must be signed in first.");

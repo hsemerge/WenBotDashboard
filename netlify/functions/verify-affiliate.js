@@ -1,8 +1,11 @@
 // POST /api/verify-affiliate
 // Body: { channel, kickUsername, affiliateUsername, casino }
-// Verifies a viewer's casino account and saves it to verified_users
+// Verifies a viewer's casino account.
+// Kick-chat flow: saves a pending_confirmation and returns a confirm code — bot finalizes on !confirm.
+// Discord flow: saves directly to verified_users (Discord OAuth already proves identity).
 
-const admin = require("firebase-admin");
+const admin  = require("firebase-admin");
+const crypto = require("crypto");
 
 // Casinos with live API verification
 const API_CASINOS = new Set(["gambulls"]);
@@ -99,7 +102,7 @@ exports.handler = async (event) => {
   let body;
   try { body = JSON.parse(event.body || "{}"); } catch { return res(400, { error: "Invalid JSON" }); }
 
-  const { channel, token, dtoken, affiliateUsername, casino, kickUsername: bodyKickUsername } = body;
+  const { channel, token, dtoken, affiliateUsername, casino, kickUsername: bodyKickUsername, kickAccessToken } = body;
   if (!channel || (!token && !dtoken) || !affiliateUsername) {
     return res(400, { error: "Missing channel, token, or affiliateUsername" });
   }
@@ -140,6 +143,22 @@ exports.handler = async (event) => {
         kickUsername = td.kickUsername;
         txn.update(tokenRef, { used: true });
       });
+
+      // Require Kick OAuth — validate the provided access_token matches this token's kickUsername
+      if (!kickAccessToken) {
+        throw Object.assign(new Error("Kick identity verification required. Please use the 'Connect with Kick' button on the verification page."), { status: 401 });
+      }
+      const kickApiResp = await fetch("https://api.kick.com/public/v1/users", {
+        headers: { "Authorization": `Bearer ${kickAccessToken}` },
+      });
+      if (!kickApiResp.ok) throw Object.assign(new Error("Could not verify your Kick identity. Please try again."), { status: 401 });
+      const kickApiData = await kickApiResp.json();
+      const kickApiUser = kickApiData.data?.[0];
+      if (!kickApiUser) throw Object.assign(new Error("Could not verify your Kick identity."), { status: 401 });
+      if (kickApiUser.name.toLowerCase() !== kickUsername.toLowerCase()) {
+        throw Object.assign(new Error("This verification link belongs to a different Kick account. Please use your own link from chat."), { status: 403 });
+      }
+
     } else {
       // Discord-initiated: dtoken proves Discord identity, kickUsername is self-reported
       const dtokenRef = db.collection("discord_verify_tokens").doc(dtoken);

@@ -96,6 +96,7 @@
 
       const isWenBot  = state && state.startsWith("wenbot_");
       const isViewer  = state && state.startsWith("viewer_");
+      const isVerify  = state && state.startsWith("verify_");
 
       try {
         // 1. Exchange code for tokens (server-side, keeps client_secret safe)
@@ -111,7 +112,44 @@
         localStorage.removeItem("kick_code_verifier");
         localStorage.removeItem("kick_auth_purpose");
 
-        if (isViewer) {
+        if (isVerify) {
+          // 2d. Verify flow — fetch Kick profile, store session, redirect back to verify page
+          setDetail("Fetching your Kick profile...");
+          const userResp = await fetch("https://api.kick.com/public/v1/users", {
+            headers: { "Authorization": `Bearer ${tokens.access_token}` },
+          });
+          const userData = await userResp.json();
+          if (!userResp.ok) throw new Error("Failed to fetch Kick profile");
+          const kickUser = userData.data?.[0];
+          if (!kickUser) throw new Error("No Kick user data returned");
+
+          // Decode the payload embedded in state
+          let verifyPayload;
+          try { verifyPayload = JSON.parse(atob(state.slice("verify_".length))); }
+          catch { throw new Error("Invalid verification session. Please click the link from chat again."); }
+
+          localStorage.setItem("verify_kick_session", JSON.stringify({
+            kickUsername: kickUser.name,
+            kickUserId:   kickUser.user_id,
+            accessToken:  tokens.access_token,
+            expiresAt:    Date.now() + (tokens.expires_in * 1000),
+            token:        verifyPayload.token   || "",
+            channel:      (verifyPayload.channel || "").toLowerCase(),
+            casino:       verifyPayload.casino   || "gambulls",
+          }));
+
+          showCheck();
+          setStatus(`Verified as @${kickUser.name}!`, "success");
+          setDetail("Redirecting back...");
+          const vp = new URLSearchParams({
+            token:   verifyPayload.token   || "",
+            channel: verifyPayload.channel || "",
+            casino:  verifyPayload.casino  || "gambulls",
+            kick:    "connected",
+          });
+          setTimeout(() => window.location.href = `/verify.html?${vp}`, 1200);
+
+        } else if (isViewer) {
           // 2c. Viewer login — fetch Kick profile and redirect back to battle page
           setDetail("Fetching your Kick profile...");
           const userResp = await fetch("https://api.kick.com/public/v1/users", {
@@ -197,8 +235,14 @@
 
     function redirectBack(delay) {
       let dest = "/setup.html";
-      if (state && state.startsWith("wenbot_")) dest = "/admin/wenbot-auth.html";
+      if (state && state.startsWith("wenbot_"))     dest = "/admin/wenbot-auth.html";
       else if (state && state.startsWith("viewer_")) dest = `/bonus-battle.html?channel=${encodeURIComponent(state.replace("viewer_", ""))}`;
+      else if (state && state.startsWith("verify_")) {
+        try {
+          const p = JSON.parse(atob(state.slice("verify_".length)));
+          dest = `/verify.html?token=${encodeURIComponent(p.token||"")}&channel=${encodeURIComponent(p.channel||"")}&casino=${encodeURIComponent(p.casino||"gambulls")}`;
+        } catch { dest = "/verify.html"; }
+      }
       setTimeout(() => window.location.href = dest, delay);
     }
 
