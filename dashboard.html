@@ -5639,7 +5639,7 @@ async function savePointRaffleConfig(andEnable = false) {
 
     if (ticketItemId) {
       await fb.db.collection('streamers').doc(uid).collection('store_items').doc(ticketItemId).update({
-        description: itemData.description, price, enabled: true,
+        description: itemData.description, price, enabled: true, stock: null,
       });
     } else {
       const ref = fb.db.collection('streamers').doc(uid).collection('store_items').doc();
