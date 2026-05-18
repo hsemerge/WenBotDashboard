@@ -1,7 +1,13 @@
 // Kick OAuth 2.1 with PKCE
-// Used for both streamer connect and WenBot admin auth
+// Used for streamer connect, WenBot admin auth, and viewer/verify flows.
+//
+// State handling:
+//   The OAuth `state` parameter is a short random nonce only — never carries payload.
+//   The real payload (channel, casino, dtoken, adminKey, etc.) is stored in localStorage
+//   keyed by that nonce. The callback page consumes it. This prevents URL/state tampering
+//   and keeps secrets like admin keys out of browser history / server logs.
 
-const KICK_CLIENT_ID   = "01KQTY89PFZ2GAZ68ZTAXKGTF8";
+const KICK_CLIENT_ID    = "01KQTY89PFZ2GAZ68ZTAXKGTF8";
 const KICK_REDIRECT_URI = "https://wenbot.netlify.app/auth/kick/callback.html";
 
 // ---- PKCE Helpers ----
@@ -25,14 +31,35 @@ async function generateCodeChallenge(verifier) {
   return base64urlEncode(digest);
 }
 
+function makeNonce() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return base64urlEncode(bytes);
+}
+
+// Sweep any stale oauth_state_* entries older than 10 minutes
+function pruneOldOAuthStates() {
+  const cutoff = Date.now() - 10 * 60 * 1000;
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith("oauth_state_")) continue;
+    try {
+      const v = JSON.parse(localStorage.getItem(key) || "{}");
+      if ((v.createdAt || 0) < cutoff) localStorage.removeItem(key);
+    } catch { localStorage.removeItem(key); }
+  }
+}
+
 // ---- OAuth Redirect ----
 
-// purpose: "streamer" | "wenbot" | "viewer"
-// For wenbot, an admin key input with id="adminKeyInput" must be in the DOM
-// For viewer, pass channel name as second arg
-async function initiateKickAuth(purpose = "streamer", channel = "") {
-  const verifier   = await generateCodeVerifier();
-  const challenge  = await generateCodeChallenge(verifier);
+// purpose: "streamer" | "wenbot" | "viewer" | "verify"
+// payload: for "verify" pass {channel, casino, dtoken?}, for "viewer" pass channel string,
+//          for "wenbot" reads adminKeyInput from DOM, for "streamer" uses Firebase uid
+async function initiateKickAuth(purpose = "streamer", payload = "") {
+  pruneOldOAuthStates();
+
+  const verifier  = await generateCodeVerifier();
+  const challenge = await generateCodeChallenge(verifier);
 
   let state;
   let scopes;
@@ -40,23 +67,45 @@ async function initiateKickAuth(purpose = "streamer", channel = "") {
   if (purpose === "wenbot") {
     const adminKeyEl = document.getElementById("adminKeyInput");
     const adminKey   = adminKeyEl ? adminKeyEl.value.trim() : "";
-    if (!adminKey) {
-      alert("Enter your admin key first.");
-      return;
-    }
-    state  = `wenbot_${adminKey}`;
+    if (!adminKey) { alert("Enter your admin key first."); return; }
+
+    const nonce = makeNonce();
+    localStorage.setItem(`oauth_state_${nonce}`, JSON.stringify({
+      purpose: "wenbot", adminKey, createdAt: Date.now(),
+    }));
+    state  = `wenbot_${nonce}`;
     scopes = "chat:write user:read";
+
   } else if (purpose === "viewer") {
-    if (!channel) {
-      alert("Missing channel.");
-      return;
-    }
-    state  = `viewer_${channel.toLowerCase().trim()}`;
+    const channel = (typeof payload === "string" ? payload : "").toLowerCase().trim();
+    if (!channel) { alert("Missing channel."); return; }
+
+    const nonce = makeNonce();
+    localStorage.setItem(`oauth_state_${nonce}`, JSON.stringify({
+      purpose: "viewer", channel, createdAt: Date.now(),
+    }));
+    state  = `viewer_${nonce}`;
     scopes = "user:read";
+
   } else if (purpose === "verify") {
-    // channel arg carries base64-encoded {token, channel, casino}
-    state  = `verify_${channel}`;
+    // payload is either an object {channel, casino, dtoken?} or a legacy base64 string
+    let p;
+    if (typeof payload === "object" && payload !== null) {
+      p = payload;
+    } else {
+      try { p = JSON.parse(atob(payload)); } catch { p = {}; }
+    }
+    const nonce = makeNonce();
+    localStorage.setItem(`oauth_state_${nonce}`, JSON.stringify({
+      purpose:   "verify",
+      channel:   (p.channel || "").toLowerCase(),
+      casino:    p.casino || "gambulls",
+      dtoken:    p.dtoken || null,
+      createdAt: Date.now(),
+    }));
+    state  = `verify_${nonce}`;
     scopes = "user:read";
+
   } else {
     if (typeof fb === "undefined" || !fb.currentUser) {
       alert("You must be signed in first.");
@@ -80,4 +129,31 @@ async function initiateKickAuth(purpose = "streamer", channel = "") {
   });
 
   window.location.href = `https://id.kick.com/oauth/authorize?${params}`;
+}
+
+// ---- Unified Kick Viewer Session ----
+// Single session shared across verify.html, bonus-battle.html, tournament.html
+// Contains identity only — channel/casino are per-page context, not stored here.
+
+const KICK_SESSION_KEY = "kick_viewer_session";
+
+function getKickViewerSession() {
+  try {
+    const raw = localStorage.getItem(KICK_SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (s.expiresAt && Date.now() > s.expiresAt) {
+      localStorage.removeItem(KICK_SESSION_KEY);
+      return null;
+    }
+    return s;
+  } catch { return null; }
+}
+
+function saveKickViewerSession(session) {
+  localStorage.setItem(KICK_SESSION_KEY, JSON.stringify(session));
+}
+
+function clearKickViewerSession() {
+  localStorage.removeItem(KICK_SESSION_KEY);
 }

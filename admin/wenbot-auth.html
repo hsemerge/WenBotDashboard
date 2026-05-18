@@ -81,26 +81,32 @@
       document.getElementById("successBanner").style.display = "block";
     }
 
-    // Check token status on load
+    // Check token status — requires admin key in the input
     async function checkStatus() {
-      const box = document.getElementById("statusBox");
+      const box      = document.getElementById("statusBox");
+      const adminKey = document.getElementById("adminKeyInput").value.trim();
+      if (!adminKey) {
+        box.className = "status-box status-none";
+        box.textContent = "Enter your admin key above to check WenBot status.";
+        return;
+      }
       try {
-        // Probe by attempting a send with an impossible channel ID
-        // A 503 "not authenticated" vs other error tells us token status
-        const resp = await fetch("/api/kick-send-message", {
-          method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({ broadcaster_user_id: 0, message: "__status_check__" }),
+        const resp = await fetch("/api/kick-store-wenbot", {
+          method:  "GET",
+          headers: { "x-admin-key": adminKey },
         });
         const data = await resp.json();
-
-        if (data.error && data.error.includes("not authenticated")) {
+        if (resp.status === 401) {
           box.className = "status-box status-warn";
-          box.textContent = "⚠️ WenBot is NOT authenticated. Complete the auth flow below.";
-        } else {
-          // Any other response means tokens exist (even if the message itself failed)
+          box.textContent = "⚠️ Invalid admin key.";
+          return;
+        }
+        if (data.authenticated) {
           box.className = "status-box status-ok";
           box.textContent = "✅ WenBot tokens are stored and active. Re-authenticate below only if needed.";
+        } else {
+          box.className = "status-box status-warn";
+          box.textContent = "⚠️ WenBot is NOT authenticated. Complete the auth flow below.";
         }
       } catch {
         box.className = "status-box status-warn";
@@ -112,6 +118,9 @@
       initiateKickAuth("wenbot");
     }
 
+    // Re-check status whenever the admin key changes
+    document.getElementById("adminKeyInput").addEventListener("change", checkStatus);
+    document.getElementById("adminKeyInput").addEventListener("blur",   checkStatus);
     checkStatus();
   </script>
 </body>

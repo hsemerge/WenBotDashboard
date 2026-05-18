@@ -371,12 +371,16 @@
       btn.textContent = "Saving...";
 
       try {
-        const kickChannel = document.getElementById("setupKickChannel").value.trim().toLowerCase();
+        // kickChannel must come from the connected Kick OAuth account — prevents channel hijacking
+        const connectedKickUsername = (fb.streamerProfile?.kickUsername || '').toLowerCase();
+        const typedChannel          = document.getElementById("setupKickChannel").value.trim().toLowerCase();
+        const kickChannel           = connectedKickUsername || typedChannel;
         const provider    = document.getElementById("setupProvider").value;
         const apiKey      = document.getElementById("setupApiKey").value.trim();
         const displayName = document.getElementById("setupDisplayName").value.trim();
 
-        if (!kickChannel) throw new Error("Enter your Kick channel username.");
+        if (!kickChannel) throw new Error("Connect your Kick account to continue.");
+        if (!connectedKickUsername) throw new Error("Please click 'Connect with Kick' first — required for security.");
 
         const plan        = fb.streamerProfile?.plan || 'starter';
         const pendingPlan = fb.streamerProfile?.pendingPlan
@@ -388,8 +392,9 @@
 
         if (API_CASINOS.has(provider) && isElitePlus && !apiKey) throw new Error("Enter your affiliate API key.");
 
+        // Note: kickChannel is set server-side by the Kick OAuth finalize endpoint —
+        // never written from the client (Firestore rules block it).
         await saveStreamerProfile({
-          kickChannel,
           displayName: displayName || kickChannel,
           activeProvider: provider,
           onboarded: true,

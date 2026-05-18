@@ -173,14 +173,8 @@ function escHtml(s) {
 function tnLogin() { initiateKickAuth('viewer', channel); }
 
 function loadSession() {
-  try {
-    const raw = localStorage.getItem('bb_viewer_session');
-    if (!raw) return null;
-    const s = JSON.parse(raw);
-    if (s.channel !== channel) return null;
-    if (Date.now() > s.expiresAt) { localStorage.removeItem('bb_viewer_session'); return null; }
-    return s;
-  } catch { return null; }
+  // Unified Kick viewer session — shared with verify.html, bonus-battle.html, etc.
+  return getKickViewerSession();
 }
 
 async function fetchState() {

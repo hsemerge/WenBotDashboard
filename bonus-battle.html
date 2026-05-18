@@ -155,14 +155,8 @@
   // ── SESSION ──────────────────────────────────────────────────────────────────
 
   function loadSession() {
-    try {
-      const raw = localStorage.getItem('bb_viewer_session');
-      if (!raw) return null;
-      const s = JSON.parse(raw);
-      if (s.expiresAt && Date.now() > s.expiresAt) { localStorage.removeItem('bb_viewer_session'); return null; }
-      if (s.channel !== channel) return null; // session for a different channel
-      return s;
-    } catch { return null; }
+    // Unified Kick viewer session — shared with verify.html, tournament.html, etc.
+    return getKickViewerSession();
   }
 
   function bbLogin() {
@@ -171,7 +165,7 @@
   }
 
   function bbLogout() {
-    localStorage.removeItem('bb_viewer_session');
+    clearKickViewerSession();
     viewer = null;
     clearInterval(pollTimer);
     document.getElementById('loginSection').style.display  = '';

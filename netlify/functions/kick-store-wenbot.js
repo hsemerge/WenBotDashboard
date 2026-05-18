@@ -18,15 +18,26 @@ function getDb() {
 }
 
 exports.handler = async (event) => {
-  if (event.httpMethod !== "POST") {
-    return res(405, { error: "Method not allowed" });
-  }
-
   const adminKey    = event.headers["x-admin-key"];
   const expectedKey = process.env.WENBOT_ADMIN_KEY;
 
   if (!adminKey || !expectedKey || adminKey !== expectedKey) {
     return res(401, { error: "Unauthorized" });
+  }
+
+  // GET — return whether tokens exist (used by /admin/wenbot-auth.html status probe)
+  if (event.httpMethod === "GET") {
+    try {
+      const doc = await getDb().collection("system").doc("wenbot").get();
+      const authenticated = doc.exists && !!doc.data().access_token;
+      return res(200, { authenticated, expiresAt: doc.data()?.expires_at || null });
+    } catch (err) {
+      return res(500, { error: "Failed to check status: " + err.message });
+    }
+  }
+
+  if (event.httpMethod !== "POST") {
+    return res(405, { error: "Method not allowed" });
   }
 
   let body;

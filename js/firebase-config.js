@@ -133,11 +133,9 @@ async function clearAllVerifiedUsers() {
 }
 
 // ---- KICK CONNECTION (Firestore) ----
-async function saveKickConnection(data) {
-  const uid = fb.currentUser.uid;
-  await fb.db.collection("streamers").doc(uid).set(data, { merge: true });
-  fb.streamerProfile = { ...fb.streamerProfile, ...data };
-}
+// Note: writing Kick OAuth tokens from the client is blocked by Firestore rules.
+// The Kick OAuth callback now finalizes server-side via /api/kick-streamer-finalize.
+// loadKickConnection() below is still used to read the saved connection.
 
 async function loadKickConnection() {
   const uid = fb.currentUser.uid;

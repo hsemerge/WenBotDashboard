@@ -56,6 +56,7 @@
     const code       = urlParams.get("code");
     const state      = urlParams.get("state");
     const kickError  = urlParams.get("error");
+    let   statePayload = null; // populated inside run() from localStorage
 
     function setStatus(msg, type) {
       const el = document.getElementById("status");
@@ -94,12 +95,59 @@
         return;
       }
 
-      const isWenBot  = state && state.startsWith("wenbot_");
-      const isViewer  = state && state.startsWith("viewer_");
-      const isVerify  = state && state.startsWith("verify_");
+      const isWenBot   = state && state.startsWith("wenbot_");
+      const isViewer   = state && state.startsWith("viewer_");
+      const isVerify   = state && state.startsWith("verify_");
+      const isStreamer = !isWenBot && !isViewer && !isVerify;
+
+      // Look up the OAuth state payload from localStorage (set by initiateKickAuth)
+      if (isWenBot || isViewer || isVerify) {
+        const prefix = isWenBot ? "wenbot_" : isViewer ? "viewer_" : "verify_";
+        const nonce  = state.slice(prefix.length);
+        const key    = `oauth_state_${nonce}`;
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            statePayload = JSON.parse(raw);
+            localStorage.removeItem(key); // consume — single-use
+          }
+        } catch {}
+        if (!statePayload) {
+          hideSpinner();
+          setStatus("Invalid or expired OAuth session", "error");
+          setDetail("Please try again from the original page.");
+          redirectBack(3000);
+          return;
+        }
+      }
 
       try {
-        // 1. Exchange code for tokens (server-side, keeps client_secret safe)
+        // Streamer flow: hand the raw code straight to the server.
+        // Tokens never enter the browser — they're exchanged and stored via admin SDK.
+        if (isStreamer) {
+          setDetail("Saving to your profile...");
+          await waitForFirebaseAuth();
+          const idToken = await firebase.auth().currentUser.getIdToken();
+
+          const finResp = await fetch("/api/kick-streamer-finalize", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ code, code_verifier: verifier, idToken }),
+          });
+          const finData = await finResp.json();
+          if (!finResp.ok) throw new Error(finData.error || "Failed to save connection");
+
+          localStorage.removeItem("kick_code_verifier");
+          localStorage.removeItem("kick_auth_purpose");
+
+          showCheck();
+          setStatus("Kick connected!", "success");
+          setDetail(`Signed in as @${finData.kickUsername}`);
+          setTimeout(() => window.location.href = "/setup.html?kick=connected", 1500);
+          return;
+        }
+
+        // Other flows (viewer/verify/wenbot) — token still needs to live client-side briefly
         setDetail("Exchanging authorization code...");
         const tokenResp = await fetch("/api/kick-token", {
           method:  "POST",
@@ -112,8 +160,8 @@
         localStorage.removeItem("kick_code_verifier");
         localStorage.removeItem("kick_auth_purpose");
 
-        if (isVerify) {
-          // 2d. Verify flow — fetch Kick profile, store session, redirect back to verify page
+        if (isVerify || isViewer) {
+          // Both verify and viewer flows: fetch Kick profile and store unified viewer session
           setDetail("Fetching your Kick profile...");
           const userResp = await fetch("https://api.kick.com/public/v1/users", {
             headers: { "Authorization": `Bearer ${tokens.access_token}` },
@@ -123,63 +171,38 @@
           const kickUser = userData.data?.[0];
           if (!kickUser) throw new Error("No Kick user data returned");
 
-          // Decode the payload embedded in state
-          let verifyPayload;
-          try { verifyPayload = JSON.parse(atob(state.slice("verify_".length))); }
-          catch { throw new Error("Invalid verification session. Please click the link from chat again."); }
-
-          localStorage.setItem("verify_kick_session", JSON.stringify({
+          // Unified session — used by verify.html, bonus-battle.html, tournament.html
+          // Identity only — channel/casino are per-page context, not stored here.
+          localStorage.setItem("kick_viewer_session", JSON.stringify({
             kickUsername: kickUser.name,
             kickUserId:   kickUser.user_id,
             accessToken:  tokens.access_token,
             expiresAt:    Date.now() + (tokens.expires_in * 1000),
-            channel:      (verifyPayload.channel || "").toLowerCase(),
-            casino:       verifyPayload.casino   || "gambulls",
-          }));
-
-          showCheck();
-          setStatus(`Verified as @${kickUser.name}!`, "success");
-          setDetail("Redirecting back...");
-          const vp = new URLSearchParams({
-            channel: verifyPayload.channel || "",
-            casino:  verifyPayload.casino  || "gambulls",
-            kick:    "connected",
-          });
-          setTimeout(() => window.location.href = `/verify.html?${vp}`, 1200);
-
-        } else if (isViewer) {
-          // 2c. Viewer login — fetch Kick profile and redirect back to battle page
-          setDetail("Fetching your Kick profile...");
-          const userResp = await fetch("https://api.kick.com/public/v1/users", {
-            headers: { "Authorization": `Bearer ${tokens.access_token}` },
-          });
-          const userData = await userResp.json();
-          if (!userResp.ok) throw new Error("Failed to fetch Kick profile");
-          const kickUser = userData.data?.[0];
-          if (!kickUser) throw new Error("No Kick user data returned");
-
-          const channel = state.replace("viewer_", "");
-          // Store session in localStorage for the battle page to pick up
-          localStorage.setItem("bb_viewer_session", JSON.stringify({
-            kickUsername:  kickUser.name,
-            kickUserId:    kickUser.user_id,
-            accessToken:   tokens.access_token,
-            expiresAt:     Date.now() + (tokens.expires_in * 1000),
-            channel,
           }));
 
           showCheck();
           setStatus(`Welcome, @${kickUser.name}!`, "success");
           setDetail("Redirecting back...");
-          setTimeout(() => window.location.href = `/bonus-battle.html?channel=${encodeURIComponent(channel)}`, 1200);
+
+          if (isVerify) {
+            const vp = new URLSearchParams({
+              channel: statePayload.channel || "",
+              casino:  statePayload.casino  || "gambulls",
+              kick:    "connected",
+            });
+            if (statePayload.dtoken) vp.set("dtoken", statePayload.dtoken);
+            setTimeout(() => window.location.href = `/verify.html?${vp}`, 1200);
+          } else {
+            const channel = statePayload.channel || "";
+            setTimeout(() => window.location.href = `/bonus-battle.html?channel=${encodeURIComponent(channel)}`, 1200);
+          }
 
         } else if (isWenBot) {
-          // 2a. WenBot admin flow — store tokens in Netlify Blobs
+          // WenBot admin flow — adminKey comes from statePayload, not the URL
           setDetail("Storing WenBot credentials...");
-          const adminKey  = state.replace("wenbot_", "");
           const storeResp = await fetch("/api/kick-store-wenbot", {
             method:  "POST",
-            headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
+            headers: { "Content-Type": "application/json", "x-admin-key": statePayload.adminKey },
             body:    JSON.stringify(tokens),
           });
           const storeData = await storeResp.json();
@@ -190,37 +213,6 @@
           setDetail("WenBot can now post in any modded channel.");
           setTimeout(() => window.location.href = "/admin/wenbot-auth.html?success=1", 2000);
 
-        } else {
-          // 2b. Streamer connect flow — fetch Kick profile then save to Firebase
-          setDetail("Fetching your Kick profile...");
-          const userResp = await fetch("https://api.kick.com/public/v1/users", {
-            headers: { "Authorization": `Bearer ${tokens.access_token}` },
-          });
-          const userData = await userResp.json();
-          if (!userResp.ok) throw new Error("Failed to fetch Kick profile");
-
-          const kickUser = userData.data?.[0];
-          if (!kickUser) throw new Error("No Kick user data returned");
-
-          // Wait for Firebase auth session to be ready
-          setDetail("Saving to your profile...");
-          await waitForFirebaseAuth();
-
-          await saveKickConnection({
-            kickUserId:          kickUser.user_id,
-            kickUsername:        kickUser.name,
-            kickEmail:           kickUser.email,
-            kickAvatar:          kickUser.profile_picture,
-            kickAccessToken:     tokens.access_token,
-            kickRefreshToken:    tokens.refresh_token,
-            kickTokenExpiresAt:  Date.now() + (tokens.expires_in * 1000),
-            kickConnectedAt:     Date.now(),
-          });
-
-          showCheck();
-          setStatus("Kick connected!", "success");
-          setDetail(`Signed in as @${kickUser.name}`);
-          setTimeout(() => window.location.href = "/setup.html?kick=connected", 1500);
         }
 
       } catch (err) {
@@ -233,13 +225,19 @@
 
     function redirectBack(delay) {
       let dest = "/setup.html";
-      if (state && state.startsWith("wenbot_"))     dest = "/admin/wenbot-auth.html";
-      else if (state && state.startsWith("viewer_")) dest = `/bonus-battle.html?channel=${encodeURIComponent(state.replace("viewer_", ""))}`;
-      else if (state && state.startsWith("verify_")) {
-        try {
-          const p = JSON.parse(atob(state.slice("verify_".length)));
-          dest = `/verify.html?channel=${encodeURIComponent(p.channel||"")}&casino=${encodeURIComponent(p.casino||"gambulls")}`;
-        } catch { dest = "/verify.html"; }
+      if (state && state.startsWith("wenbot_")) {
+        dest = "/admin/wenbot-auth.html";
+      } else if (state && state.startsWith("viewer_")) {
+        const ch = (typeof statePayload === 'object' && statePayload?.channel) || "";
+        dest = ch ? `/bonus-battle.html?channel=${encodeURIComponent(ch)}` : "/";
+      } else if (state && state.startsWith("verify_")) {
+        if (typeof statePayload === 'object' && statePayload) {
+          const q = new URLSearchParams({ channel: statePayload.channel||"", casino: statePayload.casino||"gambulls" });
+          if (statePayload.dtoken) q.set("dtoken", statePayload.dtoken);
+          dest = `/verify.html?${q}`;
+        } else {
+          dest = "/verify.html";
+        }
       }
       setTimeout(() => window.location.href = dest, delay);
     }

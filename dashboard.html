@@ -1054,14 +1054,14 @@
           <div class="card-title">📡 Kick Channel</div>
           <div class="field">
             <label>Channel Username</label>
-            <input type="text" id="settingsChannel" placeholder="yourchannel">
-            <div class="hint">WenBot monitors this channel 24/7</div>
+            <input type="text" id="settingsChannel" placeholder="yourchannel" readonly>
+            <div class="hint" id="settingsChannelHint">Locked to your connected Kick account. To change it, reconnect Kick in Setup.</div>
           </div>
           <div class="field">
             <label>Display Name</label>
             <input type="text" id="settingsDisplayName" placeholder="How viewers see your name">
           </div>
-          <button class="btn btn-accent" onclick="saveChannelSettings()" style="width:100%;">Save</button>
+          <button class="btn btn-accent" onclick="saveChannelSettings()" style="width:100%;">Save Display Name</button>
         </div>
       </div>
 
@@ -3092,11 +3092,10 @@ async function saveProviderSettings() {
 }
 
 async function saveChannelSettings() {
-  const channel = document.getElementById('settingsChannel').value.trim().toLowerCase();
+  // kickChannel is locked to the connected Kick account — never written from here
   const displayName = document.getElementById('settingsDisplayName').value.trim();
-  if (!channel) { flash('Enter a channel name.', 'error'); return; }
-  await saveStreamerProfile({ kickChannel: channel, displayName: displayName || channel });
-  flash('Channel settings saved!');
+  await saveStreamerProfile({ displayName: displayName || profile?.kickChannel || '' });
+  flash('Saved!');
 }
 
 // ── LEADERBOARDS ──

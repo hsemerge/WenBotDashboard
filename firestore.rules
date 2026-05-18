@@ -1,0 +1,104 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /streamers/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      // On CREATE — block any billing fields from being set at all,
+      // and block kickUserId/kickUsername/kickAccessToken from being self-set (server-only after OAuth).
+      allow create: if request.auth != null && request.auth.uid == uid
+        && !request.resource.data.keys().hasAny([
+          'plan',
+          'stripeSubscriptionActive',
+          'stripeCustomerId',
+          'stripeSubscriptionId',
+          'stripeActivatedAt',
+          'stripePaymentFailed',
+          'kickUserId',
+          'kickUsername',
+          'kickAccessToken',
+          'kickRefreshToken',
+          'kickTokenExpiresAt',
+          'kickChannel'
+        ]);
+
+      // On UPDATE — block billing AND Kick identity fields from being changed by the client.
+      // These are set by the Kick OAuth callback (/api/kick-streamer-finalize) and Stripe webhook only.
+      allow update: if request.auth != null && request.auth.uid == uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'plan',
+          'stripeSubscriptionActive',
+          'stripeCustomerId',
+          'stripeSubscriptionId',
+          'stripeActivatedAt',
+          'stripePaymentFailed',
+          'kickUserId',
+          'kickUsername',
+          'kickAccessToken',
+          'kickRefreshToken',
+          'kickTokenExpiresAt',
+          'kickChannel'
+        ]);
+
+      // verified_users — only the admin SDK (server functions) may write.
+      // This prevents a streamer from forging verified entries with underAffiliate: true.
+      match /verified_users/{doc} {
+        allow read:   if request.auth != null && request.auth.uid == uid;
+        allow delete: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if false;
+      }
+
+      // discord_links — server-only writes. Prevents forging links to claim
+      // another Kick user's points via Discord /buy or /points.
+      match /discord_links/{doc} {
+        allow read:   if request.auth != null && request.auth.uid == uid;
+        allow delete: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if false;
+      }
+
+      // viewers.points / bb_votes / store_redemptions — server-only writes.
+      // Prevents the streamer from manually inflating points or forging redemptions.
+      match /viewers/{doc} {
+        allow read:   if request.auth != null && request.auth.uid == uid;
+        // Allow client write only if it does NOT touch the points field
+        allow write:  if request.auth != null && request.auth.uid == uid
+                        && (!('points' in request.resource.data.diff(resource.data).affectedKeys()) || resource == null);
+      }
+      match /bb_votes/{doc} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if false;
+        allow delete: if request.auth != null && request.auth.uid == uid;
+      }
+      match /store_redemptions/{doc} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        // Streamer can mark as fulfilled but cannot create or change kickUsername/pointsSpent
+        allow update: if request.auth != null && request.auth.uid == uid
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                            .hasOnly(['status', 'fulfilledAt']);
+        allow create: if false;
+        allow delete: if request.auth != null && request.auth.uid == uid;
+      }
+      match /bot_locks/{doc} {
+        // Bot-only — clients shouldn't touch dedup locks
+        allow read, write: if false;
+      }
+
+      // Everything else under the streamer doc — full owner control
+      match /{subcollection}/{doc} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+
+    // System tokens (WenBot's master Kick credentials) — admin SDK only
+    match /system/{doc} {
+      allow read, write: if false;
+    }
+
+    // Discord verify tokens, rate limits, etc — admin SDK only
+    match /discord_verify_tokens/{doc} { allow read, write: if false; }
+    match /discord_guilds/{doc}        { allow read, write: if false; }
+    match /_rate_limits/{doc}          { allow read, write: if false; }
+    match /agency_inquiries/{doc}      { allow read, write: if false; }
+  }
+}

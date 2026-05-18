@@ -102,12 +102,9 @@ exports.handler = async (event) => {
   let body;
   try { body = JSON.parse(event.body || "{}"); } catch { return res(400, { error: "Invalid JSON" }); }
 
-  const { channel, kickAccessToken, dtoken, affiliateUsername, casino, kickUsername: bodyKickUsername } = body;
-  if (!channel || (!kickAccessToken && !dtoken) || !affiliateUsername) {
+  const { channel, kickAccessToken, dtoken, affiliateUsername, casino } = body;
+  if (!channel || !kickAccessToken || !affiliateUsername) {
     return res(400, { error: "Missing required fields" });
-  }
-  if (dtoken && !bodyKickUsername) {
-    return res(400, { error: "Missing kickUsername" });
   }
 
   const provider = (casino || "gambulls").toLowerCase();
@@ -123,37 +120,36 @@ exports.handler = async (event) => {
     const streamerUid  = streamerDoc.id;
     const streamerData = streamerDoc.data();
 
-    // Resolve identity
-    let kickUsername;
+    // Reject streamers who haven't completed Kick OAuth — prevents channel-name hijacking
+    if (!streamerData.kickUserId) {
+      return res(400, { error: "This streamer hasn't finished setting up their channel yet." });
+    }
+
+    // Kick identity proven via OAuth access token — same path for chat-initiated and Discord-initiated
+    const kickApiResp = await fetch("https://api.kick.com/public/v1/users", {
+      headers: { "Authorization": `Bearer ${kickAccessToken}` },
+    });
+    if (!kickApiResp.ok) throw Object.assign(new Error("Could not verify your Kick identity. Please try again."), { status: 401 });
+    const kickApiData = await kickApiResp.json();
+    const kickApiUser = kickApiData.data?.[0];
+    if (!kickApiUser) throw Object.assign(new Error("Could not verify your Kick identity."), { status: 401 });
+    const kickUsername = kickApiUser.name;
+
+    // If a Discord verification token was provided, consume it and link Discord identity
     let discordUserId   = null;
     let discordUsername = null;
-
-    if (!dtoken) {
-      // Kick OAuth flow — identity proven via Kick access token
-      const kickApiResp = await fetch("https://api.kick.com/public/v1/users", {
-        headers: { "Authorization": `Bearer ${kickAccessToken}` },
-      });
-      if (!kickApiResp.ok) throw Object.assign(new Error("Could not verify your Kick identity. Please try again."), { status: 401 });
-      const kickApiData = await kickApiResp.json();
-      const kickApiUser = kickApiData.data?.[0];
-      if (!kickApiUser) throw Object.assign(new Error("Could not verify your Kick identity."), { status: 401 });
-      kickUsername = kickApiUser.name;
-    } else {
-      // Discord-initiated: dtoken proves Discord identity, kickUsername is self-reported
+    if (dtoken) {
       const dtokenRef = db.collection("discord_verify_tokens").doc(dtoken);
-
       await db.runTransaction(async (txn) => {
         const dtokenDoc = await txn.get(dtokenRef);
-        if (!dtokenDoc.exists)          throw Object.assign(new Error("Invalid or expired verification link."), { status: 404 });
+        if (!dtokenDoc.exists)          throw Object.assign(new Error("Invalid or expired Discord link. Use /register in Discord to get a new one."), { status: 404 });
         const td = dtokenDoc.data();
-        if (td.used)                    throw Object.assign(new Error("This verification link has already been used."), { status: 410 });
-        if (Date.now() > td.expiresAt)  throw Object.assign(new Error("This verification link has expired. Use /register in Discord to get a new one."), { status: 410 });
+        if (td.used)                    throw Object.assign(new Error("This Discord link has already been used."), { status: 410 });
+        if (Date.now() > td.expiresAt)  throw Object.assign(new Error("This Discord link has expired. Use /register in Discord to get a new one."), { status: 410 });
         discordUserId   = td.discordUserId;
         discordUsername = td.discordUsername;
         txn.update(dtokenRef, { used: true });
       });
-
-      kickUsername = bodyKickUsername.trim();
     }
 
     const kickKey      = kickUsername.toLowerCase();
@@ -228,16 +224,28 @@ exports.handler = async (event) => {
         });
     }
 
+    // Check whether this Kick user already has any Discord link on this streamer
+    // (so the success screen doesn't keep prompting "Connect Discord" forever).
+    let hasExistingDiscordLink = !!discordUserId;
+    if (!hasExistingDiscordLink) {
+      const existingLink = await db.collection("streamers").doc(streamerUid)
+        .collection("discord_links")
+        .where("kickUsername", "==", kickUsername)
+        .limit(1).get();
+      hasExistingDiscordLink = !existingLink.empty;
+    }
+
     return res(200, {
-      success:          true,
+      success:           true,
       kickUsername,
       affiliateUsername: resultUsername,
       provider,
-      casinoName:       CASINO_NAMES[provider],
-      apiVerified:      API_CASINOS.has(provider) && underAffiliate,
+      casinoName:        CASINO_NAMES[provider],
+      apiVerified:       API_CASINOS.has(provider) && underAffiliate,
       underAffiliate,
-      discordLinked:    !!discordUserId,
-      discordUsername:  discordUsername || null,
+      discordLinked:     !!discordUserId,
+      discordLinkedAny:  hasExistingDiscordLink,
+      discordUsername:   discordUsername || null,
     });
 
   } catch (err) {
