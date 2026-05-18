@@ -1143,6 +1143,22 @@
           </div>
         </div>
       </div>
+
+      <!-- Your Data — GDPR-style export -->
+      <div style="margin-top:16px;">
+        <div class="card">
+          <div class="card-title">📦 Your Data</div>
+          <div class="hint" style="margin-bottom:14px;line-height:1.6;">
+            Download a JSON file containing all your data: profile, verified users, viewers,
+            store redemptions, raffle history, bonus hunts, audit log, and more.
+            Useful for backups, GDPR compliance, or moving your records elsewhere.
+            Kick OAuth tokens are excluded for security.
+          </div>
+          <button id="exportDataBtn" class="btn btn-accent" onclick="exportMyData()" style="font-size:14px;">
+            📥 Download My Data
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- ── ACTIVITY LOG ── -->
@@ -3183,6 +3199,41 @@ async function saveChannelSettings() {
   const displayName = document.getElementById('settingsDisplayName').value.trim();
   await saveStreamerProfile({ displayName: displayName || profile?.kickChannel || '' });
   flash('Saved!');
+}
+
+// ── DATA EXPORT ──
+async function exportMyData() {
+  const btn = document.getElementById('exportDataBtn');
+  if (!btn || !fb.currentUser) return;
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Preparing your data...';
+  try {
+    const idToken = await fb.currentUser.getIdToken();
+    const resp = await fetch('/api/export-data', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Export failed');
+
+    // Trigger client-side download of the JSON
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `wenbot-export-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    flash('Export downloaded!');
+  } catch (e) {
+    flash('Export failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
 }
 
 // ── LEADERBOARDS ──
