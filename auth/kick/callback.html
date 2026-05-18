@@ -86,7 +86,7 @@
         return;
       }
 
-      const verifier = sessionStorage.getItem("kick_code_verifier");
+      const verifier = localStorage.getItem("kick_code_verifier");
       if (!verifier) {
         hideSpinner();
         setStatus("Session expired — please try again", "error");
@@ -108,8 +108,8 @@
         const tokens = await tokenResp.json();
         if (!tokenResp.ok) throw new Error(tokens.error || "Token exchange failed");
 
-        sessionStorage.removeItem("kick_code_verifier");
-        sessionStorage.removeItem("kick_auth_purpose");
+        localStorage.removeItem("kick_code_verifier");
+        localStorage.removeItem("kick_auth_purpose");
 
         if (isViewer) {
           // 2c. Viewer login — fetch Kick profile and redirect back to battle page

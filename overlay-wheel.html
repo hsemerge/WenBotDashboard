@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WenBot — Giveaway Wheel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: transparent;
+      overflow: hidden;
+      width: 100vw; height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .wheel-wrap {
+      position: relative;
+      opacity: 0;
+      transform: scale(0.92);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .wheel-wrap.visible {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* Arrow pointer — sits above the wheel center, points down */
+    .pointer {
+      position: absolute;
+      top: -18px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0; height: 0;
+      border-left: 14px solid transparent;
+      border-right: 14px solid transparent;
+      border-top: 28px solid #fff;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.7));
+      z-index: 10;
+    }
+
+    canvas { display: block; }
+
+    /* Center pin */
+    .pin {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: #fff;
+      border: 3px solid #0d1117;
+      box-shadow: 0 0 12px rgba(0,0,0,0.7);
+      z-index: 10;
+    }
+
+    /* Winner banner */
+    .winner-banner {
+      position: absolute;
+      bottom: -20px;
+      left: 50%;
+      transform: translateX(-50%) scale(0.85);
+      opacity: 0;
+      transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+      white-space: nowrap;
+      text-align: center;
+      background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,215,0,0.05));
+      border: 1px solid rgba(255,215,0,0.5);
+      border-radius: 12px;
+      padding: 12px 24px;
+      backdrop-filter: blur(8px);
+    }
+    .winner-banner.show {
+      opacity: 1;
+      transform: translateX(-50%) scale(1);
+    }
+    .winner-banner .trophy { font-size: 26px; display: block; margin-bottom: 4px; }
+    .winner-banner .label  { font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #8b949e; }
+    .winner-banner .name   { font-family: 'Exo 2', sans-serif; font-size: 26px; font-weight: 900; color: #ffd700; text-shadow: 0 0 20px rgba(255,215,0,0.7); margin-top: 2px; }
+
+    /* Particles */
+    .particles { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+    .particle {
+      position: absolute; border-radius: 2px; opacity: 0;
+      animation: fall 2s ease-in forwards;
+    }
+    @keyframes fall {
+      0%   { opacity: 1; transform: translateY(-10px) rotate(0deg); }
+      100% { opacity: 0; transform: translateY(100vh) rotate(720deg); }
+    }
+
+    /* Empty state */
+    .empty-label {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Exo 2', sans-serif; font-size: 18px; font-weight: 800;
+      color: rgba(255,255,255,0.35);
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="particles" id="particles"></div>
+
+<div class="wheel-wrap" id="wheelWrap">
+  <div class="pointer"></div>
+  <canvas id="wheel" width="700" height="700"></canvas>
+  <div class="pin"></div>
+  <div class="winner-banner" id="winnerBanner">
+    <span class="trophy">🏆</span>
+    <div class="label">Winner</div>
+    <div class="name" id="winnerName"></div>
+  </div>
+</div>
+
+<script>
+const params   = new URLSearchParams(location.search);
+const channel  = params.get('channel') || '';
+const demoMode = params.get('demo') === '1';
+
+const COLORS = [
+  '#00e5ff','#a78bfa','#ffd700','#00ff88','#ff4757',
+  '#ffb347','#ff6b9d','#54d2d2','#9b5de5','#7bc8f6',
+  '#f15bb5','#fee440','#00bbf9','#00f5d4','#fb5607',
+];
+
+const CANVAS_SIZE = 700;
+const CX = CANVAS_SIZE / 2;
+const CY = CANVAS_SIZE / 2;
+const RADIUS = CX - 18;
+
+let entries            = [];
+let wheelAngle         = 0;
+let animating          = false;
+let lastTriggerAt      = 0;
+let lastRafTriggerAt   = 0;
+let initialized        = false;
+
+// ── Draw ──────────────────────────────────────────────────────────────────────
+
+function drawWheel(angle) {
+  const canvas = document.getElementById('wheel');
+  const ctx    = canvas.getContext('2d');
+  ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+  if (!entries.length) {
+    // Draw placeholder circle
+    ctx.beginPath();
+    ctx.arc(CX, CY, RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    return;
+  }
+
+  const total     = entries.reduce((s, e) => s + (e.tickets || 1), 0);
+  let   startAngle = angle;
+
+  entries.forEach((entry, i) => {
+    const fraction = (entry.tickets || 1) / total;
+    const sweep    = fraction * Math.PI * 2;
+    const endAngle = startAngle + sweep;
+    const color    = COLORS[i % COLORS.length];
+    const midAngle = startAngle + sweep / 2;
+
+    // Segment fill
+    ctx.beginPath();
+    ctx.moveTo(CX, CY);
+    ctx.arc(CX, CY, RADIUS, startAngle, endAngle);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    // Segment border
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Label (only if segment wide enough to hold text)
+    if (sweep > 0.08) {
+      const textR   = RADIUS * 0.62;
+      const tx      = CX + textR * Math.cos(midAngle);
+      const ty      = CY + textR * Math.sin(midAngle);
+      const maxChars = Math.max(2, Math.floor(sweep * RADIUS * 0.045));
+
+      let label = entry.username || '';
+      if (label.length > maxChars) label = label.slice(0, maxChars - 1) + '…';
+
+      const fontSize = Math.max(9, Math.min(15, Math.floor(sweep * 28)));
+
+      ctx.save();
+      ctx.translate(tx, ty);
+      ctx.rotate(midAngle + Math.PI / 2);
+      ctx.fillStyle = '#fff';
+      ctx.font      = `700 ${fontSize}px Inter, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0,0,0,0.6)';
+      ctx.shadowBlur  = 3;
+      ctx.fillText(label, 0, 0);
+      ctx.restore();
+    }
+
+    startAngle = endAngle;
+  });
+
+  // Outer ring border
+  ctx.beginPath();
+  ctx.arc(CX, CY, RADIUS, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth   = 3;
+  ctx.stroke();
+
+  // Center disc
+  ctx.beginPath();
+  ctx.arc(CX, CY, 22, 0, Math.PI * 2);
+  ctx.fillStyle   = '#0d1117';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth   = 2;
+  ctx.stroke();
+}
+
+// ── Spin animation ────────────────────────────────────────────────────────────
+
+function spinToWinner(winnerName) {
+  if (animating) return;
+  animating = true;
+
+  // Find winner's midpoint angle in local wheel coords (unrotated)
+  const total = entries.reduce((s, e) => s + (e.tickets || 1), 0);
+  let cumAngle = 0;
+  let winnerMid = 0;
+  let found = false;
+
+  for (const entry of entries) {
+    const sweep = (entry.tickets || 1) / total * Math.PI * 2;
+    if (!found && entry.username === winnerName) {
+      winnerMid = cumAngle + sweep / 2;
+      found = true;
+    }
+    cumAngle += sweep;
+  }
+
+  // The pointer is at the top of the canvas = -PI/2 in canvas coords.
+  // We want: wheelAngle + winnerMid = -PI/2  (mod 2PI)
+  // So: targetWheelAngle = -PI/2 - winnerMid + N * 2PI
+  // Pick N large enough to spin at least 6 full revolutions forward.
+  const base    = -Math.PI / 2 - winnerMid;
+  const minFwd  = wheelAngle + 6 * Math.PI * 2;
+  let target    = base + Math.ceil((minFwd - base) / (Math.PI * 2)) * Math.PI * 2;
+
+  const from     = wheelAngle;
+  const duration = 5200; // ms
+  const startTs  = performance.now();
+
+  function easeOut(t) {
+    return 1 - Math.pow(1 - t, 4); // quartic ease out — starts fast, slows dramatically at end
+  }
+
+  function tick(now) {
+    const t       = Math.min((now - startTs) / duration, 1);
+    const eased   = easeOut(t);
+    wheelAngle    = from + (target - from) * eased;
+    drawWheel(wheelAngle);
+
+    if (t < 1) {
+      requestAnimationFrame(tick);
+    } else {
+      wheelAngle = target;
+      drawWheel(wheelAngle);
+      animating  = false;
+
+      // Show winner
+      document.getElementById('winnerName').textContent = winnerName;
+      document.getElementById('winnerBanner').classList.add('show');
+      spawnParticles();
+
+      // Auto-hide banner after 12s
+      setTimeout(() => {
+        document.getElementById('winnerBanner').classList.remove('show');
+      }, 12000);
+    }
+  }
+
+  requestAnimationFrame(tick);
+}
+
+// ── Polling ───────────────────────────────────────────────────────────────────
+
+async function poll() {
+  if (!channel || demoMode) return;
+  try {
+    const r    = await fetch(`/api/overlay-data?channel=${encodeURIComponent(channel)}`);
+    if (!r.ok) { setTimeout(poll, 1000); return; }
+    const data = await r.json();
+
+    // Update entries (only when not mid-spin)
+    if (!animating && data.entries?.length) {
+      const newEntries = buildEntries(data.entries);
+      if (JSON.stringify(newEntries) !== JSON.stringify(entries)) {
+        entries = newEntries;
+        drawWheel(wheelAngle);
+        document.getElementById('wheelWrap').classList.add('visible');
+      }
+    } else if (!animating && !data.entries?.length && !data.active) {
+      if (entries.length) { entries = []; drawWheel(wheelAngle); }
+    }
+
+    // Show wheel if giveaway is active
+    if (data.active && data.entries?.length) {
+      document.getElementById('wheelWrap').classList.add('visible');
+    }
+
+    // Giveaway spin trigger
+    if (data.spinTrigger) {
+      const { winner, triggeredAt } = data.spinTrigger;
+      if (!initialized) {
+        lastTriggerAt = triggeredAt;
+        initialized   = true;
+      } else if (winner && triggeredAt !== lastTriggerAt) {
+        lastTriggerAt = triggeredAt;
+        document.getElementById('winnerBanner').classList.remove('show');
+        spinToWinner(winner);
+      }
+    } else {
+      initialized = true;
+    }
+
+    // Raffle spin trigger — uses current entries if available, else shows winner-only wheel
+    if (data.raffleTrigger) {
+      const { winner, triggeredAt } = data.raffleTrigger;
+      if (!lastRafTriggerAt) {
+        lastRafTriggerAt = triggeredAt;
+      } else if (winner && triggeredAt !== lastRafTriggerAt) {
+        lastRafTriggerAt = triggeredAt;
+        // If no giveaway entries loaded, make a temporary single-segment wheel
+        if (!entries.length) entries = [{ username: winner, tickets: 1 }];
+        document.getElementById('winnerBanner').classList.remove('show');
+        document.getElementById('wheelWrap').classList.add('visible');
+        drawWheel(wheelAngle);
+        spinToWinner(winner);
+      }
+    }
+  } catch {}
+  setTimeout(poll, 300);
+}
+
+function buildEntries(raw) {
+  // Dedupe by username, sum tickets
+  const map = {};
+  raw.forEach(e => {
+    const key = (e.kickName || e.kickKey || '').toLowerCase();
+    if (!key) return;
+    if (!map[key]) map[key] = { username: e.kickName || e.kickKey, tickets: 0 };
+    map[key].tickets += e.tickets || 1;
+  });
+  return Object.values(map);
+}
+
+// ── Particles ─────────────────────────────────────────────────────────────────
+
+function spawnParticles() {
+  const colors    = ['#ffd700','#00e5ff','#ff4757','#00ff88','#a78bfa','#ffb347'];
+  const container = document.getElementById('particles');
+  for (let i = 0; i < 60; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left              = (Math.random() * 100) + 'vw';
+    p.style.top               = '-10px';
+    p.style.background        = colors[Math.floor(Math.random() * colors.length)];
+    p.style.width             = (6 + Math.random() * 8) + 'px';
+    p.style.height            = (6 + Math.random() * 8) + 'px';
+    p.style.animationDelay    = (Math.random() * 1.5) + 's';
+    p.style.animationDuration = (1.5 + Math.random() * 1.5) + 's';
+    container.appendChild(p);
+    p.addEventListener('animationend', () => p.remove());
+  }
+}
+
+// ── Demo mode ─────────────────────────────────────────────────────────────────
+
+if (demoMode) {
+  entries = [
+    { username: 'xSlayer99',   tickets: 3 },
+    { username: 'NightWolf',   tickets: 1 },
+    { username: 'CryptoKing',  tickets: 2 },
+    { username: 'LuckyDuke',   tickets: 1 },
+    { username: 'StarRoller',  tickets: 1 },
+    { username: 'BigBetBoss',  tickets: 2 },
+    { username: 'SpinMaster',  tickets: 1 },
+    { username: 'RNGGod',      tickets: 1 },
+  ];
+  document.getElementById('wheelWrap').classList.add('visible');
+  drawWheel(0);
+  setTimeout(() => spinToWinner('CryptoKing'), 2000);
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+
+drawWheel(0);
+poll();
+</script>
+</body>
+</html>

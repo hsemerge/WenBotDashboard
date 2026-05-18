@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <link rel="icon" type="image/png" href="/wenside.png" sizes="32x32">
+  <link rel="icon" type="image/png" href="/wensideimage.png" sizes="32x32">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WenBot — Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -469,6 +469,7 @@
         <div class="nav-item" onclick="showPage('verified',this)"><span class="icon">✅</span> Verified Users</div>
         <div class="nav-item" onclick="showPage('points',this)"><span class="icon">🪙</span> Points</div>
         <div class="nav-item" onclick="showPage('store',this)"><span class="icon">🛒</span> Store <span class="nav-badge red" id="storeBadge" style="display:none;">0</span></div>
+        <div class="nav-item" onclick="showPage('raffle',this)"><span class="icon">🎟</span> Raffles</div>
         <div class="nav-item" onclick="showPage('commands',this)"><span class="icon">💬</span> Commands</div>
         <div class="nav-item" onclick="showPage('overlays',this)"><span class="icon">🖥</span> Overlays</div>
       </div>
@@ -684,8 +685,9 @@
           <button class="btn btn-accent" style="width:100%;margin-top:12px;" id="pickWinnerBtn" onclick="spinPicker()" disabled>🎰 Spin to Pick Winner</button>
           <button class="btn btn-ghost" style="width:100%;margin-top:6px;" id="rerollBtn" onclick="spinPicker()" disabled>🔄 Reroll</button>
           <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px;align-items:center;">
-            <a href="#" target="_blank" id="overlayLink" style="font-size:11px;color:var(--accent);text-decoration:none;opacity:0.7;">🖥 Spinner Overlay (OBS)</a>
-            <a href="#" target="_blank" id="overlayPreviewLink" style="font-size:11px;color:var(--text-dim);text-decoration:none;opacity:0.7;">▶ Preview</a>
+            <a href="#" target="_blank" id="overlayLink" style="font-size:11px;color:var(--accent);text-decoration:none;opacity:0.7;">🎰 Spinner Overlay (OBS)</a>
+            <a href="#" target="_blank" id="overlayWheelLink" style="font-size:11px;color:var(--accent);text-decoration:none;opacity:0.7;">🎡 Wheel Overlay (OBS)</a>
+            <a href="#" target="_blank" id="overlayPreviewLink" style="font-size:11px;color:var(--text-dim);text-decoration:none;opacity:0.7;">▶ Preview Spinner</a>
             <a href="#" target="_blank" id="overlayEntriesLink" style="font-size:11px;color:var(--accent);text-decoration:none;opacity:0.7;">📋 Entries Overlay (OBS)</a>
           </div>
         </div>
@@ -1187,6 +1189,22 @@
       <div style="max-width:720px;">
 
         <div class="card" style="margin-bottom:16px;">
+          <div class="card-title" style="margin-bottom:16px;">🎡 Giveaway Wheel</div>
+          <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">Spinning prize wheel showing all participants as segments. Spins to the winner when you click Spin in the Giveaway page. Great for prize giveaways with a smaller entry pool.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div class="overlay-row">
+              <div class="overlay-row-label">OBS Browser Source URL</div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <code class="overlay-url" id="obsWheelUrl">—</code>
+                <button onclick="copyOverlay('obsWheelUrl')" class="btn-copy">Copy</button>
+                <a href="#" target="_blank" id="obsWheelPreview" class="btn-preview">▶ Preview</a>
+              </div>
+              <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Width: 800, height: 800. Works best with 30 or fewer participants.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
           <div class="card-title" style="margin-bottom:16px;">🎰 Winner Spinner</div>
           <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">Animated slot-machine-style winner reveal. Appears when you spin a winner from the Giveaway page.</p>
           <div style="display:flex;flex-direction:column;gap:10px;">
@@ -1245,6 +1263,38 @@
                 <a href="#" target="_blank" id="obsSRPreview" class="btn-preview">▶ Preview</a>
               </div>
               <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Width: 360px recommended. Transparent background.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title" style="margin-bottom:16px;">⚔️ Bonus Battles</div>
+          <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">Live Bonus Battle overlay — shows current match, viewer bets, and results in real time.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div class="overlay-row">
+              <div class="overlay-row-label">OBS Browser Source URL</div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <code class="overlay-url" id="obsBBUrl">—</code>
+                <button onclick="copyOverlay('obsBBUrl')" class="btn-copy">Copy</button>
+                <a href="#" target="_blank" id="obsBBPreview" class="btn-preview">▶ Preview</a>
+              </div>
+              <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Width: 1920, height: 1080, transparent background.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title" style="margin-bottom:16px;">🏆 Tournaments</div>
+          <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">Live tournament bracket overlay — shows the bracket, match-ups, and winners as the tournament progresses.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div class="overlay-row">
+              <div class="overlay-row-label">OBS Browser Source URL</div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <code class="overlay-url" id="obsTnUrl">—</code>
+                <button onclick="copyOverlay('obsTnUrl')" class="btn-copy">Copy</button>
+                <a href="#" target="_blank" id="obsTnPreview" class="btn-preview">▶ Preview</a>
+              </div>
+              <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Width: 1920, height: 1080, transparent background.</div>
             </div>
           </div>
         </div>
@@ -1759,6 +1809,128 @@
     </div><!-- end page-tournament -->
 
     <!-- ── UPGRADE WALL ── -->
+    <!-- ── RAFFLES ── -->
+    <div class="page" id="page-raffle">
+      <!-- Tab switcher -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+        <h1 style="font-family:'Exo 2',sans-serif;font-size:24px;font-weight:900;color:var(--bright);">Raffles</h1>
+        <div style="display:flex;gap:8px;">
+          <button id="rafTab-wager" class="btn btn-accent btn-sm" onclick="switchRaffleTab('wager')" style="min-width:120px;">🎲 Wager Raffle</button>
+          <button id="rafTab-point" class="btn btn-ghost btn-sm" onclick="switchRaffleTab('point')" style="min-width:120px;">🪙 Point Raffle</button>
+        </div>
+      </div>
+
+      <!-- ── WAGER RAFFLE PANEL ── -->
+      <div id="rafPanel-wager">
+        <div class="grid-2" style="margin-bottom:16px;">
+          <!-- Config -->
+          <div class="card">
+            <div class="card-title">⚙️ Configuration</div>
+            <div class="field">
+              <label>Ticket Threshold ($)</label>
+              <input type="number" id="wrThreshold" class="form-input" placeholder="e.g. 1000" min="1">
+              <div style="font-size:11px;color:var(--text-dim);margin-top:3px;">Every $X wagered since period start = 1 ticket</div>
+            </div>
+            <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Casino provider: <span id="wrProviderLabel" style="color:var(--accent);font-weight:600;">—</span> (set in Settings)</div>
+            <button class="btn btn-accent btn-sm" onclick="saveWagerRaffleConfig()">Save Config</button>
+          </div>
+          <!-- Period -->
+          <div class="card">
+            <div class="card-title">📅 Raffle Period</div>
+            <div id="wrPeriodInfo" style="font-size:13px;color:var(--text-dim);margin-bottom:14px;">No active period. Start one to begin tracking wager tickets.</div>
+            <button class="btn btn-accent" onclick="startWagerPeriod()" style="width:100%;margin-bottom:8px;">▶ Start New Period</button>
+            <div style="font-size:11px;color:var(--text-dim);">Starting a period snapshots current wager amounts as baselines — only wagers after this point earn tickets.</div>
+          </div>
+        </div>
+        <!-- Ticket holders -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title" style="justify-content:space-between;">
+            <span>🎟 Current Ticket Holders</span>
+            <button class="btn btn-ghost btn-sm" onclick="loadWagerTickets()">Refresh</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Kick Name</th><th>Casino Username</th><th>Wager Since Period</th><th>Tickets</th></tr></thead>
+              <tbody id="wagerTicketTable"><tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">Start a period to see ticket holders.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <!-- Draw -->
+        <div class="card">
+          <div class="card-title">🎰 Draw Wager Raffle Winner</div>
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <div id="wrEntryCount" style="font-size:13px;color:var(--text-dim);">No entries loaded.</div>
+            <button class="btn btn-accent" id="wrDrawBtn" onclick="drawRaffleWinner('wager')" disabled>🎰 Draw Winner</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── POINT RAFFLE PANEL ── -->
+      <div id="rafPanel-point" style="display:none;">
+        <div class="grid-2" style="margin-bottom:16px;">
+          <!-- Toggle + Config -->
+          <div class="card">
+            <div class="card-title">⚙️ Configuration</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding:12px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--bright);">Point Raffle Active</div>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Auto-adds a "Raffle Ticket" item to your store</div>
+              </div>
+              <div class="toggle" id="prToggle" onclick="togglePointRaffle()"></div>
+            </div>
+            <div class="field">
+              <label>Ticket Price (<span id="prCurrencyLabel">points</span>)</label>
+              <input type="number" id="prTicketPrice" class="form-input" placeholder="e.g. 500" min="1">
+            </div>
+            <div class="field">
+              <label>Max Tickets Per Viewer <span style="color:var(--text-dim);font-size:11px;">(blank = unlimited)</span></label>
+              <input type="number" id="prMaxPerUser" class="form-input" placeholder="Unlimited" min="1">
+            </div>
+            <button class="btn btn-accent btn-sm" onclick="savePointRaffleConfig()" style="width:100%;">Save Config</button>
+          </div>
+          <!-- Status -->
+          <div class="card">
+            <div class="card-title">📋 Status</div>
+            <div id="prStatusBox" style="font-size:13px;color:var(--text-dim);">Point Raffle is disabled.</div>
+            <div id="prEntryStats" style="margin-top:12px;"></div>
+          </div>
+        </div>
+        <!-- Entries -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title" style="justify-content:space-between;">
+            <span>📋 Current Entries</span>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-ghost btn-sm" onclick="loadPointRaffleEntries()">Refresh</button>
+              <button class="btn btn-danger btn-sm" onclick="clearPointRaffleEntries()">Clear All</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Viewer</th><th>Tickets</th><th>Last Purchase</th></tr></thead>
+              <tbody id="pointRaffleTable"><tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">No entries yet.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <!-- Draw -->
+        <div class="card">
+          <div class="card-title">🎰 Draw Point Raffle Winner</div>
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <div id="prEntryCount" style="font-size:13px;color:var(--text-dim);">No entries loaded.</div>
+            <button class="btn btn-accent" id="prDrawBtn" onclick="drawRaffleWinner('point')" disabled>🎰 Draw Winner</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Past draws (shared) -->
+      <div class="card" style="margin-top:16px;">
+        <div class="card-title" style="justify-content:space-between;">
+          <span>📜 Past Draws</span>
+          <button class="btn btn-ghost btn-sm" onclick="loadRaffleHistory()">Refresh</button>
+        </div>
+        <div id="raffleHistoryList" style="font-size:13px;color:var(--text-dim);padding:12px 0;">Loading...</div>
+      </div>
+    </div>
+
     <div class="page" id="page-upgrade">
       <div style="max-width:560px;margin:0 auto;">
         <div class="card" style="text-align:center;padding:48px 36px;">
@@ -1857,6 +2029,21 @@
   </div>
 </div>
 
+<!-- Raffle Wheel Modal -->
+<div id="raffleWheelModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:600;align-items:center;justify-content:center;flex-direction:column;gap:16px;">
+  <div style="position:relative;flex-shrink:0;">
+    <div style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:24px solid #fff;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.7));z-index:10;"></div>
+    <canvas id="rafWheelCanvas" width="420" height="420" style="display:block;"></canvas>
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid #0d1117;box-shadow:0 0 12px rgba(0,0,0,0.7);z-index:10;"></div>
+  </div>
+  <div id="rafWheelWinner" style="display:none;background:linear-gradient(135deg,rgba(255,215,0,0.15),rgba(255,215,0,0.05));border:1px solid rgba(255,215,0,0.5);border-radius:12px;padding:14px 28px;text-align:center;backdrop-filter:blur(8px);">
+    <div style="font-size:22px;margin-bottom:4px;">🏆</div>
+    <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#8b949e;">Raffle Winner</div>
+    <div id="rafWheelWinnerName" style="font-family:'Exo 2',sans-serif;font-size:26px;font-weight:900;color:#ffd700;text-shadow:0 0 20px rgba(255,215,0,0.7);margin-top:4px;"></div>
+  </div>
+  <button onclick="closeRaffleWheelModal()" style="padding:9px 22px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#8b949e;font-size:13px;cursor:pointer;">Close</button>
+</div>
+
 <div class="flash" id="flash"></div>
 
 <!-- Firebase SDKs -->
@@ -1902,7 +2089,7 @@ function showPage(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', commands:'Commands', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', settings:'Settings', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade' };
+  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', settings:'Settings', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade' };
   document.getElementById('topbarTitle').textContent = titles[id] || id;
   // Tear down SR listeners when leaving their pages
   if (id !== 'slotrequest' && srUnsub) { srUnsub(); srUnsub = null; }
@@ -1920,6 +2107,7 @@ function showPage(id, el) {
   if (id === 'tournament')  loadTournament();
   if (id === 'overlays')    wireOverlayLinks();
   if (id === 'billing')     renderBillingPage();
+  if (id === 'raffle')      loadRafflePage();
 }
 
 // ── FLASH ──
@@ -1941,6 +2129,7 @@ const PAGE_PLAN = {
   gtb:         'pro',
   points:      'pro',
   store:       'pro',
+  raffle:      'pro',
   commands:    'pro',
   leaderboard: 'elite',
   bonusbattle: 'elite',
@@ -2209,6 +2398,8 @@ function onAuthReady(user) {
   const chan = profile?.kickChannel || '';
   const overlayLink = document.getElementById('overlayLink');
   if (overlayLink && chan) overlayLink.href = `/overlay-winner.html?channel=${encodeURIComponent(chan)}`;
+  const overlayWheelLink = document.getElementById('overlayWheelLink');
+  if (overlayWheelLink && chan) overlayWheelLink.href = `/overlay-wheel.html?channel=${encodeURIComponent(chan)}`;
   const overlayPreviewLink = document.getElementById('overlayPreviewLink');
   if (overlayPreviewLink && chan) overlayPreviewLink.href = `/overlay-winner.html?channel=${encodeURIComponent(chan)}&demo=1`;
   const overlayEntriesLink = document.getElementById('overlayEntriesLink');
@@ -2512,6 +2703,14 @@ function spinPicker() {
   entries.forEach(e => { for (let i = 0; i < (e.tickets || 1); i++) pool.push(e); });
   winner = pool[Math.floor(Math.random() * pool.length)];
 
+  // Fire OBS overlay trigger IMMEDIATELY so it starts in sync with the dashboard animation
+  const _spinUid = fb.currentUser?.uid;
+  if (_spinUid) {
+    fb.db.collection('streamers').doc(_spinUid).collection('giveaway_state').doc('snapshot')
+      .set({ spinTrigger: { winner: winner.username, wager: winner.wager || 0, triggeredAt: Date.now() } }, { merge: true })
+      .catch(() => {});
+  }
+
   // Build drum list: ~40 random + winner in center position
   const ITEM_H   = 40;
   const VISIBLE  = 3; // items visible in window
@@ -2557,14 +2756,11 @@ function spinPicker() {
     addRecentWinner(winner.username);
     if (gwTarget === 'discord') discordNotify('giveaway_winner', { winner: winner.username, totalEntries: entries.length });
 
-    // Post winner to chat + trigger OBS overlay
+    // Post winner to chat
     const uid = fb.currentUser?.uid;
     if (uid) {
       fb.db.collection('streamers').doc(uid)
         .update({ pendingChatMessage: `🏆 Congratulations @${winner.username}! You won the giveaway! 🎉`, pendingChatTs: Date.now() + Math.random() })
-        .catch(() => {});
-      fb.db.collection('streamers').doc(uid).collection('giveaway_state').doc('snapshot')
-        .set({ spinTrigger: { winner: winner.username, wager: winner.wager || 0, triggeredAt: Date.now() } }, { merge: true })
         .catch(() => {});
     }
   }, 4000);
@@ -3271,6 +3467,9 @@ function wireOverlayLinks() {
     { url: 'obsEntriesUrl',  preview: 'obsEntriesPreview',  path: `/overlay-giveaway.html?channel=${encodeURIComponent(chan)}`,       demo: `/overlay-giveaway.html?channel=${encodeURIComponent(chan)}&demo=1` },
     { url: 'obsBonusUrl',    preview: 'obsBonusPreview',    path: `/overlay-bonus-hunt.html?channel=${encodeURIComponent(chan)}`,     demo: `/overlay-bonus-hunt.html?channel=${encodeURIComponent(chan)}&demo=1` },
     { url: 'obsSRUrl',       preview: 'obsSRPreview',       path: `/overlay-slot-requests.html?channel=${encodeURIComponent(chan)}`,  demo: `/overlay-slot-requests.html?channel=${encodeURIComponent(chan)}&demo=1` },
+    { url: 'obsWheelUrl',    preview: 'obsWheelPreview',    path: `/overlay-wheel.html?channel=${encodeURIComponent(chan)}`,          demo: `/overlay-wheel.html?channel=${encodeURIComponent(chan)}&demo=1` },
+    { url: 'obsBBUrl',       preview: 'obsBBPreview',       path: `/overlay-bonus-battle.html?channel=${encodeURIComponent(chan)}`,   demo: `/overlay-bonus-battle.html?channel=${encodeURIComponent(chan)}&demo=1` },
+    { url: 'obsTnUrl',       preview: 'obsTnPreview',       path: `/overlay-tournament.html?channel=${encodeURIComponent(chan)}`,     demo: `/overlay-tournament.html?channel=${encodeURIComponent(chan)}&demo=1` },
   ];
 
   links.forEach(({ url, preview, path, demo }) => {
@@ -5197,6 +5396,544 @@ function tnResetUI() {
 }
 
 // ── END TOURNAMENTS ────────────────────────────────────────────────────────────
+
+// ── RAFFLES ────────────────────────────────────────────────────────────────────
+
+let raffleMode = 'wager';
+let raffleAnimating = false;
+let wagerRaffleEntries = [];
+let pointRaffleEntries = [];
+let rafWheelAngle = 0;
+
+const RAF_SIZE    = 420;
+const RAF_CX      = RAF_SIZE / 2;
+const RAF_CY      = RAF_SIZE / 2;
+const RAF_RADIUS  = RAF_CX - 18;
+const RAF_COLORS  = ['#00e5ff','#a78bfa','#ffd700','#00ff88','#ff4757','#ffb347','#ff6b9d','#54d2d2','#9b5de5','#7bc8f6','#f15bb5','#fee440','#00bbf9','#00f5d4','#fb5607'];
+
+function switchRaffleTab(mode) {
+  raffleMode = mode;
+  document.getElementById('rafPanel-wager').style.display = mode === 'wager' ? '' : 'none';
+  document.getElementById('rafPanel-point').style.display = mode === 'point'  ? '' : 'none';
+  document.getElementById('rafTab-wager').className = (mode === 'wager' ? 'btn btn-accent' : 'btn btn-ghost') + ' btn-sm';
+  document.getElementById('rafTab-point').className = (mode === 'point'  ? 'btn btn-accent' : 'btn btn-ghost') + ' btn-sm';
+  document.getElementById('rafTab-wager').style.minWidth = '120px';
+  document.getElementById('rafTab-point').style.minWidth = '120px';
+  if (mode === 'wager') loadWagerRafflePanel();
+  else                  loadPointRafflePanel();
+}
+
+function loadRafflePage() {
+  switchRaffleTab(raffleMode);
+  loadRaffleHistory();
+}
+
+// ── WAGER RAFFLE ──────────────────────────────────────────────────────────────
+
+async function loadWagerRafflePanel() {
+  const wr = profile?.wagerRaffle || {};
+  document.getElementById('wrThreshold').value    = wr.threshold || '';
+  document.getElementById('wrProviderLabel').textContent = profile?.activeProvider || '—';
+
+  if (wr.periodStart) {
+    const d = new Date(wr.periodStart);
+    const n = Object.keys(wr.baselines || {}).length;
+    document.getElementById('wrPeriodInfo').innerHTML = `
+      <div style="color:var(--bright);font-weight:600;">${d.toLocaleDateString()} at ${d.toLocaleTimeString()}</div>
+      <div style="color:var(--text-dim);font-size:12px;margin-top:2px;">${n} casino users baselined</div>`;
+    await loadWagerTickets();
+  } else {
+    document.getElementById('wrPeriodInfo').textContent = 'No active period. Start one to begin tracking wager tickets.';
+  }
+}
+
+async function saveWagerRaffleConfig() {
+  const threshold = parseInt(document.getElementById('wrThreshold').value);
+  if (!threshold || threshold < 1) { flash('Enter a valid threshold.', 'error'); return; }
+  await fb.db.collection('streamers').doc(fb.currentUser.uid).update({ 'wagerRaffle.threshold': threshold });
+  if (!profile.wagerRaffle) profile.wagerRaffle = {};
+  profile.wagerRaffle.threshold = threshold;
+  flash('Config saved!');
+}
+
+async function startWagerPeriod() {
+  const uid     = fb.currentUser.uid;
+  const channel = profile?.kickChannel;
+  const casino  = profile?.activeProvider || 'gambulls';
+  if (!channel) { flash('Set your Kick channel in Settings first.', 'error'); return; }
+  if (!confirm('Start a new raffle period? This will snapshot all current wager amounts as baselines — only wagers after this point will earn tickets.')) return;
+
+  document.getElementById('wrPeriodInfo').textContent = 'Fetching baselines…';
+  let baselines = {};
+  try {
+    const resp = await fetch(`/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1`);
+    const data = await resp.json();
+    (data.rankings || []).forEach(e => { baselines[e.username.toLowerCase()] = e.wagered || 0; });
+  } catch(e) {
+    flash('Failed to fetch leaderboard: ' + e.message, 'error');
+    return;
+  }
+
+  const periodStart = Date.now();
+  await fb.db.collection('streamers').doc(uid).update({
+    'wagerRaffle.periodStart': periodStart,
+    'wagerRaffle.baselines':   baselines,
+  });
+  if (!profile.wagerRaffle) profile.wagerRaffle = {};
+  profile.wagerRaffle.periodStart = periodStart;
+  profile.wagerRaffle.baselines   = baselines;
+  flash(`New period started! ${Object.keys(baselines).length} users baselined.`);
+  loadWagerRafflePanel();
+}
+
+async function loadWagerTickets() {
+  const uid       = fb.currentUser.uid;
+  const wr        = profile?.wagerRaffle || {};
+  const tbody     = document.getElementById('wagerTicketTable');
+  const channel   = profile?.kickChannel;
+  const casino    = profile?.activeProvider || 'gambulls';
+  const threshold = wr.threshold || 1000;
+  const baselines = wr.baselines || {};
+
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:16px;">Loading…</td></tr>';
+
+  // Map casinoUsername.lower → kickName
+  let verifiedMap = {};
+  try {
+    const vSnap = await fb.db.collection('streamers').doc(uid).collection('verified_users')
+      .where('provider', '==', casino).get();
+    vSnap.docs.forEach(d => {
+      const v = d.data();
+      if (v.providerUsername) verifiedMap[v.providerUsername.toLowerCase()] = v.kickName || d.id;
+    });
+  } catch {}
+
+  // Fetch live wager data
+  let rankings = [];
+  try {
+    const resp = await fetch(`/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1`);
+    const data = await resp.json();
+    rankings = data.rankings || [];
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="4" style="color:var(--red);padding:16px;">${e.message}</td></tr>`;
+    return;
+  }
+
+  // Compute tickets from period wager delta
+  const entries = [];
+  rankings.forEach(e => {
+    const key       = e.username.toLowerCase();
+    const base      = baselines[key] || 0;
+    const wagerSince = Math.max(0, (e.wagered || 0) - base);
+    const tickets   = Math.floor(wagerSince / threshold);
+    if (tickets > 0) entries.push({
+      username:   verifiedMap[key] || e.username,
+      casinoName: e.username,
+      wagerSince,
+      tickets,
+    });
+  });
+  entries.sort((a, b) => b.tickets - a.tickets);
+  wagerRaffleEntries = entries;
+
+  const totalTix = entries.reduce((s, e) => s + e.tickets, 0);
+  document.getElementById('wrEntryCount').textContent = entries.length
+    ? `${entries.length} viewer${entries.length !== 1 ? 's' : ''} — ${totalTix} total tickets`
+    : 'No ticket holders yet.';
+  document.getElementById('wrDrawBtn').disabled = entries.length === 0;
+
+  if (!entries.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">No ticket holders yet. Viewers earn tickets by wagering since the period started.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = entries.map(e => `<tr>
+    <td class="td-highlight">${e.username}</td>
+    <td style="color:var(--text-dim);font-size:12px;">${e.casinoName}</td>
+    <td class="td-green">$${Number(e.wagerSince).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+    <td><span style="background:rgba(0,229,255,0.1);color:var(--accent);border:1px solid rgba(0,229,255,0.2);border-radius:4px;padding:2px 8px;font-size:12px;font-weight:700;">${e.tickets}</span></td>
+  </tr>`).join('');
+}
+
+// ── POINT RAFFLE ──────────────────────────────────────────────────────────────
+
+async function loadPointRafflePanel() {
+  const pr       = profile?.pointRaffle || {};
+  const currency = profile?.currencyName || 'points';
+  document.getElementById('prCurrencyLabel').textContent = currency;
+  document.getElementById('prTicketPrice').value = pr.ticketPrice || '';
+  document.getElementById('prMaxPerUser').value  = pr.maxPerUser  || '';
+
+  const toggle = document.getElementById('prToggle');
+  if (pr.enabled) toggle.classList.add('on'); else toggle.classList.remove('on');
+
+  updatePointRaffleStatus();
+  await loadPointRaffleEntries();
+}
+
+function updatePointRaffleStatus() {
+  const pr       = profile?.pointRaffle || {};
+  const currency = profile?.currencyName || 'points';
+  const box      = document.getElementById('prStatusBox');
+  if (pr.enabled && pr.ticketItemId) {
+    box.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.2);border-radius:8px;">
+        <span style="font-size:20px;">🎟</span>
+        <div>
+          <div style="font-weight:700;color:var(--green);font-size:13px;">Raffle Ticket is live in your store</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${(pr.ticketPrice||0).toLocaleString()} ${currency} each${pr.maxPerUser ? ` · max ${pr.maxPerUser}/viewer` : ''}</div>
+        </div>
+      </div>`;
+  } else {
+    box.innerHTML = `<div style="color:var(--text-dim);font-size:13px;">Point Raffle is <strong>disabled</strong>. Enable it above to add the Raffle Ticket item to your store.</div>`;
+  }
+}
+
+async function togglePointRaffle() {
+  const uid = fb.currentUser.uid;
+  const pr  = profile?.pointRaffle || {};
+  const enabling = !pr.enabled;
+
+  if (enabling) {
+    const price = parseInt(document.getElementById('prTicketPrice').value);
+    if (!price || price < 1) { flash('Enter a ticket price before enabling.', 'error'); return; }
+    await savePointRaffleConfig(true);
+  } else {
+    if (pr.ticketItemId) {
+      try { await fb.db.collection('streamers').doc(uid).collection('store_items').doc(pr.ticketItemId).delete(); } catch {}
+    }
+    await fb.db.collection('streamers').doc(uid).update({
+      'pointRaffle.enabled':      false,
+      'pointRaffle.ticketItemId': firebase.firestore.FieldValue.delete(),
+    });
+    if (!profile.pointRaffle) profile.pointRaffle = {};
+    profile.pointRaffle.enabled      = false;
+    profile.pointRaffle.ticketItemId = null;
+    flash('Point Raffle disabled. Ticket item removed from store.');
+    loadPointRafflePanel();
+  }
+}
+
+async function savePointRaffleConfig(andEnable = false) {
+  const uid      = fb.currentUser.uid;
+  const price    = parseInt(document.getElementById('prTicketPrice').value);
+  const maxRaw   = document.getElementById('prMaxPerUser').value.trim();
+  const maxPerUser = maxRaw ? parseInt(maxRaw) : null;
+  const currency = profile?.currencyName || 'points';
+
+  if (!price || price < 1) { flash('Enter a ticket price.', 'error'); return; }
+
+  const pr = profile?.pointRaffle || {};
+
+  if (andEnable) {
+    let ticketItemId = pr.ticketItemId;
+    const itemData = {
+      name:        'Raffle Ticket',
+      description: `Enter the raffle! 1 ticket = 1 entry.${maxPerUser ? ` Max ${maxPerUser} per viewer.` : ''}`,
+      price,
+      stock:       null,
+      imageUrl:    null,
+      enabled:     true,
+      type:        'raffle_ticket',
+      createdAt:   Date.now(),
+    };
+
+    if (ticketItemId) {
+      await fb.db.collection('streamers').doc(uid).collection('store_items').doc(ticketItemId).update({
+        description: itemData.description, price, enabled: true,
+      });
+    } else {
+      const ref = fb.db.collection('streamers').doc(uid).collection('store_items').doc();
+      await ref.set(itemData);
+      ticketItemId = ref.id;
+    }
+
+    await fb.db.collection('streamers').doc(uid).update({
+      'pointRaffle.enabled':      true,
+      'pointRaffle.ticketPrice':  price,
+      'pointRaffle.maxPerUser':   maxPerUser,
+      'pointRaffle.ticketItemId': ticketItemId,
+    });
+    if (!profile.pointRaffle) profile.pointRaffle = {};
+    Object.assign(profile.pointRaffle, { enabled: true, ticketPrice: price, maxPerUser, ticketItemId });
+    flash('Point Raffle enabled! Raffle Ticket added to your store.');
+  } else {
+    await fb.db.collection('streamers').doc(uid).update({
+      'pointRaffle.ticketPrice': price,
+      'pointRaffle.maxPerUser':  maxPerUser,
+    });
+    if (!profile.pointRaffle) profile.pointRaffle = {};
+    profile.pointRaffle.ticketPrice = price;
+    profile.pointRaffle.maxPerUser  = maxPerUser;
+    // Update store item price if enabled
+    if (pr.ticketItemId) {
+      await fb.db.collection('streamers').doc(uid).collection('store_items').doc(pr.ticketItemId).update({
+        price,
+        description: `Enter the raffle! 1 ticket = 1 entry.${maxPerUser ? ` Max ${maxPerUser} per viewer.` : ''}`,
+      }).catch(() => {});
+    }
+    flash('Config saved!');
+  }
+  loadPointRafflePanel();
+}
+
+async function loadPointRaffleEntries() {
+  const uid   = fb.currentUser.uid;
+  const pr    = profile?.pointRaffle || {};
+  const tbody = document.getElementById('pointRaffleTable');
+
+  if (!pr.ticketItemId) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:16px;">Enable Point Raffle first to start collecting entries.</td></tr>';
+    document.getElementById('prEntryCount').textContent = 'No entries.';
+    document.getElementById('prDrawBtn').disabled = true;
+    return;
+  }
+
+  tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:16px;">Loading…</td></tr>';
+
+  try {
+    const snap = await fb.db.collection('streamers').doc(uid).collection('store_redemptions')
+      .where('itemId', '==', pr.ticketItemId).where('status', '==', 'pending').get();
+
+    const maxPerUser = pr.maxPerUser || Infinity;
+    const map = {};
+    snap.docs.forEach(doc => {
+      const d   = doc.data();
+      const key = (d.kickUsername || '').toLowerCase();
+      if (!key) return;
+      if (!map[key]) map[key] = { username: d.kickUsername, tickets: 0, lastTs: null };
+      map[key].tickets++;
+      const ts = d.redeemedAt?.toMillis?.() ?? 0;
+      if (!map[key].lastTs || ts > map[key].lastTs) map[key].lastTs = ts;
+    });
+
+    const entries = Object.values(map).map(e => ({
+      ...e,
+      tickets: maxPerUser === Infinity ? e.tickets : Math.min(e.tickets, maxPerUser),
+    })).sort((a, b) => b.tickets - a.tickets);
+
+    pointRaffleEntries = entries;
+    const totalTix = entries.reduce((s, e) => s + e.tickets, 0);
+    document.getElementById('prEntryCount').textContent = entries.length
+      ? `${entries.length} viewer${entries.length !== 1 ? 's' : ''} — ${totalTix} total ticket${totalTix !== 1 ? 's' : ''}`
+      : 'No entries yet.';
+    document.getElementById('prDrawBtn').disabled = entries.length === 0;
+
+    document.getElementById('prEntryStats').innerHTML = entries.length
+      ? `<div style="display:flex;gap:16px;font-size:12px;">
+          <div><span style="color:var(--text-dim);">Entrants:</span> <strong style="color:var(--bright);">${entries.length}</strong></div>
+          <div><span style="color:var(--text-dim);">Total tickets:</span> <strong style="color:var(--accent);">${totalTix}</strong></div>
+        </div>`
+      : '';
+
+    if (!entries.length) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">No entries yet. Viewers can buy Raffle Tickets from your store.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = entries.map(e => `<tr>
+      <td class="td-highlight">${e.username}</td>
+      <td><span style="background:rgba(0,229,255,0.1);color:var(--accent);border:1px solid rgba(0,229,255,0.2);border-radius:4px;padding:2px 8px;font-size:12px;font-weight:700;">${e.tickets}</span></td>
+      <td style="color:var(--text-dim);font-size:12px;">${e.lastTs ? new Date(e.lastTs).toLocaleDateString() : '—'}</td>
+    </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="3" style="color:var(--red);padding:16px;">${e.message}</td></tr>`;
+  }
+}
+
+async function clearPointRaffleEntries() {
+  const uid = fb.currentUser.uid;
+  const pr  = profile?.pointRaffle || {};
+  if (!pr.ticketItemId) return;
+  if (!confirm('Clear all current entries? This marks all raffle ticket redemptions as fulfilled and removes them from the draw pool.')) return;
+  try {
+    const snap = await fb.db.collection('streamers').doc(uid).collection('store_redemptions')
+      .where('itemId', '==', pr.ticketItemId).where('status', '==', 'pending').get();
+    const batch = fb.db.batch();
+    snap.docs.forEach(doc => batch.update(doc.ref, { status: 'fulfilled', fulfilledAt: new Date() }));
+    await batch.commit();
+    pointRaffleEntries = [];
+    flash(`${snap.size} entries cleared.`);
+    loadPointRafflePanel();
+  } catch(e) {
+    flash('Error: ' + e.message, 'error');
+  }
+}
+
+// ── DRAW ──────────────────────────────────────────────────────────────────────
+
+async function drawRaffleWinner(mode) {
+  if (raffleAnimating) return;
+  const entries = mode === 'wager' ? wagerRaffleEntries : pointRaffleEntries;
+  if (!entries.length) { flash('No entries to draw from.', 'error'); return; }
+
+  // Weighted random pick
+  const pool = [];
+  entries.forEach(e => { for (let i = 0; i < (e.tickets || 1); i++) pool.push(e.username); });
+  const winner = pool[Math.floor(Math.random() * pool.length)];
+
+  // Fire raffleTrigger for OBS overlay (same giveaway_state doc, separate key)
+  const uid = fb.currentUser?.uid;
+  if (uid) {
+    fb.db.collection('streamers').doc(uid).collection('giveaway_state').doc('snapshot')
+      .set({ raffleTrigger: { winner, mode, triggeredAt: Date.now() } }, { merge: true })
+      .catch(() => {});
+  }
+
+  openRaffleWheelModal(entries, winner, mode);
+}
+
+function openRaffleWheelModal(entries, winner, mode) {
+  raffleAnimating = true;
+  document.getElementById('raffleWheelModal').style.display = 'flex';
+  document.getElementById('rafWheelWinner').style.display   = 'none';
+  rafWheelAngle = 0;
+  rafDrawWheel(entries, 0);
+  setTimeout(() => rafSpinToWinner(entries, winner, mode), 300);
+}
+
+function closeRaffleWheelModal() {
+  document.getElementById('raffleWheelModal').style.display = 'none';
+  raffleAnimating = false;
+}
+
+function rafDrawWheel(entries, angle) {
+  const canvas = document.getElementById('rafWheelCanvas');
+  const ctx    = canvas.getContext('2d');
+  ctx.clearRect(0, 0, RAF_SIZE, RAF_SIZE);
+
+  const total = entries.reduce((s, e) => s + (e.tickets || 1), 0);
+  let   startAngle = angle;
+
+  entries.forEach((entry, i) => {
+    const frac     = (entry.tickets || 1) / total;
+    const sweep    = frac * Math.PI * 2;
+    const endAngle = startAngle + sweep;
+    const color    = RAF_COLORS[i % RAF_COLORS.length];
+    const mid      = startAngle + sweep / 2;
+
+    ctx.beginPath();
+    ctx.moveTo(RAF_CX, RAF_CY);
+    ctx.arc(RAF_CX, RAF_CY, RAF_RADIUS, startAngle, endAngle);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    if (sweep > 0.08) {
+      const textR = RAF_RADIUS * 0.62;
+      const tx    = RAF_CX + textR * Math.cos(mid);
+      const ty    = RAF_CY + textR * Math.sin(mid);
+      const maxCh = Math.max(2, Math.floor(sweep * RAF_RADIUS * 0.045));
+      let   label = entry.username || '';
+      if (label.length > maxCh) label = label.slice(0, maxCh - 1) + '…';
+      const fs    = Math.max(9, Math.min(15, Math.floor(sweep * 28)));
+      ctx.save();
+      ctx.translate(tx, ty);
+      ctx.rotate(mid + Math.PI / 2);
+      ctx.fillStyle    = '#fff';
+      ctx.font         = `700 ${fs}px Inter, sans-serif`;
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor  = 'rgba(0,0,0,0.6)';
+      ctx.shadowBlur   = 3;
+      ctx.fillText(label, 0, 0);
+      ctx.restore();
+    }
+    startAngle = endAngle;
+  });
+
+  ctx.beginPath();
+  ctx.arc(RAF_CX, RAF_CY, RAF_RADIUS, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth   = 3;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(RAF_CX, RAF_CY, 20, 0, Math.PI * 2);
+  ctx.fillStyle   = '#0d1117';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth   = 2;
+  ctx.stroke();
+}
+
+function rafSpinToWinner(entries, winnerName, mode) {
+  const total = entries.reduce((s, e) => s + (e.tickets || 1), 0);
+  let cumAngle = 0, winnerMid = 0;
+  for (const entry of entries) {
+    const sweep = (entry.tickets || 1) / total * Math.PI * 2;
+    if (entry.username === winnerName) { winnerMid = cumAngle + sweep / 2; break; }
+    cumAngle += sweep;
+  }
+
+  const base   = -Math.PI / 2 - winnerMid;
+  const minFwd = rafWheelAngle + 6 * Math.PI * 2;
+  const target = base + Math.ceil((minFwd - base) / (Math.PI * 2)) * Math.PI * 2;
+
+  const from    = rafWheelAngle;
+  const dur     = 5200;
+  const startTs = performance.now();
+
+  function tick(now) {
+    const t     = Math.min((now - startTs) / dur, 1);
+    const eased = 1 - Math.pow(1 - t, 4);
+    rafWheelAngle = from + (target - from) * eased;
+    rafDrawWheel(entries, rafWheelAngle);
+    if (t < 1) { requestAnimationFrame(tick); return; }
+    rafWheelAngle = target;
+    rafDrawWheel(entries, rafWheelAngle);
+    document.getElementById('rafWheelWinnerName').textContent = winnerName;
+    document.getElementById('rafWheelWinner').style.display   = 'block';
+    raffleAnimating = false;
+    saveRaffleHistory(winnerName, mode, entries);
+    loadRaffleHistory();
+  }
+  requestAnimationFrame(tick);
+}
+
+async function saveRaffleHistory(winner, mode, entries) {
+  const uid = fb.currentUser?.uid;
+  if (!uid) return;
+  await fb.db.collection('streamers').doc(uid).collection('raffle_history').add({
+    winner,
+    mode,
+    totalEntrants: entries.length,
+    totalTickets:  entries.reduce((s, e) => s + (e.tickets || 1), 0),
+    drawnAt:       Date.now(),
+  }).catch(() => {});
+}
+
+async function loadRaffleHistory() {
+  const uid = fb.currentUser?.uid;
+  if (!uid) return;
+  const el = document.getElementById('raffleHistoryList');
+  if (!el) return;
+  try {
+    const snap = await fb.db.collection('streamers').doc(uid).collection('raffle_history')
+      .orderBy('drawnAt', 'desc').limit(10).get();
+    if (snap.empty) {
+      el.innerHTML = '<div style="color:var(--text-dim);text-align:center;padding:16px;">No draws yet.</div>';
+      return;
+    }
+    el.innerHTML = snap.docs.map(doc => {
+      const d    = doc.data();
+      const ts   = new Date(d.drawnAt).toLocaleDateString();
+      const badge = d.mode === 'wager'
+        ? `<span style="background:rgba(0,229,255,0.1);color:var(--accent);border:1px solid rgba(0,229,255,0.2);border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700;flex-shrink:0;">WAGER</span>`
+        : `<span style="background:rgba(167,139,250,0.1);color:#a78bfa;border:1px solid rgba(167,139,250,0.2);border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700;flex-shrink:0;">POINT</span>`;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(48,54,61,0.4);">
+        ${badge}
+        <span style="font-weight:700;color:var(--gold);">🏆 ${d.winner}</span>
+        <span style="color:var(--text-dim);font-size:11px;margin-left:auto;">${d.totalEntrants || 0} viewers · ${ts}</span>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--red);font-size:12px;">${e.message}</div>`;
+  }
+}
+
+// ── END RAFFLES ────────────────────────────────────────────────────────────────
 </script>
 
 <!-- Finalize Month Modal -->

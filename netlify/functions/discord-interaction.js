@@ -194,6 +194,7 @@ async function handleBuy(interaction) {
     kickUsername,
     discordUserId:   userId,
     discordUsername: tag,
+    itemId:          matchDoc.id,
     itemName:        item.name,
     pointsSpent:     item.price,
     redeemedAt:      admin.firestore.Timestamp.now(),

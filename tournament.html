@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <link rel="icon" type="image/png" href="/wenside.png" sizes="32x32">
+  <link rel="icon" type="image/png" href="/wensideimage.png" sizes="32x32">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tournament</title>
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -347,6 +347,13 @@ function show(id) { document.getElementById(id).style.display = ''; }
 function hide(id) { document.getElementById(id).style.display = 'none'; }
 
 async function init() {
+  if (!channel) {
+    show('screen-login');
+    document.querySelector('.card h2').textContent = 'Invalid Link';
+    document.querySelector('.card p').textContent  = 'This link is missing a channel. Use the link shared by your streamer.';
+    document.querySelector('.btn-accent').style.display = 'none';
+    return;
+  }
   viewerSession = loadSession();
   if (viewerSession) {
     show('screen-main');

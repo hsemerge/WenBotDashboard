@@ -62,8 +62,8 @@ async function initiateKickAuth(purpose = "streamer", channel = "") {
     scopes = "user:read channel:read";
   }
 
-  sessionStorage.setItem("kick_code_verifier", verifier);
-  sessionStorage.setItem("kick_auth_purpose",  purpose);
+  localStorage.setItem("kick_code_verifier", verifier);
+  localStorage.setItem("kick_auth_purpose",  purpose);
 
   const params = new URLSearchParams({
     client_id:             KICK_CLIENT_ID,
