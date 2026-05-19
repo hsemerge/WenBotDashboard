@@ -8,29 +8,11 @@ const { getDb, admin }         = require("./_lib/firebase");
 const { res, checkRateLimit }  = require("./_lib/http");
 const { CASINO_NAMES }         = require("./_lib/casinos");
 const { logAudit }             = require("./_lib/audit");
+const { lookupAffiliate }      = require("./_lib/affiliate");
 const crypto                   = require("crypto");
 
 // Casinos with live API verification
 const API_CASINOS = new Set(["gambulls"]);
-
-// API-backed lookup — returns { username, wagerAmount } or null
-async function lookupAffiliate(provider, apiKey, affiliateUsername) {
-  if (provider === "gambulls") {
-    const resp = await fetch(
-      "https://api.gambulls.com/api/public/streamer/leaderboard?type=monthly&limit=200",
-      { headers: { "x-streamer-api-key": apiKey, "Accept": "application/json" } }
-    );
-    if (!resp.ok) return null;
-    const data = await resp.json();
-    if (!data.success || !data.responseObject?.rankings) return null;
-    const match = data.responseObject.rankings.find(
-      e => (e.user?.name || "").toLowerCase() === affiliateUsername.toLowerCase()
-    );
-    return match ? { username: match.user.name, wagerAmount: match.wagerAmount || 0 } : null;
-  }
-
-  return null;
-}
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
@@ -118,6 +100,7 @@ exports.handler = async (event) => {
 
     let resultUsername  = affiliateUsername;
     let underAffiliate  = false;
+    let wagerAmount     = 0;
 
     if (API_CASINOS.has(provider)) {
       // Full API verification against streamer's leaderboard
@@ -131,6 +114,7 @@ exports.handler = async (event) => {
       if (result) {
         resultUsername = result.username;
         underAffiliate = true;
+        wagerAmount    = result.wagerAmount || 0;
       }
       // Not found on leaderboard = not under affiliate code, but still save as verified
     } else {
@@ -148,6 +132,8 @@ exports.handler = async (event) => {
       provider,
       apiVerified:            API_CASINOS.has(provider) && underAffiliate,
       underAffiliate,
+      wagerAmount,
+      wagerLastSyncedAt:      API_CASINOS.has(provider) ? Date.now() : null,
       verifiedAt:             Date.now(),
     });
     // Clean up legacy docs that used just kickKey as doc ID (no _provider suffix)

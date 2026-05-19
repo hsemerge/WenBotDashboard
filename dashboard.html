@@ -1032,7 +1032,6 @@
               <input type="checkbox" id="verifiedUnderCodeOnly" onchange="renderVerifiedFromCache()" style="accent-color:var(--green);width:14px;height:14px;">
               Under Code only
             </label>
-            <button class="btn btn-danger btn-sm" onclick="clearAllVerified()">Clear All</button>
           </div>
         </div>
         <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -1188,6 +1187,7 @@
                 <option value="gtb_winner_picked">GTB winners</option>
               </optgroup>
               <optgroup label="Admin">
+                <option value="verified_status_updated">Verified status updated</option>
                 <option value="verified_user_removed">Verified removed</option>
                 <option value="verified_users_cleared">Verified cleared (bulk)</option>
                 <option value="giveaway_started">Giveaways started</option>
@@ -3171,7 +3171,10 @@ function renderVerifiedFromCache() {
       <td>${discordCell}</td>
       <td class="td-green">${v.wagerAmount ? '$'+Number(v.wagerAmount).toLocaleString() : '—'}</td>
       <td style="color:var(--text-dim);">${ts}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="removeVerified('${id}')">Remove</button></td>
+      <td style="display:flex;gap:4px;justify-content:flex-end;">
+        <button class="btn btn-ghost btn-sm" onclick="recheckVerified('${id}', this)" title="Re-check this user's affiliate status against the current leaderboard">↻</button>
+        <button class="btn btn-danger btn-sm" onclick="removeVerified('${id}')">Remove</button>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -3187,15 +3190,34 @@ async function removeVerified(docId) {
   flash('User removed.');
 }
 
-async function clearAllVerified() {
-  if (!confirm('Remove all verified users?')) return;
-  const snap = await fb.db.collection('streamers').doc(fb.currentUser.uid).collection('verified_users').get();
-  const count = snap.size;
-  const batch = fb.db.batch();
-  snap.docs.forEach(d => batch.delete(d.ref));
-  await batch.commit();
-  logAction('verified_users_cleared', { count });
-  flash('All verified users cleared.');
+// Re-runs the affiliate lookup for a single verified user against the current leaderboard.
+// Useful when SteezySol-style users were verified before they appeared on the leaderboard.
+async function recheckVerified(docId, btn) {
+  if (!fb.currentUser) return;
+  const origLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳';
+  try {
+    const idToken = await fb.currentUser.getIdToken();
+    const resp = await fetch('/api/recheck-verified', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ docId }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Recheck failed');
+    if (data.statusChanged) {
+      flash(`Status updated: now ${data.underAffiliate ? 'Under Code' : 'Standard'}`);
+    } else {
+      flash(`No change — still ${data.underAffiliate ? 'Under Code' : 'Standard'}`);
+    }
+    // The verified_users onSnapshot listener will pick up the Firestore update and re-render
+  } catch (e) {
+    flash('Recheck failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origLabel;
+  }
 }
 
 // ── SETTINGS ──
@@ -6285,6 +6307,7 @@ const ACTION_LABELS = {
   raffle_drawn:            { label: 'Raffle Drawn',      color: '#e84393' },
   verified_user_removed:   { label: 'Verified Removed',  color: '#ff6b6b' },
   verified_users_cleared:  { label: 'Verified Cleared',  color: '#ff4757' },
+  verified_status_updated: { label: 'Status Updated',    color: '#00ff88' },
   bb_payout:               { label: 'BB Payout',         color: '#a78bfa' },
   giveaway_started:        { label: 'Giveaway Started',  color: '#00e5ff' },
   giveaway_ended:          { label: 'Giveaway Ended',    color: '#8b949e' },
@@ -6373,6 +6396,10 @@ function formatActivityDetails(action, d) {
       return `Removed verified entry <code style="font-size:11px;">${escHtml(d.docId || '?')}</code>`;
     case 'verified_users_cleared':
       return `Cleared <strong>${d.count || 0}</strong> verified users`;
+    case 'verified_status_updated': {
+      const arrow = d.to === 'Under Code' ? '→ 🟢 Under Code' : '→ ⚪ Standard';
+      return `${kick(d.kickUsername)} (<strong>${escHtml(d.providerUsername || '?')}</strong>): ${escHtml(d.from || '?')} ${arrow}`;
+    }
     case 'bb_payout':
       return `Paid out BB match — <strong>${escHtml(d.winningSlot || '?')}</strong> won, ${pts(d.totalPaid)} pts distributed to ${d.winnerCount || 0} voters`;
     case 'giveaway_started':

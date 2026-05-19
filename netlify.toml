@@ -49,6 +49,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/recheck-verified"
+  to     = "/.netlify/functions/recheck-verified"
+  status = 200
+
+[[redirects]]
   from   = "/api/overlay-data"
   to     = "/.netlify/functions/overlay-data"
   status = 200
