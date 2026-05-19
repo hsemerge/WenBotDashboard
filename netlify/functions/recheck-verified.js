@@ -68,7 +68,8 @@ exports.handler = async (event) => {
     }
     const { apiKey } = providerDoc.data();
 
-    const result = await lookupAffiliate(provider, apiKey, affiliateUsername);
+    const diagnostics = [];
+    const result = await lookupAffiliate(provider, apiKey, affiliateUsername, diagnostics);
     const wasUnderAffiliate = !!v.underAffiliate;
     const nowUnderAffiliate = !!result;
 
@@ -97,6 +98,8 @@ exports.handler = async (event) => {
       wagerAmount:     result?.wagerAmount || 0,
       leaderboardType: result?.leaderboardType || null,
       statusChanged:   wasUnderAffiliate !== nowUnderAffiliate,
+      diagnostics,   // per-leaderboard search details for debugging
+      target:          affiliateUsername,
     });
   } catch (err) {
     console.error("[recheck-verified] error:", err.message);

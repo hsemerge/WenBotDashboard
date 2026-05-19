@@ -3244,10 +3244,12 @@ async function recheckVerified(docId, btn) {
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Recheck failed');
+    // Log diagnostics for debugging affiliate-status mismatches
+    console.log('[Recheck]', { target: data.target, underAffiliate: data.underAffiliate, leaderboardType: data.leaderboardType, diagnostics: data.diagnostics });
     if (data.statusChanged) {
       flash(`Status updated: now ${data.underAffiliate ? 'Under Code' : 'Standard'}`);
     } else {
-      flash(`No change — still ${data.underAffiliate ? 'Under Code' : 'Standard'}`);
+      flash(`No change — still ${data.underAffiliate ? 'Under Code' : 'Standard'} · check console for details`);
     }
     // The verified_users onSnapshot listener will pick up the Firestore update and re-render
   } catch (e) {
