@@ -2212,6 +2212,10 @@ function showPage(id, el) {
 
 // ── FLASH ──
 function flash(msg, type='success') {
+  // Mirror flash messages to the console so transient ones can be inspected
+  // after the UI fades. Errors are logged as console.error so they stand out.
+  if (type === 'error') console.error('[flash] ' + msg);
+  else                  console.log('[flash] ' + msg);
   const el = document.getElementById('flash');
   el.textContent = msg;
   el.className = 'flash show ' + type;
