@@ -502,6 +502,11 @@
       </button>
       <div class="topbar-title" id="topbarTitle">Overview</div>
       <div class="topbar-pill" id="channelPill">⚡ <span id="channelPillName">Loading...</span></div>
+      <!-- Bot Status pill — always visible across pages so the streamer knows
+           at a glance whether WenBot is connected to their channel -->
+      <div class="topbar-pill" id="botStatusPill" title="WenBot connection status" aria-live="polite" style="font-weight:700;">
+        <span id="botStatusPillDot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--text-dim);vertical-align:middle;margin-right:6px;"></span><span id="botStatusPillText">Checking…</span>
+      </div>
       <div class="topbar-pill live" id="giveawayPill" style="display:none;">🔴 Giveaway Live</div>
     </div>
 
@@ -6200,6 +6205,8 @@ function renderBotStatus() {
   const sidebarLbl = document.getElementById('botStatusLabel');
   const banner     = document.getElementById('botOfflineBanner');
   const bannerSub  = document.getElementById('botOfflineSubMsg');
+  const pillDot    = document.getElementById('botStatusPillDot');
+  const pillText   = document.getElementById('botStatusPillText');
 
   const hb     = botStatusData?.heartbeat || 0;
   const ageSec = hb ? Math.floor((Date.now() - hb) / 1000) : Infinity;
@@ -6229,6 +6236,9 @@ function renderBotStatus() {
     sidebarDot.classList.toggle('offline', state === 'offline' || state === 'unknown');
   }
   if (sidebarLbl) sidebarLbl.textContent = label;
+  // Persistent topbar pill — visible across every page
+  if (pillDot)  pillDot.style.background = color;
+  if (pillText) pillText.textContent = `Bot: ${label}`;
 
   // Banner only on offline/unknown — stale is too transient
   if (banner) {
