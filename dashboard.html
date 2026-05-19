@@ -491,6 +491,9 @@
         <div class="sidebar-user-name" id="sidebarUser">—</div>
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
+      <div id="appVersion" style="font-size:10px;color:var(--text-dim);opacity:0.5;text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;">
+        WenBot v<span id="appVersionNumber">1.0.0</span>
+      </div>
     </div>
   </aside>
 
@@ -2212,10 +2215,6 @@ function showPage(id, el) {
 
 // ── FLASH ──
 function flash(msg, type='success') {
-  // Mirror flash messages to the console so transient ones can be inspected
-  // after the UI fades. Errors are logged as console.error so they stand out.
-  if (type === 'error') console.error('[flash] ' + msg);
-  else                  console.log('[flash] ' + msg);
   const el = document.getElementById('flash');
   el.textContent = msg;
   el.className = 'flash show ' + type;
@@ -6205,9 +6204,9 @@ async function logAction(action, details = {}) {
 // ── BOT STATUS HEARTBEAT ────────────────────────────────────────────────────
 // Subscribes to streamers/{uid}/bot_status/current. WenBotServer writes the
 // heartbeat every 60s while connected. Stale > 5min = offline.
-let botStatusUnsub = null;
-let botStatusData  = null;
-let botStatusTimer = null;
+let botStatusUnsub    = null;
+let botStatusData     = undefined; // undefined = listener hasn't fired yet; null = doc doesn't exist
+let botStatusTimer    = null;
 
 function startBotStatusListener(uid) {
   if (botStatusUnsub) { botStatusUnsub(); botStatusUnsub = null; }
@@ -6233,6 +6232,18 @@ function renderBotStatus() {
   const bannerSub  = document.getElementById('botOfflineSubMsg');
   const pillDot    = document.getElementById('botStatusPillDot');
   const pillText   = document.getElementById('botStatusPillText');
+
+  // Pre-listener state — show neutral "Checking…" and DO NOT show the alarming
+  // offline banner. Otherwise it flashes on every dashboard load before the
+  // Firestore listener has a chance to deliver the real heartbeat.
+  if (botStatusData === undefined) {
+    if (statVal)    { statVal.textContent = 'Checking…'; statVal.style.color = 'var(--text-dim)'; }
+    if (sidebarLbl) sidebarLbl.textContent = 'Checking…';
+    if (pillDot)    pillDot.style.background = 'var(--text-dim)';
+    if (pillText)   pillText.textContent = 'Bot: Checking…';
+    if (banner)     banner.style.display = 'none';
+    return;
+  }
 
   const hb     = botStatusData?.heartbeat || 0;
   const ageSec = hb ? Math.floor((Date.now() - hb) / 1000) : Infinity;
