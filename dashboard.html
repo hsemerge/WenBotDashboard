@@ -1169,10 +1169,26 @@
           <div style="display:flex;gap:8px;align-items:center;">
             <select id="activityFilter" onchange="renderActivityLog()" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 10px;font-size:13px;">
               <option value="">All actions</option>
-              <option value="verify">Verifications</option>
-              <option value="bb_vote">Bonus Battle votes</option>
-              <option value="tournament_enter">Tournament entries</option>
-              <option value="kick_connected">Kick connections</option>
+              <optgroup label="Points & Store">
+                <option value="store_redemption">Store redemptions</option>
+                <option value="redemption_fulfilled">Redemptions fulfilled</option>
+                <option value="mod_points_adjust">Points adjusted (mod)</option>
+                <option value="bb_payout">Bonus Battle payouts</option>
+              </optgroup>
+              <optgroup label="Engagement">
+                <option value="verify">Verifications</option>
+                <option value="bb_vote">Bonus Battle votes</option>
+                <option value="tournament_enter">Tournament entries</option>
+                <option value="raffle_drawn">Raffle draws</option>
+                <option value="gtb_winner_picked">GTB winners</option>
+              </optgroup>
+              <optgroup label="Admin">
+                <option value="verified_user_removed">Verified removed</option>
+                <option value="verified_users_cleared">Verified cleared (bulk)</option>
+                <option value="giveaway_started">Giveaways started</option>
+                <option value="giveaway_ended">Giveaways ended</option>
+                <option value="kick_connected">Kick connections</option>
+              </optgroup>
             </select>
           </div>
         </div>
@@ -2906,12 +2922,18 @@ async function loadTopViewers() {
 }
 
 function promptAddPoints(username) {
-  const amt = prompt(`Add points to ${username}:`);
+  const amt = prompt(`Add points to ${username} (use a negative number to remove):`);
   if (!amt || isNaN(parseInt(amt))) return;
+  const delta = parseInt(amt);
   fb.db.collection('streamers').doc(fb.currentUser.uid)
     .collection('viewers').doc(username)
-    .set({ points: firebase.firestore.FieldValue.increment(parseInt(amt)) }, { merge: true })
-    .then(() => { flash(`Added ${amt} points to ${username}`); loadTopViewers(); });
+    .set({ points: firebase.firestore.FieldValue.increment(delta) }, { merge: true })
+    .then(() => {
+      flash(`${delta >= 0 ? 'Added' : 'Removed'} ${Math.abs(delta)} points to @${username}`);
+      logAction('mod_points_adjust', { kickUsername: username, delta });
+      loadTopViewers();
+    })
+    .catch(e => flash('Failed: ' + e.message, 'error'));
 }
 
 // ── GTB ──
@@ -3156,15 +3178,18 @@ async function loadVerifiedCount() {
 
 async function removeVerified(docId) {
   await fb.db.collection('streamers').doc(fb.currentUser.uid).collection('verified_users').doc(docId).delete();
+  logAction('verified_user_removed', { docId });
   flash('User removed.');
 }
 
 async function clearAllVerified() {
   if (!confirm('Remove all verified users?')) return;
   const snap = await fb.db.collection('streamers').doc(fb.currentUser.uid).collection('verified_users').get();
+  const count = snap.size;
   const batch = fb.db.batch();
   snap.docs.forEach(d => batch.delete(d.ref));
   await batch.commit();
+  logAction('verified_users_cleared', { count });
   flash('All verified users cleared.');
 }
 
@@ -3538,6 +3563,11 @@ async function fulfillRedemption(id) {
   if (snap.exists) {
     const d = snap.data();
     discordNotify('store_redemption', { kickUsername: d.kickUsername || d.viewer, itemName: d.itemName });
+    logAction('redemption_fulfilled', {
+      kickUsername: d.kickUsername || d.viewer,
+      itemName:     d.itemName,
+      pointsSpent:  d.pointsSpent,
+    });
   }
   flash('Marked as fulfilled!');
 }
@@ -6077,13 +6107,13 @@ function rafSpinToWinner(entries, winnerName, mode) {
 async function saveRaffleHistory(winner, mode, entries) {
   const uid = fb.currentUser?.uid;
   if (!uid) return;
+  const totalEntrants = entries.length;
+  const totalTickets  = entries.reduce((s, e) => s + (e.tickets || 1), 0);
   await fb.db.collection('streamers').doc(uid).collection('raffle_history').add({
-    winner,
-    mode,
-    totalEntrants: entries.length,
-    totalTickets:  entries.reduce((s, e) => s + (e.tickets || 1), 0),
-    drawnAt:       Date.now(),
+    winner, mode, totalEntrants, totalTickets,
+    drawnAt: Date.now(),
   }).catch(() => {});
+  logAction('raffle_drawn', { winner, mode, totalEntrants, totalTickets });
 }
 
 let raffleHistoryUnsub = null;
@@ -6123,6 +6153,23 @@ function loadRaffleHistory() {
 }
 
 // ── END RAFFLES ────────────────────────────────────────────────────────────────
+
+// ── AUDIT LOGGING (client-driven actions) ──────────────────────────────────
+// Posts to /api/log-action which writes via admin SDK to streamers/{uid}/audit_logs.
+// Best-effort — never blocks the calling action.
+async function logAction(action, details = {}) {
+  if (!fb.currentUser) return;
+  try {
+    const idToken = await fb.currentUser.getIdToken();
+    await fetch('/api/log-action', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, details }),
+    });
+  } catch (e) {
+    console.warn('[logAction] failed:', e.message);
+  }
+}
 
 // ── BOT STATUS HEARTBEAT ────────────────────────────────────────────────────
 // Subscribes to streamers/{uid}/bot_status/current. WenBotServer writes the
@@ -6218,10 +6265,20 @@ let activityUnsub  = null;
 let activityCache  = [];
 
 const ACTION_LABELS = {
-  verify:           { label: 'Verification',      color: '#00ff88' },
-  bb_vote:          { label: 'Bonus Battle Vote', color: '#a78bfa' },
-  tournament_enter: { label: 'Tournament Entry',  color: '#ffd700' },
-  kick_connected:   { label: 'Kick Connected',    color: '#00e5ff' },
+  verify:                  { label: 'Verification',      color: '#00ff88' },
+  bb_vote:                 { label: 'BB Vote',           color: '#a78bfa' },
+  tournament_enter:        { label: 'Tournament Entry',  color: '#ffd700' },
+  kick_connected:          { label: 'Kick Connected',    color: '#00e5ff' },
+  store_redemption:        { label: 'Store Redemption',  color: '#ff9f43' },
+  redemption_fulfilled:    { label: 'Redemption Done',   color: '#00b894' },
+  mod_points_adjust:       { label: 'Points Adjusted',   color: '#fdcb6e' },
+  raffle_drawn:            { label: 'Raffle Drawn',      color: '#e84393' },
+  verified_user_removed:   { label: 'Verified Removed',  color: '#ff6b6b' },
+  verified_users_cleared:  { label: 'Verified Cleared',  color: '#ff4757' },
+  bb_payout:               { label: 'BB Payout',         color: '#a78bfa' },
+  giveaway_started:        { label: 'Giveaway Started',  color: '#00e5ff' },
+  giveaway_ended:          { label: 'Giveaway Ended',    color: '#8b949e' },
+  gtb_winner_picked:       { label: 'GTB Winner',        color: '#ffd700' },
 };
 
 function loadActivityLog() {
@@ -6269,23 +6326,52 @@ function renderActivityLog() {
 }
 
 function formatActivityDetails(action, d) {
+  const kick = u => `<strong>@${escHtml(u || '?')}</strong>`;
+  const pts  = n => Number(n || 0).toLocaleString();
   switch (action) {
     case 'verify': {
-      const kick = `<strong>@${escHtml(d.kickUsername || '?')}</strong>`;
-      const prov = escHtml(d.providerUsername || '?');
       const casino = escHtml(CASINO_NAMES[d.provider] || d.provider || '');
       const tag = d.underAffiliate
         ? `<span style="color:#00ff88;font-size:11px;font-weight:600;">[Under Code]</span>`
         : `<span style="color:var(--text-dim);font-size:11px;">[General]</span>`;
       const dc = d.discordLinked ? ' · Discord linked' : '';
-      return `${kick} verified <strong>${prov}</strong> on ${casino} ${tag}${dc}`;
+      return `${kick(d.kickUsername)} verified <strong>${escHtml(d.providerUsername || '?')}</strong> on ${casino} ${tag}${dc}`;
     }
     case 'bb_vote':
-      return `<strong>@${escHtml(d.kickUsername || '?')}</strong> voted ${Number(d.points || 0).toLocaleString()} pts on <strong>${escHtml(d.slotName || '?')}</strong>`;
+      return `${kick(d.kickUsername)} voted ${pts(d.points)} pts on <strong>${escHtml(d.slotName || '?')}</strong>`;
     case 'tournament_enter':
-      return `<strong>@${escHtml(d.kickUsername || '?')}</strong> entered tournament (cost ${Number(d.entryCost || 0).toLocaleString()} pts)`;
+      return `${kick(d.kickUsername)} entered tournament (cost ${pts(d.entryCost)} pts)`;
     case 'kick_connected':
-      return `Kick account <strong>@${escHtml(d.kickUsername || '?')}</strong> connected`;
+      return `Kick account ${kick(d.kickUsername)} connected`;
+
+    case 'store_redemption': {
+      const src = d.source === 'discord'
+        ? `<span style="color:#5865F2;font-size:11px;font-weight:700;">Discord</span>`
+        : `<span style="color:var(--green);font-size:11px;font-weight:700;">Kick</span>`;
+      return `${kick(d.kickUsername)} redeemed <strong>${escHtml(d.itemName || '?')}</strong> for ${pts(d.pointsSpent)} pts ${src}`;
+    }
+    case 'redemption_fulfilled':
+      return `Marked <strong>${escHtml(d.itemName || '?')}</strong> for ${kick(d.kickUsername)} as fulfilled (${pts(d.pointsSpent)} pts)`;
+    case 'mod_points_adjust': {
+      const delta = Number(d.delta || 0);
+      const sign  = delta >= 0 ? `<span style="color:#00ff88;">+${pts(delta)}</span>` : `<span style="color:#ff4757;">${pts(delta)}</span>`;
+      return `Adjusted ${kick(d.kickUsername)} by ${sign} pts`;
+    }
+    case 'raffle_drawn':
+      return `Drew raffle: <strong>${escHtml(d.winner || '?')}</strong> won — ${d.totalEntrants || 0} entrants, ${d.totalTickets || 0} tickets (${escHtml(d.mode || '')})`;
+    case 'verified_user_removed':
+      return `Removed verified entry <code style="font-size:11px;">${escHtml(d.docId || '?')}</code>`;
+    case 'verified_users_cleared':
+      return `Cleared <strong>${d.count || 0}</strong> verified users`;
+    case 'bb_payout':
+      return `Paid out BB match — <strong>${escHtml(d.winningSlot || '?')}</strong> won, ${pts(d.totalPaid)} pts distributed to ${d.winnerCount || 0} voters`;
+    case 'giveaway_started':
+      return `Giveaway started${d.keyword ? ` (type ${escHtml(d.keyword)} to enter)` : ''}`;
+    case 'giveaway_ended':
+      return `Giveaway ended — ${d.entryCount || 0} entries`;
+    case 'gtb_winner_picked':
+      return `GTB winner: ${kick(d.kickUsername)} (guess $${pts(d.guess)} vs actual $${pts(d.actualBalance)})`;
+
     default:
       return `<code style="font-size:11px;color:var(--text-dim);">${escHtml(JSON.stringify(d))}</code>`;
   }

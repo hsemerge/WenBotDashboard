@@ -44,6 +44,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/log-action"
+  to     = "/.netlify/functions/log-action"
+  status = 200
+
+[[redirects]]
   from   = "/api/overlay-data"
   to     = "/.netlify/functions/overlay-data"
   status = 200

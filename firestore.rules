@@ -57,13 +57,12 @@ service cloud.firestore {
         allow create, update: if false;
       }
 
-      // viewers.points / bb_votes / store_redemptions — server-only writes.
-      // Prevents the streamer from manually inflating points or forging redemptions.
+      // viewers — owner can read/write freely. The streamer needs to adjust points
+      // legitimately (manual rewards, corrections, prize payouts). Anti-fraud at this
+      // level isn't meaningful since the streamer owns all their viewer data.
+      // Audit logging (via /api/log-action) captures notable changes for support.
       match /viewers/{doc} {
-        allow read:   if request.auth != null && request.auth.uid == uid;
-        // Allow client write only if it does NOT touch the points field
-        allow write:  if request.auth != null && request.auth.uid == uid
-                        && (!('points' in request.resource.data.diff(resource.data).affectedKeys()) || resource == null);
+        allow read, write: if request.auth != null && request.auth.uid == uid;
       }
       match /bb_votes/{doc} {
         allow read: if request.auth != null && request.auth.uid == uid;
