@@ -37,7 +37,7 @@ export default async (request) => {
     code,
     client_id:     clientId,
     client_secret: clientSecret,
-    redirect_uri:  "https://wenbot.netlify.app/auth/kick/callback.html",
+    redirect_uri:  "https://wenbot.gg/auth/kick/callback.html",
     code_verifier,
   });
 

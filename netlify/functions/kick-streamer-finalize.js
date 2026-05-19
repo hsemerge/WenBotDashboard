@@ -44,7 +44,7 @@ exports.handler = async (event) => {
     code,
     client_id:     process.env.KICK_CLIENT_ID,
     client_secret: process.env.KICK_CLIENT_SECRET,
-    redirect_uri:  "https://wenbot.netlify.app/auth/kick/callback.html",
+    redirect_uri:  "https://wenbot.gg/auth/kick/callback.html",
     code_verifier,
   });
 

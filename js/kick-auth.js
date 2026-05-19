@@ -8,7 +8,10 @@
 //   and keeps secrets like admin keys out of browser history / server logs.
 
 const KICK_CLIENT_ID    = "01KQTY89PFZ2GAZ68ZTAXKGTF8";
-const KICK_REDIRECT_URI = "https://wenbot.netlify.app/auth/kick/callback.html";
+// Must match the redirect URI configured in the Kick OAuth app's settings.
+// Same-origin as where verify.html / signup pages live so localStorage
+// (the PKCE verifier + state nonce) survives the OAuth round-trip.
+const KICK_REDIRECT_URI = "https://wenbot.gg/auth/kick/callback.html";
 
 // ---- PKCE Helpers ----
 
