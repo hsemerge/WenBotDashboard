@@ -525,8 +525,12 @@
               <span id="botOfflineSubMsg">Last seen: —</span><br>
               <strong>Quick checks:</strong>
               • Make sure WenBot is modded in your Kick channel<br>
-              • If you recently renamed your Kick channel, reconnect Kick in <a href="#" onclick="showPage('settings', document.querySelector('.nav-item[onclick*=settings]')); return false;" style="color:var(--accent);">Settings</a><br>
+              • If you recently renamed your Kick channel or changed Kick passwords, reconnect below<br>
               • Persistent issue? <a href="/help.html" style="color:var(--accent);">Contact support</a>
+            </div>
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-accent btn-sm" onclick="reconnectKick()">🟢 Reconnect Kick</button>
+              <button class="btn btn-ghost btn-sm" onclick="showPage('settings', document.querySelector('.nav-item[onclick*=settings]'))">Open Settings</button>
             </div>
           </div>
         </div>
@@ -1090,13 +1094,16 @@
           <div class="field">
             <label>Channel Username</label>
             <input type="text" id="settingsChannel" placeholder="yourchannel" readonly>
-            <div class="hint" id="settingsChannelHint">Locked to your connected Kick account. To change it, reconnect Kick in Setup.</div>
+            <div class="hint" id="settingsChannelHint">Locked to your connected Kick account. To switch channels or refresh tokens, click Reconnect below.</div>
           </div>
           <div class="field">
             <label>Display Name</label>
             <input type="text" id="settingsDisplayName" placeholder="How viewers see your name">
           </div>
-          <button class="btn btn-accent" onclick="saveChannelSettings()" style="width:100%;">Save Display Name</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-accent" onclick="saveChannelSettings()" style="flex:1;min-width:140px;">Save Display Name</button>
+            <button class="btn btn-ghost" onclick="reconnectKick()" title="Re-authenticate with Kick. Use this if you changed your Kick channel name or WenBot was kicked from mod." style="flex:1;min-width:140px;">🟢 Reconnect Kick</button>
+          </div>
         </div>
       </div>
 
@@ -2148,6 +2155,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <script src="js/firebase-config.js"></script>
+<script src="js/kick-auth.js"></script>
 <script src="js/casinos.js"></script>
 <script src="js/utils.js"></script>
 <script>
@@ -3286,6 +3294,18 @@ async function saveProviderSettings() {
   updatePlatformDisplays();
   updateLeaderboardLink(provider);
   flash('Platform saved!');
+}
+
+// Trigger Kick OAuth re-authentication for the streamer. Same flow as Setup —
+// after OAuth completes, /api/kick-streamer-finalize writes fresh tokens +
+// confirms channel name. callback.html redirects to setup.html which sees the
+// already-onboarded profile and bounces straight to dashboard.
+function reconnectKick() {
+  if (typeof initiateKickAuth !== 'function') {
+    flash('Reconnect unavailable — please refresh the page.', 'error');
+    return;
+  }
+  initiateKickAuth('streamer');
 }
 
 async function saveChannelSettings() {
