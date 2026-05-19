@@ -3189,9 +3189,43 @@ async function loadVerifiedCount() {
 }
 
 async function removeVerified(docId) {
-  await fb.db.collection('streamers').doc(fb.currentUser.uid).collection('verified_users').doc(docId).delete();
-  logAction('verified_user_removed', { docId });
-  flash('User removed.');
+  const uid = fb.currentUser.uid;
+  // Look up the verified_users doc first to find the kickName,
+  // so we can cascade-delete matching discord_links rows.
+  const verifiedRef  = fb.db.collection('streamers').doc(uid).collection('verified_users').doc(docId);
+  const verifiedSnap = await verifiedRef.get();
+  const kickName     = verifiedSnap.exists ? verifiedSnap.data().kickName : null;
+
+  // Find matching discord_links and queue for deletion
+  let discordUsernames = [];
+  let linkDocs = [];
+  if (kickName) {
+    const linksSnap = await fb.db.collection('streamers').doc(uid)
+      .collection('discord_links')
+      .where('kickUsername', '==', kickName)
+      .get();
+    linkDocs = linksSnap.docs;
+    discordUsernames = linkDocs.map(d => d.data().discordUsername).filter(Boolean);
+  }
+
+  // Atomically delete the verified user + any matching Discord links
+  const batch = fb.db.batch();
+  batch.delete(verifiedRef);
+  linkDocs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+
+  logAction('verified_user_removed', {
+    docId,
+    kickName,
+    discordLinksRemoved: linkDocs.length,
+    discordUsernames,
+  });
+
+  if (linkDocs.length > 0) {
+    flash(`Removed @${kickName} and unlinked Discord (${discordUsernames.join(', ') || linkDocs.length + ' link(s)'}).`);
+  } else {
+    flash(kickName ? `Removed @${kickName}.` : 'User removed.');
+  }
 }
 
 // Re-runs the affiliate lookup for a single verified user against the current leaderboard.
@@ -6436,8 +6470,14 @@ function formatActivityDetails(action, d) {
     }
     case 'raffle_drawn':
       return `Drew raffle: <strong>${escHtml(d.winner || '?')}</strong> won — ${d.totalEntrants || 0} entrants, ${d.totalTickets || 0} tickets (${escHtml(d.mode || '')})`;
-    case 'verified_user_removed':
-      return `Removed verified entry <code style="font-size:11px;">${escHtml(d.docId || '?')}</code>`;
+    case 'verified_user_removed': {
+      const who = d.kickName ? kick(d.kickName) : `<code style="font-size:11px;">${escHtml(d.docId || '?')}</code>`;
+      if (d.discordLinksRemoved > 0) {
+        const names = (d.discordUsernames || []).map(n => '@' + escHtml(n)).join(', ');
+        return `Removed verified entry ${who} + unlinked Discord (${names || (d.discordLinksRemoved + ' link(s)')})`;
+      }
+      return `Removed verified entry ${who}`;
+    }
     case 'verified_users_cleared':
       return `Cleared <strong>${d.count || 0}</strong> verified users`;
     case 'verified_status_updated': {
