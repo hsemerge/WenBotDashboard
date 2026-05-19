@@ -154,8 +154,3 @@
 [[edge_functions]]
   function = "kick-token"
   path = "/api/kick-token"
-
-# Legacy - can remove later
-[[edge_functions]]
-  function = "gambulls"
-  path = "/api/gambulls"

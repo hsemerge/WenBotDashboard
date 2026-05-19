@@ -1041,7 +1041,7 @@
           <span aria-live="polite" id="verifiedSyncInfo">Leaderboard data syncs every 5 minutes</span>
           <span style="display:flex;gap:10px;flex-wrap:wrap;">
             <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#00ff88;vertical-align:middle;"></span> Under Code = under your affiliate</span>
-            <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#8b949e;vertical-align:middle;"></span> Standard = verified, no affiliate</span>
+            <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#8b949e;vertical-align:middle;"></span> Standard = not confirmed</span>
           </span>
         </div>
         <div class="table-wrap">
@@ -3159,8 +3159,8 @@ function renderVerifiedFromCache() {
   tbody.innerHTML = rows.map(({ id, data: v }) => {
     const ts = v.verifiedAt ? new Date(v.verifiedAt).toLocaleDateString() : '—';
     const statusBadge = v.underAffiliate
-      ? `<span title="This viewer is registered under your affiliate code — they contribute to your casino revenue" style="background:rgba(0,255,136,0.15);color:#00ff88;border:1px solid rgba(0,255,136,0.45);border-radius:20px;padding:3px 12px;font-size:11px;font-weight:800;letter-spacing:0.03em;text-transform:uppercase;">✓ Under Code</span>`
-      : `<span title="Verified Kick identity but not registered under your affiliate code" style="background:transparent;color:var(--text-dim);border:1px solid var(--border);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:500;">Standard</span>`;
+      ? `<span title="This user is under your affiliate code." style="background:rgba(0,255,136,0.15);color:#00ff88;border:1px solid rgba(0,255,136,0.45);border-radius:20px;padding:3px 12px;font-size:11px;font-weight:800;letter-spacing:0.03em;text-transform:uppercase;">✓ Under Code</span>`
+      : `<span title="Not confirmed under your affiliate code. Click ↻ Re-check to refresh." style="background:transparent;color:var(--text-dim);border:1px solid var(--border);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:500;">Standard</span>`;
     const casinoName  = CASINO_NAMES[v.provider] || v.provider || '—';
     const discordUser = verifiedDiscordMap[v.kickName?.toLowerCase()];
     const discordCell = discordUser
@@ -3245,11 +3245,13 @@ async function recheckVerified(docId, btn) {
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Recheck failed');
     // Log diagnostics for debugging affiliate-status mismatches
-    console.log('[Recheck]', { target: data.target, underAffiliate: data.underAffiliate, leaderboardType: data.leaderboardType, diagnostics: data.diagnostics });
+    console.log('[Recheck]', { target: data.target, underAffiliate: data.underAffiliate, foundOnLeaderboard: data.foundOnLeaderboard, leaderboardType: data.leaderboardType, diagnostics: data.diagnostics });
     if (data.statusChanged) {
-      flash(`Status updated: now ${data.underAffiliate ? 'Under Code' : 'Standard'}`);
+      flash(`@${data.target} → Under Code`);
+    } else if (data.foundOnLeaderboard) {
+      flash(`@${data.target} confirmed Under Code`);
     } else {
-      flash(`No change — still ${data.underAffiliate ? 'Under Code' : 'Standard'} · check console for details`);
+      flash(`@${data.target} not on the leaderboard — status unchanged.`);
     }
     // The verified_users onSnapshot listener will pick up the Firestore update and re-render
   } catch (e) {
@@ -6357,10 +6359,14 @@ function renderBotStatus() {
   // Wager freshness — shown on Verified Users page header
   const syncEl = document.getElementById('verifiedSyncInfo');
   if (syncEl) {
-    const sync = botStatusData?.lastLeaderboardSync;
-    syncEl.textContent = sync
-      ? `Last leaderboard sync: ${formatAge(Math.floor((Date.now() - sync) / 1000))} ago · syncs every 5 minutes`
-      : 'Leaderboard sync pending · syncs every 5 minutes once connected';
+    const sync   = botStatusData?.lastLeaderboardSync;
+    const active = botStatusData?.activeWagerers;
+    const total  = botStatusData?.totalUsersUnderCode;
+    const ageStr = sync ? `Last sync: ${formatAge(Math.floor((Date.now() - sync) / 1000))} ago` : 'Sync pending';
+    const ctx    = (active != null && total != null && total > 0)
+      ? ` · ${active} of ${total} users wagering this month`
+      : '';
+    syncEl.textContent = `${ageStr} · syncs every 5 min${ctx}`;
   }
 }
 

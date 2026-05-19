@@ -71,15 +71,25 @@ exports.handler = async (event) => {
     const diagnostics = [];
     const result = await lookupAffiliate(provider, apiKey, affiliateUsername, diagnostics);
     const wasUnderAffiliate = !!v.underAffiliate;
-    const nowUnderAffiliate = !!result;
+    const foundOnLeaderboard = !!result;
 
-    await docRef.update({
-      apiVerified:        nowUnderAffiliate,
-      underAffiliate:     nowUnderAffiliate,
-      wagerAmount:        result?.wagerAmount || 0,
-      wagerLastSyncedAt:  Date.now(),
-      lastRecheckAt:      Date.now(),
-    });
+    // UPGRADE-ONLY recheck. The public Gambulls leaderboard endpoint only shows
+    // users who've wagered THIS MONTH — it can't tell us about inactive users
+    // who are still registered under the affiliate code. So if we don't find
+    // them, we LEAVE THEIR STATUS ALONE (could have been correctly TRUE from
+    // a previous check). We only flip them to TRUE when the leaderboard confirms.
+    const nowUnderAffiliate = foundOnLeaderboard ? true : wasUnderAffiliate;
+
+    const update = {
+      lastRecheckAt: Date.now(),
+    };
+    if (foundOnLeaderboard) {
+      update.apiVerified       = true;
+      update.underAffiliate    = true;
+      update.wagerAmount       = result.wagerAmount || 0;
+      update.wagerLastSyncedAt = Date.now();
+    }
+    await docRef.update(update);
 
     // Audit log — only when status actually changed (avoid noise)
     if (wasUnderAffiliate !== nowUnderAffiliate) {
@@ -93,13 +103,14 @@ exports.handler = async (event) => {
     }
 
     return res(200, {
-      success:         true,
-      underAffiliate:  nowUnderAffiliate,
-      wagerAmount:     result?.wagerAmount || 0,
-      leaderboardType: result?.leaderboardType || null,
-      statusChanged:   wasUnderAffiliate !== nowUnderAffiliate,
-      diagnostics,   // per-leaderboard search details for debugging
-      target:          affiliateUsername,
+      success:           true,
+      underAffiliate:    nowUnderAffiliate,
+      foundOnLeaderboard,            // true if API confirmed; false means status was preserved
+      wagerAmount:       result?.wagerAmount || 0,
+      leaderboardType:   result?.leaderboardType || null,
+      statusChanged:     wasUnderAffiliate !== nowUnderAffiliate,
+      diagnostics,
+      target:            affiliateUsername,
     });
   } catch (err) {
     console.error("[recheck-verified] error:", err.message);
