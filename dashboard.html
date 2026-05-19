@@ -2479,6 +2479,7 @@ function onAuthReady(user) {
 
   // Start live bot status listener — drives the stat card, sidebar indicator, and offline banner
   startBotStatusListener(user.uid);
+  startLiveBadgeListeners(user.uid);
   document.getElementById('channelPillName').textContent = profile?.kickChannel || '—';
   document.getElementById('statChannel').textContent = profile?.kickChannel || '—';
   document.getElementById('statCurrency').textContent = (profile?.currencyName || 'points') + ' total';
@@ -6199,6 +6200,34 @@ async function logAction(action, details = {}) {
   } catch (e) {
     console.warn('[logAction] failed:', e.message);
   }
+}
+
+// ── LIVE NAV BADGES ─────────────────────────────────────────────────────────
+// Always-on listeners that flip the LIVE badge on Bonus Hunt / Bonus Battle /
+// Tournament nav items whenever their .active flag changes. Without these,
+// the badges only appeared after the streamer clicked into that page because
+// the bh/bb/tn render functions are the only places that touched the DOM.
+let _liveBadgeUnsubs = [];
+
+function startLiveBadgeListeners(uid) {
+  // Tear down any existing listeners (idempotent on re-auth)
+  _liveBadgeUnsubs.forEach(fn => { try { fn(); } catch {} });
+  _liveBadgeUnsubs = [];
+
+  const watch = (subcol, docId, badgeId) => {
+    const unsub = fb.db.collection('streamers').doc(uid)
+      .collection(subcol).doc(docId)
+      .onSnapshot(snap => {
+        const active = snap.exists && snap.data()?.active === true;
+        const el = document.getElementById(badgeId);
+        if (el) el.style.display = active ? '' : 'none';
+      }, e => console.warn(`[LiveBadge:${subcol}] listener error:`, e.message));
+    _liveBadgeUnsubs.push(unsub);
+  };
+
+  watch('bonus_hunt',    'current', 'bhLiveBadge');
+  watch('bonus_battles', 'current', 'bbLiveBadge');
+  watch('tournaments',   'current', 'tnLiveBadge');
 }
 
 // ── BOT STATUS HEARTBEAT ────────────────────────────────────────────────────
