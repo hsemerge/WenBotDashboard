@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/png" href="/wensideimage.png" sizes="32x32">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WenBot Portal</title>
+  <meta name="description" id="metaDesc" content="Streamer portal — leaderboard, store, and giveaways powered by WenBot.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" id="ogTitle" content="WenBot Portal">
+  <meta property="og:description" id="ogDesc" content="Streamer portal — leaderboard, store, and giveaways powered by WenBot.">
+  <meta property="og:image" id="ogImage" content="/wenbotlogo.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --bg-panel: #161b22; --bg-card: #1a2030;
+      --border: #30363d; --text: #c9d1d9; --text-dim: #8b949e;
+      --bright: #f0f6fc;
+      --accent: #00e5ff; --accent-glow: rgba(0,229,255,0.2);
+      --green: #00ff88; --gold: #ffd700; --silver: #c0c0c0; --bronze: #cd7f32;
+      --red: #ff4757;
+    }
+    html, body { height: 100%; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* NAV */
+    nav {
+      position: sticky; top: 0; z-index: 10;
+      background: rgba(13,17,23,0.92); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo { font-family: 'Exo 2', sans-serif; font-size: 20px; font-weight: 900; color: var(--accent); text-shadow: 0 0 16px var(--accent-glow); text-decoration: none; }
+    .nav-right { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--text-dim); flex-wrap: wrap; justify-content: flex-end; }
+    .casino-badge {
+      background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.2);
+      border-radius: 20px; padding: 4px 14px; color: var(--accent); font-weight: 600;
+    }
+    .kick-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: #53fc18; text-decoration: none; font-weight: 600; font-size: 13px;
+    }
+    .kick-link svg { width: 16px; height: 16px; }
+    .kick-link:hover { opacity: 0.85; }
+
+    /* HERO */
+    .hero {
+      padding: 36px 24px 28px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(0,229,255,0.04), transparent 70%);
+    }
+    .hero-inner {
+      max-width: 920px; margin: 0 auto;
+      display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+    }
+    .hero-avatar {
+      width: 96px; height: 96px; border-radius: 50%;
+      background: var(--bg-card); border: 2px solid var(--border);
+      overflow: hidden; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Exo 2', sans-serif; font-size: 36px; font-weight: 900;
+      color: var(--text-dim);
+    }
+    .hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .hero-body { flex: 1; min-width: 240px; }
+    .hero-name { font-family: 'Exo 2', sans-serif; font-size: 30px; font-weight: 900; color: var(--bright); line-height: 1.1; }
+    .hero-channel { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+    .hero-channel a { color: var(--accent); text-decoration: none; }
+    .hero-bio { font-size: 14px; color: var(--text); margin-top: 12px; line-height: 1.55; max-width: 560px; }
+    .hero-socials { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+    .social-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 18px;
+      background: var(--bg-panel); border: 1px solid var(--border);
+      color: var(--text); text-decoration: none; font-size: 12px; font-weight: 600;
+      transition: all 0.15s;
+    }
+    .social-pill:hover { border-color: var(--accent); color: var(--bright); }
+    .social-pill svg { width: 14px; height: 14px; }
+
+    /* ACTIVE BANNER */
+    .active-strip {
+      max-width: 920px; margin: 20px auto 0; padding: 0 24px;
+      display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    .active-chip {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 14px; border-radius: 999px;
+      background: rgba(255, 71, 87, 0.08); border: 1px solid rgba(255, 71, 87, 0.3);
+      color: var(--bright); font-size: 13px; font-weight: 600;
+    }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--red);
+      box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7);
+      animation: live-pulse 1.6s infinite;
+    }
+    @keyframes live-pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7); }
+      70%  { box-shadow: 0 0 0 8px rgba(255, 71, 87, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
+    }
+    .chip-meta { color: var(--text-dim); font-weight: 500; font-size: 12px; }
+
+    /* TABS */
+    .tabs-wrap {
+      max-width: 920px; margin: 28px auto 0; padding: 0 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .tabs {
+      display: flex; gap: 4px; flex-wrap: wrap;
+    }
+    .tab {
+      padding: 12px 18px; cursor: pointer; user-select: none;
+      font-size: 14px; font-weight: 600; color: var(--text-dim);
+      background: transparent; border: none; border-bottom: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+      font-family: 'Inter', sans-serif;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-locked {
+      color: var(--text-dim); opacity: 0.5; cursor: not-allowed;
+      pointer-events: none;
+    }
+    .tab-locked::after { content: ' 🔒'; font-size: 10px; }
+
+    /* MAIN */
+    main { flex: 1; }
+    .container { max-width: 920px; margin: 0 auto; padding: 28px 24px 60px; }
+    .panel {
+      background: var(--bg-panel); border: 1px solid var(--border);
+      border-radius: 12px; padding: 22px;
+    }
+
+    /* SECTION TITLE */
+    .section-title {
+      font-family: 'Exo 2', sans-serif; font-size: 13px; font-weight: 700;
+      color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 14px;
+    }
+
+    /* LEADERBOARD */
+    .lb-stats {
+      display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
+    }
+    .stat-box {
+      flex: 1; min-width: 140px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 16px; text-align: center;
+    }
+    .stat-value { font-family: 'Exo 2', sans-serif; font-size: 20px; font-weight: 900; color: var(--accent); }
+    .stat-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; }
+    .lb-table { width: 100%; border-collapse: collapse; }
+    .lb-table thead th {
+      font-size: 11px; font-weight: 600; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 8px 12px; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .lb-table thead th:last-child { text-align: right; }
+    .lb-table td { padding: 11px 12px; font-size: 14px; border-bottom: 1px solid rgba(48,54,61,0.5); }
+    .lb-table td:last-child { text-align: right; }
+    .lb-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+    .rank-cell { font-family: 'Exo 2', sans-serif; font-weight: 800; font-size: 15px; width: 50px; }
+    .rank-1 { color: var(--gold); }
+    .rank-2 { color: var(--silver); }
+    .rank-3 { color: var(--bronze); }
+    .rank-other { color: var(--text-dim); }
+    .user-name { font-weight: 600; color: var(--bright); }
+    .wagered-cell { font-family: 'Exo 2', sans-serif; font-weight: 700; color: var(--accent); }
+
+    /* STORE */
+    .store-grid {
+      display: grid; gap: 14px;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    }
+    .store-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px;
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .store-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .store-name { font-family: 'Exo 2', sans-serif; font-weight: 800; font-size: 15px; color: var(--bright); margin-bottom: 4px; }
+    .store-desc { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.45; min-height: 32px; }
+    .store-footer { display: flex; justify-content: space-between; align-items: center; }
+    .store-price { font-family: 'Exo 2', sans-serif; font-size: 16px; font-weight: 800; color: var(--accent); }
+    .store-price small { font-size: 11px; color: var(--text-dim); font-weight: 400; margin-left: 4px; }
+    .store-stock { font-size: 11px; color: var(--text-dim); }
+    .store-stock.low { color: var(--gold); }
+    .store-stock.out { color: var(--red); }
+    .redeem-note {
+      margin-top: 18px; padding: 12px 14px;
+      background: rgba(0,229,255,0.05); border: 1px solid rgba(0,229,255,0.18);
+      border-radius: 8px; font-size: 13px; color: var(--text);
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .redeem-note code {
+      background: rgba(0,0,0,0.4); padding: 2px 8px; border-radius: 4px;
+      color: var(--accent); font-family: monospace; font-size: 13px;
+    }
+
+    /* PAST WINNERS */
+    .pw-list { display: flex; flex-direction: column; gap: 8px; }
+    .pw-row {
+      display: flex; align-items: center; gap: 14px;
+      padding: 12px 14px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .pw-mode {
+      font-family: 'Exo 2', sans-serif; font-size: 11px; font-weight: 700;
+      color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 4px 10px; background: rgba(0,229,255,0.08);
+      border-radius: 999px;
+    }
+    .pw-name { flex: 1; font-weight: 600; color: var(--bright); }
+    .pw-date { font-size: 12px; color: var(--text-dim); }
+
+    /* EMPTY / LOCKED / LOADING */
+    .empty-state {
+      text-align: center; padding: 36px 20px; color: var(--text-dim); font-size: 14px;
+    }
+    .empty-icon { font-size: 32px; margin-bottom: 10px; opacity: 0.4; }
+    .locked-state {
+      text-align: center; padding: 48px 20px;
+      background: var(--bg-panel); border: 1px dashed var(--border);
+      border-radius: 12px; color: var(--text-dim);
+    }
+    .locked-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.5; }
+    .locked-title { font-family: 'Exo 2', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .loading-state { text-align: center; padding: 48px; color: var(--text-dim); }
+    .spinner {
+      display: inline-block; width: 24px; height: 24px;
+      border: 2px solid var(--border); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ERROR */
+    .error-page {
+      max-width: 480px; margin: 80px auto; text-align: center; padding: 40px 24px;
+    }
+    .error-page h1 { font-family: 'Exo 2', sans-serif; font-size: 28px; color: var(--bright); margin-bottom: 12px; }
+    .error-page p { color: var(--text-dim); font-size: 14px; line-height: 1.6; }
+    .error-page a { color: var(--accent); text-decoration: none; }
+
+    /* FOOTER */
+    footer {
+      text-align: center; padding: 22px 16px; font-size: 12px;
+      color: var(--text-dim); border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    @media (max-width: 600px) {
+      .hero-inner { flex-direction: column; text-align: center; }
+      .hero-bio { margin-left: auto; margin-right: auto; }
+      .hero-socials { justify-content: center; }
+      .hero-name { font-size: 24px; }
+      .wagered-cell { font-size: 12px; }
+      .tab { padding: 10px 12px; font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="/">WenBot</a>
+  <div class="nav-right">
+    <span class="casino-badge" id="casinoBadge" style="display:none;"></span>
+    <a class="kick-link" id="kickLink" href="#" target="_blank" style="display:none;">
+      <svg viewBox="0 0 24 24"><path fill="#53FC18" fill-rule="evenodd" d="M2.435 1h7.174v4.783H12V3.39h2.391V1h7.174v7.174h-2.391v2.391h-2.391v2.87h2.39v2.391h2.392V23h-7.174v-2.391H12v-2.392H9.609V23H2.435z" clip-rule="evenodd"/></svg>
+      <span id="kickLinkText">Watch Live</span>
+    </a>
+  </div>
+</nav>
+
+<main>
+  <div id="loadingView" class="loading-state">
+    <div class="spinner"></div><br>Loading portal...
+  </div>
+
+  <div id="errorView" class="error-page" style="display:none;">
+    <h1 id="errorTitle">Channel not found</h1>
+    <p id="errorMsg">We couldn't find a WenBot portal for that channel.</p>
+    <p style="margin-top:16px;"><a href="/">← Back to WenBot</a></p>
+  </div>
+
+  <div id="portalView" style="display:none;">
+    <div class="hero">
+      <div class="hero-inner">
+        <div class="hero-avatar" id="heroAvatar"></div>
+        <div class="hero-body">
+          <div class="hero-name" id="heroName"></div>
+          <div class="hero-channel">
+            <a id="heroKickLink" target="_blank"></a>
+          </div>
+          <div class="hero-bio" id="heroBio" style="display:none;"></div>
+          <div class="hero-socials" id="heroSocials"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="active-strip" id="activeStrip"></div>
+
+    <div class="tabs-wrap">
+      <div class="tabs" id="tabs"></div>
+    </div>
+
+    <div class="container">
+      <div id="tabContent"></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <p>Powered by <a href="/">WenBot</a> — Streamer tools for Kick</p>
+</footer>
+
+<script>
+  // -------- Params + state ----------
+  const params = new URLSearchParams(window.location.search);
+  // Channel comes from ?channel=... (set by the catch-all rewrite in netlify.toml,
+  // or directly via /portal.html?channel=foo)
+  const channel = (params.get('channel') || '').toLowerCase().trim();
+
+  let state = null; // populated after /api/portal-data
+  let currentTab = null;
+
+  // -------- Helpers ----------
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function fmtMoney(n) {
+    return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function fmtNum(n) {
+    return Number(n || 0).toLocaleString('en-US');
+  }
+  function fmtDate(ts) {
+    if (!ts) return '';
+    // Firestore Timestamp serialized: { _seconds, _nanoseconds }
+    const ms = typeof ts === 'object' && ts._seconds ? ts._seconds * 1000
+             : typeof ts === 'object' && ts.seconds  ? ts.seconds * 1000
+             : typeof ts === 'string' ? Date.parse(ts)
+             : typeof ts === 'number' ? ts
+             : null;
+    if (!ms) return '';
+    const d = new Date(ms);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  function initials(name) {
+    return String(name || '?').trim()[0].toUpperCase();
+  }
+  function rankClass(r) {
+    if (r === 1) return 'rank-1';
+    if (r === 2) return 'rank-2';
+    if (r === 3) return 'rank-3';
+    return 'rank-other';
+  }
+
+  // -------- Render: header / hero ----------
+  function renderHero(s) {
+    document.title = `${s.streamer.displayName} — WenBot Portal`;
+    document.getElementById('metaDesc').setAttribute('content',
+      s.streamer.bio || `${s.streamer.displayName}'s portal — leaderboard, store, and giveaways on Kick.`);
+    document.getElementById('ogTitle').setAttribute('content', `${s.streamer.displayName} — WenBot`);
+    document.getElementById('ogDesc').setAttribute('content',
+      s.streamer.bio || `Follow ${s.streamer.displayName}'s leaderboard, store, and giveaways on WenBot.`);
+    if (s.streamer.logoUrl) {
+      document.getElementById('ogImage').setAttribute('content', s.streamer.logoUrl);
+    }
+
+    // Apply theme color (Elite+ only — server sends null otherwise)
+    if (s.streamer.themeColor) {
+      document.documentElement.style.setProperty('--accent', s.streamer.themeColor);
+      document.documentElement.style.setProperty('--accent-glow', hexToGlow(s.streamer.themeColor));
+    }
+
+    // Casino badge + Kick "Watch Live" link
+    const badge = document.getElementById('casinoBadge');
+    badge.textContent = s.streamer.providerName;
+    badge.style.display = '';
+    const kl = document.getElementById('kickLink');
+    kl.href = s.streamer.socials.kick;
+    kl.style.display = '';
+    document.getElementById('kickLinkText').textContent = `Watch ${s.streamer.kickChannel}`;
+
+    // Avatar
+    const avatar = document.getElementById('heroAvatar');
+    if (s.streamer.logoUrl) {
+      avatar.innerHTML = `<img src="${esc(s.streamer.logoUrl)}" alt="${esc(s.streamer.displayName)}" onerror="this.parentElement.textContent='${esc(initials(s.streamer.displayName))}'">`;
+    } else {
+      avatar.textContent = initials(s.streamer.displayName);
+    }
+
+    // Name + Kick link
+    document.getElementById('heroName').textContent = s.streamer.displayName;
+    const kickAnchor = document.getElementById('heroKickLink');
+    kickAnchor.href = s.streamer.socials.kick;
+    kickAnchor.textContent = 'kick.com/' + s.streamer.kickChannel;
+
+    // Bio
+    if (s.streamer.bio) {
+      const bio = document.getElementById('heroBio');
+      bio.textContent = s.streamer.bio;
+      bio.style.display = '';
+    }
+
+    // Socials
+    const socials = document.getElementById('heroSocials');
+    const links = [];
+    if (s.streamer.socials.discord) links.push(socialPill('Discord', s.streamer.socials.discord));
+    if (s.streamer.socials.youtube) links.push(socialPill('YouTube', s.streamer.socials.youtube));
+    if (s.streamer.socials.twitter) links.push(socialPill('Twitter', s.streamer.socials.twitter));
+    socials.innerHTML = links.join('');
+  }
+
+  function socialPill(label, href) {
+    return `<a class="social-pill" href="${esc(href)}" target="_blank" rel="noopener">${esc(label)}</a>`;
+  }
+
+  function hexToGlow(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+    if (!m) return 'rgba(0,229,255,0.2)';
+    const n = parseInt(m[1], 16);
+    return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},0.2)`;
+  }
+
+  // -------- Render: active strip ----------
+  function renderActiveStrip(s) {
+    const strip = document.getElementById('activeStrip');
+    const chips = [];
+
+    if (s.active.giveaway) {
+      const kw = esc(s.active.giveaway.keyword);
+      const tp = s.active.giveaway.type === 'verified' ? 'Verified-only' : 'Everyone';
+      chips.push(`
+        <div class="active-chip">
+          <span class="live-dot"></span>
+          Giveaway live
+          <span class="chip-meta">— type ${kw} in chat (${esc(tp)})</span>
+        </div>`);
+    }
+    if (s.active.bonusHunt) {
+      chips.push(`
+        <div class="active-chip">
+          <span class="live-dot"></span>
+          Bonus Hunt
+          <span class="chip-meta">— ${fmtNum(s.active.bonusHunt.slotCount)} slots · ${fmtMoney(s.active.bonusHunt.totalCost)} buy-in</span>
+        </div>`);
+    }
+    if (s.active.battle) {
+      chips.push(`
+        <div class="active-chip">
+          <span class="live-dot"></span>
+          Bonus Battle
+          <span class="chip-meta">— ${fmtNum(s.active.battle.matchCount)} matches</span>
+        </div>`);
+    }
+    if (s.active.tournament) {
+      chips.push(`
+        <div class="active-chip">
+          <span class="live-dot"></span>
+          Tournament
+          <span class="chip-meta">— ${fmtNum(s.active.tournament.participants)} entered</span>
+        </div>`);
+    }
+
+    strip.innerHTML = chips.join('');
+  }
+
+  // -------- Render: tabs ----------
+  function renderTabs(s) {
+    const tabsEl = document.getElementById('tabs');
+    const tabs = [];
+
+    // Leaderboard (Elite)
+    if (s.features.leaderboard) {
+      tabs.push({ id: 'leaderboard', label: 'Leaderboard' });
+    }
+    // Store (Pro+)
+    if (s.features.store) {
+      tabs.push({ id: 'store', label: 'Store' });
+    }
+    // Past winners (Pro+)
+    if (s.features.raffles) {
+      tabs.push({ id: 'winners', label: 'Past Winners' });
+    }
+    // Always include About so Starter tier has at least one tab
+    tabs.push({ id: 'about', label: 'About' });
+
+    tabsEl.innerHTML = tabs.map(t =>
+      `<button class="tab" data-tab="${t.id}">${esc(t.label)}</button>`
+    ).join('');
+
+    // Wire click handlers
+    tabsEl.querySelectorAll('.tab').forEach(btn => {
+      btn.addEventListener('click', () => selectTab(btn.dataset.tab));
+    });
+
+    // Default tab: first available
+    selectTab(tabs[0].id);
+  }
+
+  function selectTab(id) {
+    currentTab = id;
+    document.querySelectorAll('.tab').forEach(b => {
+      b.classList.toggle('active', b.dataset.tab === id);
+    });
+    renderTabContent(id);
+  }
+
+  // -------- Render: tab content ----------
+  function renderTabContent(id) {
+    const c = document.getElementById('tabContent');
+    if (id === 'leaderboard') c.innerHTML = renderLeaderboard(state);
+    else if (id === 'store')   c.innerHTML = renderStore(state);
+    else if (id === 'winners') c.innerHTML = renderWinners(state);
+    else if (id === 'about')   c.innerHTML = renderAbout(state);
+  }
+
+  function renderLeaderboard(s) {
+    if (!s.features.leaderboard) {
+      return lockedState('Leaderboard', 'This streamer is on a plan that doesn’t include the public leaderboard.');
+    }
+    if (!s.leaderboard) {
+      return emptyState('📊', 'Leaderboard not available right now.');
+    }
+    const period = s.leaderboard.period || 'Monthly';
+    const rows = (s.leaderboard.rankings || []).map(r => `
+      <tr>
+        <td class="rank-cell ${rankClass(r.rank)}">#${r.rank}</td>
+        <td><span class="user-name">${esc(r.name)}</span></td>
+        <td class="wagered-cell">${fmtMoney(r.wagerAmount)}</td>
+      </tr>
+    `).join('');
+    return `
+      <div class="panel">
+        <div class="section-title">Live Leaderboard · ${esc(period)}</div>
+        <div class="lb-stats">
+          <div class="stat-box">
+            <div class="stat-value">${fmtMoney(s.leaderboard.totalWagered)}</div>
+            <div class="stat-label">Total Wagered</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value">${fmtNum(s.leaderboard.totalUsers)}</div>
+            <div class="stat-label">Players</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value">${esc(s.streamer.providerName)}</div>
+            <div class="stat-label">Casino</div>
+          </div>
+        </div>
+        ${rows ? `
+          <table class="lb-table">
+            <thead>
+              <tr><th>Rank</th><th>Player</th><th>Wagered</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        ` : emptyState('📊', 'No wagers recorded yet this period.')}
+      </div>`;
+  }
+
+  function renderStore(s) {
+    if (!s.features.store) {
+      return lockedState('Store', 'This streamer is on a plan that doesn’t include the store.');
+    }
+    const items = (s.store && s.store.items) || [];
+    if (items.length === 0) {
+      return emptyState('🛒', 'This streamer hasn’t listed any store items yet.');
+    }
+    const cards = items.map(it => {
+      let stockHtml = '';
+      if (it.stock !== null) {
+        if (it.stock === 0) stockHtml = `<span class="store-stock out">Out of stock</span>`;
+        else if (it.stock <= 3) stockHtml = `<span class="store-stock low">${it.stock} left</span>`;
+        else stockHtml = `<span class="store-stock">${it.stock} in stock</span>`;
+      }
+      return `
+        <div class="store-card">
+          <div class="store-name">${esc(it.name)}</div>
+          <div class="store-desc">${esc(it.description || '')}</div>
+          <div class="store-footer">
+            <div class="store-price">${fmtNum(it.price)}<small>${esc(s.streamer.currency)}</small></div>
+            ${stockHtml}
+          </div>
+        </div>`;
+    }).join('');
+    return `
+      <div class="panel">
+        <div class="section-title">Store · ${esc(s.streamer.currency)}</div>
+        <div class="store-grid">${cards}</div>
+        <div class="redeem-note">
+          💬 Redeem from Kick chat: <code>!redeem &lt;item name&gt;</code>
+        </div>
+      </div>`;
+  }
+
+  function renderWinners(s) {
+    if (!s.features.raffles) {
+      return lockedState('Past Winners', 'This streamer is on a plan that doesn’t include the public winners list.');
+    }
+    const winners = s.pastWinners || [];
+    if (winners.length === 0) {
+      return emptyState('🏆', 'No raffle winners yet.');
+    }
+    const rows = winners.map(w => `
+      <div class="pw-row">
+        <span class="pw-mode">${esc(w.mode || 'raffle')}</span>
+        <span class="pw-name">${esc(w.winner || 'Unknown')}</span>
+        <span class="pw-date">${esc(fmtDate(w.drawnAt))}</span>
+      </div>
+    `).join('');
+    return `
+      <div class="panel">
+        <div class="section-title">Recent Raffle Winners</div>
+        <div class="pw-list">${rows}</div>
+      </div>`;
+  }
+
+  function renderAbout(s) {
+    const lines = [];
+    lines.push(`<p style="line-height:1.7;font-size:14px;">
+      <strong>${esc(s.streamer.displayName)}</strong> is live on
+      <a href="${esc(s.streamer.socials.kick)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">
+        kick.com/${esc(s.streamer.kickChannel)}
+      </a>.
+    </p>`);
+    if (s.streamer.bio) {
+      lines.push(`<p style="margin-top:12px;line-height:1.6;color:var(--text-dim);">${esc(s.streamer.bio)}</p>`);
+    }
+    lines.push(`<p style="margin-top:18px;font-size:13px;color:var(--text-dim);">
+      Affiliated with <strong style="color:var(--accent);">${esc(s.streamer.providerName)}</strong>.
+      Type <code style="background:rgba(0,0,0,0.4);padding:2px 8px;border-radius:4px;color:var(--accent);font-family:monospace;">!verify</code> in chat to link your casino account.
+    </p>`);
+    return `<div class="panel"><div class="section-title">About</div>${lines.join('')}</div>`;
+  }
+
+  // -------- States ----------
+  function emptyState(icon, msg) {
+    return `<div class="panel"><div class="empty-state"><div class="empty-icon">${icon}</div><p>${esc(msg)}</p></div></div>`;
+  }
+  function lockedState(title, msg) {
+    return `<div class="locked-state">
+      <div class="locked-icon">🔒</div>
+      <div class="locked-title">${esc(title)} locked</div>
+      <p style="margin-top:6px;">${esc(msg)}</p>
+    </div>`;
+  }
+
+  function showError(title, msg) {
+    document.getElementById('loadingView').style.display = 'none';
+    document.getElementById('portalView').style.display = 'none';
+    document.getElementById('errorTitle').textContent = title;
+    document.getElementById('errorMsg').textContent = msg;
+    document.getElementById('errorView').style.display = '';
+  }
+
+  // -------- Load ----------
+  async function load() {
+    if (!channel) {
+      showError('No channel specified', 'Add ?channel=USERNAME to the URL.');
+      return;
+    }
+    try {
+      const resp = await fetch(`/api/portal-data?channel=${encodeURIComponent(channel)}`);
+      if (resp.status === 404) {
+        showError('Channel not found', `We couldn’t find a WenBot portal for "${channel}".`);
+        return;
+      }
+      if (!resp.ok) {
+        showError('Portal unavailable', 'Try refreshing in a moment.');
+        return;
+      }
+      const data = await resp.json();
+      state = data;
+
+      document.getElementById('loadingView').style.display = 'none';
+      document.getElementById('portalView').style.display = '';
+
+      renderHero(state);
+      renderActiveStrip(state);
+      renderTabs(state);
+    } catch (err) {
+      showError('Portal unavailable', 'Try refreshing in a moment.');
+    }
+  }
+
+  load();
+
+  // Light refresh: re-pull data every 60s so live banners/leaderboard stay fresh
+  // without slamming the function. We re-render the current tab in place.
+  setInterval(async () => {
+    if (!channel || !state) return;
+    try {
+      const resp = await fetch(`/api/portal-data?channel=${encodeURIComponent(channel)}`);
+      if (!resp.ok) return;
+      state = await resp.json();
+      renderActiveStrip(state);
+      if (currentTab) renderTabContent(currentTab);
+    } catch {}
+  }, 60 * 1000);
+</script>
+</body>
+</html>

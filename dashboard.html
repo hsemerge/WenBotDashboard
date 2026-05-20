@@ -1107,6 +1107,65 @@
         </div>
       </div>
 
+      <!-- Streamer Portal -->
+      <div style="margin-top:16px;">
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px;">
+            <div class="card-title" style="margin-bottom:0;">🌐 Streamer Portal</div>
+            <a id="portalPublicLink" href="#" target="_blank" style="font-size:12px;color:var(--accent);text-decoration:none;">View public portal ↗</a>
+          </div>
+          <p style="font-size:12px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
+            Your public portal lives at <code id="portalUrlPreview" style="background:rgba(0,0,0,0.4);padding:2px 8px;border-radius:4px;color:var(--accent);font-family:monospace;">wenbot.gg/—</code>. It shows your bio, socials, active giveaways, and—depending on your plan—your store, raffle winners, and leaderboard.
+          </p>
+
+          <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;">
+            <input type="checkbox" id="portalEnabled" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
+            <label for="portalEnabled" style="cursor:pointer;flex:1;">
+              <div style="font-size:13px;color:var(--bright);font-weight:600;">Portal enabled</div>
+              <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Uncheck to hide your portal (visitors will see "not available").</div>
+            </label>
+          </div>
+
+          <div class="field">
+            <label>Bio</label>
+            <textarea id="portalBio" maxlength="240" rows="3" placeholder="A short tagline shown on your portal (240 chars max)" style="width:100%;background:var(--bg-card);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px 12px;font-family:'Inter',sans-serif;font-size:13px;resize:vertical;"></textarea>
+            <div class="hint"><span id="portalBioCount">0</span> / 240</div>
+          </div>
+
+          <div class="grid-2" style="gap:12px;">
+            <div class="field">
+              <label>Discord invite URL</label>
+              <input type="url" id="portalSocialDiscord" placeholder="https://discord.gg/yourserver">
+            </div>
+            <div class="field">
+              <label>YouTube URL</label>
+              <input type="url" id="portalSocialYoutube" placeholder="https://youtube.com/@you">
+            </div>
+            <div class="field">
+              <label>Twitter / X URL</label>
+              <input type="url" id="portalSocialTwitter" placeholder="https://x.com/you">
+            </div>
+          </div>
+
+          <!-- Theme color — Elite-only -->
+          <div style="position:relative;margin-top:8px;">
+            <div id="portalThemeLockOverlay" style="display:none;position:absolute;inset:0;background:rgba(13,17,23,0.85);backdrop-filter:blur(3px);border-radius:8px;z-index:5;display:flex;align-items:center;justify-content:center;gap:10px;padding:16px;text-align:center;flex-wrap:wrap;">
+              <span style="font-size:22px;">⭐</span>
+              <div style="font-size:13px;color:var(--text);font-weight:600;">Theme color customization is an Elite feature.</div>
+              <button onclick="upgradeTarget='elite';upgradeNow(this)" class="btn btn-accent" style="padding:6px 14px;font-size:12px;">Upgrade</button>
+            </div>
+            <div class="field" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+              <label style="margin:0;">Portal accent color</label>
+              <input type="color" id="portalThemeColor" value="#00e5ff" style="width:56px;height:36px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);cursor:pointer;padding:2px;">
+              <code id="portalThemeColorValue" style="font-size:12px;color:var(--text-dim);">#00e5ff</code>
+              <button class="btn btn-ghost" onclick="resetPortalTheme()" style="padding:6px 12px;font-size:12px;">Reset</button>
+            </div>
+          </div>
+
+          <button class="btn btn-accent" onclick="savePortalSettings()" style="margin-top:8px;">Save Portal Settings</button>
+        </div>
+      </div>
+
       <!-- Discord Integration -->
       <div style="margin-top:16px;" id="discordSection">
         <div class="card" style="position:relative;overflow:hidden;">
@@ -2500,7 +2559,22 @@ function onAuthReady(user) {
   loadVerifiedCount();
   loadProviderSettings();
   loadDiscordSettings();
+  loadPortalSettings();
   updatePlatformDisplays();
+
+  // Portal Settings — live UI updates (counter + color preview)
+  const bioEl = document.getElementById('portalBio');
+  if (bioEl) {
+    bioEl.addEventListener('input', () => {
+      document.getElementById('portalBioCount').textContent = bioEl.value.length;
+    });
+  }
+  const themeEl = document.getElementById('portalThemeColor');
+  if (themeEl) {
+    themeEl.addEventListener('input', () => {
+      document.getElementById('portalThemeColorValue').textContent = themeEl.value;
+    });
+  }
 
   // Auto-navigate to billing page and show success banner if returning from Stripe
   if (new URLSearchParams(window.location.search).get('stripe') === 'success') {
@@ -3313,6 +3387,78 @@ async function saveChannelSettings() {
   const displayName = document.getElementById('settingsDisplayName').value.trim();
   await saveStreamerProfile({ displayName: displayName || profile?.kickChannel || '' });
   flash('Saved!');
+}
+
+// ── PORTAL SETTINGS ──
+// The portal (public hub at wenbot.gg/<channel>) reads bio, socials, themeColor,
+// and portalEnabled from the streamer profile. Theme color is honored server-side
+// only for Elite+ — the UI hides the picker behind an upgrade overlay below Elite,
+// but the underlying field would simply be ignored by /api/portal-data on lower tiers.
+function loadPortalSettings() {
+  if (!profile) return;
+  const channel = profile.kickChannel || '';
+  const url = `https://wenbot.gg/${channel}`;
+  document.getElementById('portalPublicLink').href = channel ? url : '#';
+  document.getElementById('portalUrlPreview').textContent = channel ? `wenbot.gg/${channel}` : 'wenbot.gg/—';
+
+  document.getElementById('portalEnabled').checked = profile.portalEnabled !== false; // default ON
+  const bio = profile.bio || '';
+  document.getElementById('portalBio').value = bio;
+  document.getElementById('portalBioCount').textContent = bio.length;
+
+  document.getElementById('portalSocialDiscord').value = profile.socials?.discord || '';
+  document.getElementById('portalSocialYoutube').value = profile.socials?.youtube || '';
+  document.getElementById('portalSocialTwitter').value = profile.socials?.twitter || '';
+
+  const themeColor = profile.themeColor || '#00e5ff';
+  document.getElementById('portalThemeColor').value = themeColor;
+  document.getElementById('portalThemeColorValue').textContent = themeColor;
+
+  // Elite lock for theme color
+  const isElite = userPlan === 'elite' || userPlan === 'agency';
+  document.getElementById('portalThemeLockOverlay').style.display = isElite ? 'none' : 'flex';
+}
+
+function resetPortalTheme() {
+  document.getElementById('portalThemeColor').value = '#00e5ff';
+  document.getElementById('portalThemeColorValue').textContent = '#00e5ff';
+}
+
+async function savePortalSettings() {
+  const bio = document.getElementById('portalBio').value.trim().slice(0, 240);
+
+  const cleanUrl = (v) => {
+    v = (v || '').trim();
+    if (!v) return null;
+    if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
+    try { new URL(v); return v; } catch { return null; }
+  };
+
+  const socials = {
+    discord: cleanUrl(document.getElementById('portalSocialDiscord').value),
+    youtube: cleanUrl(document.getElementById('portalSocialYoutube').value),
+    twitter: cleanUrl(document.getElementById('portalSocialTwitter').value),
+  };
+
+  const payload = {
+    portalEnabled: document.getElementById('portalEnabled').checked,
+    bio: bio || null,
+    socials,
+  };
+
+  // Only persist themeColor when on Elite+ — keeps lower-tier streamers from
+  // saving a value that will silently be ignored by the server.
+  const isElite = userPlan === 'elite' || userPlan === 'agency';
+  if (isElite) {
+    payload.themeColor = document.getElementById('portalThemeColor').value || null;
+  }
+
+  try {
+    await saveStreamerProfile(payload);
+    flash('Portal settings saved!');
+  } catch (e) {
+    flash('Save failed: ' + (e.message || e), 'error');
+  }
 }
 
 // ── DATA EXPORT ──
