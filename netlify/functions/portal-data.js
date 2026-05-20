@@ -15,6 +15,11 @@ function tierOf(plan) {
   return TIER_RANK[plan] ?? 0;
 }
 
+// Owner channels — granted agency tier server-side regardless of Firestore plan.
+// Mirrors the OWNER_CHANNELS list in dashboard.html so the dashboard and the
+// public portal agree on what's unlocked. Keep in sync with that list.
+const OWNER_CHANNELS = new Set(["emergeonkick"]);
+
 // Reserved channel names — these collide with our own routes/pages.
 // The catch-all /:streamer rewrite in netlify.toml means a path like /dashboard
 // could in theory route to a portal lookup. Static-file precedence usually wins,
@@ -68,7 +73,8 @@ exports.handler = async (event) => {
       return res(404, { error: "Portal not available" });
     }
 
-    const plan = profile.plan || "starter";
+    const isOwner = OWNER_CHANNELS.has(channel);
+    const plan = isOwner ? "agency" : (profile.plan || "starter");
     const tier = tierOf(plan);
     const provider = (profile.activeProvider || "gambulls").toLowerCase();
 
