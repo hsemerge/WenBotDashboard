@@ -321,10 +321,25 @@
 
 <script>
   // -------- Params + state ----------
-  const params = new URLSearchParams(window.location.search);
-  // Channel comes from ?channel=... (set by the catch-all rewrite in netlify.toml,
-  // or directly via /portal.html?channel=foo)
-  const channel = (params.get('channel') || '').toLowerCase().trim();
+  // Channel can come from EITHER:
+  //   1. The URL path (catch-all rewrite: /emergeonkick → portal.html, browser bar stays /emergeonkick)
+  //   2. ?channel=foo query param (direct /portal.html?channel=foo access — useful for testing/sharing)
+  // We prefer the path because Netlify's :streamer substitution in the rewrite's
+  // query string isn't reliable; deriving from location.pathname always works.
+  function getChannelFromUrl() {
+    const q = (new URLSearchParams(window.location.search)).get('channel');
+    if (q) return q.toLowerCase().trim();
+    const path = window.location.pathname
+      .replace(/^\/+/, '')      // strip leading slashes
+      .replace(/\/+$/, '')      // strip trailing slashes
+      .replace(/\.html$/i, ''); // /portal.html → portal (so direct visits to portal.html stay an error)
+    if (!path || path === 'portal') return '';
+    // Only accept simple usernames — reject anything with extra path segments,
+    // dots, or weird chars so we don't fetch with garbage.
+    if (!/^[a-z0-9_-]{1,30}$/i.test(path)) return '';
+    return path.toLowerCase();
+  }
+  const channel = getChannelFromUrl();
 
   let state = null; // populated after /api/portal-data
   let currentTab = null;

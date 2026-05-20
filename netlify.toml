@@ -151,10 +151,13 @@
 # Streamer portal — catch-all rewrite. wenbot.gg/<channel> shows that streamer's
 # public hub. Static files take precedence (Netlify serves real files first),
 # so /dashboard.html, /signup.html, etc. continue working unaffected.
+# portal.html derives the channel from window.location.pathname (the address bar
+# stays /:streamer after the 200 rewrite), so we don't need Netlify's :streamer
+# substitution into a query — which proved unreliable in testing.
 # IMPORTANT: must be the LAST redirect block so it doesn't shadow earlier ones.
 [[redirects]]
   from   = "/:streamer"
-  to     = "/portal.html?channel=:streamer"
+  to     = "/portal.html"
   status = 200
 
 [[edge_functions]]
