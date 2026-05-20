@@ -144,33 +144,130 @@
 
     /* LEADERBOARD */
     .lb-stats {
-      display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
+      display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 22px;
     }
     .stat-box {
       flex: 1; min-width: 140px;
       background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: 10px; padding: 12px 16px; text-align: center;
+      border-radius: 10px; padding: 14px 18px; text-align: center;
     }
-    .stat-value { font-family: 'Exo 2', sans-serif; font-size: 20px; font-weight: 900; color: var(--accent); }
+    .stat-value { font-family: 'Exo 2', sans-serif; font-size: 22px; font-weight: 900; color: var(--accent); }
     .stat-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; }
+
+    /* Podium — mirrors /leaderboard styling */
+    .podium {
+      display: flex; align-items: flex-end; justify-content: center;
+      gap: 12px; margin-bottom: 26px;
+    }
+    .podium-slot { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; max-width: 220px; }
+    .podium-avatar {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--bg-card); border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Exo 2', sans-serif; font-size: 20px; font-weight: 800;
+      color: var(--text-dim); overflow: hidden; flex-shrink: 0;
+    }
+    .podium-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .podium-name { font-weight: 700; font-size: 13px; color: var(--bright); text-align: center; word-break: break-word; }
+    .podium-wagered { font-size: 12px; color: var(--text-dim); }
+    .podium-block {
+      width: 100%; border-radius: 10px 10px 0 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 14px 10px;
+    }
+    .podium-rank-num { font-family: 'Exo 2', sans-serif; font-size: 24px; font-weight: 900; }
+    .slot-1 .podium-avatar { width: 68px; height: 68px; border-color: var(--gold); border-width: 3px; }
+    .slot-1 .podium-block { background: linear-gradient(180deg, rgba(255,215,0,0.15), rgba(255,215,0,0.05)); border: 1px solid rgba(255,215,0,0.3); height: 100px; }
+    .slot-1 .podium-rank-num { color: var(--gold); }
+    .slot-2 .podium-block { background: linear-gradient(180deg, rgba(192,192,192,0.12), rgba(192,192,192,0.04)); border: 1px solid rgba(192,192,192,0.25); height: 80px; }
+    .slot-2 .podium-rank-num { color: var(--silver); }
+    .slot-3 .podium-block { background: linear-gradient(180deg, rgba(205,127,50,0.12), rgba(205,127,50,0.04)); border: 1px solid rgba(205,127,50,0.25); height: 60px; }
+    .slot-3 .podium-rank-num { color: var(--bronze); }
+
+    /* Leaderboard table */
+    .lb-section-title {
+      font-family: 'Exo 2', sans-serif; font-size: 13px; font-weight: 700;
+      color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
     .lb-table { width: 100%; border-collapse: collapse; }
     .lb-table thead th {
       font-size: 11px; font-weight: 600; color: var(--text-dim);
       text-transform: uppercase; letter-spacing: 0.06em;
-      padding: 8px 12px; text-align: left;
+      padding: 8px 14px; text-align: left;
       border-bottom: 1px solid var(--border);
     }
     .lb-table thead th:last-child { text-align: right; }
-    .lb-table td { padding: 11px 12px; font-size: 14px; border-bottom: 1px solid rgba(48,54,61,0.5); }
-    .lb-table td:last-child { text-align: right; }
+    .lb-table tbody tr { transition: background 0.1s; }
     .lb-table tbody tr:hover { background: rgba(255,255,255,0.03); }
-    .rank-cell { font-family: 'Exo 2', sans-serif; font-weight: 800; font-size: 15px; width: 50px; }
-    .rank-1 { color: var(--gold); }
-    .rank-2 { color: var(--silver); }
-    .rank-3 { color: var(--bronze); }
+    .lb-table td { padding: 12px 14px; font-size: 14px; border-bottom: 1px solid rgba(48,54,61,0.5); }
+    .lb-table td:last-child { text-align: right; }
+    .rank-cell { font-family: 'Exo 2', sans-serif; font-weight: 800; font-size: 15px; width: 48px; }
+    .rank-1, .rank-gold { color: var(--gold); }
+    .rank-2, .rank-silver { color: var(--silver); }
+    .rank-3, .rank-bronze { color: var(--bronze); }
     .rank-other { color: var(--text-dim); }
+    .user-cell { display: flex; align-items: center; gap: 10px; }
+    .user-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--bg-card); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: var(--text-dim);
+      flex-shrink: 0; overflow: hidden;
+    }
+    .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .user-name { font-weight: 600; color: var(--bright); }
-    .wagered-cell { font-family: 'Exo 2', sans-serif; font-weight: 700; color: var(--accent); }
+    .wagered-cell { color: var(--text-dim); font-size: 13px; }
+    .prize-cell { font-family: 'Exo 2', sans-serif; font-weight: 800; font-size: 14px; color: var(--accent); }
+
+    /* Past leaderboard periods */
+    .lb-periods { margin-top: 36px; }
+    .lb-periods-title {
+      font-family: 'Exo 2', sans-serif; font-size: 18px; font-weight: 900;
+      color: var(--bright); margin-bottom: 16px;
+      padding-bottom: 12px; border-bottom: 1px solid var(--border);
+    }
+    .period-section {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; margin-bottom: 10px; overflow: hidden;
+    }
+    .period-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px; cursor: pointer; user-select: none;
+      transition: background 0.15s;
+    }
+    .period-header:hover { background: rgba(255,255,255,0.03); }
+    .period-name { font-family: 'Exo 2', sans-serif; font-size: 14px; font-weight: 800; color: var(--bright); }
+    .period-meta { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+    .period-toggle { color: var(--text-dim); font-size: 12px; transition: transform 0.25s; }
+    .period-section.open .period-toggle { transform: rotate(180deg); }
+    .period-body { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
+    .period-section.open .period-body { max-height: 2000px; }
+    .past-winners-list { padding: 0 18px 14px; }
+    .pw-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 0; border-bottom: 1px solid rgba(48,54,61,0.5);
+    }
+    .pw-row:last-child { border-bottom: none; }
+    .pw-rank {
+      width: 36px; height: 36px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Exo 2', sans-serif; font-weight: 800; font-size: 14px; flex-shrink: 0;
+    }
+    .pw-rank-1 { background: linear-gradient(135deg, #FFD700, #FFA500); color: #000; }
+    .pw-rank-2 { background: linear-gradient(135deg, #C0C0C0, #A8A8A8); color: #000; }
+    .pw-rank-3 { background: linear-gradient(135deg, #CD7F32, #B87333); color: #fff; }
+    .pw-rank-other { background: rgba(255,255,255,0.06); color: var(--text-dim); }
+    .pw-avatar {
+      width: 32px; height: 32px; border-radius: 50%; background: var(--bg-card);
+      border: 1px solid var(--border); flex-shrink: 0; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: var(--text-dim);
+    }
+    .pw-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .pw-name { flex: 1; font-weight: 600; font-size: 14px; color: var(--bright); }
+    .pw-wagered { font-size: 12px; color: var(--text-dim); text-align: right; }
+    .pw-prize { font-family: 'Exo 2', sans-serif; font-weight: 800; font-size: 13px; color: var(--accent); text-align: right; min-width: 70px; }
 
     /* STORE */
     .store-grid {
@@ -259,8 +356,13 @@
       .hero-bio { margin-left: auto; margin-right: auto; }
       .hero-socials { justify-content: center; }
       .hero-name { font-size: 24px; }
-      .wagered-cell { font-size: 12px; }
+      .wagered-cell { font-size: 12px; display: none; }
+      .pw-wagered { display: none; }
       .tab { padding: 10px 12px; font-size: 13px; }
+      .podium { gap: 6px; }
+      .podium-slot { max-width: 110px; }
+      .podium-avatar { width: 44px; height: 44px; }
+      .slot-1 .podium-avatar { width: 52px; height: 52px; }
     }
   </style>
 </head>
@@ -537,24 +639,120 @@
     else if (id === 'about')   c.innerHTML = renderAbout(state);
   }
 
+  function avatarMarkup(name, url) {
+    const initial = (String(name || '?').trim()[0] || '?').toUpperCase();
+    if (url) {
+      // Inline fallback: if the image fails to load, replace it with the initial letter
+      return `<img src="${esc(url)}" alt="${esc(name)}" onerror="this.parentElement.textContent='${esc(initial)}'">`;
+    }
+    return initial;
+  }
+
+  function renderPodiumHtml(rankings) {
+    if (!rankings || rankings.length === 0) return '';
+    // Visual order: 2nd | 1st | 3rd
+    const order = [
+      { entry: rankings[1], rank: 2 },
+      { entry: rankings[0], rank: 1 },
+      { entry: rankings[2], rank: 3 },
+    ];
+    return `<div class="podium">` + order.map(({ entry, rank }) => {
+      if (!entry) {
+        return `<div class="podium-slot slot-${rank}"><div class="podium-block"></div></div>`;
+      }
+      return `
+        <div class="podium-slot slot-${rank}">
+          <div class="podium-avatar">${avatarMarkup(entry.name, entry.avatarUrl)}</div>
+          <div class="podium-name">${esc(entry.name)}</div>
+          <div class="podium-wagered">${fmtMoney(entry.wagerAmount)}</div>
+          <div class="podium-block">
+            <div class="podium-rank-num">#${rank}</div>
+          </div>
+        </div>`;
+    }).join('') + `</div>`;
+  }
+
+  function renderPastPeriodsHtml(periods, casinoName) {
+    if (!periods || periods.length === 0) return '';
+    const sections = periods.map((period, idx) => {
+      const winners = period.winners || [];
+      const rows = winners.map(w => {
+        const cls = w.rank <= 3 ? `pw-rank-${w.rank}` : 'pw-rank-other';
+        return `
+          <div class="pw-row">
+            <div class="pw-rank ${cls}">${w.rank}</div>
+            <div class="pw-avatar">${avatarMarkup(w.username, w.avatarUrl)}</div>
+            <div class="pw-name">${esc(w.username)}</div>
+            <div class="pw-wagered">${fmtMoney(w.wagered)}</div>
+            <div class="pw-prize">${w.prize > 0 ? fmtMoney(w.prize) : '—'}</div>
+          </div>`;
+      }).join('');
+      return `
+        <div class="period-section${idx === 0 ? ' open' : ''}" onclick="this.classList.toggle('open')">
+          <div class="period-header">
+            <div>
+              <div class="period-name">${esc(period.period || 'Period')}</div>
+              <div class="period-meta">${esc(period.casinoName || casinoName)} · ${winners.length} winners</div>
+            </div>
+            <div class="period-toggle">▼</div>
+          </div>
+          <div class="period-body">
+            <div class="past-winners-list">${rows || '<p style="color:var(--text-dim);padding:14px 0;">No winners recorded.</p>'}</div>
+          </div>
+        </div>`;
+    }).join('');
+    return `
+      <div class="lb-periods">
+        <div class="lb-periods-title">Past Periods</div>
+        ${sections}
+      </div>`;
+  }
+
   function renderLeaderboard(s) {
     if (!s.features.leaderboard) {
       return lockedState('Leaderboard', 'This streamer is on a plan that doesn’t include the public leaderboard.');
     }
     if (!s.leaderboard) {
-      return emptyState('📊', 'Leaderboard not available right now.');
+      // Live leaderboard might not be available (no API key, fetch failed), but
+      // past periods can still render — show those if we have them.
+      const past = renderPastPeriodsHtml(s.leaderboardPeriods, s.streamer.providerName);
+      const live = emptyState('📊', 'Leaderboard not available right now.');
+      return `<div class="panel">${live}</div>${past}`;
     }
-    const period = s.leaderboard.period || 'Monthly';
-    const rows = (s.leaderboard.rankings || []).map(r => `
+    const period   = s.leaderboard.period || 'Monthly';
+    const rankings = s.leaderboard.rankings || [];
+
+    const podiumHtml = renderPodiumHtml(rankings.slice(0, 3));
+
+    const rowsHtml = rankings.map(r => `
       <tr>
         <td class="rank-cell ${rankClass(r.rank)}">#${r.rank}</td>
-        <td><span class="user-name">${esc(r.name)}</span></td>
+        <td>
+          <div class="user-cell">
+            <div class="user-avatar">${avatarMarkup(r.name, r.avatarUrl)}</div>
+            <span class="user-name">${esc(r.name)}</span>
+          </div>
+        </td>
         <td class="wagered-cell">${fmtMoney(r.wagerAmount)}</td>
       </tr>
     `).join('');
+
+    const tableHtml = rankings.length
+      ? `
+        <div class="lb-section-title">Live Rankings</div>
+        <table class="lb-table">
+          <thead>
+            <tr><th>Rank</th><th>Player</th><th>Wagered</th></tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>`
+      : emptyState('📊', 'No wagers recorded yet this period.');
+
+    const pastHtml = renderPastPeriodsHtml(s.leaderboardPeriods, s.streamer.providerName);
+
     return `
       <div class="panel">
-        <div class="section-title">Live Leaderboard · ${esc(period)}</div>
+        <div class="section-title">Wager Leaderboard · ${esc(period)}</div>
         <div class="lb-stats">
           <div class="stat-box">
             <div class="stat-value">${fmtMoney(s.leaderboard.totalWagered)}</div>
@@ -569,15 +767,10 @@
             <div class="stat-label">Casino</div>
           </div>
         </div>
-        ${rows ? `
-          <table class="lb-table">
-            <thead>
-              <tr><th>Rank</th><th>Player</th><th>Wagered</th></tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        ` : emptyState('📊', 'No wagers recorded yet this period.')}
-      </div>`;
+        ${podiumHtml}
+        ${tableHtml}
+      </div>
+      ${pastHtml}`;
   }
 
   function renderStore(s) {

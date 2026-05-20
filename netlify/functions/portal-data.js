@@ -139,18 +139,13 @@ exports.handler = async (event) => {
 
     // Elite+ features: live leaderboard, bonus battle / tournament state
     let leaderboard = null;
+    let leaderboardPeriods = null; // past monthly winners
     if (tier >= TIER_RANK.elite) {
       // Live leaderboard via the streamer's stored casino API key (server-side only)
       if (API_CASINOS.has(provider)) {
         const provDoc = await db.collection("streamers").doc(uid)
           .collection("providers").doc(provider).get();
         if (provDoc.exists && provDoc.data().apiKey) {
-          const diag = [];
-          // lookupAffiliate is used here only to reach the same Gambulls endpoint
-          // (limit=100, type=monthly). We don't care about a specific user — we
-          // want the full rankings response. So we pass a sentinel that won't match
-          // and read totalUsers + the sample/rankings off the diagnostics.
-          // Better: pull the leaderboard directly to avoid that hack.
           try {
             const fetchResp = await fetch(
               `https://api.gambulls.com/api/public/streamer/leaderboard?type=monthly&limit=100`,
@@ -161,10 +156,11 @@ exports.handler = async (event) => {
               if (data.success && data.responseObject?.rankings) {
                 leaderboard = {
                   period:       data.responseObject.period,
-                  rankings:     data.responseObject.rankings.map(r => ({
-                    rank:        r.rank,
+                  rankings:     data.responseObject.rankings.map((r, i) => ({
+                    rank:        i + 1,
                     name:        r.user?.isAnonymous ? "Anonymous" : (r.user?.name || "Unknown"),
                     wagerAmount: r.wagerAmount || 0,
+                    avatarUrl:   r.user?.imageUrl || null,
                   })),
                   totalUsers:    data.responseObject.totalUsers || 0,
                   totalWagered:  data.responseObject.totalWagered || 0,
@@ -175,6 +171,32 @@ exports.handler = async (event) => {
             console.warn("[portal-data] leaderboard fetch failed:", err.message);
           }
         }
+      }
+
+      // Past leaderboard periods (same data /api/leaderboard-winners exposes)
+      try {
+        const periodsSnap = await db.collection("streamers").doc(uid)
+          .collection("leaderboard_periods")
+          .where("casino", "==", provider)
+          .orderBy("endDate", "desc")
+          .limit(12)
+          .get();
+        leaderboardPeriods = periodsSnap.docs.map(d => {
+          const p = d.data();
+          return {
+            period:     p.period || null,
+            casinoName: p.casinoName || CASINO_NAMES[provider] || provider,
+            winners:    Array.isArray(p.winners) ? p.winners.map(w => ({
+              rank:      w.rank,
+              username:  w.username,
+              wagered:   w.wagered || 0,
+              prize:     w.prize || 0,
+              avatarUrl: w.avatarUrl || null,
+            })) : [],
+          };
+        });
+      } catch (err) {
+        console.warn("[portal-data] leaderboard_periods fetch failed:", err.message);
       }
 
       // Active Bonus Battle and Tournament statuses (no entries, no votes — just status)
@@ -208,6 +230,7 @@ exports.handler = async (event) => {
       streamer:    publicProfile,
       active,
       leaderboard,
+      leaderboardPeriods,
       store,
       pastWinners,
       // Used by the page to know what to render (and what to lock)
