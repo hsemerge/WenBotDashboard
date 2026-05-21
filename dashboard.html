@@ -1327,63 +1327,193 @@
     <!-- ── HELP ── -->
     <div class="page" id="page-help">
       <div class="grid-2">
+        <!-- ════ LEFT COLUMN: Chat command reference ════ -->
         <div class="stack">
           <div class="card help-section" style="margin-bottom:0;">
             <h3>🎁 Giveaway Commands</h3>
             <div class="cmd-list">
-              <div class="cmd-row"><div class="cmd-name">!giveaway start code</div><div class="cmd-desc">Start a code-user giveaway. Only verified users can enter.</div><div class="cmd-who who-mod">MOD</div></div>
-              <div class="cmd-row"><div class="cmd-name">!giveaway start wager</div><div class="cmd-desc">Start a wager-based giveaway with weighted entries.</div><div class="cmd-who who-mod">MOD</div></div>
-              <div class="cmd-row"><div class="cmd-name">!giveaway start open</div><div class="cmd-desc">Open giveaway — any viewer can enter.</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!giveaway start code</div><div class="cmd-desc">Code-only giveaway — verified affiliate users only.</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!giveaway start wager</div><div class="cmd-desc">Wager-weighted — more wagers = more entries.</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!giveaway start open</div><div class="cmd-desc">Anyone can enter — no verification required.</div><div class="cmd-who who-mod">MOD</div></div>
               <div class="cmd-row"><div class="cmd-name">!giveaway stop</div><div class="cmd-desc">Close entries for the active giveaway.</div><div class="cmd-who who-mod">MOD</div></div>
               <div class="cmd-row"><div class="cmd-name">!winner</div><div class="cmd-desc">Pick a random winner from current entries.</div><div class="cmd-who who-mod">MOD</div></div>
-              <div class="cmd-row"><div class="cmd-name">!verify [username]</div><div class="cmd-desc">Link your affiliate account to enter giveaways.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">[your keyword]</div><div class="cmd-desc">What viewers type to enter (set in Giveaway page).</div><div class="cmd-who who-all">ALL</div></div>
             </div>
           </div>
 
           <div class="card help-section" style="margin-bottom:0;">
-            <h3>🪙 Points Commands</h3>
+            <h3>🪙 Points & Engagement</h3>
             <div class="cmd-list">
-              <div class="cmd-row"><div class="cmd-name">!points</div><div class="cmd-desc">Check your own point balance.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!points</div><div class="cmd-desc">Check your own balance.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!points @user</div><div class="cmd-desc">Check another viewer's balance.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!give @user [amount]</div><div class="cmd-desc">Gift points to another viewer.</div><div class="cmd-who who-all">ALL</div></div>
-              <div class="cmd-row"><div class="cmd-name">!top</div><div class="cmd-desc">Show the top 5 viewers by points.</div><div class="cmd-who who-all">ALL</div></div>
-              <div class="cmd-row"><div class="cmd-name">!rank</div><div class="cmd-desc">See your current rank on the leaderboard.</div><div class="cmd-who who-all">ALL</div></div>
-              <div class="cmd-row"><div class="cmd-name">!addpoints @user [n]</div><div class="cmd-desc">Add points to a viewer's balance.</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!top</div><div class="cmd-desc">Show the top 5 by points.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!rank</div><div class="cmd-desc">See your current rank.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!addpoints @user [n]</div><div class="cmd-desc">Add points to a viewer.</div><div class="cmd-who who-mod">MOD</div></div>
               <div class="cmd-row"><div class="cmd-name">!setpoints @user [n]</div><div class="cmd-desc">Set a viewer's balance to an exact amount.</div><div class="cmd-who who-mod">MOD</div></div>
             </div>
+            <div style="margin-top:10px;font-size:11px;color:var(--text-dim);line-height:1.5;">
+              Points are earned per active chat minute (not per message — spam doesn't pay).
+              Tune the per-minute rate, min message length, and activity window on the
+              <strong>Points</strong> page.
+            </div>
           </div>
-        </div>
 
-        <div class="stack">
           <div class="card help-section" style="margin-bottom:0;">
-            <h3>🎰 Guess the Balance (!gtb)</h3>
+            <h3>🛒 Store &amp; Raffles</h3>
             <div class="cmd-list">
-              <div class="cmd-row"><div class="cmd-name">!gtb start</div><div class="cmd-desc">Open the GTB session — viewers can now submit guesses.</div><div class="cmd-who who-mod">MOD</div></div>
-              <div class="cmd-row"><div class="cmd-name">!gtb stop</div><div class="cmd-desc">Close the GTB session — no more guesses accepted.</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!store</div><div class="cmd-desc">List items currently for sale.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!redeem [item name]</div><div class="cmd-desc">Spend points on an item. Partial match works.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!buy [item name]</div><div class="cmd-desc">Alias for !redeem.</div><div class="cmd-who who-all">ALL</div></div>
+            </div>
+            <div style="margin-top:10px;font-size:11px;color:var(--text-dim);line-height:1.5;">
+              Mark a store item as a <strong>raffle item</strong> in its edit form to turn every
+              <code>!redeem</code> of that item into a raffle ticket. Draw winners under
+              <strong>Raffles → Point Raffle</strong>.
+            </div>
+          </div>
+
+          <div class="card help-section" style="margin-bottom:0;">
+            <h3>🎰 Guess the Balance</h3>
+            <div class="cmd-list">
+              <div class="cmd-row"><div class="cmd-name">!gtb start</div><div class="cmd-desc">Open the session for guesses.</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!gtb stop</div><div class="cmd-desc">Close the session.</div><div class="cmd-who who-mod">MOD</div></div>
               <div class="cmd-row"><div class="cmd-name">!gtb [amount]</div><div class="cmd-desc">Submit your guess. e.g. !gtb 4250</div><div class="cmd-who who-all">ALL</div></div>
-              <div class="cmd-row"><div class="cmd-name">!gtb winner [actual]</div><div class="cmd-desc">Find the closest guess. WenBot announces winner.</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!gtb winner [actual]</div><div class="cmd-desc">Find the closest guess.</div><div class="cmd-who who-mod">MOD</div></div>
               <div class="cmd-row"><div class="cmd-name">!mygtb</div><div class="cmd-desc">Check what you guessed this session.</div><div class="cmd-who who-all">ALL</div></div>
             </div>
           </div>
 
           <div class="card help-section" style="margin-bottom:0;">
+            <h3>🎲 Slot Requests &amp; Verify</h3>
+            <div class="cmd-list">
+              <div class="cmd-row"><div class="cmd-name">!sr [slot name]</div><div class="cmd-desc">Suggest a slot for the next Bonus Hunt.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!verify</div><div class="cmd-desc">Get a link to verify with Kick OAuth.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!verify [username]</div><div class="cmd-desc">Quick-verify with a specific casino username.</div><div class="cmd-who who-all">ALL</div></div>
+            </div>
+            <div style="margin-top:10px;font-size:11px;color:var(--text-dim);line-height:1.5;">
+              Custom commands you create in the <strong>Commands</strong> page also fire here —
+              with optional cooldowns and mod-only flags.
+            </div>
+          </div>
+        </div>
+
+        <!-- ════ RIGHT COLUMN: Dashboard module guides ════ -->
+        <div class="stack">
+          <div class="card help-section" style="margin-bottom:0;">
             <h3>📖 Getting Started</h3>
             <div style="display:flex;flex-direction:column;gap:10px;">
               <div style="display:flex;gap:10px;align-items:flex-start;">
                 <div style="background:var(--accent);color:#0d1117;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">1</div>
-                <div style="font-size:13px;color:var(--text);">Go to <strong>Settings</strong> and connect your affiliate platform API key</div>
+                <div style="font-size:13px;color:var(--text);">In your Kick chat type <strong>/mod WenBot</strong> so the bot can post + moderate.</div>
               </div>
               <div style="display:flex;gap:10px;align-items:flex-start;">
                 <div style="background:var(--accent);color:#0d1117;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">2</div>
-                <div style="font-size:13px;color:var(--text);">In your Kick chat type <strong>/mod WenBot</strong> to give WenBot mod permissions</div>
+                <div style="font-size:13px;color:var(--text);">Open <strong>Settings</strong> → set your active casino and (if you have one) paste your affiliate API key.</div>
               </div>
               <div style="display:flex;gap:10px;align-items:flex-start;">
                 <div style="background:var(--accent);color:#0d1117;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">3</div>
-                <div style="font-size:13px;color:var(--text);">Viewers type <strong>!verify [affiliateUsername]</strong> to link their account before entering giveaways</div>
+                <div style="font-size:13px;color:var(--text);">Customize your portal under <strong>Settings → 🌐 Streamer Portal</strong>. Viewers find you at <code style="color:var(--accent);">wenbot.gg/&lt;your-channel&gt;</code>.</div>
               </div>
               <div style="display:flex;gap:10px;align-items:flex-start;">
                 <div style="background:var(--accent);color:#0d1117;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">4</div>
-                <div style="font-size:13px;color:var(--text);">Type <strong>!giveaway start code</strong> in chat to launch your first giveaway</div>
+                <div style="font-size:13px;color:var(--text);">Add overlays to OBS from the <strong>Overlays</strong> page (copy the URL into a Browser Source).</div>
+              </div>
+              <div style="display:flex;gap:10px;align-items:flex-start;">
+                <div style="background:var(--accent);color:#0d1117;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">5</div>
+                <div style="font-size:13px;color:var(--text);">Run your first <code style="color:var(--accent);">!giveaway start code</code> in chat.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card help-section" style="margin-bottom:0;">
+            <h3>🧭 Dashboard Modules</h3>
+            <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--text);line-height:1.55;">
+              <div><strong style="color:var(--accent);">Overview</strong> — live stats: viewers chatting, points distributed, bot status, recent activity.</div>
+              <div><strong style="color:var(--accent);">Giveaway</strong> — start/stop giveaways, configure the keyword + type + restrictions, watch the entries list, spin a winner.</div>
+              <div><strong style="color:var(--accent);">Bonus Hunt</strong> — track slot bonuses live with cost, win, multiplier; chat suggestions via <code>!sr</code>.</div>
+              <div><strong style="color:var(--accent);">Slot Requests</strong> — review and approve <code>!sr</code> submissions; configure eligibility + cooldown.</div>
+              <div><strong style="color:var(--accent);">Bonus Battles</strong> — two slots, viewers vote with points, payout to winners.</div>
+              <div><strong style="color:var(--accent);">Tournaments</strong> — bracket-style head-to-head with point-cost entry.</div>
+              <div><strong style="color:var(--accent);">Leaderboard</strong> — your casino's monthly wager rankings + period reset history.</div>
+              <div><strong style="color:var(--accent);">Verified Users</strong> — everyone who's linked their casino account; under-code badge, removable.</div>
+              <div><strong style="color:var(--accent);">Points</strong> — earn rates, engagement filter, top viewers, manual adjustments.</div>
+              <div><strong style="color:var(--accent);">Store</strong> — items for sale, raffle-item toggle, pending redemption queue.</div>
+              <div><strong style="color:var(--accent);">Raffles</strong> — wager-tickets (auto-accumulated) and point-raffles (per store item).</div>
+              <div><strong style="color:var(--accent);">Commands</strong> — custom <code>!commands</code> with cooldown + mod-only options.</div>
+              <div><strong style="color:var(--accent);">Overlays</strong> — OBS Browser Source URLs for wheel, winner, entries, hunt, battles, etc.</div>
+              <div><strong style="color:var(--accent);">Activity Log</strong> — server-recorded history of sensitive actions. Filter by action or moderator.</div>
+              <div><strong style="color:var(--accent);">Settings</strong> — casino + API key, Kick reconnect, Discord, portal customization, team, data export.</div>
+            </div>
+          </div>
+
+          <div class="card help-section" style="margin-bottom:0;">
+            <h3>🌐 Public Tools</h3>
+            <div style="font-size:13px;color:var(--text);line-height:1.6;">
+              <div style="margin-bottom:8px;"><strong style="color:var(--accent);">Streamer Portal:</strong> <code style="color:var(--accent);">wenbot.gg/&lt;your-channel&gt;</code> — your bio, socials, active giveaway, store, leaderboard, and past raffle winners on one shareable page.</div>
+              <div style="margin-bottom:8px;"><strong style="color:var(--accent);">Standalone Leaderboard:</strong> <code style="color:var(--accent);">wenbot.gg/leaderboard.html?channel=&lt;you&gt;</code> — wager rankings + monthly winner history.</div>
+              <div style="margin-bottom:8px;"><strong style="color:var(--accent);">Standalone Store:</strong> <code style="color:var(--accent);">wenbot.gg/store.html?channel=&lt;you&gt;</code> — list of items + raffle tickets.</div>
+              <div style="margin-bottom:8px;"><strong style="color:var(--accent);">Bonus Battle:</strong> <code style="color:var(--accent);">wenbot.gg/bonus-battle.html?channel=&lt;you&gt;</code> — viewers vote between two slots.</div>
+              <div><strong style="color:var(--accent);">Tournaments:</strong> <code style="color:var(--accent);">wenbot.gg/tournament.html?channel=&lt;you&gt;</code> — bracket + entry signup.</div>
+            </div>
+            <div style="margin-top:10px;font-size:11px;color:var(--text-dim);line-height:1.5;">
+              All public pages are tier-gated — Starter shows the basics, Pro adds store + raffle winners,
+              Elite unlocks the live leaderboard + theme color.
+            </div>
+          </div>
+
+          <div class="card help-section" style="margin-bottom:0;">
+            <h3>👥 Team — Moderators</h3>
+            <div style="font-size:13px;color:var(--text);line-height:1.6;">
+              Add up to <strong>2 moderators</strong> from <strong>Settings → 👥 Team</strong>. They keep their own WenBot login but get full dashboard access on your behalf. Every action is attributed to them in the Activity Log.
+              <div style="margin-top:10px;padding:10px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;font-size:12px;">
+                <strong style="color:var(--accent);">Mods can:</strong> manage giveaways, store, raffles, verified users, points, portal customization, Discord settings, view audit log.<br>
+                <strong style="color:#ffc107;">Mods can't:</strong> change billing, reconnect Kick, add/remove other mods, export your data.
+              </div>
+              <div style="margin-top:8px;font-size:11px;color:var(--text-dim);line-height:1.5;">
+                The mod must already have a WenBot account (free Starter is fine). After you add them they need to log out and back in once for the access to take effect.
+              </div>
+            </div>
+          </div>
+
+          <div class="card help-section" style="margin-bottom:0;">
+            <h3>🛠 Troubleshooting</h3>
+            <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;color:var(--text);line-height:1.55;">
+              <div>
+                <strong style="color:var(--accent);">"Bot is offline" banner won't go away</strong><br>
+                <span style="color:var(--text-dim);font-size:12px;">
+                  Click <strong>Reconnect Kick</strong> in Settings. If WenBot was unmodded in your Kick chat,
+                  <code>/mod WenBot</code> to fix.
+                </span>
+              </div>
+              <div>
+                <strong style="color:var(--accent);">Viewer says "<code>!verify</code> didn't work"</strong><br>
+                <span style="color:var(--text-dim);font-size:12px;">
+                  Have them open <code>wenbot.gg/verify.html?channel=&lt;you&gt;</code> directly and sign in with Kick.
+                  Bot-issued tokens expire after 10 minutes.
+                </span>
+              </div>
+              <div>
+                <strong style="color:var(--accent);">Points aren't being earned</strong><br>
+                <span style="color:var(--text-dim);font-size:12px;">
+                  Check the Points page — min message length too high? Activity window too short?
+                  Viewers must send a qualifying message inside the window.
+                </span>
+              </div>
+              <div>
+                <strong style="color:var(--accent);">Public store / portal shows old items</strong><br>
+                <span style="color:var(--text-dim);font-size:12px;">
+                  Public pages cache for ~60s. Refresh after a minute.
+                </span>
+              </div>
+              <div>
+                <strong style="color:var(--accent);">Mod can't log in after being added</strong><br>
+                <span style="color:var(--text-dim);font-size:12px;">
+                  They need to log out and back in once — Firebase only refreshes their token after a new sign-in.
+                </span>
+              </div>
+              <div style="margin-top:6px;padding:10px 12px;background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.18);border-radius:6px;font-size:12px;color:var(--text);">
+                Still stuck? Email <a href="mailto:support@logicplaystudios.com" style="color:var(--accent);">support@logicplaystudios.com</a> with your Kick channel name + a screenshot of what you're seeing.
               </div>
             </div>
           </div>
