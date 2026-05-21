@@ -2,12 +2,31 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    match /streamers/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
+    // ── Moderator delegation helpers ─────────────────────────────────────────
+    // Streamers can grant up to 2 mods dashboard access. Each mod's Firebase
+    // user has a custom claim: { delegatedFor: [ownerUid1, ownerUid2, ...] }.
+    // Reading the claim is free (lives on the JWT) — no Firestore get() needed.
+    function isMod(uid) {
+      return request.auth != null
+          && request.auth.token.delegatedFor is list
+          && (uid in request.auth.token.delegatedFor);
+    }
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+    function isOwnerOrMod(uid) {
+      return isOwner(uid) || isMod(uid);
+    }
 
-      // On CREATE — block any billing fields from being set at all,
-      // and block kickUserId/kickUsername/kickAccessToken from being self-set (server-only after OAuth).
-      allow create: if request.auth != null && request.auth.uid == uid
+    match /streamers/{uid} {
+      allow read: if isOwnerOrMod(uid);
+
+      // On CREATE — block billing fields and Kick identity fields from being
+      // self-set. (Only the owner can create — mods don't create streamers
+      // they moderate; the streamer signed up themselves.)
+      // Also block modUids on create — owner can add mods later via the
+      // server endpoint, not by hand.
+      allow create: if isOwner(uid)
         && !request.resource.data.keys().hasAny([
           'plan',
           'stripeSubscriptionActive',
@@ -20,12 +39,19 @@ service cloud.firestore {
           'kickAccessToken',
           'kickRefreshToken',
           'kickTokenExpiresAt',
-          'kickChannel'
+          'kickChannel',
+          'modUids',
+          'modAddedAt',
+          'firstVerifyBonusAt'
         ]);
 
-      // On UPDATE — block billing AND Kick identity fields from being changed by the client.
-      // These are set by the Kick OAuth callback (/api/kick-streamer-finalize) and Stripe webhook only.
-      allow update: if request.auth != null && request.auth.uid == uid
+      // On UPDATE — both owner and mod can update, but the denylist below
+      // is enforced for BOTH. Mods can't escalate by writing kickUsername
+      // / plan / etc., and they can't add or remove mods.
+      // - kick*, plan, stripe* — server-only (Stripe webhook + Kick OAuth)
+      // - modUids, modAddedAt   — server-only (team-add-mod / team-remove-mod)
+      // - email                 — set on signup, never changed by client
+      allow update: if isOwnerOrMod(uid)
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
           'plan',
           'stripeSubscriptionActive',
@@ -38,68 +64,75 @@ service cloud.firestore {
           'kickAccessToken',
           'kickRefreshToken',
           'kickTokenExpiresAt',
-          'kickChannel'
+          'kickChannel',
+          'modUids',
+          'modAddedAt',
+          'email',
+          'firstVerifyBonusAt'
         ]);
 
       // verified_users — only the admin SDK (server functions) may write.
-      // This prevents a streamer from forging verified entries with underAffiliate: true.
+      // This prevents a streamer (or mod) from forging verified entries with
+      // underAffiliate: true. Mods can read + delete (they help manage the
+      // verified list day-to-day).
       match /verified_users/{doc} {
-        allow read:   if request.auth != null && request.auth.uid == uid;
-        allow delete: if request.auth != null && request.auth.uid == uid;
+        allow read:   if isOwnerOrMod(uid);
+        allow delete: if isOwnerOrMod(uid);
         allow create, update: if false;
       }
 
-      // discord_links — server-only writes. Prevents forging links to claim
-      // another Kick user's points via Discord /buy or /points.
+      // discord_links — server-only writes. Mods can read + delete (same
+      // reasoning as verified_users).
       match /discord_links/{doc} {
-        allow read:   if request.auth != null && request.auth.uid == uid;
-        allow delete: if request.auth != null && request.auth.uid == uid;
+        allow read:   if isOwnerOrMod(uid);
+        allow delete: if isOwnerOrMod(uid);
         allow create, update: if false;
       }
 
-      // viewers — owner can read/write freely. The streamer needs to adjust points
-      // legitimately (manual rewards, corrections, prize payouts). Anti-fraud at this
-      // level isn't meaningful since the streamer owns all their viewer data.
-      // Audit logging (via /api/log-action) captures notable changes for support.
+      // viewers — owner + mods can read/write. The streamer (and their mods)
+      // need to adjust points legitimately. Audit logging captures notable
+      // changes; mods can be held accountable via actingUid threading.
       match /viewers/{doc} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
+        allow read, write: if isOwnerOrMod(uid);
       }
       match /bb_votes/{doc} {
-        allow read: if request.auth != null && request.auth.uid == uid;
+        allow read: if isOwnerOrMod(uid);
         allow create, update: if false;
-        allow delete: if request.auth != null && request.auth.uid == uid;
+        allow delete: if isOwnerOrMod(uid);
       }
       match /store_redemptions/{doc} {
-        allow read: if request.auth != null && request.auth.uid == uid;
-        // Streamer can mark as fulfilled but cannot create or change kickUsername/pointsSpent
-        allow update: if request.auth != null && request.auth.uid == uid
+        allow read: if isOwnerOrMod(uid);
+        // Owner + mods can mark as fulfilled but cannot create or change
+        // kickUsername/pointsSpent
+        allow update: if isOwnerOrMod(uid)
                         && request.resource.data.diff(resource.data).affectedKeys()
                             .hasOnly(['status', 'fulfilledAt']);
         allow create: if false;
-        allow delete: if request.auth != null && request.auth.uid == uid;
+        allow delete: if isOwnerOrMod(uid);
       }
       match /bot_locks/{doc} {
         // Bot-only — clients shouldn't touch dedup locks
         allow read, write: if false;
       }
 
-      // audit_logs — server-only writes. Streamer can read their own history
-      // (for the dashboard's "history" view) but can never forge entries.
+      // audit_logs — server-only writes. Owner + mods can read (for the
+      // Activity Log view). Mods can never forge entries — every audit
+      // write goes through /api/log-action which threads actingUid.
       match /audit_logs/{doc} {
-        allow read: if request.auth != null && request.auth.uid == uid;
+        allow read: if isOwnerOrMod(uid);
         allow create, update, delete: if false;
       }
 
-      // bot_status — WenBotServer writes heartbeat + sync timestamps via admin SDK.
-      // Streamer can read for the dashboard's Bot Status card.
+      // bot_status — WenBotServer writes heartbeat + sync timestamps via
+      // admin SDK. Owner + mods can read for the Bot Status card.
       match /bot_status/{doc} {
-        allow read: if request.auth != null && request.auth.uid == uid;
+        allow read: if isOwnerOrMod(uid);
         allow create, update, delete: if false;
       }
 
-      // Everything else under the streamer doc — full owner control
+      // Everything else under the streamer doc — full owner+mod control
       match /{subcollection}/{doc} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
+        allow read, write: if isOwnerOrMod(uid);
       }
     }
 

@@ -148,6 +148,21 @@
   to     = "/.netlify/functions/portal-data"
   status = 200
 
+[[redirects]]
+  from   = "/api/team-add-mod"
+  to     = "/.netlify/functions/team-add-mod"
+  status = 200
+
+[[redirects]]
+  from   = "/api/team-remove-mod"
+  to     = "/.netlify/functions/team-remove-mod"
+  status = 200
+
+[[redirects]]
+  from   = "/api/team-list-mods"
+  to     = "/.netlify/functions/team-list-mods"
+  status = 200
+
 # Streamer portal — catch-all rewrite. wenbot.gg/<channel> shows that streamer's
 # public hub. Static files take precedence (Netlify serves real files first),
 # so /dashboard.html, /signup.html, etc. continue working unaffected.
