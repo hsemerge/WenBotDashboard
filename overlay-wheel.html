@@ -136,6 +136,7 @@ let animating          = false;
 let lastTriggerAt      = 0;
 let lastRafTriggerAt   = 0;
 let initialized        = false;
+let bannerHideTimer    = null;
 
 // ── Draw ──────────────────────────────────────────────────────────────────────
 
@@ -229,6 +230,9 @@ function drawWheel(angle) {
 function spinToWinner(winnerName) {
   if (animating) return;
   animating = true;
+  // Make sure the wheel is actually on-screen — needed when a reroll fires
+  // after the giveaway has been stopped and visibility was never re-asserted.
+  document.getElementById('wheelWrap').classList.add('visible');
 
   // Find winner's midpoint angle in local wheel coords (unrotated)
   const total = entries.reduce((s, e) => s + (e.tickets || 1), 0);
@@ -279,8 +283,9 @@ function spinToWinner(winnerName) {
       document.getElementById('winnerBanner').classList.add('show');
       spawnParticles();
 
-      // Auto-hide banner after 12s
-      setTimeout(() => {
+      // Auto-hide banner after 12s. Track the handle so a reroll can cancel.
+      bannerHideTimer = setTimeout(() => {
+        bannerHideTimer = null;
         document.getElementById('winnerBanner').classList.remove('show');
       }, 12000);
     }
@@ -323,6 +328,11 @@ async function poll() {
         initialized   = true;
       } else if (winner && triggeredAt !== lastTriggerAt) {
         lastTriggerAt = triggeredAt;
+        // Cancel any pending banner-hide from the previous spin, and force-reset
+        // animating so a reroll mid-animation actually restarts (instead of being
+        // dropped by the spinToWinner early-return).
+        if (bannerHideTimer) { clearTimeout(bannerHideTimer); bannerHideTimer = null; }
+        animating = false;
         document.getElementById('winnerBanner').classList.remove('show');
         spinToWinner(winner);
       }
@@ -337,6 +347,8 @@ async function poll() {
         lastRafTriggerAt = triggeredAt;
       } else if (winner && triggeredAt !== lastRafTriggerAt) {
         lastRafTriggerAt = triggeredAt;
+        if (bannerHideTimer) { clearTimeout(bannerHideTimer); bannerHideTimer = null; }
+        animating = false;
         // If no giveaway entries loaded, make a temporary single-segment wheel
         if (!entries.length) entries = [{ username: winner, tickets: 1 }];
         document.getElementById('winnerBanner').classList.remove('show');
