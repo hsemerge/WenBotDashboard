@@ -174,11 +174,8 @@
       </div>
 
       <form class="setup-form" onsubmit="handleSetup(event)">
-        <div class="setup-field" id="kickManualField">
-          <label>Kick Channel Username</label>
-          <input type="text" id="setupKickChannel" required placeholder="e.g. yourchannel">
-          <span class="hint">Or type your Kick username manually</span>
-        </div>
+        <!-- Kick username is sourced from the OAuth-connected account above —
+             no manual entry (prevents channel-hijacking and confusion). -->
 
         <div class="setup-field">
           <label>Affiliate Platform</label>
@@ -217,7 +214,8 @@
           <input type="text" id="setupDisplayName" placeholder="How viewers see your name">
         </div>
 
-        <button type="submit" class="btn btn-accent setup-submit" id="setupBtn">Complete Setup</button>
+        <button type="submit" class="btn btn-accent setup-submit" id="setupBtn" disabled title="Connect your Kick account first">Complete Setup</button>
+        <div id="setupBtnHint" class="hint" style="text-align:center;margin-top:6px;">Connect your Kick account above to enable this button.</div>
       </form>
 
       <div class="setup-signout">
@@ -254,9 +252,6 @@
       document.getElementById('authLoader').style.display  = 'none';
       document.getElementById('setupContainer').style.visibility = '';
       if (fb.streamerProfile) {
-        if (fb.streamerProfile.kickChannel) {
-          document.getElementById("setupKickChannel").value = fb.streamerProfile.kickChannel;
-        }
         if (fb.streamerProfile.displayName) {
           document.getElementById("setupDisplayName").value = fb.streamerProfile.displayName;
         }
@@ -306,15 +301,18 @@
     function showKickConnected(username, avatar) {
       document.getElementById("kickNotConnected").style.display = "none";
       document.getElementById("kickConnected").style.display    = "block";
-      document.getElementById("kickManualField").style.display  = "none";
       document.getElementById("kickConnectedName").textContent  = "@" + (username || "");
-      document.getElementById("setupKickChannel").value         = username || "";
-      document.getElementById("setupKickChannel").required      = false;
       if (avatar) {
         const img = document.getElementById("kickAvatar");
         img.src   = avatar;
         img.style.display = "block";
       }
+      // OAuth complete — unlock the submit button.
+      const btn = document.getElementById("setupBtn");
+      btn.disabled = false;
+      btn.removeAttribute("title");
+      const hint = document.getElementById("setupBtnHint");
+      if (hint) hint.style.display = "none";
     }
 
     function connectKick() {
@@ -324,8 +322,12 @@
     function disconnectKick() {
       document.getElementById("kickNotConnected").style.display = "block";
       document.getElementById("kickConnected").style.display    = "none";
-      document.getElementById("kickManualField").style.display  = "";
-      document.getElementById("setupKickChannel").required      = true;
+      // Re-lock the submit button until OAuth is completed again.
+      const btn = document.getElementById("setupBtn");
+      btn.disabled = true;
+      btn.title    = "Connect your Kick account first";
+      const hint = document.getElementById("setupBtnHint");
+      if (hint) hint.style.display = "";
     }
 
     function onAuthNotLoggedIn() {
@@ -377,16 +379,15 @@
       btn.textContent = "Saving...";
 
       try {
-        // kickChannel must come from the connected Kick OAuth account — prevents channel hijacking
-        const connectedKickUsername = (fb.streamerProfile?.kickUsername || '').toLowerCase();
-        const typedChannel          = document.getElementById("setupKickChannel").value.trim().toLowerCase();
-        const kickChannel           = connectedKickUsername || typedChannel;
+        // kickChannel must come from the connected Kick OAuth account — never user-typed.
+        // The button is disabled until OAuth lands; this is a belt-and-suspenders check
+        // in case a streamer manipulates the DOM to enable it early.
+        const kickChannel = (fb.streamerProfile?.kickUsername || '').toLowerCase();
         const provider    = document.getElementById("setupProvider").value;
         const apiKey      = document.getElementById("setupApiKey").value.trim();
         const displayName = document.getElementById("setupDisplayName").value.trim();
 
-        if (!kickChannel) throw new Error("Connect your Kick account to continue.");
-        if (!connectedKickUsername) throw new Error("Please click 'Connect with Kick' first — required for security.");
+        if (!kickChannel) throw new Error("Please click 'Connect Kick Account' above first — required for security.");
 
         const plan        = fb.streamerProfile?.plan || 'starter';
         const pendingPlan = fb.streamerProfile?.pendingPlan
