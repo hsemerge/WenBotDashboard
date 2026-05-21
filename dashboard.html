@@ -2560,6 +2560,9 @@ function onAuthReady(user) {
   loadProviderSettings();
   loadDiscordSettings();
   loadPortalSettings();
+  // Start the pending-redemptions listener at boot so the Store nav badge updates
+  // even before the streamer opens the Store page.
+  loadRedemptions();
   updatePlatformDisplays();
 
   // Portal Settings — live UI updates (counter + color preview)
