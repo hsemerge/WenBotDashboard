@@ -1114,65 +1114,6 @@
         </div>
       </div>
 
-      <!-- Streamer Portal -->
-      <div style="margin-top:16px;">
-        <div class="card">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px;">
-            <div class="card-title" style="margin-bottom:0;">🌐 Streamer Portal</div>
-            <a id="portalPublicLink" href="#" target="_blank" style="font-size:12px;color:var(--accent);text-decoration:none;">View public portal ↗</a>
-          </div>
-          <p style="font-size:12px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
-            Your public portal lives at <code id="portalUrlPreview" style="background:rgba(0,0,0,0.4);padding:2px 8px;border-radius:4px;color:var(--accent);font-family:monospace;">wenbot.gg/—</code>. It shows your bio, socials, active giveaways, and—depending on your plan—your store, raffle winners, and leaderboard.
-          </p>
-
-          <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;">
-            <input type="checkbox" id="portalEnabled" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
-            <label for="portalEnabled" style="cursor:pointer;flex:1;">
-              <div style="font-size:13px;color:var(--bright);font-weight:600;">Portal enabled</div>
-              <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Uncheck to hide your portal (visitors will see "not available").</div>
-            </label>
-          </div>
-
-          <div class="field">
-            <label>Bio</label>
-            <textarea id="portalBio" maxlength="240" rows="3" placeholder="A short tagline shown on your portal (240 chars max)" style="width:100%;background:var(--bg-card);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px 12px;font-family:'Inter',sans-serif;font-size:13px;resize:vertical;"></textarea>
-            <div class="hint"><span id="portalBioCount">0</span> / 240</div>
-          </div>
-
-          <div class="grid-2" style="gap:12px;">
-            <div class="field">
-              <label>Discord invite URL</label>
-              <input type="url" id="portalSocialDiscord" placeholder="https://discord.gg/yourserver">
-            </div>
-            <div class="field">
-              <label>YouTube URL</label>
-              <input type="url" id="portalSocialYoutube" placeholder="https://youtube.com/@you">
-            </div>
-            <div class="field">
-              <label>Twitter / X URL</label>
-              <input type="url" id="portalSocialTwitter" placeholder="https://x.com/you">
-            </div>
-          </div>
-
-          <!-- Theme color — Elite-only -->
-          <div style="position:relative;margin-top:8px;">
-            <div id="portalThemeLockOverlay" style="display:none;position:absolute;inset:0;background:rgba(13,17,23,0.85);backdrop-filter:blur(3px);border-radius:8px;z-index:5;display:flex;align-items:center;justify-content:center;gap:10px;padding:16px;text-align:center;flex-wrap:wrap;">
-              <span style="font-size:22px;">⭐</span>
-              <div style="font-size:13px;color:var(--text);font-weight:600;">Theme color customization is an Elite feature.</div>
-              <button onclick="upgradeTarget='elite';upgradeNow(this)" class="btn btn-accent" style="padding:6px 14px;font-size:12px;">Upgrade</button>
-            </div>
-            <div class="field" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-              <label style="margin:0;">Portal accent color</label>
-              <input type="color" id="portalThemeColor" value="#00e5ff" style="width:56px;height:36px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);cursor:pointer;padding:2px;">
-              <code id="portalThemeColorValue" style="font-size:12px;color:var(--text-dim);">#00e5ff</code>
-              <button class="btn btn-ghost" onclick="resetPortalTheme()" style="padding:6px 12px;font-size:12px;">Reset</button>
-            </div>
-          </div>
-
-          <button class="btn btn-accent" onclick="savePortalSettings()" style="margin-top:8px;">Save Portal Settings</button>
-        </div>
-      </div>
-
       <!-- Discord Integration -->
       <div style="margin-top:16px;" id="discordSection">
         <div class="card" style="position:relative;overflow:hidden;">
@@ -1220,6 +1161,70 @@
           <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap;">
             <button class="btn btn-accent" onclick="saveDiscordSettings()">Save Discord Settings</button>
             <button class="btn" onclick="populateDiscordChannels()" style="font-size:13px;padding:8px 16px;">↺ Refresh Channels</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Streamer Portal (below Discord — viewers visit this hub at wenbot.gg/<channel>) -->
+      <div style="margin-top:16px;">
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
+            <div class="card-title" style="margin-bottom:0;">🌐 Streamer Portal</div>
+            <a id="portalPublicLink" href="#" target="_blank" style="font-size:12px;color:var(--accent);text-decoration:none;">View public portal ↗</a>
+          </div>
+          <p style="font-size:12px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
+            Your public portal lives at
+            <a id="portalUrlPreviewLink" href="#" target="_blank" style="background:rgba(0,0,0,0.4);padding:2px 8px;border-radius:4px;color:var(--accent);font-family:monospace;text-decoration:none;">wenbot.gg/—</a>.
+            It shows your bio, socials, active giveaways, and—depending on your plan—your store, raffle winners, and leaderboard.
+          </p>
+
+          <!-- Constrain the form column so inputs don't sprawl across wide screens -->
+          <div style="max-width:720px;">
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;">
+              <input type="checkbox" id="portalEnabled" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
+              <label for="portalEnabled" style="cursor:pointer;flex:1;">
+                <div style="font-size:13px;color:var(--bright);font-weight:600;">Portal enabled</div>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Uncheck to hide your portal (visitors will see "not available").</div>
+              </label>
+            </div>
+
+            <div class="field">
+              <label>Bio</label>
+              <textarea id="portalBio" maxlength="240" rows="3" placeholder="A short tagline shown on your portal (240 chars max)" style="width:100%;background:var(--bg-card);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px 12px;font-family:'Inter',sans-serif;font-size:13px;resize:vertical;"></textarea>
+              <div class="hint"><span id="portalBioCount">0</span> / 240</div>
+            </div>
+
+            <!-- Socials + theme color in a 2-col grid so the theme picker has a home instead of floating -->
+            <div class="grid-2" style="gap:12px;">
+              <div class="field">
+                <label>Discord invite URL</label>
+                <input type="url" id="portalSocialDiscord" placeholder="https://discord.gg/yourserver">
+              </div>
+              <div class="field">
+                <label>YouTube URL</label>
+                <input type="url" id="portalSocialYoutube" placeholder="https://youtube.com/@you">
+              </div>
+              <div class="field">
+                <label>Twitter / X URL</label>
+                <input type="url" id="portalSocialTwitter" placeholder="https://x.com/you">
+              </div>
+              <!-- Theme color — Elite-only — sized to match a sibling field -->
+              <div class="field" style="position:relative;">
+                <div id="portalThemeLockOverlay" style="display:none;position:absolute;top:20px;left:0;right:0;bottom:0;background:rgba(13,17,23,0.85);backdrop-filter:blur(3px);border-radius:6px;z-index:5;display:flex;align-items:center;justify-content:center;gap:8px;padding:8px;text-align:center;flex-wrap:wrap;">
+                  <span style="font-size:16px;">⭐</span>
+                  <div style="font-size:11px;color:var(--text);font-weight:600;">Elite feature</div>
+                  <button onclick="upgradeTarget='elite';upgradeNow(this)" class="btn btn-accent" style="padding:4px 10px;font-size:11px;">Upgrade</button>
+                </div>
+                <label>Portal accent color</label>
+                <div style="display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:6px 10px;">
+                  <input type="color" id="portalThemeColor" value="#00e5ff" style="width:32px;height:28px;border:none;background:transparent;cursor:pointer;padding:0;flex-shrink:0;">
+                  <code id="portalThemeColorValue" style="font-size:12px;color:var(--text-dim);flex:1;font-family:monospace;">#00e5ff</code>
+                  <button class="btn btn-ghost" onclick="resetPortalTheme()" style="padding:4px 10px;font-size:11px;flex-shrink:0;">Reset</button>
+                </div>
+              </div>
+            </div>
+
+            <button class="btn btn-accent" onclick="savePortalSettings()" style="margin-top:8px;">Save Portal Settings</button>
           </div>
         </div>
       </div>
@@ -3402,8 +3407,11 @@ function loadPortalSettings() {
   if (!profile) return;
   const channel = profile.kickChannel || '';
   const url = `https://wenbot.gg/${channel}`;
-  document.getElementById('portalPublicLink').href = channel ? url : '#';
-  document.getElementById('portalUrlPreview').textContent = channel ? `wenbot.gg/${channel}` : 'wenbot.gg/—';
+  const publicLink = document.getElementById('portalPublicLink');
+  const previewLink = document.getElementById('portalUrlPreviewLink');
+  publicLink.href  = channel ? url : '#';
+  previewLink.href = channel ? url : '#';
+  previewLink.textContent = channel ? `wenbot.gg/${channel}` : 'wenbot.gg/—';
 
   document.getElementById('portalEnabled').checked = profile.portalEnabled !== false; // default ON
   const bio = profile.bio || '';
