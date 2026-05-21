@@ -153,6 +153,31 @@ exports.handler = async (event) => {
         });
     }
 
+    // First-time verify bonus — idempotent via firstVerifyBonusAt on the viewer doc.
+    // We use a Firestore atomic increment so we don't clobber any in-flight
+    // points changes from WenBotServer's cache. firstVerifyBonusAt prevents
+    // re-crediting on subsequent re-verifies (e.g. casino switch).
+    let verifyBonusAwarded = 0;
+    const bonus = parseInt(streamerData.firstVerifyBonus || 0, 10);
+    if (bonus > 0) {
+      try {
+        const viewerRef  = db.collection("streamers").doc(streamerUid)
+          .collection("viewers").doc(kickKey);
+        const viewerSnap = await viewerRef.get();
+        const already    = viewerSnap.exists && viewerSnap.data().firstVerifyBonusAt;
+        if (!already) {
+          await viewerRef.set({
+            points:             admin.firestore.FieldValue.increment(bonus),
+            firstVerifyBonusAt: Date.now(),
+          }, { merge: true });
+          verifyBonusAwarded = bonus;
+          logAudit(streamerUid, "first_verify_bonus", { kickUsername, bonus });
+        }
+      } catch (err) {
+        console.warn("[verify-affiliate] first-verify bonus failed:", err.message);
+      }
+    }
+
     // Check whether this Kick user already has any Discord link on this streamer
     // (so the success screen doesn't keep prompting "Connect Discord" forever).
     let hasExistingDiscordLink = !!discordUserId;
@@ -184,6 +209,7 @@ exports.handler = async (event) => {
       discordLinked:     !!discordUserId,
       discordLinkedAny:  hasExistingDiscordLink,
       discordUsername:   discordUsername || null,
+      verifyBonusAwarded,
     });
 
   } catch (err) {
