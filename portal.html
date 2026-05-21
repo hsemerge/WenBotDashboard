@@ -788,9 +788,12 @@
         else if (it.stock <= 3) stockHtml = `<span class="store-stock low">${it.stock} left</span>`;
         else stockHtml = `<span class="store-stock">${it.stock} in stock</span>`;
       }
+      const raffleBadge = it.isRaffleItem
+        ? `<span style="font-size:10px;font-weight:700;color:var(--accent);background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);border-radius:10px;padding:2px 8px;letter-spacing:0.04em;margin-left:6px;">🎟 RAFFLE</span>`
+        : '';
       return `
         <div class="store-card">
-          <div class="store-name">${esc(it.name)}</div>
+          <div class="store-name">${esc(it.name)}${raffleBadge}</div>
           <div class="store-desc">${esc(it.description || '')}</div>
           <div class="store-footer">
             <div class="store-price">${fmtNum(it.price)}<small>${esc(s.streamer.currency)}</small></div>
@@ -798,6 +801,10 @@
           </div>
         </div>`;
     }).join('');
+    const hasRaffleItem = items.some(it => it.isRaffleItem);
+    const raffleNote = hasRaffleItem
+      ? `<div class="redeem-note" style="margin-top:10px;background:rgba(0,229,255,0.06);">🎟 Items marked <strong>RAFFLE</strong> = redeeming enters you into that item's raffle. The streamer draws a winner.</div>`
+      : '';
     return `
       <div class="panel">
         <div class="section-title">Store · ${esc(s.streamer.currency)}</div>
@@ -805,6 +812,7 @@
         <div class="redeem-note">
           💬 Redeem from Kick chat: <code>!redeem &lt;item name&gt;</code>
         </div>
+        ${raffleNote}
       </div>`;
   }
 

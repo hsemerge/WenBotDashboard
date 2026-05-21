@@ -904,6 +904,13 @@
             <label>Stock (leave blank = unlimited)</label>
             <input type="number" id="newItemStock" placeholder="Unlimited" min="0">
           </div>
+          <div class="field" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;">
+            <input type="checkbox" id="newItemRaffle" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
+            <label for="newItemRaffle" style="cursor:pointer;flex:1;margin:0;">
+              <div style="font-size:13px;color:var(--bright);font-weight:600;">🎟 Use as raffle item</div>
+              <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Each redeem buys 1 entry into this item's raffle (drawn under Raffles → Point Raffle).</div>
+            </label>
+          </div>
           <div class="field">
             <label>Image</label>
             <div id="imageUploadArea" style="border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:all 0.2s;" onclick="document.getElementById('imageFileInput').click()" ondragover="event.preventDefault();this.style.borderColor='var(--accent)'" ondrop="handleImageDrop(event)">
@@ -1970,13 +1977,11 @@
     <!-- ── UPGRADE WALL ── -->
     <!-- ── RAFFLES ── -->
     <div class="page" id="page-raffle">
-      <!-- Tab switcher -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
-        <h1 style="font-family:'Exo 2',sans-serif;font-size:24px;font-weight:900;color:var(--bright);">Raffles</h1>
-        <div style="display:flex;gap:8px;">
-          <button id="rafTab-wager" class="btn btn-accent btn-sm" onclick="switchRaffleTab('wager')" style="min-width:120px;">🎲 Wager Raffle</button>
-          <button id="rafTab-point" class="btn btn-ghost btn-sm" onclick="switchRaffleTab('point')" style="min-width:120px;">🪙 Point Raffle</button>
-        </div>
+      <!-- Tab switcher (kept inline next to the header so they're hard to miss) -->
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap;">
+        <h1 style="font-family:'Exo 2',sans-serif;font-size:24px;font-weight:900;color:var(--bright);margin-right:4px;">Raffles</h1>
+        <button id="rafTab-wager" class="btn btn-accent btn-sm" onclick="switchRaffleTab('wager')" style="min-width:120px;">🎲 Wager Raffle</button>
+        <button id="rafTab-point" class="btn btn-ghost btn-sm" onclick="switchRaffleTab('point')" style="min-width:120px;">🪙 Point Raffle</button>
       </div>
 
       <!-- ── WAGER RAFFLE PANEL ── -->
@@ -2029,56 +2034,52 @@
 
       <!-- ── POINT RAFFLE PANEL ── -->
       <div id="rafPanel-point" style="display:none;">
-        <div class="grid-2" style="margin-bottom:16px;">
-          <!-- Toggle + Config -->
-          <div class="card">
-            <div class="card-title">⚙️ Configuration</div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding:12px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;">
-              <div>
-                <div style="font-size:13px;font-weight:600;color:var(--bright);">Point Raffle Active</div>
-                <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Auto-adds a "Raffle Ticket" item to your store</div>
-              </div>
-              <div class="toggle" id="prToggle" onclick="togglePointRaffle()"></div>
-            </div>
-            <div class="field">
-              <label>Ticket Price (<span id="prCurrencyLabel">points</span>)</label>
-              <input type="number" id="prTicketPrice" class="form-input" placeholder="e.g. 500" min="1">
-            </div>
-            <div class="field">
-              <label>Max Tickets Per Viewer <span style="color:var(--text-dim);font-size:11px;">(blank = unlimited)</span></label>
-              <input type="number" id="prMaxPerUser" class="form-input" placeholder="Unlimited" min="1">
-            </div>
-            <button class="btn btn-accent btn-sm" onclick="savePointRaffleConfig()" style="width:100%;">Save Config</button>
-          </div>
-          <!-- Status -->
-          <div class="card">
-            <div class="card-title">📋 Status</div>
-            <div id="prStatusBox" style="font-size:13px;color:var(--text-dim);">Point Raffle is disabled.</div>
-            <div id="prEntryStats" style="margin-top:12px;"></div>
-          </div>
-        </div>
-        <!-- Entries -->
+        <!-- Item selector -->
         <div class="card" style="margin-bottom:16px;">
-          <div class="card-title" style="justify-content:space-between;">
+          <div class="card-title">🎟 Active Raffle Items</div>
+          <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+            Each item in your store marked as a raffle item is its own pool — viewers redeem
+            the item to enter that raffle. Add or edit raffle items under
+            <a href="#" onclick="showPage('store', document.querySelector('.nav-item[onclick*=store]'));return false;" style="color:var(--accent);">Store</a>.
+          </p>
+          <div class="field">
+            <label>Raffle Item</label>
+            <select id="prItemSelect" class="form-input" onchange="onRaffleItemChange()">
+              <option value="">— No raffle items yet —</option>
+            </select>
+          </div>
+          <div id="prItemInfo" style="font-size:12px;color:var(--text-dim);"></div>
+        </div>
+
+        <!-- Entries + actions -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title" style="justify-content:space-between;flex-wrap:wrap;gap:10px;">
             <span>📋 Current Entries</span>
-            <div style="display:flex;gap:8px;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <button class="btn btn-ghost btn-sm" onclick="loadPointRaffleEntries()">Refresh</button>
-              <button class="btn btn-danger btn-sm" onclick="clearPointRaffleEntries()">Clear All</button>
+              <button class="btn btn-danger btn-sm" onclick="clearPointRaffleEntries()" id="prClearBtn" disabled>Reset Entries</button>
+              <button class="btn btn-ghost btn-sm" onclick="deactivateRaffleItem()" id="prDeactivateBtn" disabled title="Disables the item in your store so it can't be bought further. Entries are kept.">Deactivate Item</button>
             </div>
           </div>
+          <div id="prEntryStats" style="margin-bottom:8px;"></div>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Viewer</th><th>Tickets</th><th>Last Purchase</th></tr></thead>
-              <tbody id="pointRaffleTable"><tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">No entries yet.</td></tr></tbody>
+              <tbody id="pointRaffleTable"><tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">Select a raffle item above to see entries.</td></tr></tbody>
             </table>
           </div>
         </div>
+
         <!-- Draw -->
         <div class="card">
           <div class="card-title">🎰 Draw Point Raffle Winner</div>
           <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
             <div id="prEntryCount" style="font-size:13px;color:var(--text-dim);">No entries loaded.</div>
             <button class="btn btn-accent" id="prDrawBtn" onclick="drawRaffleWinner('point')" disabled>🎰 Draw Winner</button>
+          </div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:10px;line-height:1.55;">
+            Entries are kept after each draw — pull multiple winners from the same pool, then click
+            <strong>Reset Entries</strong> when you want to start fresh.
           </div>
         </div>
       </div>
@@ -3619,6 +3620,7 @@ async function addStoreItem() {
   const price = parseInt(document.getElementById('newItemPrice').value) || 0;
   const stockVal = document.getElementById('newItemStock').value.trim();
   const stock = stockVal === '' ? null : parseInt(stockVal);
+  const isRaffleItem = document.getElementById('newItemRaffle').checked;
 
   if (!name) { flash('Enter an item name.', 'error'); return; }
   if (!price) { flash('Enter a price.', 'error'); return; }
@@ -3639,13 +3641,14 @@ async function addStoreItem() {
     document.getElementById('imageUploadProgress').style.display = 'none';
   }
 
-  await itemRef.set({ name, description: desc, price, stock, imageUrl, enabled: true, createdAt: Date.now() });
+  await itemRef.set({ name, description: desc, price, stock, imageUrl, isRaffleItem, enabled: true, createdAt: Date.now() });
 
   // Reset form
   document.getElementById('newItemName').value = '';
   document.getElementById('newItemDesc').value = '';
   document.getElementById('newItemPrice').value = '';
   document.getElementById('newItemStock').value = '';
+  document.getElementById('newItemRaffle').checked = false;
   document.getElementById('imagePreview').style.display = 'none';
   document.getElementById('imageUploadText').textContent = '📷 Click or drag an image here';
   pendingImageFile = null;
@@ -3680,6 +3683,9 @@ async function loadStoreItems() {
     const d = doc.data();
     const stockStr = d.stock === null || d.stock === undefined ? 'Unlimited' : `${d.stock} left`;
     const stockVal = d.stock === null || d.stock === undefined ? '' : d.stock;
+    const raffleBadge = d.isRaffleItem
+      ? `<span style="font-size:10px;font-weight:700;color:var(--accent);background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.25);border-radius:10px;padding:2px 8px;letter-spacing:0.04em;margin-left:6px;">🎟 RAFFLE</span>`
+      : '';
     const imgHtml = d.imageUrl
       ? `<img class="store-item-img" src="${d.imageUrl}" alt="${d.name}">`
       : `<div class="store-item-img" style="display:flex;align-items:center;justify-content:center;font-size:18px;">🎁</div>`;
@@ -3688,12 +3694,12 @@ async function loadStoreItems() {
       <div class="store-item-row" id="srow-${doc.id}">
         ${imgHtml}
         <div class="store-item-info">
-          <div class="store-item-name">${d.name}</div>
+          <div class="store-item-name">${d.name}${raffleBadge}</div>
           <div class="store-item-meta">${d.price.toLocaleString()} ${currency} · ${stockStr}</div>
         </div>
         <div class="store-toggle">
           <div class="toggle ${d.enabled ? 'on' : ''}" onclick="toggleStoreItem('${doc.id}', ${!d.enabled})"></div>
-          <button class="btn btn-ghost btn-sm" onclick="editStoreItem('${doc.id}','${esc(d.name)}','${esc(d.description||'')}',${d.price},${stockVal === '' ? 'null' : stockVal})">Edit</button>
+          <button class="btn btn-ghost btn-sm" onclick="editStoreItem('${doc.id}','${esc(d.name)}','${esc(d.description||'')}',${d.price},${stockVal === '' ? 'null' : stockVal},${!!d.isRaffleItem})">Edit</button>
           <button class="btn btn-danger btn-sm" onclick="deleteStoreItem('${doc.id}')">✕</button>
         </div>
       </div>
@@ -3704,6 +3710,10 @@ async function loadStoreItems() {
           <div class="field" style="margin:0;"><label>Price (${currency})</label><input type="number" id="sedit-price-${doc.id}" value="${d.price}" min="1" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--bright);padding:7px 10px;font-size:13px;font-family:inherit;"></div>
           <div class="field" style="margin:0;"><label>Stock (blank = unlimited)</label><input type="number" id="sedit-stock-${doc.id}" value="${stockVal}" placeholder="Unlimited" min="0" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--bright);padding:7px 10px;font-size:13px;font-family:inherit;"></div>
         </div>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer;">
+          <input type="checkbox" id="sedit-raffle-${doc.id}" ${d.isRaffleItem ? 'checked' : ''} style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">
+          <span style="font-size:12px;color:var(--text);">🎟 Use as raffle item</span>
+        </label>
         <div style="display:flex;gap:8px;">
           <button class="btn btn-accent btn-sm" onclick="saveStoreItem('${doc.id}')">Save</button>
           <button class="btn btn-ghost btn-sm" onclick="cancelEditStoreItem('${doc.id}')">Cancel</button>
@@ -3726,9 +3736,10 @@ async function saveStoreItem(id) {
   const price = parseInt(document.getElementById('sedit-price-' + id).value);
   const stockRaw = document.getElementById('sedit-stock-' + id).value.trim();
   const stock = stockRaw === '' ? null : parseInt(stockRaw);
+  const isRaffleItem = document.getElementById('sedit-raffle-' + id).checked;
   if (!name || isNaN(price) || price < 1) { flash('Name and valid price required.', true); return; }
   await fb.db.collection('streamers').doc(fb.currentUser.uid)
-    .collection('store_items').doc(id).update({ name, description: desc, price, stock });
+    .collection('store_items').doc(id).update({ name, description: desc, price, stock, isRaffleItem });
   flash('Item updated!');
   loadStoreItems();
 }
@@ -5984,136 +5995,98 @@ async function loadWagerTickets() {
 }
 
 // ── POINT RAFFLE ──────────────────────────────────────────────────────────────
+// Point raffles run off of items in the store flagged with isRaffleItem === true.
+// Each redeem of one of those items writes a store_redemptions doc with
+// status === 'raffle_entry' (instead of 'pending') — those are the entries.
+// Multiple winners can be drawn from the same pool; only Reset Entries clears it.
+
+let selectedRaffleItemId = null;
+let raffleItemsList      = []; // [{ id, name, price, stock, enabled, description }]
 
 async function loadPointRafflePanel() {
-  const pr       = profile?.pointRaffle || {};
-  const currency = profile?.currencyName || 'points';
-  document.getElementById('prCurrencyLabel').textContent = currency;
-  document.getElementById('prTicketPrice').value = pr.ticketPrice || '';
-  document.getElementById('prMaxPerUser').value  = pr.maxPerUser  || '';
+  const uid = fb.currentUser.uid;
+  const snap = await fb.db.collection('streamers').doc(uid)
+    .collection('store_items')
+    .where('isRaffleItem', '==', true)
+    .get();
+  raffleItemsList = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-  const toggle = document.getElementById('prToggle');
-  if (pr.enabled) toggle.classList.add('on'); else toggle.classList.remove('on');
+  const sel = document.getElementById('prItemSelect');
+  if (raffleItemsList.length === 0) {
+    sel.innerHTML = '<option value="">— No raffle items yet —</option>';
+    document.getElementById('prItemInfo').innerHTML = `
+      <div style="color:var(--text-dim);">
+        Mark a store item as a raffle item to start collecting entries.
+        Go to <a href="#" onclick="showPage('store', document.querySelector('.nav-item[onclick*=store]'));return false;" style="color:var(--accent);text-decoration:none;">Store</a> and check
+        <strong>"🎟 Use as raffle item"</strong> on any item.
+      </div>`;
+    selectedRaffleItemId = null;
+    document.getElementById('pointRaffleTable').innerHTML =
+      '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">No raffle items yet.</td></tr>';
+    document.getElementById('prEntryCount').textContent = 'No entries.';
+    document.getElementById('prEntryStats').innerHTML = '';
+    document.getElementById('prDrawBtn').disabled       = true;
+    document.getElementById('prClearBtn').disabled      = true;
+    document.getElementById('prDeactivateBtn').disabled = true;
+    pointRaffleEntries = [];
+    return;
+  }
 
-  updatePointRaffleStatus();
+  // Keep selection if still valid, otherwise pick first
+  const stillValid = selectedRaffleItemId && raffleItemsList.find(i => i.id === selectedRaffleItemId);
+  if (!stillValid) selectedRaffleItemId = raffleItemsList[0].id;
+
+  sel.innerHTML = raffleItemsList.map(i => {
+    const tag = i.enabled === false ? ' (disabled)' : '';
+    return `<option value="${i.id}"${i.id === selectedRaffleItemId ? ' selected' : ''}>${i.name}${tag}</option>`;
+  }).join('');
+
+  renderRaffleItemInfo();
   await loadPointRaffleEntries();
 }
 
-function updatePointRaffleStatus() {
-  const pr       = profile?.pointRaffle || {};
-  const currency = profile?.currencyName || 'points';
-  const box      = document.getElementById('prStatusBox');
-  if (pr.enabled && pr.ticketItemId) {
-    box.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px;padding:12px;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.2);border-radius:8px;">
-        <span style="font-size:20px;">🎟</span>
-        <div>
-          <div style="font-weight:700;color:var(--green);font-size:13px;">RaffleTicket is live in your store</div>
-          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${(pr.ticketPrice||0).toLocaleString()} ${currency} each${pr.maxPerUser ? ` · max ${pr.maxPerUser}/viewer` : ''}</div>
-        </div>
-      </div>`;
-  } else {
-    box.innerHTML = `<div style="color:var(--text-dim);font-size:13px;">Point Raffle is <strong>disabled</strong>. Enable it above to add the Raffle Ticket item to your store.</div>`;
-  }
+function onRaffleItemChange() {
+  selectedRaffleItemId = document.getElementById('prItemSelect').value || null;
+  renderRaffleItemInfo();
+  loadPointRaffleEntries();
 }
 
-async function togglePointRaffle() {
-  const uid = fb.currentUser.uid;
-  const pr  = profile?.pointRaffle || {};
-  const enabling = !pr.enabled;
-
-  if (enabling) {
-    const price = parseInt(document.getElementById('prTicketPrice').value);
-    if (!price || price < 1) { flash('Enter a ticket price before enabling.', 'error'); return; }
-    await savePointRaffleConfig(true);
-  } else {
-    if (pr.ticketItemId) {
-      try { await fb.db.collection('streamers').doc(uid).collection('store_items').doc(pr.ticketItemId).delete(); } catch {}
-    }
-    await fb.db.collection('streamers').doc(uid).update({
-      'pointRaffle.enabled':      false,
-      'pointRaffle.ticketItemId': firebase.firestore.FieldValue.delete(),
-    });
-    if (!profile.pointRaffle) profile.pointRaffle = {};
-    profile.pointRaffle.enabled      = false;
-    profile.pointRaffle.ticketItemId = null;
-    flash('Point Raffle disabled. Ticket item removed from store.');
-    loadPointRafflePanel();
-  }
-}
-
-async function savePointRaffleConfig(andEnable = false) {
-  const uid      = fb.currentUser.uid;
-  const price    = parseInt(document.getElementById('prTicketPrice').value);
-  const maxRaw   = document.getElementById('prMaxPerUser').value.trim();
-  const maxPerUser = maxRaw ? parseInt(maxRaw) : null;
+function renderRaffleItemInfo() {
+  const info = document.getElementById('prItemInfo');
+  const item = raffleItemsList.find(i => i.id === selectedRaffleItemId);
+  if (!item) { info.innerHTML = ''; return; }
   const currency = profile?.currencyName || 'points';
-
-  if (!price || price < 1) { flash('Enter a ticket price.', 'error'); return; }
-
-  const pr = profile?.pointRaffle || {};
-
-  if (andEnable) {
-    let ticketItemId = pr.ticketItemId;
-    const itemData = {
-      name:        'RaffleTicket',
-      description: `Enter the raffle! 1 ticket = 1 entry.${maxPerUser ? ` Max ${maxPerUser} per viewer.` : ''}`,
-      price,
-      stock:       null,
-      imageUrl:    null,
-      enabled:     true,
-      type:        'raffle_ticket',
-      createdAt:   Date.now(),
-    };
-
-    if (ticketItemId) {
-      await fb.db.collection('streamers').doc(uid).collection('store_items').doc(ticketItemId).update({
-        description: itemData.description, price, enabled: true, stock: null,
-      });
-    } else {
-      const ref = fb.db.collection('streamers').doc(uid).collection('store_items').doc();
-      await ref.set(itemData);
-      ticketItemId = ref.id;
-    }
-
-    await fb.db.collection('streamers').doc(uid).update({
-      'pointRaffle.enabled':      true,
-      'pointRaffle.ticketPrice':  price,
-      'pointRaffle.maxPerUser':   maxPerUser,
-      'pointRaffle.ticketItemId': ticketItemId,
-    });
-    if (!profile.pointRaffle) profile.pointRaffle = {};
-    Object.assign(profile.pointRaffle, { enabled: true, ticketPrice: price, maxPerUser, ticketItemId });
-    flash('Point Raffle enabled! RaffleTicket added to your store.');
-  } else {
-    await fb.db.collection('streamers').doc(uid).update({
-      'pointRaffle.ticketPrice': price,
-      'pointRaffle.maxPerUser':  maxPerUser,
-    });
-    if (!profile.pointRaffle) profile.pointRaffle = {};
-    profile.pointRaffle.ticketPrice = price;
-    profile.pointRaffle.maxPerUser  = maxPerUser;
-    // Update store item price if enabled
-    if (pr.ticketItemId) {
-      await fb.db.collection('streamers').doc(uid).collection('store_items').doc(pr.ticketItemId).update({
-        price,
-        description: `Enter the raffle! 1 ticket = 1 entry.${maxPerUser ? ` Max ${maxPerUser} per viewer.` : ''}`,
-      }).catch(() => {});
-    }
-    flash('Config saved!');
-  }
-  loadPointRafflePanel();
+  const stock = (item.stock === null || item.stock === undefined) ? 'Unlimited tickets'
+              : item.stock <= 0 ? '<span style="color:var(--red);">Out of stock</span>'
+              : `${item.stock} ticket${item.stock === 1 ? '' : 's'} left`;
+  const enabledLabel = item.enabled === false
+    ? `<span style="color:var(--red);font-weight:600;">Deactivated — won't accept new entries</span>`
+    : `<span style="color:var(--green);font-weight:600;">Active in store</span>`;
+  info.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:4px;padding:10px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;font-size:12px;">
+      <div style="color:var(--bright);font-weight:600;font-size:13px;">${item.name}</div>
+      ${item.description ? `<div style="color:var(--text-dim);">${item.description}</div>` : ''}
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:2px;">
+        <span><span style="color:var(--text-dim);">Price:</span> <strong style="color:var(--accent);">${(item.price||0).toLocaleString()} ${currency}</strong></span>
+        <span><span style="color:var(--text-dim);">Stock:</span> ${stock}</span>
+        <span>${enabledLabel}</span>
+      </div>
+    </div>`;
 }
 
 async function loadPointRaffleEntries() {
   const uid   = fb.currentUser.uid;
-  const pr    = profile?.pointRaffle || {};
   const tbody = document.getElementById('pointRaffleTable');
 
-  if (!pr.ticketItemId) {
-    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:16px;">Enable Point Raffle first to start collecting entries.</td></tr>';
+  if (!selectedRaffleItemId) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:16px;">Select a raffle item to see entries.</td></tr>';
     document.getElementById('prEntryCount').textContent = 'No entries.';
-    document.getElementById('prDrawBtn').disabled = true;
+    document.getElementById('prEntryStats').innerHTML = '';
+    document.getElementById('prDrawBtn').disabled       = true;
+    document.getElementById('prClearBtn').disabled      = true;
+    document.getElementById('prDeactivateBtn').disabled = true;
+    pointRaffleEntries = [];
     return;
   }
 
@@ -6121,9 +6094,9 @@ async function loadPointRaffleEntries() {
 
   try {
     const snap = await fb.db.collection('streamers').doc(uid).collection('store_redemptions')
-      .where('itemId', '==', pr.ticketItemId).where('status', '==', 'pending').get();
+      .where('itemId', '==', selectedRaffleItemId)
+      .where('status', '==', 'raffle_entry').get();
 
-    const maxPerUser = pr.maxPerUser || Infinity;
     const map = {};
     snap.docs.forEach(doc => {
       const d   = doc.data();
@@ -6135,17 +6108,19 @@ async function loadPointRaffleEntries() {
       if (!map[key].lastTs || ts > map[key].lastTs) map[key].lastTs = ts;
     });
 
-    const entries = Object.values(map).map(e => ({
-      ...e,
-      tickets: maxPerUser === Infinity ? e.tickets : Math.min(e.tickets, maxPerUser),
-    })).sort((a, b) => b.tickets - a.tickets);
-
+    const entries = Object.values(map).sort((a, b) => b.tickets - a.tickets);
     pointRaffleEntries = entries;
+
     const totalTix = entries.reduce((s, e) => s + e.tickets, 0);
+    const selItem  = raffleItemsList.find(i => i.id === selectedRaffleItemId);
+    const itemName = selItem?.name || 'item';
+
     document.getElementById('prEntryCount').textContent = entries.length
-      ? `${entries.length} viewer${entries.length !== 1 ? 's' : ''} — ${totalTix} total ticket${totalTix !== 1 ? 's' : ''}`
-      : 'No entries yet.';
-    document.getElementById('prDrawBtn').disabled = entries.length === 0;
+      ? `${entries.length} viewer${entries.length !== 1 ? 's' : ''} — ${totalTix} total ticket${totalTix !== 1 ? 's' : ''} for "${itemName}"`
+      : `No entries yet for "${itemName}".`;
+    document.getElementById('prDrawBtn').disabled       = entries.length === 0;
+    document.getElementById('prClearBtn').disabled      = entries.length === 0;
+    document.getElementById('prDeactivateBtn').disabled = !selItem || selItem.enabled === false;
 
     document.getElementById('prEntryStats').innerHTML = entries.length
       ? `<div style="display:flex;gap:16px;font-size:12px;">
@@ -6155,7 +6130,7 @@ async function loadPointRaffleEntries() {
       : '';
 
     if (!entries.length) {
-      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">No entries yet. Viewers can buy Raffle Tickets from your store.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">No entries yet. Viewers redeem "${itemName}" from the store to enter.</td></tr>`;
       return;
     }
     tbody.innerHTML = entries.map(e => `<tr>
@@ -6170,17 +6145,40 @@ async function loadPointRaffleEntries() {
 
 async function clearPointRaffleEntries() {
   const uid = fb.currentUser.uid;
-  const pr  = profile?.pointRaffle || {};
-  if (!pr.ticketItemId) return;
-  if (!confirm('Clear all current entries? This marks all raffle ticket redemptions as fulfilled and removes them from the draw pool.')) return;
+  if (!selectedRaffleItemId) return;
+  const selItem = raffleItemsList.find(i => i.id === selectedRaffleItemId);
+  const itemName = selItem?.name || 'item';
+  if (!confirm(`Reset all entries for "${itemName}"? This removes everyone from the draw pool. Past draw winners and history are unaffected.`)) return;
   try {
     const snap = await fb.db.collection('streamers').doc(uid).collection('store_redemptions')
-      .where('itemId', '==', pr.ticketItemId).where('status', '==', 'pending').get();
-    const batch = fb.db.batch();
-    snap.docs.forEach(doc => batch.update(doc.ref, { status: 'fulfilled', fulfilledAt: new Date() }));
-    await batch.commit();
+      .where('itemId', '==', selectedRaffleItemId)
+      .where('status', '==', 'raffle_entry').get();
+    // Use a chunked batch in case there are >500 docs (Firestore batch limit)
+    const chunks = [];
+    for (let i = 0; i < snap.docs.length; i += 400) chunks.push(snap.docs.slice(i, i + 400));
+    for (const chunk of chunks) {
+      const batch = fb.db.batch();
+      chunk.forEach(doc => batch.update(doc.ref, { status: 'fulfilled', fulfilledAt: new Date() }));
+      await batch.commit();
+    }
     pointRaffleEntries = [];
     flash(`${snap.size} entries cleared.`);
+    loadPointRaffleEntries();
+  } catch(e) {
+    flash('Error: ' + e.message, 'error');
+  }
+}
+
+async function deactivateRaffleItem() {
+  const uid = fb.currentUser.uid;
+  if (!selectedRaffleItemId) return;
+  const selItem = raffleItemsList.find(i => i.id === selectedRaffleItemId);
+  const itemName = selItem?.name || 'item';
+  if (!confirm(`Deactivate "${itemName}" in your store? Existing entries are kept (you can still draw winners) but no one new can buy in.`)) return;
+  try {
+    await fb.db.collection('streamers').doc(uid).collection('store_items').doc(selectedRaffleItemId)
+      .update({ enabled: false });
+    flash(`"${itemName}" deactivated.`);
     loadPointRafflePanel();
   } catch(e) {
     flash('Error: ' + e.message, 'error');
@@ -6221,24 +6219,30 @@ async function drawRaffleWinner(mode) {
   entries.forEach(e => { for (let i = 0; i < (e.tickets || 1); i++) pool.push(e.username); });
   const winner = pool[Math.floor(Math.random() * pool.length)];
 
+  // For point raffles, capture which item the draw was for (the prize name)
+  let itemName = null;
+  if (mode === 'point' && selectedRaffleItemId) {
+    itemName = raffleItemsList.find(i => i.id === selectedRaffleItemId)?.name || null;
+  }
+
   // Fire raffleTrigger for OBS overlay (same giveaway_state doc, separate key)
   const uid = fb.currentUser?.uid;
   if (uid) {
     fb.db.collection('streamers').doc(uid).collection('giveaway_state').doc('snapshot')
-      .set({ raffleTrigger: { winner, mode, triggeredAt: Date.now() } }, { merge: true })
+      .set({ raffleTrigger: { winner, mode, itemName, triggeredAt: Date.now() } }, { merge: true })
       .catch(() => {});
   }
 
-  openRaffleWheelModal(entries, winner, mode);
+  openRaffleWheelModal(entries, winner, mode, itemName);
 }
 
-function openRaffleWheelModal(entries, winner, mode) {
+function openRaffleWheelModal(entries, winner, mode, itemName) {
   raffleAnimating = true;
   document.getElementById('raffleWheelModal').style.display = 'flex';
   document.getElementById('rafWheelWinner').style.display   = 'none';
   rafWheelAngle = 0;
   rafDrawWheel(entries, 0);
-  setTimeout(() => rafSpinToWinner(entries, winner, mode), 300);
+  setTimeout(() => rafSpinToWinner(entries, winner, mode, itemName), 300);
 }
 
 function closeRaffleWheelModal() {
@@ -6309,7 +6313,7 @@ function rafDrawWheel(entries, angle) {
   ctx.stroke();
 }
 
-function rafSpinToWinner(entries, winnerName, mode) {
+function rafSpinToWinner(entries, winnerName, mode, itemName) {
   const total = entries.reduce((s, e) => s + (e.tickets || 1), 0);
   let cumAngle = 0, winnerMid = 0;
   for (const entry of entries) {
@@ -6337,21 +6341,22 @@ function rafSpinToWinner(entries, winnerName, mode) {
     document.getElementById('rafWheelWinnerName').textContent = winnerName;
     document.getElementById('rafWheelWinner').style.display   = 'block';
     raffleAnimating = false;
-    saveRaffleHistory(winnerName, mode, entries);
+    saveRaffleHistory(winnerName, mode, entries, itemName);
   }
   requestAnimationFrame(tick);
 }
 
-async function saveRaffleHistory(winner, mode, entries) {
+async function saveRaffleHistory(winner, mode, entries, itemName) {
   const uid = fb.currentUser?.uid;
   if (!uid) return;
   const totalEntrants = entries.length;
   const totalTickets  = entries.reduce((s, e) => s + (e.tickets || 1), 0);
   await fb.db.collection('streamers').doc(uid).collection('raffle_history').add({
     winner, mode, totalEntrants, totalTickets,
+    itemName: itemName || null,
     drawnAt: Date.now(),
   }).catch(() => {});
-  logAction('raffle_drawn', { winner, mode, totalEntrants, totalTickets });
+  logAction('raffle_drawn', { winner, mode, totalEntrants, totalTickets, itemName: itemName || null });
 }
 
 let raffleHistoryUnsub = null;
@@ -6379,9 +6384,13 @@ function loadRaffleHistory() {
         const badge = d.mode === 'wager'
           ? `<span style="background:rgba(0,229,255,0.1);color:var(--accent);border:1px solid rgba(0,229,255,0.2);border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700;flex-shrink:0;">WAGER</span>`
           : `<span style="background:rgba(167,139,250,0.1);color:#a78bfa;border:1px solid rgba(167,139,250,0.2);border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700;flex-shrink:0;">POINT</span>`;
-        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(48,54,61,0.4);">
+        const prize = d.itemName
+          ? `<span style="color:var(--text-dim);font-size:11px;">won <strong style="color:var(--accent);">${d.itemName}</strong></span>`
+          : '';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(48,54,61,0.4);flex-wrap:wrap;">
           ${badge}
           <span style="font-weight:700;color:var(--gold);">🏆 ${d.winner}</span>
+          ${prize}
           <span style="color:var(--text-dim);font-size:11px;margin-left:auto;">${d.totalEntrants || 0} viewers · ${ts}</span>
         </div>`;
       }).join('');

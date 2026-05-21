@@ -38,13 +38,14 @@ exports.handler = async (event) => {
     const items = itemsSnap.docs.map(doc => {
       const d = doc.data();
       return {
-        id:          doc.id,
-        name:        d.name || "",
-        description: d.description || "",
-        price:       d.price || 0,
-        imageUrl:    d.imageUrl || null,
-        stock:       d.stock ?? null,
-        category:    d.category || "",
+        id:           doc.id,
+        name:         d.name || "",
+        description:  d.description || "",
+        price:        d.price || 0,
+        imageUrl:     d.imageUrl || null,
+        stock:        d.stock ?? null,
+        category:     d.category || "",
+        isRaffleItem: d.isRaffleItem === true,
       };
     }).sort((a, b) => a.price - b.price);
 

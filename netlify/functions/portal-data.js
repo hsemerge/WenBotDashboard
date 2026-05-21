@@ -124,10 +124,11 @@ exports.handler = async (event) => {
         items: itemsSnap.docs.map(d => {
           const item = d.data();
           return {
-            name:        item.name,
-            description: item.description || null,
-            price:       item.price || 0,
-            stock:       (item.stock === undefined || item.stock === null) ? null : item.stock,
+            name:         item.name,
+            description:  item.description || null,
+            price:        item.price || 0,
+            stock:        (item.stock === undefined || item.stock === null) ? null : item.stock,
+            isRaffleItem: item.isRaffleItem === true,
           };
         }).sort((a, b) => (a.price || 0) - (b.price || 0)),
       };
