@@ -20,6 +20,9 @@ exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
   if (event.httpMethod !== "POST")    return res(405, { error: "Method not allowed" });
 
+  // Lazy init the Firebase Admin SDK before any admin.* call.
+  const db = getDb();
+
   let body;
   try { body = JSON.parse(event.body || "{}"); }
   catch { return res(400, { error: "Invalid JSON" }); }
@@ -45,7 +48,6 @@ exports.handler = async (event) => {
   }
 
   try {
-    const db = getDb();
 
     // Confirm the streamer doc exists (defensive — should always be true)
     const streamerSnap = await db.collection("streamers").doc(ownerUid).get();
