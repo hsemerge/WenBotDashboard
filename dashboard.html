@@ -1980,12 +1980,12 @@
       <!-- Tab switcher (kept inline next to the header so they're hard to miss) -->
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap;">
         <h1 style="font-family:'Exo 2',sans-serif;font-size:24px;font-weight:900;color:var(--bright);margin-right:4px;">Raffles</h1>
-        <button id="rafTab-wager" class="btn btn-accent btn-sm" onclick="switchRaffleTab('wager')" style="min-width:120px;">🎲 Wager Raffle</button>
-        <button id="rafTab-point" class="btn btn-ghost btn-sm" onclick="switchRaffleTab('point')" style="min-width:120px;">🪙 Point Raffle</button>
+        <button id="rafTab-wager" class="btn btn-ghost btn-sm" onclick="switchRaffleTab('wager')" style="min-width:120px;">🎲 Wager Raffle</button>
+        <button id="rafTab-point" class="btn btn-accent btn-sm" onclick="switchRaffleTab('point')" style="min-width:120px;">🪙 Point Raffle</button>
       </div>
 
       <!-- ── WAGER RAFFLE PANEL ── -->
-      <div id="rafPanel-wager">
+      <div id="rafPanel-wager" style="display:none;">
         <div class="grid-2" style="margin-bottom:16px;">
           <!-- Config -->
           <div class="card">
@@ -2033,7 +2033,7 @@
       </div>
 
       <!-- ── POINT RAFFLE PANEL ── -->
-      <div id="rafPanel-point" style="display:none;">
+      <div id="rafPanel-point">
         <!-- Item selector -->
         <div class="card" style="margin-bottom:16px;">
           <div class="card-title">🎟 Active Raffle Items</div>
@@ -5836,7 +5836,7 @@ function tnResetUI() {
 
 // ── RAFFLES ────────────────────────────────────────────────────────────────────
 
-let raffleMode = 'wager';
+let raffleMode = 'point';
 let raffleAnimating = false;
 let wagerRaffleEntries = [];
 let pointRaffleEntries = [];
