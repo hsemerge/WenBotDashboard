@@ -40,18 +40,19 @@ exports.handler = async (event) => {
   const idToken    = authHeader.replace("Bearer ", "").trim();
   if (!idToken) return res(401, { error: "Missing auth token" });
 
-  let uid;
+  let decoded;
   try {
-    const decoded = await admin.auth().verifyIdToken(idToken);
-    uid = decoded.uid;
+    decoded = await admin.auth().verifyIdToken(idToken);
   } catch {
     return res(401, { error: "Invalid auth token" });
   }
+  const actingUid    = decoded.uid;
+  const delegatedFor = Array.isArray(decoded.delegatedFor) ? decoded.delegatedFor : [];
 
   let body = {};
   try { body = JSON.parse(event.body || "{}"); } catch {}
 
-  const { action, details } = body;
+  const { action, details, targetStreamerUid } = body;
   if (!action || !ALLOWED_ACTIONS.has(action)) {
     return res(400, { error: "Invalid or missing action" });
   }
@@ -59,6 +60,31 @@ exports.handler = async (event) => {
     return res(400, { error: "Details must be an object" });
   }
 
-  await logAudit(uid, action, details || {});
+  // Resolve which streamer's audit log this write lands in:
+  //   - If no targetStreamerUid given, log under the auth user's own UID (default
+  //     behavior for non-mod streamers acting on their own data).
+  //   - If targetStreamerUid given AND matches the auth user, also fine.
+  //   - If targetStreamerUid given AND the auth user has it in their
+  //     delegatedFor claim, log under the streamer's UID with actingUid threaded
+  //     through details — captures which moderator actually performed the action.
+  //   - Otherwise reject (the caller is trying to write to someone else's log).
+  let streamerUid = actingUid;
+  let isDelegated = false;
+  if (targetStreamerUid && targetStreamerUid !== actingUid) {
+    if (!delegatedFor.includes(targetStreamerUid)) {
+      return res(403, { error: "Not a moderator for that streamer" });
+    }
+    streamerUid = targetStreamerUid;
+    isDelegated = true;
+  }
+
+  const enriched = {
+    ...(details || {}),
+    actingUid,
+    actingEmail: decoded.email || null,
+    isDelegated,
+  };
+
+  await logAudit(streamerUid, action, enriched);
   return res(200, { ok: true });
 };

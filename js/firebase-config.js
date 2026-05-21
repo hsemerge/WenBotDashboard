@@ -12,7 +12,16 @@ const firebaseConfig = {
   measurementId: "G-PDDC34E377"
 };
 
-// Firebase will be initialized after SDK loads (see initFirebase())
+// Firebase will be initialized after SDK loads (see initFirebase()).
+//
+// Two UIDs matter:
+//   - fb.currentUser.uid : the *auth* user (who's actually logged in).
+//   - fb.activeUid       : the *streamer* whose data the dashboard is
+//                          operating on. Defaults to the auth user's own UID,
+//                          but for moderators (Firebase users with a
+//                          `delegatedFor` custom claim) this can be set to a
+//                          delegated streamer's UID. ALL Firestore queries
+//                          that target streamer data should use fb.activeUid.
 let fb = {
   app: null,
   auth: null,
@@ -20,6 +29,9 @@ let fb = {
   storage: null,
   currentUser: null,
   streamerProfile: null,
+  activeUid: null,
+  delegatedFor: [],   // populated from the auth user's custom claim
+  isModerating: false, // true when fb.activeUid !== fb.currentUser.uid
 };
 
 function initFirebase() {
@@ -32,12 +44,62 @@ function initFirebase() {
   fb.auth.onAuthStateChanged(async (user) => {
     fb.currentUser = user;
     if (user) {
-      try { await loadStreamerProfile(user.uid); } catch (e) { console.warn("loadStreamerProfile failed:", e); }
+      // Pull delegatedFor off the JWT — drives the streamer picker / mod pill
+      try {
+        const tok = await user.getIdTokenResult();
+        fb.delegatedFor = Array.isArray(tok.claims?.delegatedFor) ? tok.claims.delegatedFor : [];
+      } catch { fb.delegatedFor = []; }
+
+      // Default active streamer = the auth user themselves. If a moderator
+      // has previously chosen a delegated streamer via the picker, restore
+      // that selection (validated against the current delegatedFor list).
+      let chosen = null;
+      try {
+        const stored = localStorage.getItem('wb_active_uid');
+        if (stored && stored !== user.uid && fb.delegatedFor.includes(stored)) {
+          chosen = stored;
+        }
+      } catch {}
+      fb.activeUid    = chosen || user.uid;
+      fb.isModerating = fb.activeUid !== user.uid;
+
+      try { await loadStreamerProfile(fb.activeUid); } catch (e) { console.warn("loadStreamerProfile failed:", e); }
+
+      // Edge case: user has delegations but their own streamer profile isn't
+      // onboarded (they signed up just to be a mod, never set up a channel).
+      // Don't bounce them to setup.html — drop them into the first delegated
+      // streamer's dashboard instead.
+      if (fb.activeUid === user.uid
+          && (!fb.streamerProfile || !fb.streamerProfile.onboarded)
+          && fb.delegatedFor.length > 0) {
+        fb.activeUid    = fb.delegatedFor[0];
+        fb.isModerating = true;
+        try { localStorage.setItem('wb_active_uid', fb.activeUid); } catch {}
+        try { await loadStreamerProfile(fb.activeUid); } catch (e) { console.warn("loadStreamerProfile (delegated) failed:", e); }
+      }
+
       onAuthReady(user);
     } else {
+      fb.activeUid    = null;
+      fb.delegatedFor = [];
+      fb.isModerating = false;
       onAuthNotLoggedIn();
     }
   });
+}
+
+// Switch the dashboard to operate on a different streamer (only valid for
+// streamer UIDs in the moderator's delegatedFor list). Persists the choice
+// so a reload keeps the same context.
+async function setActiveStreamer(uid) {
+  if (!fb.currentUser) return;
+  if (uid !== fb.currentUser.uid && !fb.delegatedFor.includes(uid)) {
+    throw new Error("You don't have moderator access to that streamer.");
+  }
+  fb.activeUid    = uid;
+  fb.isModerating = uid !== fb.currentUser.uid;
+  try { localStorage.setItem('wb_active_uid', uid); } catch {}
+  await loadStreamerProfile(uid);
 }
 
 // ---- AUTH FUNCTIONS ----
@@ -78,20 +140,20 @@ async function loadStreamerProfile(uid) {
 }
 
 async function saveStreamerProfile(data) {
-  const uid = fb.currentUser.uid;
+  const uid = fb.activeUid;
   await fb.db.collection("streamers").doc(uid).set(data, { merge: true });
   fb.streamerProfile = { ...fb.streamerProfile, ...data };
 }
 
 // ---- PROVIDER CONFIG (Gambulls, CSBattle, etc.) ----
 async function saveProviderConfig(providerName, config) {
-  const uid = fb.currentUser.uid;
+  const uid = fb.activeUid;
   await fb.db.collection("streamers").doc(uid)
     .collection("providers").doc(providerName).set(config, { merge: true });
 }
 
 async function getProviderConfig(providerName) {
-  const uid = fb.currentUser.uid;
+  const uid = fb.activeUid;
   const doc = await fb.db.collection("streamers").doc(uid)
     .collection("providers").doc(providerName).get();
   return doc.exists ? doc.data() : null;
@@ -99,21 +161,21 @@ async function getProviderConfig(providerName) {
 
 // ---- VERIFIED USERS (Firestore) ----
 async function saveVerifiedUser(kickName, data) {
-  const uid = fb.currentUser.uid;
+  const uid = fb.activeUid;
   const key = kickName.toLowerCase();
   await fb.db.collection("streamers").doc(uid)
     .collection("verified_users").doc(key).set(data);
 }
 
 async function removeVerifiedUser(kickName) {
-  const uid = fb.currentUser.uid;
+  const uid = fb.activeUid;
   const key = kickName.toLowerCase();
   await fb.db.collection("streamers").doc(uid)
     .collection("verified_users").doc(key).delete();
 }
 
 async function loadAllVerifiedUsers() {
-  const uid = fb.currentUser.uid;
+  const uid = fb.activeUid;
   const snapshot = await fb.db.collection("streamers").doc(uid)
     .collection("verified_users").get();
   const users = {};
@@ -124,7 +186,7 @@ async function loadAllVerifiedUsers() {
 }
 
 async function clearAllVerifiedUsers() {
-  const uid = fb.currentUser.uid;
+  const uid = fb.activeUid;
   const snapshot = await fb.db.collection("streamers").doc(uid)
     .collection("verified_users").get();
   const batch = fb.db.batch();
@@ -138,7 +200,7 @@ async function clearAllVerifiedUsers() {
 // loadKickConnection() below is still used to read the saved connection.
 
 async function loadKickConnection() {
-  const uid = fb.currentUser.uid;
+  const uid = fb.activeUid;
   const doc = await fb.db.collection("streamers").doc(uid).get();
   if (!doc.exists) return null;
   const d = doc.data();
@@ -155,7 +217,7 @@ async function loadKickConnection() {
 
 // ---- WINNERS (Firestore) ----
 async function saveWinner(giveawayId, winnerData) {
-  const uid = fb.currentUser.uid;
+  const uid = fb.activeUid;
   await fb.db.collection("streamers").doc(uid)
     .collection("winners").add({
       ...winnerData,
