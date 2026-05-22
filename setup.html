@@ -118,6 +118,28 @@
     }
 
     .provider-info strong { color: var(--text); }
+
+    /* Numbered onboarding steps */
+    .setup-steps { display: flex; flex-direction: column; gap: 18px; }
+    .step {
+      display: flex; gap: 14px; align-items: flex-start;
+      opacity: 0.55; transition: opacity 0.2s;
+    }
+    .step.active { opacity: 1; }
+    .step.done   { opacity: 1; }
+    .step-num {
+      flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Exo 2', sans-serif; font-size: 14px; font-weight: 800;
+      background: var(--bg-input); color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+    .step.active .step-num { background: var(--accent); color: #0d1117; border-color: var(--accent); }
+    .step.done   .step-num { background: #53e077; color: #0d1117; border-color: #53e077; }
+    .step-body { flex: 1; min-width: 0; }
+    .step-title { font-size: 14px; font-weight: 700; color: var(--text-bright); margin-bottom: 2px; }
+    .step-sub   { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; }
+    .step-divider { height: 1px; background: var(--border); margin: 2px 0 2px 42px; opacity: 0.5; }
   </style>
 </head>
 <body>
@@ -153,69 +175,91 @@
         No problem — you can complete setup on Starter and upgrade anytime from the dashboard.
       </div>
 
-      <!-- Kick OAuth connect -->
-      <div id="kickConnectSection" style="margin-bottom:20px;">
-        <div id="kickNotConnected">
-          <button type="button" class="btn btn-accent" style="width:100%;padding:11px;font-size:14px;" onclick="connectKick()">
-            Connect Kick Account
-          </button>
-          <p class="hint" style="text-align:center;margin-top:8px;">One-click — securely links your Kick channel</p>
-        </div>
-        <div id="kickConnected" style="display:none;">
-          <div style="background:rgba(83,224,119,0.08);border:1px solid rgba(83,224,119,0.3);border-radius:var(--radius-sm);padding:12px 14px;display:flex;align-items:center;gap:10px;">
-            <img id="kickAvatar" src="" style="width:32px;height:32px;border-radius:50%;display:none;">
-            <div>
-              <div style="color:#53e077;font-weight:600;font-size:13px;">✅ Kick Connected</div>
-              <div style="color:var(--text-dim);font-size:12px;" id="kickConnectedName"></div>
-            </div>
-            <button type="button" class="btn" style="margin-left:auto;font-size:11px;padding:4px 10px;" onclick="disconnectKick()">Disconnect</button>
-          </div>
-        </div>
-      </div>
-
       <form class="setup-form" onsubmit="handleSetup(event)">
-        <!-- Kick username is sourced from the OAuth-connected account above —
-             no manual entry (prevents channel-hijacking and confusion). -->
+        <div class="setup-steps">
 
-        <div class="setup-field">
-          <label>Affiliate Platform</label>
-          <select id="setupProvider" onchange="updateProviderInfo()">
-            <option value="gambulls">Gambulls</option>
-            <option value="stake">Stake</option>
-            <option value="rainbet">Rainbet</option>
-            <option value="thrill">Thrill</option>
-            <option value="winna">Winna</option>
-            <option value="shuffle">Shuffle</option>
-            <option value="duel">Duel</option>
-            <option value="roobet">Roobet</option>
-            <option value="bcgame">BC.Game</option>
-            <option value="500casino">500 Casino</option>
-            <option value="gamdom">Gamdom</option>
-            <option value="duelbits">Duelbits</option>
-            <option value="rollbit">Rollbit</option>
-            <option value="chipsgg">Chips.gg</option>
-            <option value="notlisted">Not Listed</option>
-          </select>
-        </div>
-
-        <div class="setup-field" id="apiKeyField" style="display:none;">
-          <label id="apiKeyLabel">Gambulls Streamer API Key</label>
-          <input type="password" id="setupApiKey" placeholder="sk_...">
-          <span class="hint" id="apiKeyHint">Found in your Gambulls streamer dashboard</span>
-          <div class="provider-info" id="providerInfo">
-            <strong>Where to find this:</strong><br>
-            Log into Gambulls &rarr; Streamer Dashboard &rarr; API Settings &rarr; copy your Streamer API Key.
-            It starts with <strong>sk_</strong>
+          <!-- ── STEP 1 — Connect Kick ── -->
+          <div class="step active" id="step1">
+            <div class="step-num" id="step1Num">1</div>
+            <div class="step-body">
+              <div class="step-title">Connect your Kick account</div>
+              <div class="step-sub">One click — securely links your channel. This is how WenBot joins your chat.</div>
+              <div id="kickNotConnected">
+                <button type="button" class="btn btn-accent" style="width:100%;padding:11px;font-size:14px;" onclick="connectKick()">
+                  Connect with Kick
+                </button>
+              </div>
+              <div id="kickConnected" style="display:none;">
+                <div style="background:rgba(83,224,119,0.08);border:1px solid rgba(83,224,119,0.3);border-radius:var(--radius-sm);padding:12px 14px;display:flex;align-items:center;gap:10px;">
+                  <img id="kickAvatar" src="" style="width:32px;height:32px;border-radius:50%;display:none;">
+                  <div>
+                    <div style="color:#53e077;font-weight:600;font-size:13px;">Connected</div>
+                    <div style="color:var(--text-dim);font-size:12px;" id="kickConnectedName"></div>
+                  </div>
+                  <button type="button" class="btn" style="margin-left:auto;font-size:11px;padding:4px 10px;" onclick="disconnectKick()">Disconnect</button>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div class="setup-field">
-          <label>Display Name (optional)</label>
-          <input type="text" id="setupDisplayName" placeholder="How viewers see your name">
-        </div>
+          <div class="step-divider"></div>
 
-        <button type="submit" class="btn btn-accent setup-submit" id="setupBtn" disabled title="Connect your Kick account first">Complete Setup</button>
-        <div id="setupBtnHint" class="hint" style="text-align:center;margin-top:6px;">Connect your Kick account above to enable this button.</div>
+          <!-- ── STEP 2 — Affiliate platform ── -->
+          <div class="step" id="step2">
+            <div class="step-num" id="step2Num">2</div>
+            <div class="step-body">
+              <div class="step-title">Your affiliate platform</div>
+              <div class="step-sub">Where your viewers wager. Used for verification &amp; the leaderboard.</div>
+              <div class="setup-field">
+                <select id="setupProvider" onchange="updateProviderInfo()">
+                  <option value="gambulls">Gambulls</option>
+                  <option value="stake">Stake</option>
+                  <option value="rainbet">Rainbet</option>
+                  <option value="thrill">Thrill</option>
+                  <option value="winna">Winna</option>
+                  <option value="shuffle">Shuffle</option>
+                  <option value="duel">Duel</option>
+                  <option value="roobet">Roobet</option>
+                  <option value="bcgame">BC.Game</option>
+                  <option value="500casino">500 Casino</option>
+                  <option value="gamdom">Gamdom</option>
+                  <option value="duelbits">Duelbits</option>
+                  <option value="rollbit">Rollbit</option>
+                  <option value="chipsgg">Chips.gg</option>
+                  <option value="notlisted">Not Listed</option>
+                </select>
+              </div>
+              <div class="setup-field" id="apiKeyField" style="display:none;">
+                <label id="apiKeyLabel">Gambulls Streamer API Key</label>
+                <input type="password" id="setupApiKey" placeholder="sk_...">
+                <span class="hint" id="apiKeyHint">Found in your Gambulls streamer dashboard</span>
+                <div class="provider-info" id="providerInfo">
+                  <strong>Where to find this:</strong><br>
+                  Log into Gambulls &rarr; Streamer Dashboard &rarr; API Settings &rarr; copy your Streamer API Key.
+                  It starts with <strong>sk_</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="step-divider"></div>
+
+          <!-- ── STEP 3 — Finish ── -->
+          <div class="step" id="step3">
+            <div class="step-num" id="step3Num">3</div>
+            <div class="step-body">
+              <div class="step-title">Finish</div>
+              <div class="step-sub">Set how viewers see your name, then launch your dashboard.</div>
+              <div class="setup-field">
+                <label>Display Name (optional)</label>
+                <input type="text" id="setupDisplayName" placeholder="How viewers see your name">
+              </div>
+              <button type="submit" class="btn btn-accent setup-submit" id="setupBtn" disabled title="Connect your Kick account first">Complete Setup</button>
+              <div id="setupBtnHint" class="hint" style="text-align:center;margin-top:6px;">Finish Step 1 to enable this.</div>
+            </div>
+          </div>
+
+        </div>
       </form>
 
       <div class="setup-signout">
@@ -307,7 +351,13 @@
         img.src   = avatar;
         img.style.display = "block";
       }
-      // OAuth complete — unlock the submit button.
+      // Step 1 done → tick it, light up steps 2 & 3, unlock submit.
+      const s1 = document.getElementById("step1");
+      s1.classList.remove("active"); s1.classList.add("done");
+      document.getElementById("step1Num").textContent = "✓";
+      document.getElementById("step2").classList.add("active");
+      document.getElementById("step3").classList.add("active");
+
       const btn = document.getElementById("setupBtn");
       btn.disabled = false;
       btn.removeAttribute("title");
@@ -322,7 +372,13 @@
     function disconnectKick() {
       document.getElementById("kickNotConnected").style.display = "block";
       document.getElementById("kickConnected").style.display    = "none";
-      // Re-lock the submit button until OAuth is completed again.
+      // Revert step states back to "Step 1 pending".
+      const s1 = document.getElementById("step1");
+      s1.classList.remove("done"); s1.classList.add("active");
+      document.getElementById("step1Num").textContent = "1";
+      document.getElementById("step2").classList.remove("active");
+      document.getElementById("step3").classList.remove("active");
+
       const btn = document.getElementById("setupBtn");
       btn.disabled = true;
       btn.title    = "Connect your Kick account first";
