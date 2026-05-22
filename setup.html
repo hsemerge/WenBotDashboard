@@ -409,12 +409,15 @@
 
       if (API_CASINOS.has(provider) && isElitePlus) {
         apiKeyField.style.display = '';
-        input.required = true;
+        // Recommended, not required — streamers can finish setup without it and
+        // add the key later in Settings (the leaderboard just stays empty until
+        // they do).
+        input.required = false;
         if (provider === "gambulls") {
-          label.textContent = "Gambulls Streamer API Key";
-          hint.textContent  = "Found in your Gambulls streamer dashboard";
+          label.textContent = "Gambulls Streamer API Key (recommended)";
+          hint.textContent  = "Powers your live leaderboard. You can add this later in Settings.";
           input.placeholder = "sk_...";
-          info.innerHTML    = '<strong>Where to find this:</strong><br>Log into Gambulls &rarr; Streamer Dashboard &rarr; API Settings &rarr; copy your Streamer API Key. It starts with <strong>sk_</strong>';
+          info.innerHTML    = '<strong>Where to find this:</strong><br>Log into Gambulls &rarr; Streamer Dashboard &rarr; API Settings &rarr; copy your Streamer API Key. It starts with <strong>sk_</strong><br><span style="color:var(--text-dim);">Don\'t have it handy? Skip it for now and add it from Settings anytime.</span>';
         }
       } else {
         apiKeyField.style.display = 'none';
@@ -453,7 +456,8 @@
         const isElitePlus = ['elite', 'agency'].includes(pendingPlan) || isTest;
         const hasPaid     = fb.streamerProfile?.stripeSubscriptionActive === true;
 
-        if (API_CASINOS.has(provider) && isElitePlus && !apiKey) throw new Error("Enter your affiliate API key.");
+        // API key is optional at setup — they can add it later in Settings.
+        // No hard block; if empty we just skip saving the provider config below.
 
         // Note: kickChannel is set server-side by the Kick OAuth finalize endpoint —
         // never written from the client (Firestore rules block it).
