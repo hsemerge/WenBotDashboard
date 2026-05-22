@@ -87,13 +87,23 @@ exports.handler = async (event) => {
 
   // 3b. Guard: one Kick account = one WenBot streamer account. If this Kick
   // identity is already connected to a DIFFERENT streamer doc, reject — two
-  // docs sharing a kickChannel would break the bot's channel→streamer routing.
+  // docs sharing a kickChannel would break the bot's channel→streamer routing
+  // (and let a second account inherit owner/tier status keyed off the channel).
   // (Reconnecting to the SAME doc is fine — that's the Reconnect Kick flow.)
+  //
+  // We check BOTH kickChannel (canonical lowercase routing key) and kickUserId
+  // (Kick identity) because older docs may have stored kickUserId as a number,
+  // which a string-equality query would miss. kickChannel is the reliable key.
   try {
-    const dupeSnap = await db.collection("streamers")
-      .where("kickUserId", "==", String(kickUser.user_id))
-      .get();
-    const conflict = dupeSnap.docs.find(d => d.id !== uid);
+    const channelLower = (kickUser.name || "").toLowerCase();
+    const [byChannel, byUserId] = await Promise.all([
+      channelLower
+        ? db.collection("streamers").where("kickChannel", "==", channelLower).get()
+        : Promise.resolve({ docs: [] }),
+      db.collection("streamers").where("kickUserId", "==", String(kickUser.user_id)).get(),
+    ]);
+    const conflictDocs = [...(byChannel.docs || []), ...(byUserId.docs || [])];
+    const conflict = conflictDocs.find(d => d.id !== uid);
     if (conflict) {
       return res(409, {
         error: `The Kick account @${kickUser.name} is already connected to another WenBot account. Each Kick channel can only be linked to one WenBot account.`,
