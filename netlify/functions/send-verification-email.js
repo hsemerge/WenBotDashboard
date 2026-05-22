@@ -9,7 +9,7 @@
 
 const { getDb, admin }              = require("./_lib/firebase");
 const { res: _res, checkRateLimit } = require("./_lib/http");
-const { sendEmail, wrap, button }   = require("./_lib/email");
+const { sendEmail, wrap, button, SUPPORT_EMAIL } = require("./_lib/email");
 const res = (s, b) => _res(s, b, "*");
 
 const DEFAULT_CONTINUE = "https://wenbot.gg/setup.html";
@@ -56,6 +56,7 @@ exports.handler = async (event) => {
     const link = await admin.auth().generateEmailVerificationLink(email, { url: continueUrl });
     const sent = await sendEmail({
       to:      email,
+      replyTo: SUPPORT_EMAIL,
       subject: "Verify your WenBot email",
       html: wrap("Confirm your email",
         `<p>Welcome to WenBot! Tap the button below to verify your email and finish setting up your streamer dashboard.</p>

@@ -64,8 +64,8 @@ exports.handler = async (event) => {
           "Content-Type":  "application/json",
         },
         body: JSON.stringify({
-          from:    "WenBot <noreply@wenbot.gg>",
-          to:      "sales@logicplaystudios.com",
+          from:    "WenBot <support@wenbot.gg>",
+          to:      "support@logicplaystudios.com",
           subject: `[WenBot] Agency Inquiry — ${escHtml(name)}`,
           html: `
             <h2>New Agency Inquiry</h2>

@@ -7,6 +7,10 @@
 // spam-filtered because its domain doesn't align with wenbot.gg.
 
 const FROM = "WenBot <support@wenbot.gg>";
+// Where human replies should land — a monitored inbox. support@wenbot.gg
+// forwards here too, but setting reply-to explicitly guarantees replies reach
+// us even if forwarding isn't configured.
+const SUPPORT_EMAIL = "support@logicplaystudios.com";
 
 // Wraps body HTML in a consistent branded shell. `bodyHtml` is trusted
 // (built by us, never raw user input) — callers must escape any dynamic
@@ -68,4 +72,4 @@ async function sendEmail({ to, subject, html, replyTo }) {
   return true;
 }
 
-module.exports = { sendEmail, wrap, button, FROM };
+module.exports = { sendEmail, wrap, button, FROM, SUPPORT_EMAIL };

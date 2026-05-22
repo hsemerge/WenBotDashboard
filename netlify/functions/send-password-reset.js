@@ -11,7 +11,7 @@
 
 const { getDb, admin }              = require("./_lib/firebase");
 const { res: _res, checkRateLimit } = require("./_lib/http");
-const { sendEmail, wrap, button }   = require("./_lib/email");
+const { sendEmail, wrap, button, SUPPORT_EMAIL } = require("./_lib/email");
 const res = (s, b) => _res(s, b, "*");
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -49,6 +49,7 @@ exports.handler = async (event) => {
     const link = await admin.auth().generatePasswordResetLink(email, { url: continueUrl });
     await sendEmail({
       to:      email,
+      replyTo: SUPPORT_EMAIL,
       subject: "Reset your WenBot password",
       html: wrap("Reset your password",
         `<p>We got a request to reset the password for your WenBot account. Tap below to choose a new one.</p>
