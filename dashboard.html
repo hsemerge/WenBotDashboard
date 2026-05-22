@@ -1250,9 +1250,16 @@
         </div>
       </div>
 
-      <!-- Team — owner-only moderator delegation -->
+      <!-- Team — owner-only moderator delegation (Elite feature) -->
       <div style="margin-top:16px;" class="owner-only">
-        <div class="card">
+        <div class="card" style="position:relative;overflow:hidden;">
+          <!-- Elite lock overlay — shown when plan < elite -->
+          <div id="teamLockOverlay" style="display:none;position:absolute;inset:0;background:rgba(13,17,23,0.88);backdrop-filter:blur(4px);border-radius:inherit;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center;">
+            <div style="font-size:32px;">⭐</div>
+            <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:#ffd700;">Elite Feature</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.55);max-width:320px;line-height:1.5;">Team moderators are included in the Elite plan ($50/mo).</div>
+            <button onclick="upgradeTarget='elite';upgradeNow(this)" class="btn btn-accent" style="padding:10px 24px;margin-top:4px;">Upgrade to Elite</button>
+          </div>
           <div class="card-title">👥 Team — Moderator Access</div>
           <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
             Grant up to 2 trusted moderators full dashboard access to your account. They keep their own
@@ -1470,9 +1477,9 @@
           </div>
 
           <div class="card help-section" style="margin-bottom:0;">
-            <h3>👥 Team — Moderators</h3>
+            <h3>👥 Team — Moderators <span style="font-size:10px;font-weight:700;color:#ffd700;background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.3);border-radius:10px;padding:2px 8px;letter-spacing:0.04em;">ELITE</span></h3>
             <div style="font-size:13px;color:var(--text);line-height:1.6;">
-              Add up to <strong>2 moderators</strong> from <strong>Settings → 👥 Team</strong>. They keep their own WenBot login but get full dashboard access on your behalf. Every action is attributed to them in the Activity Log.
+              Add up to <strong>2 moderators</strong> from <strong>Settings → 👥 Team</strong> (Elite feature). They keep their own WenBot login but get full dashboard access on your behalf. Every action is attributed to them in the Activity Log.
               <div style="margin-top:10px;padding:10px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;font-size:12px;">
                 <strong style="color:var(--accent);">Mods can:</strong> manage giveaways, store, raffles, verified users, points, portal customization, Discord settings, view audit log.<br>
                 <strong style="color:#ffc107;">Mods can't:</strong> change billing, reconnect Kick, add/remove other mods, export your data.
@@ -2531,12 +2538,12 @@ function applyTierLocks() {
     }
   });
 
-  // Lock inline sections (Discord lives inside Settings, not its own page)
+  // Lock inline sections (Discord + Team live inside Settings, not their own pages)
+  const eliteLocked = !isOwnerAcct && (PLAN_RANK[userPlan] ?? 0) < PLAN_RANK['elite'];
   const discordLock = document.getElementById('discordLockOverlay');
-  if (discordLock) {
-    const locked = !isOwnerAcct && (PLAN_RANK[userPlan] ?? 0) < PLAN_RANK['elite'];
-    discordLock.style.display = locked ? 'flex' : 'none';
-  }
+  if (discordLock) discordLock.style.display = eliteLocked ? 'flex' : 'none';
+  const teamLock = document.getElementById('teamLockOverlay');
+  if (teamLock) teamLock.style.display = eliteLocked ? 'flex' : 'none';
 
   // Update plan badge pill in sidebar nav item
   const info  = PLAN_INFO[userPlan] || PLAN_INFO.starter;

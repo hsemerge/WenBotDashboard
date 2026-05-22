@@ -57,6 +57,16 @@ exports.handler = async (event) => {
     const streamerData = streamerSnap.data();
     const existingMods = Array.isArray(streamerData.modUids) ? streamerData.modUids : [];
 
+    // Team moderators are an Elite feature — enforce server-side (the dashboard
+    // overlay can be bypassed via DOM tampering).
+    const OWNER_CHANNELS = new Set(["emergeonkick"]);
+    const TIER_RANK = { starter: 0, pro: 1, elite: 2, agency: 3 };
+    const isOwnerChannel = OWNER_CHANNELS.has((streamerData.kickChannel || "").toLowerCase());
+    const plan = isOwnerChannel ? "agency" : (streamerData.plan || "starter");
+    if ((TIER_RANK[plan] ?? 0) < TIER_RANK.elite) {
+      return res(403, { error: "Team moderators are an Elite feature. Upgrade to Elite to add moderators." });
+    }
+
     // Find the moderator's Firebase user by email
     const modUser = await findUserByEmail(email);
     if (!modUser) {
