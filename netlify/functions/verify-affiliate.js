@@ -209,6 +209,7 @@ exports.handler = async (event) => {
       discordLinked:     !!discordUserId,
       discordLinkedAny:  hasExistingDiscordLink,
       discordUsername:   discordUsername || null,
+      streamerHasDiscord: !!streamerData.discordConfig?.guildId,
       verifyBonusAwarded,
     });
 
