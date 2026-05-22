@@ -20,6 +20,12 @@ exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
   if (event.httpMethod !== "POST")    return res(405, { error: "Method not allowed" });
 
+  // Lazy-init the Firebase Admin SDK BEFORE any admin.auth() call. On a cold
+  // Lambda start the SDK isn't initialized until getDb() runs — calling
+  // admin.auth().verifyIdToken() first would throw and return a misleading
+  // 401, breaking Kick connection on the first (cold) attempt.
+  const db = getDb();
+
   let body;
   try { body = JSON.parse(event.body || "{}"); }
   catch { return res(400, { error: "Invalid JSON" }); }
@@ -79,9 +85,28 @@ exports.handler = async (event) => {
     return res(500, { error: "Could not fetch Kick profile" });
   }
 
+  // 3b. Guard: one Kick account = one WenBot streamer account. If this Kick
+  // identity is already connected to a DIFFERENT streamer doc, reject — two
+  // docs sharing a kickChannel would break the bot's channel→streamer routing.
+  // (Reconnecting to the SAME doc is fine — that's the Reconnect Kick flow.)
+  try {
+    const dupeSnap = await db.collection("streamers")
+      .where("kickUserId", "==", String(kickUser.user_id))
+      .get();
+    const conflict = dupeSnap.docs.find(d => d.id !== uid);
+    if (conflict) {
+      return res(409, {
+        error: `The Kick account @${kickUser.name} is already connected to another WenBot account. Each Kick channel can only be linked to one WenBot account.`,
+      });
+    }
+  } catch (err) {
+    console.error("[kick-streamer-finalize] dupe check error:", err.message);
+    // Non-fatal — fall through and let the write proceed rather than block setup
+  }
+
   // 4. Store via admin SDK (bypasses client-side write rules on protected fields)
   try {
-    await getDb().collection("streamers").doc(uid).set({
+    await db.collection("streamers").doc(uid).set({
       kickUserId:         String(kickUser.user_id),
       kickUsername:       kickUser.name,
       kickEmail:          kickUser.email || null,
