@@ -370,10 +370,14 @@
       const email = document.getElementById('signupEmail').value;
       justSignedUp = true;
       const cred  = await firebase.auth().createUserWithEmailAndPassword(email, password);
-      // Send verification email immediately — gates dashboard access and Stripe checkout.
+      // Send verification email via our Resend-backed endpoint (from
+      // support@wenbot.gg) instead of Firebase's slow/spam-prone default sender.
       try {
-        await cred.user.sendEmailVerification({
-          url: `${window.location.origin}/setup.html?plan=${selectedPlan}`,
+        const idToken = await cred.user.getIdToken();
+        await fetch('/api/send-verification-email', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ continueUrl: `${window.location.origin}/setup.html?plan=${selectedPlan}` }),
         });
       } catch (e) { console.warn("Failed to send verification email:", e); }
       // Always write plan:'starter' from client — paid plan is set server-side by Stripe webhook.

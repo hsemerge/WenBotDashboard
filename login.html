@@ -285,12 +285,23 @@
         return;
       }
       try {
-        await resetPassword(email);
-        showError("Password reset email sent! Check your inbox.");
+        // Routed through our Resend-backed endpoint (from support@wenbot.gg)
+        // instead of Firebase's default sender. Always reports success — the
+        // server intentionally doesn't reveal whether the email is registered.
+        const resp = await fetch('/api/send-password-reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, continueUrl: `${window.location.origin}/login.html` }),
+        });
+        if (!resp.ok) {
+          const d = await resp.json().catch(() => ({}));
+          throw new Error(d.error || 'Could not send reset email.');
+        }
+        showError("If that email has an account, a reset link is on its way. Check your inbox and spam.");
         document.getElementById("authError").style.borderColor = "var(--green)";
         document.getElementById("authError").style.color = "var(--green)";
       } catch (err) {
-        showError(friendlyError(err.code));
+        showError(err.message || friendlyError(err.code));
       }
     }
 

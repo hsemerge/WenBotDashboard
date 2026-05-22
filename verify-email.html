@@ -109,10 +109,17 @@
     const btn = document.getElementById('resendBtn');
     btn.disabled = true;
     try {
-      await user.sendEmailVerification({
-        url: `${window.location.origin}/setup.html?plan=${encodeURIComponent(plan)}`,
+      const idToken = await user.getIdToken();
+      const resp = await fetch('/api/send-verification-email', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ continueUrl: `${window.location.origin}/setup.html?plan=${encodeURIComponent(plan)}` }),
       });
-      setStatus('Verification email sent — check your inbox.', 'ok');
+      if (!resp.ok) {
+        const d = await resp.json().catch(() => ({}));
+        throw new Error(d.error || 'send failed');
+      }
+      setStatus('Verification email sent — check your inbox (and spam).', 'ok');
       resendCooldown = 30;
       const tick = setInterval(() => {
         resendCooldown--;
@@ -120,7 +127,7 @@
         if (resendCooldown <= 0) { clearInterval(tick); btn.disabled = false; }
       }, 1000);
     } catch (e) {
-      setStatus('Could not send: ' + (e.code || 'unknown error'), 'err');
+      setStatus('Could not send: ' + (e.message || e.code || 'unknown error'), 'err');
       btn.disabled = false;
     }
   }
