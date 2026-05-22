@@ -373,9 +373,11 @@
     const params = new URLSearchParams({
       client_id:     '1505048778770481173',
       response_type: 'code',
-      // 'guilds' lets us read the user's server list so we can confirm they're
-      // actually a member of THIS streamer's Discord (not just any account).
-      scope:         'identify guilds',
+      // identify       — read their Discord user id/name
+      // guilds         — read their server list (membership check)
+      // guilds.join    — let WenBot add them to the streamer's server if they
+      //                  aren't already in it (one-click join + link)
+      scope:         'identify guilds guilds.join',
       redirect_uri:  'https://wenbot.gg/discord-verify-callback.html',
       state,
     });

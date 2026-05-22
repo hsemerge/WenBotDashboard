@@ -49,10 +49,14 @@
   const code   = params.get('code');
   const state  = params.get('state');
 
-  function showSuccess(discordUsername, kickUsername) {
+  function showSuccess(discordUsername, kickUsername, joined) {
+    const joinedLine = joined
+      ? `<div class="sub">You've been added to the streamer's Discord server. </div>`
+      : '';
     document.getElementById('card').innerHTML = `
       <div class="icon">🎉</div>
-      <div class="title">Discord Linked!</div>
+      <div class="title">${joined ? 'Welcome to the Server!' : 'Discord Linked!'}</div>
+      ${joinedLine}
       <div class="sub">Your accounts are now connected. You can use <strong>/points</strong>, <strong>/buy</strong>, and <strong>/join</strong> in the Discord server.</div>
       <div class="pill">💬 ${kickUsername} → 🎮 ${discordUsername}</div>`;
   }
@@ -77,7 +81,7 @@
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || 'Unknown error');
-      showSuccess(data.discordUsername, data.kickUsername);
+      showSuccess(data.discordUsername, data.kickUsername, data.joined);
     } catch (e) {
       showError('Failed to link: ' + e.message);
     }

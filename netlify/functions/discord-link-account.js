@@ -71,31 +71,54 @@ exports.handler = async (event) => {
   const discordUserId  = discordUser.id;
   const discordUsername = discordUser.username;
 
-  // Verify the user is actually a member of the streamer's Discord server.
-  // The 'guilds' scope lets us read their guild list; we require the streamer's
-  // guildId to be present. This stops "universal" links from accounts that
-  // aren't in the server.
+  // Check whether the user is already in the streamer's Discord server.
+  // The 'guilds' scope lets us read their guild list.
+  let alreadyMember = false;
   try {
     const guildsResp = await fetch("https://discord.com/api/v10/users/@me/guilds", {
       headers: { "Authorization": `Bearer ${access_token}` },
     });
-    if (!guildsResp.ok) {
-      return res(502, { error: "Couldn't read your Discord servers. Please try again." });
-    }
-    const guilds = await guildsResp.json();
-    const isMember = Array.isArray(guilds) && guilds.some(g => g.id === guildId);
-    if (!isMember) {
-      return res(403, {
-        error: "You're not in this streamer's Discord server yet. Join it first, then link your account.",
-        notInGuild: true,
-      });
+    if (guildsResp.ok) {
+      const guilds = await guildsResp.json();
+      alreadyMember = Array.isArray(guilds) && guilds.some(g => g.id === guildId);
     }
   } catch (err) {
-    console.error("[discord-link-account] guild check failed:", err.message);
-    return res(502, { error: "Couldn't verify your Discord membership. Please try again." });
+    console.warn("[discord-link-account] guild list read failed:", err.message);
+    // Non-fatal — we'll attempt the join below regardless
   }
 
-  // Save the discord_link (now guild-verified)
+  // If they're not already in the server, add them via the 'guilds.join' scope.
+  // PUT /guilds/{guild}/members/{user} with the bot token + the user's OAuth
+  // access token adds them to the server (requires the bot to be in the guild
+  // with the Create Instant Invite permission).
+  let joined = false;
+  if (!alreadyMember) {
+    try {
+      const joinResp = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${discordUserId}`, {
+        method:  "PUT",
+        headers: {
+          "Authorization": `Bot ${process.env.DISCORD_BOT_TOKEN}`,
+          "Content-Type":  "application/json",
+        },
+        body: JSON.stringify({ access_token }),
+      });
+      // 201 = added, 204 = already a member. Both are success.
+      if (joinResp.ok) {
+        joined = true;
+      } else {
+        const detail = await joinResp.text().catch(() => "");
+        console.error("[discord-link-account] guild join failed:", joinResp.status, detail.slice(0, 200));
+        return res(502, {
+          error: "Couldn't add you to the streamer's Discord server. They may need to re-invite WenBot with the right permissions. Try joining the server manually, then link again.",
+        });
+      }
+    } catch (err) {
+      console.error("[discord-link-account] guild join error:", err.message);
+      return res(502, { error: "Couldn't add you to the Discord server. Please try again." });
+    }
+  }
+
+  // Save the discord_link (guild-verified — they're now in the server)
   await db.collection("streamers").doc(streamerUid)
     .collection("discord_links").doc(discordUserId).set({
       kickUsername,
@@ -105,5 +128,5 @@ exports.handler = async (event) => {
       linkedAt: Date.now(),
     });
 
-  return res(200, { success: true, discordUsername, kickUsername });
+  return res(200, { success: true, discordUsername, kickUsername, joined, alreadyMember });
 };
