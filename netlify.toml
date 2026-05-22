@@ -173,6 +173,11 @@
   to     = "/.netlify/functions/send-password-reset"
   status = 200
 
+[[redirects]]
+  from   = "/api/kick-login"
+  to     = "/.netlify/functions/kick-login"
+  status = 200
+
 # Streamer portal — catch-all rewrite. wenbot.gg/<channel> shows that streamer's
 # public hub. Static files take precedence (Netlify serves real files first),
 # so /dashboard.html, /signup.html, etc. continue working unaffected.

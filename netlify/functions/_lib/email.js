@@ -20,7 +20,7 @@ function wrap(title, bodyHtml) {
   <div style="background:#0d1117;padding:32px 0;font-family:Arial,Helvetica,sans-serif;">
     <div style="max-width:480px;margin:0 auto;background:#161b22;border:1px solid #30363d;border-radius:12px;overflow:hidden;">
       <div style="padding:24px 32px;border-bottom:1px solid #30363d;">
-        <span style="font-family:'Exo 2',Arial,sans-serif;font-size:22px;font-weight:800;color:#00e5ff;">WenBot</span>
+        <img src="https://wenbot.gg/img/logo.png" alt="WenBot" height="36" style="height:36px;object-fit:contain;display:inline-block;">
       </div>
       <div style="padding:28px 32px;color:#c9d1d9;font-size:15px;line-height:1.6;">
         <h1 style="font-size:18px;color:#f0f6fc;margin:0 0 16px;">${title}</h1>

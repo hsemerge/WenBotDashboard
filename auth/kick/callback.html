@@ -36,7 +36,7 @@
 </head>
 <body>
   <div class="cb-card">
-    <div class="cb-logo">WenBot</div>
+    <div class="cb-logo"><img src="/img/logo.png" alt="WenBot" style="height:48px;object-fit:contain;"></div>
     <div class="spinner" id="spinner"></div>
     <div class="check-icon" id="checkIcon" style="display:none;">✅</div>
     <div class="cb-status" id="status">Connecting your Kick account...</div>
@@ -99,7 +99,8 @@
       const isWenBot   = state && state.startsWith("wenbot_");
       const isViewer   = state && state.startsWith("viewer_");
       const isVerify   = state && state.startsWith("verify_");
-      const isStreamer = !isWenBot && !isViewer && !isVerify;
+      const isLogin    = state && state.startsWith("login_");
+      const isStreamer = !isWenBot && !isViewer && !isVerify && !isLogin;
 
       // Look up the OAuth state payload from localStorage (set by initiateKickAuth)
       if (isWenBot || isViewer || isVerify) {
@@ -123,6 +124,31 @@
       }
 
       try {
+        // "Sign in with Kick" — exchange the code server-side, get a Firebase
+        // custom token for the linked account, sign in. No payload needed.
+        if (isLogin) {
+          setDetail("Signing you in...");
+          const loginResp = await fetch("/api/kick-login", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ code, code_verifier: verifier }),
+          });
+          const loginData = await loginResp.json();
+          if (!loginResp.ok) throw new Error(loginData.error || "Sign-in failed");
+
+          localStorage.removeItem("kick_code_verifier");
+          localStorage.removeItem("kick_auth_purpose");
+          try { localStorage.removeItem(`oauth_state_${state.slice("login_".length)}`); } catch {}
+
+          await firebase.auth().signInWithCustomToken(loginData.customToken);
+          showCheck();
+          setStatus("Signed in!", "success");
+          setDetail("Taking you to your dashboard...");
+          // login.html routes onboarded → dashboard, otherwise → setup
+          setTimeout(() => window.location.href = "/login.html", 1200);
+          return;
+        }
+
         // Streamer flow: hand the raw code straight to the server.
         // Tokens never enter the browser — they're exchanged and stored via admin SDK.
         if (isStreamer) {
@@ -226,7 +252,9 @@
 
     function redirectBack(delay) {
       let dest = "/setup.html";
-      if (state && state.startsWith("wenbot_")) {
+      if (state && state.startsWith("login_")) {
+        dest = "/login.html";
+      } else if (state && state.startsWith("wenbot_")) {
         dest = "/admin/wenbot-auth.html";
       } else if (state && state.startsWith("viewer_")) {
         const ch = (typeof statePayload === 'object' && statePayload?.channel) || "";

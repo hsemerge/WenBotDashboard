@@ -90,6 +90,17 @@ async function initiateKickAuth(purpose = "streamer", payload = "") {
     state  = `viewer_${nonce}`;
     scopes = "user:read";
 
+  } else if (purpose === "login") {
+    // "Sign in with Kick" — no payload needed; the callback exchanges the code
+    // server-side and mints a Firebase custom token. user:read is enough to
+    // read the Kick profile for the account lookup.
+    const nonce = makeNonce();
+    localStorage.setItem(`oauth_state_${nonce}`, JSON.stringify({
+      purpose: "login", createdAt: Date.now(),
+    }));
+    state  = `login_${nonce}`;
+    scopes = "user:read";
+
   } else if (purpose === "verify") {
     // payload is either an object {channel, casino, dtoken?} or a legacy base64 string
     let p;
