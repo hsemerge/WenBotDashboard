@@ -1192,6 +1192,13 @@
             It shows your bio, socials, active giveaways, and—depending on your plan—your store, raffle winners, and leaderboard.
           </p>
 
+          <!-- Starter upgrade gate — portal is a Pro+ feature -->
+          <div id="portalUpgradeNote" style="display:none;background:rgba(255,193,7,0.08);border:1px solid rgba(255,193,7,0.3);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#ffd54a;line-height:1.6;">
+            ⭐ Your public portal is a <strong>Pro</strong> feature. Upgrade to make
+            <strong>wenbot.gg/<span id="portalUpgradeChannel">yourchannel</span></strong> live (store + raffle winners). The live leaderboard + theme color unlock on <strong>Elite</strong>.
+            <button onclick="upgradeTarget='pro';upgradeNow(this)" class="btn btn-accent" style="margin-top:8px;padding:6px 14px;font-size:12px;">Upgrade to Pro</button>
+          </div>
+
           <!-- Constrain the form column so inputs don't sprawl across wide screens -->
           <div style="max-width:720px;">
             <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin-bottom:16px;">
@@ -3657,6 +3664,16 @@ function loadPortalSettings() {
   // Elite lock for theme color
   const isElite = userPlan === 'elite' || userPlan === 'agency';
   document.getElementById('portalThemeLockOverlay').style.display = isElite ? 'none' : 'flex';
+
+  // Portal is Pro+. Show a Starter upgrade note (the public portal returns 404
+  // for Starter regardless of what they fill in here).
+  const isProPlus = ['pro', 'elite', 'agency'].includes(userPlan);
+  const upNote = document.getElementById('portalUpgradeNote');
+  if (upNote) {
+    upNote.style.display = isProPlus ? 'none' : '';
+    const chEl = document.getElementById('portalUpgradeChannel');
+    if (chEl) chEl.textContent = channel || 'yourchannel';
+  }
 }
 
 function resetPortalTheme() {

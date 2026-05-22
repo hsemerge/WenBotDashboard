@@ -76,6 +76,14 @@ exports.handler = async (event) => {
     const isOwner = OWNER_CHANNELS.has(channel);
     const plan = isOwner ? "agency" : (profile.plan || "starter");
     const tier = tierOf(plan);
+
+    // Portal is a Pro+ feature. Starter has no public portal at all.
+    // (Pro = basic portal: store + raffle winners + giveaway.
+    //  Elite = full portal: + live leaderboard + bonus battle/tournament + theme.)
+    if (tier < TIER_RANK.pro) {
+      return res(404, { error: "Portal not available on this plan" });
+    }
+
     const provider = (profile.activeProvider || "gambulls").toLowerCase();
 
     // Public-safe streamer info. Anything sensitive is NOT included here.
