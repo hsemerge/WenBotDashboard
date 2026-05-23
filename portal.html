@@ -478,6 +478,16 @@
     return 'rank-other';
   }
 
+  // -------- Theme color ----------
+  const DEFAULT_ACCENT      = '#00e5ff';
+  const DEFAULT_ACCENT_GLOW = 'rgba(0,229,255,0.2)';
+
+  function applyTheme(s) {
+    const color = s.streamer.themeColor || null;
+    document.documentElement.style.setProperty('--accent',      color ? color                : DEFAULT_ACCENT);
+    document.documentElement.style.setProperty('--accent-glow', color ? hexToGlow(color)    : DEFAULT_ACCENT_GLOW);
+  }
+
   // -------- Render: header / hero ----------
   function renderHero(s) {
     document.title = `${s.streamer.displayName} — WenBot Portal`;
@@ -490,11 +500,7 @@
       document.getElementById('ogImage').setAttribute('content', s.streamer.logoUrl);
     }
 
-    // Apply theme color (Elite+ only — server sends null otherwise)
-    if (s.streamer.themeColor) {
-      document.documentElement.style.setProperty('--accent', s.streamer.themeColor);
-      document.documentElement.style.setProperty('--accent-glow', hexToGlow(s.streamer.themeColor));
-    }
+    applyTheme(s);
 
     // Casino badge + Kick "Watch Live" link
     const badge = document.getElementById('casinoBadge');
@@ -598,6 +604,10 @@
     if (s.features.leaderboard) {
       tabs.push({ id: 'leaderboard', label: 'Leaderboard' });
     }
+    // Bonus Battle (Elite)
+    if (s.features.battle) {
+      tabs.push({ id: 'battle', label: 'Bonus Battle' });
+    }
     // Store (Pro+)
     if (s.features.store) {
       tabs.push({ id: 'store', label: 'Store' });
@@ -634,6 +644,7 @@
   function renderTabContent(id) {
     const c = document.getElementById('tabContent');
     if (id === 'leaderboard') c.innerHTML = renderLeaderboard(state);
+    else if (id === 'battle')  c.innerHTML = renderBattle(state);
     else if (id === 'store')   c.innerHTML = renderStore(state);
     else if (id === 'winners') c.innerHTML = renderWinners(state);
     else if (id === 'about')   c.innerHTML = renderAbout(state);
@@ -838,6 +849,32 @@
       </div>`;
   }
 
+  function renderBattle(s) {
+    if (!s.features.battle) {
+      return lockedState('Bonus Battle', 'This streamer is on a plan that doesn't include Bonus Battle.');
+    }
+    const battle    = s.active?.battle;
+    const battleUrl = `/bonus-battle.html?channel=${encodeURIComponent(channel)}`;
+    const statusHtml = battle
+      ? `<div style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.3);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;color:var(--bright);margin-bottom:16px;">
+           <span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;animation:live-pulse 1.6s infinite;"></span>
+           Battle Live · ${battle.matchCount} match${battle.matchCount !== 1 ? 'es' : ''}
+         </div>`
+      : `<div style="font-size:13px;color:var(--text-dim);margin-bottom:16px;">No active battle right now — check back when the streamer starts one.</div>`;
+    return `
+      <div class="panel" style="text-align:center;padding:36px 24px;">
+        <div style="font-size:44px;margin-bottom:12px;">⚔️</div>
+        <div class="section-title" style="justify-content:center;">Bonus Battle</div>
+        <p style="font-size:14px;color:var(--text-dim);margin-bottom:20px;line-height:1.6;max-width:420px;margin-left:auto;margin-right:auto;">
+          Log in with Kick and bet your points on which slot will win each match.
+        </p>
+        ${statusHtml}
+        <a href="${esc(battleUrl)}" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#00e5ff,#00b8d4);border-radius:8px;color:#0d1117;font-family:'Exo 2',sans-serif;font-size:14px;font-weight:800;padding:12px 28px;text-decoration:none;">
+          ⚔️ Enter Bonus Battle
+        </a>
+      </div>`;
+  }
+
   function renderAbout(s) {
     const lines = [];
     lines.push(`<p style="line-height:1.7;font-size:14px;">
@@ -916,6 +953,7 @@
       const resp = await fetch(`/api/portal-data?channel=${encodeURIComponent(channel)}`);
       if (!resp.ok) return;
       state = await resp.json();
+      applyTheme(state);
       renderActiveStrip(state);
       if (currentTab) renderTabContent(currentTab);
     } catch {}

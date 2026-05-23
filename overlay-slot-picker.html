@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Slot Picker — WenBot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --accent: #00e5ff;
+      --gold:   #ffd700;
+      --green:  #00ff88;
+    }
+    body {
+      background: transparent;
+      font-family: 'Inter', sans-serif;
+      overflow: hidden;
+      width: 360px;
+    }
+    #widget { display: none; }
+    #widget.visible { display: block; }
+
+    .picker-wrap {
+      position: relative;
+      width: 360px;
+      background: rgba(13,17,23,0.95);
+      border: 1px solid rgba(0,229,255,0.3);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 0 30px rgba(0,229,255,0.15);
+    }
+
+    .picker-header {
+      text-align: center;
+      padding: 12px 16px 8px;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      border-bottom: 1px solid rgba(0,229,255,0.12);
+    }
+
+    /* Reel container — clips to show only 5 slots at once */
+    .reel-viewport {
+      height: 340px;
+      overflow: hidden;
+      position: relative;
+    }
+    .reel-viewport::before,
+    .reel-viewport::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      height: 90px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .reel-viewport::before {
+      top: 0;
+      background: linear-gradient(to bottom, rgba(13,17,23,0.95) 0%, transparent 100%);
+    }
+    .reel-viewport::after {
+      bottom: 0;
+      background: linear-gradient(to top, rgba(13,17,23,0.95) 0%, transparent 100%);
+    }
+
+    /* Highlight band for selected middle slot */
+    .reel-highlight {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      left: 0; right: 0;
+      height: 68px;
+      border-top: 2px solid var(--accent);
+      border-bottom: 2px solid var(--accent);
+      background: rgba(0,229,255,0.05);
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .reel-track {
+      display: flex;
+      flex-direction: column;
+      will-change: transform;
+    }
+    .reel-track.spinning {
+      transition: transform 0.12s linear;
+    }
+    .reel-track.landing {
+      transition: transform 3.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    .reel-item {
+      height: 68px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+    .reel-item img {
+      width: 52px;
+      height: 52px;
+      object-fit: cover;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.04);
+      flex-shrink: 0;
+    }
+    .reel-item .slot-img-placeholder {
+      width: 52px;
+      height: 52px;
+      border-radius: 8px;
+      background: rgba(0,229,255,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .reel-item-info { overflow: hidden; }
+    .reel-item-name {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      color: #f0f6fc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .reel-item-provider {
+      font-size: 11px;
+      color: #8b949e;
+      margin-top: 2px;
+      white-space: nowrap;
+    }
+
+    /* Result reveal panel */
+    .result-panel {
+      display: none;
+      padding: 14px 16px;
+      text-align: center;
+      border-top: 1px solid rgba(0,229,255,0.12);
+      animation: fadeIn 0.5s ease;
+    }
+    .result-panel.show { display: block; }
+    .result-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+    .result-name {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--gold);
+    }
+    .result-provider {
+      font-size: 12px;
+      color: #8b949e;
+      margin-top: 2px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 30px rgba(0,229,255,0.15); }
+      50%       { box-shadow: 0 0 50px rgba(0,229,255,0.35), 0 0 20px rgba(255,215,0,0.2); }
+    }
+    .picker-wrap.glowing { animation: glow 1.5s ease infinite; }
+  </style>
+</head>
+<body>
+<div id="widget">
+  <div class="picker-wrap" id="pickerWrap">
+    <div class="picker-header">🎰 Random Slot Picker</div>
+    <div class="reel-viewport">
+      <div class="reel-highlight"></div>
+      <div class="reel-track" id="reelTrack"></div>
+    </div>
+    <div class="result-panel" id="resultPanel">
+      <div class="result-label">✨ Selected</div>
+      <div class="result-name" id="resultName"></div>
+      <div class="result-provider" id="resultProvider"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script>
+  const params   = new URLSearchParams(location.search);
+  const channel  = (params.get('channel') || '').toLowerCase();
+  const ITEM_H   = 68;
+  const VISIBLE  = 5;
+
+  let slotsDB     = [];
+  let lastTrigger = null;
+  let spinning    = false;
+  let spinInterval= null;
+  let offset      = 0; // current top position of the track
+
+  // ── Load slots database ──────────────────────────────────────────────
+  fetch('/data/slots.json').then(r => r.json()).then(d => {
+    slotsDB = d.slots || [];
+  }).catch(() => {});
+
+  // ── CDN image URL helper ─────────────────────────────────────────────
+  function slotImgUrl(slot) {
+    if (!slot || !slot.gameId) return null;
+    switch (slot.provider) {
+      case 'Pragmatic Play':
+        return `https://cms.pragmaticplay.net/game_pic/square/200/${slot.gameId}.png`;
+      case 'Hacksaw Gaming':
+        return `https://cdn.softswiss.net/i/s4/hacksaw/${slot.gameId}.png`;
+      case 'Nolimit City':
+        return `https://cdn.softswiss.net/i/s4/nolimitcity/${slot.gameId}.png`;
+      case "Play'n GO":
+        return `https://cdn.softswiss.net/i/s4/playngo/${slot.gameId}.png`;
+      case 'Push Gaming':
+        return `https://cdn.softswiss.net/i/s4/pushgaming/${slot.gameId}.png`;
+      case 'Relax Gaming':
+        return `https://cdn.softswiss.net/i/s4/relaxgaming/${slot.gameId}.png`;
+      case 'Big Time Gaming':
+        return `https://cdn.softswiss.net/i/s4/bigtimegaming/${slot.gameId}.png`;
+      case 'ELK Studios':
+        return `https://cdn.softswiss.net/i/s4/elk/${slot.gameId}.png`;
+      case 'Blueprint Gaming':
+        return `https://cdn.softswiss.net/i/s4/blueprintgaming/${slot.gameId}.png`;
+      case 'Thunderkick':
+        return `https://cdn.softswiss.net/i/s4/thunderkick/${slot.gameId}.png`;
+      case 'NetEnt':
+        return `https://cdn.softswiss.net/i/s4/netent/${slot.gameId}.png`;
+      case 'Yggdrasil':
+        return `https://cdn.softswiss.net/i/s4/yggdrasil/${slot.gameId}.png`;
+      case 'BGaming':
+        return `https://cdn.softswiss.net/i/s4/bgaming/${slot.gameId}.png`;
+      case 'Quickspin':
+        return `https://cdn.softswiss.net/i/s4/quickspin/${slot.gameId}.png`;
+      case 'Red Tiger':
+        return `https://cdn.softswiss.net/i/s4/redtiger/${slot.gameId}.png`;
+      default:
+        return null;
+    }
+  }
+
+  function imgEl(slot) {
+    const url = slotImgUrl(slot);
+    if (url) return `<img src="${url}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                     <div class="slot-img-placeholder" style="display:none;">🎰</div>`;
+    return `<div class="slot-img-placeholder">🎰</div>`;
+  }
+
+  // ── Build reel HTML from a list of slots ─────────────────────────────
+  function buildReel(slots) {
+    const track = document.getElementById('reelTrack');
+    track.innerHTML = slots.map(s => `
+      <div class="reel-item">
+        ${imgEl(s)}
+        <div class="reel-item-info">
+          <div class="reel-item-name">${s.name}</div>
+          <div class="reel-item-provider">${s.provider}</div>
+        </div>
+      </div>`).join('');
+    track.style.transition = '';
+    track.style.transform  = 'translateY(0)';
+    offset = 0;
+  }
+
+  // ── Animate spin: rapidly step through reel, then decelerate to target ─
+  function animateSpin(pool, pickedIdx) {
+    const track = document.getElementById('reelTrack');
+    const wrap  = document.getElementById('pickerWrap');
+    const rp    = document.getElementById('resultPanel');
+    rp.classList.remove('show');
+    wrap.classList.remove('glowing');
+
+    // Build a long reel: many random items then the picked slot in the middle position
+    const itemH = ITEM_H;
+    // center offset: show picked at viewport center (slot 2, 0-indexed)
+    const centerRow = 2;
+    const spinPad   = 40; // items before landing section
+    const reelItems = [];
+    for (let i = 0; i < spinPad; i++) {
+      reelItems.push(pool[Math.floor(Math.random() * pool.length)]);
+    }
+    // append picked + padding after
+    reelItems.push(...Array(centerRow).fill(null).map(() => pool[Math.floor(Math.random() * pool.length)]));
+    reelItems.push(pool[pickedIdx]);
+    reelItems.push(...Array(VISIBLE - centerRow - 1).fill(null).map(() => pool[Math.floor(Math.random() * pool.length)]));
+
+    buildReel(reelItems);
+    track.style.transform = 'translateY(0)';
+
+    const finalOffset = spinPad * itemH;
+
+    // Rapid spin phase: step 2 items at a time, fast
+    let step = 0;
+    const totalRapid = spinPad - 4; // stop 4 items before final
+    track.classList.add('spinning');
+    track.classList.remove('landing');
+
+    spinInterval = setInterval(() => {
+      step += 2;
+      track.style.transition = `transform 0.10s linear`;
+      track.style.transform  = `translateY(-${step * itemH}px)`;
+      if (step >= totalRapid) {
+        clearInterval(spinInterval);
+        spinInterval = null;
+        // Landing phase — ease into final position
+        setTimeout(() => {
+          track.style.transition = 'transform 3.0s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+          track.style.transform  = `translateY(-${finalOffset}px)`;
+          setTimeout(() => {
+            // Show result
+            wrap.classList.add('glowing');
+            rp.classList.add('show');
+            document.getElementById('resultName').textContent     = pool[pickedIdx].name;
+            document.getElementById('resultProvider').textContent = pool[pickedIdx].provider;
+          }, 3200);
+        }, 100);
+      }
+    }, 80);
+  }
+
+  // ── Firebase listener ────────────────────────────────────────────────
+  if (!channel) {
+    document.getElementById('widget').style.display = 'none';
+  } else {
+    const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(window.FIREBASE_CONFIG);
+    const db  = firebase.firestore(app);
+
+    db.collection('streamers').where('kickChannel', '==', channel).limit(1).get().then(snap => {
+      if (snap.empty) return;
+      const uid = snap.docs[0].id;
+
+      db.collection('streamers').doc(uid).collection('tools').doc('slot_picker')
+        .onSnapshot(doc => {
+          if (!doc.exists) return;
+          const data = doc.data();
+          if (!data || !data.trigger || data.trigger === lastTrigger) return;
+          lastTrigger = data.trigger;
+
+          const pool   = data.pool || slotsDB;
+          const picked = data.picked;
+          if (!picked || !pool.length) return;
+
+          const pickedIdx = pool.findIndex(s => s.id === picked.id);
+          const idx = pickedIdx >= 0 ? pickedIdx : 0;
+
+          document.getElementById('widget').classList.add('visible');
+          if (spinning && spinInterval) clearInterval(spinInterval);
+          spinning = true;
+          animateSpin(pool, idx);
+        });
+    });
+  }
+</script>
+</body>
+</html>

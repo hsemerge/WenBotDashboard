@@ -12,8 +12,9 @@ exports.handler = async (event) => {
   const { channel, kick } = event.queryStringParameters || {};
   if (!channel) return res(400, { error: "Missing channel" });
 
-  const channelKey = channel.toLowerCase().trim();
-  const userKey    = kick ? kick.toLowerCase().trim() : null;
+  const channelKey  = channel.toLowerCase().trim();
+  const userKey     = kick ? kick.toLowerCase().trim() : null;
+  const kickDisplay = kick ? kick.trim() : null; // original casing for kickName field lookups
 
   try {
     const db = getDb();
@@ -36,9 +37,10 @@ exports.handler = async (event) => {
       const viewerDoc = await db.collection("streamers").doc(uid).collection("viewers").doc(userKey).get();
       viewerPoints    = viewerDoc.exists ? (viewerDoc.data().points || 0) : 0;
 
-      // Verification status
+      // Verification status — kickName is stored with original casing from the Kick API,
+      // so query with the display-case value, not the lowercased key.
       const vSnap = await db.collection("streamers").doc(uid)
-        .collection("verified_users").where("kickName", "==", userKey).limit(1).get();
+        .collection("verified_users").where("kickName", "==", kickDisplay).limit(1).get();
       isVerified = !vSnap.empty;
 
       // Fetch viewer's votes on active battle matches

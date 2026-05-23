@@ -64,6 +64,7 @@
       user-select: none;
     }
     .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--bright); }
+    .sp-slot-card:hover { border-color: rgba(0,229,255,0.4) !important; }
     .nav-item.active { background: rgba(0,229,255,0.08); color: var(--accent); }
     .nav-item .icon { font-size: 15px; width: 18px; text-align: center; }
     .nav-badge { margin-left: auto; background: var(--accent); color: #0d1117; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; }
@@ -458,6 +459,7 @@
         <div class="nav-item active" onclick="showPage('overview',this)"><span class="icon">📊</span> Overview</div>
         <div class="nav-item" onclick="showPage('giveaway',this)"><span class="icon">🎁</span> Giveaway</div>
         <div class="nav-item" onclick="showPage('bonushunt',this)"><span class="icon">🎰</span> Bonus Hunt <span class="nav-badge" id="bhLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
+        <div class="nav-item" onclick="showPage('slotpicker',this)"><span class="icon">🎲</span> Slot Picker</div>
         <div class="nav-item" onclick="showPage('slotrequest',this)"><span class="icon">📋</span> Slot Requests</div>
         <div class="nav-item" onclick="showPage('gtb',this)"><span class="icon">🎲</span> Guess the Balance</div>
         <div class="nav-item" onclick="showPage('bonusbattle',this)"><span class="icon">⚔️</span> Bonus Battles <span class="nav-badge" id="bbLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
@@ -980,6 +982,53 @@
           </div>
         </div>
       </div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title" style="justify-content:space-between;">
+          <span>⚙️ Built-in Command Names</span>
+          <span style="font-size:11px;color:var(--text-dim);font-weight:400;">Rename to avoid conflicts with other bots</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px;line-height:1.5;">
+          Customize the trigger for each built-in command. Enter without the <code>!</code> — it's added automatically. Leave blank to keep the default.
+        </div>
+        <div class="grid-2" style="gap:10px;">
+          <div class="field">
+            <label style="font-size:11px;">Points check <span style="color:var(--text-dim);font-weight:400;">(default: !pts)</span></label>
+            <input type="text" id="alias_pts" placeholder="pts" maxlength="20">
+          </div>
+          <div class="field">
+            <label style="font-size:11px;">Give points <span style="color:var(--text-dim);font-weight:400;">(default: !pgive)</span></label>
+            <input type="text" id="alias_pgive" placeholder="pgive" maxlength="20">
+          </div>
+          <div class="field">
+            <label style="font-size:11px;">Top points <span style="color:var(--text-dim);font-weight:400;">(default: !ptop)</span></label>
+            <input type="text" id="alias_ptop" placeholder="ptop" maxlength="20">
+          </div>
+          <div class="field">
+            <label style="font-size:11px;">Points rank <span style="color:var(--text-dim);font-weight:400;">(default: !prank)</span></label>
+            <input type="text" id="alias_prank" placeholder="prank" maxlength="20">
+          </div>
+          <div class="field">
+            <label style="font-size:11px;">Slot request <span style="color:var(--text-dim);font-weight:400;">(default: !request, !r always works)</span></label>
+            <input type="text" id="alias_request" placeholder="request" maxlength="20">
+          </div>
+          <div class="field">
+            <label style="font-size:11px;">Store list <span style="color:var(--text-dim);font-weight:400;">(default: !store)</span></label>
+            <input type="text" id="alias_store" placeholder="store" maxlength="20">
+          </div>
+          <div class="field">
+            <label style="font-size:11px;">Redeem item <span style="color:var(--text-dim);font-weight:400;">(default: !redeem)</span></label>
+            <input type="text" id="alias_redeem" placeholder="redeem" maxlength="20">
+          </div>
+          <div class="field">
+            <label style="font-size:11px;">Buy item <span style="color:var(--text-dim);font-weight:400;">(default: !buy)</span></label>
+            <input type="text" id="alias_buy" placeholder="buy" maxlength="20">
+          </div>
+        </div>
+        <div style="margin-top:14px;">
+          <button class="btn btn-accent" onclick="saveCommandAliases()">Save Command Names</button>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-title">📋 Your Commands</div>
         <div id="commandsList">
@@ -1650,6 +1699,20 @@
           </div>
         </div>
 
+        <!-- Slot Picker overlay -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title" style="margin-bottom:10px;">🎲 Slot Picker</div>
+          <div class="overlay-row">
+            <div class="overlay-row-label">OBS Browser Source URL</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <code class="overlay-url" id="obsSpPickerUrl">—</code>
+              <button onclick="copyOverlay('obsSpPickerUrl')" class="btn-copy">Copy</button>
+              <a href="#" target="_blank" id="obsSpPickerPreview" class="btn-preview">▶ Preview</a>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Width: 360, height: 500, transparent background. Shows a spin reel when you pick a slot from the dashboard.</div>
+          </div>
+        </div>
+
         <div class="card" style="background:rgba(0,229,255,0.03);border-color:rgba(0,229,255,0.12);">
           <div style="font-size:12px;color:var(--text-dim);line-height:1.7;">
             <strong style="color:var(--accent);">OBS setup tip:</strong> Add each overlay as a <em>Browser Source</em> in OBS. Check <em>Shutdown source when not visible</em> to save resources. The overlays are transparent by default — only content appears on stream.
@@ -1660,6 +1723,55 @@
     </div>
 
     <!-- ── SLOT REQUESTS ── -->
+    <!-- ── SLOT PICKER ── -->
+    <div class="page" id="page-slotpicker">
+
+      <!-- OBS link + filters bar -->
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+          <div>
+            <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:var(--bright);">🎲 Random Slot Picker</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Filter the pool, then spin to randomly select a slot. Result broadcasts to your OBS overlay.</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:5px;" id="spCatalogSource">⏳ Loading catalog…</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button onclick="spRefreshCatalog()" title="Force re-fetch live catalog" style="font-size:12px;padding:7px 12px;border-radius:7px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-dim);cursor:pointer;white-space:nowrap;">↻ Refresh</button>
+            <a id="spObsLink" href="#" target="_blank" style="font-size:12px;padding:7px 14px;border-radius:7px;border:1px solid var(--border);color:var(--text-dim);text-decoration:none;white-space:nowrap;">🖥 OBS Overlay</a>
+            <button onclick="spPickSlot()" class="btn btn-accent" style="padding:9px 22px;font-size:14px;">🎲 Pick Random Slot</button>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <select id="spProviderFilter" onchange="spApplyFilters()" class="form-input" style="flex:1;min-width:160px;max-width:220px;">
+            <option value="">All Providers</option>
+          </select>
+          <select id="spExclusiveFilter" onchange="spApplyFilters()" class="form-input" style="width:160px;">
+            <option value="">All Casinos</option>
+            <option value="stake">Stake Exclusives</option>
+            <option value="roobet">Roobet Exclusives</option>
+            <option value="rollbit">Rollbit Exclusives</option>
+          </select>
+          <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text-dim);cursor:pointer;white-space:nowrap;">
+            <input type="checkbox" id="spBonusBuyFilter" onchange="spApplyFilters()" style="width:15px;height:15px;accent-color:var(--accent);">
+            Bonus Buy only
+          </label>
+          <div style="margin-left:auto;font-size:12px;color:var(--text-dim);">Pool: <strong id="spPoolCount" style="color:var(--bright);">—</strong></div>
+        </div>
+      </div>
+
+      <!-- Picked result banner -->
+      <div id="spResult" style="display:none;margin-bottom:16px;" class="card"></div>
+
+      <!-- Slot grid -->
+      <div id="spGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;"></div>
+
+      <div id="spEmpty" style="display:none;text-align:center;padding:48px 24px;color:var(--text-dim);">
+        <div style="font-size:36px;margin-bottom:10px;">🎰</div>
+        <div>No slots match your filters.</div>
+      </div>
+    </div>
+
     <div class="page" id="page-slotrequest">
       <div style="max-width:860px;display:flex;flex-direction:column;gap:16px;">
 
@@ -1985,6 +2097,7 @@
               <div style="font-size:11px;color:var(--text-dim);">Voters</div>
               <div style="font-size:22px;font-weight:800;color:var(--accent);" id="bbTotalVoters">0</div>
             </div>
+            <button onclick="bbRefundAll()" style="padding:8px 16px;background:none;border:1px solid rgba(255,167,38,0.35);border-radius:8px;color:var(--orange);font-size:12px;cursor:pointer;font-weight:600;">↩ Refund All</button>
             <button onclick="bbEndBattle()" style="padding:8px 16px;background:none;border:1px solid rgba(255,71,87,0.35);border-radius:8px;color:var(--red);font-size:12px;cursor:pointer;font-weight:600;">End Battle</button>
           </div>
           <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
@@ -2440,7 +2553,7 @@ function showPage(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', settings:'Settings', activity:'Activity Log', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade' };
+  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotpicker:'Slot Picker', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', settings:'Settings', activity:'Activity Log', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade' };
   document.getElementById('topbarTitle').textContent = titles[id] || id;
   // Tear down SR listeners when leaving their pages
   if (id !== 'slotrequest' && srUnsub)        { srUnsub(); srUnsub = null; }
@@ -2456,7 +2569,9 @@ function showPage(id, el) {
   if (id === 'gtb') loadGTBGuesses();
   if (id === 'leaderboard') loadLeaderboards();
   if (id === 'store') { loadStoreItems(); loadRedemptions(); }
+  if (id === 'commands') { loadCommands(); loadCommandAliases(); }
   if (id === 'bonushunt')   { loadBonusHunt(); loadBhHistory(); }
+  if (id === 'slotpicker')   initSlotPicker();
   if (id === 'slotrequest')  loadSlotRequests();
   if (id === 'bonusbattle') loadBonusBattle();
   if (id === 'tournament')  loadTournament();
@@ -2481,6 +2596,7 @@ const PLAN_RANK = { starter: 0, pro: 1, elite: 2, agency: 3 };
 
 // Which plan is required to access each page (pages not listed are always accessible)
 const PAGE_PLAN = {
+  slotpicker:  'pro',
   slotrequest: 'pro',
   gtb:         'pro',
   points:      'pro',
@@ -3255,8 +3371,9 @@ async function loadTopViewers() {
         <td class="td-highlight">${d.id}</td>
         <td class="td-green">${(data.points||0).toLocaleString()} ${currency}</td>
         <td style="color:var(--text-dim);">${last}</td>
-        <td>
+        <td style="display:flex;gap:4px;">
           <button class="btn btn-ghost btn-sm" onclick="promptAddPoints('${d.id}')">+</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="promptRemovePoints('${d.id}')">−</button>
         </td>
       </tr>`;
     }).join('');
@@ -3264,15 +3381,32 @@ async function loadTopViewers() {
 }
 
 function promptAddPoints(username) {
-  const amt = prompt(`Add points to ${username} (use a negative number to remove):`);
+  const amt = prompt(`Add points to ${username}:`);
   if (!amt || isNaN(parseInt(amt))) return;
-  const delta = parseInt(amt);
+  const delta = Math.abs(parseInt(amt));
+  if (delta === 0) return;
   fb.db.collection('streamers').doc(fb.activeUid)
     .collection('viewers').doc(username)
     .set({ points: firebase.firestore.FieldValue.increment(delta) }, { merge: true })
     .then(() => {
-      flash(`${delta >= 0 ? 'Added' : 'Removed'} ${Math.abs(delta)} points to @${username}`);
+      flash(`Added ${delta.toLocaleString()} points to @${username}`);
       logAction('mod_points_adjust', { kickUsername: username, delta });
+      loadTopViewers();
+    })
+    .catch(e => flash('Failed: ' + e.message, 'error'));
+}
+
+function promptRemovePoints(username) {
+  const amt = prompt(`Remove points from ${username}:`);
+  if (!amt || isNaN(parseInt(amt))) return;
+  const delta = Math.abs(parseInt(amt));
+  if (delta === 0) return;
+  fb.db.collection('streamers').doc(fb.activeUid)
+    .collection('viewers').doc(username)
+    .set({ points: firebase.firestore.FieldValue.increment(-delta) }, { merge: true })
+    .then(() => {
+      flash(`Removed ${delta.toLocaleString()} points from @${username}`);
+      logAction('mod_points_adjust', { kickUsername: username, delta: -delta });
       loadTopViewers();
     })
     .catch(e => flash('Failed: ' + e.message, 'error'));
@@ -3391,6 +3525,27 @@ async function clearGTBSession() {
 }
 
 // ── COMMANDS ──
+
+const ALIAS_KEYS = ['pts','pgive','ptop','prank','request','store','redeem','buy'];
+
+function loadCommandAliases() {
+  const aliases = profile?.commandAliases || {};
+  ALIAS_KEYS.forEach(k => {
+    const el = document.getElementById('alias_' + k);
+    if (el) el.value = aliases[k] || '';
+  });
+}
+
+async function saveCommandAliases() {
+  const aliases = {};
+  ALIAS_KEYS.forEach(k => {
+    const val = (document.getElementById('alias_' + k)?.value || '').trim().toLowerCase().replace(/^!/, '');
+    if (val) aliases[k] = val;
+  });
+  await saveStreamerProfile({ commandAliases: aliases });
+  flash('Command names saved! Bot will pick them up within seconds.');
+}
+
 async function addCommand() {
   const trigger  = document.getElementById('newCmdTrigger').value.trim();
   const response = document.getElementById('newCmdResponse').value.trim();
@@ -4242,6 +4397,7 @@ function wireOverlayLinks() {
     { url: 'obsWheelUrl',    preview: 'obsWheelPreview',    path: `/overlay-wheel.html?channel=${encodeURIComponent(chan)}`,          demo: `/overlay-wheel.html?channel=${encodeURIComponent(chan)}&demo=1` },
     { url: 'obsBBUrl',       preview: 'obsBBPreview',       path: `/overlay-bonus-battle.html?channel=${encodeURIComponent(chan)}`,   demo: `/overlay-bonus-battle.html?channel=${encodeURIComponent(chan)}&demo=1` },
     { url: 'obsTnUrl',       preview: 'obsTnPreview',       path: `/overlay-tournament.html?channel=${encodeURIComponent(chan)}`,     demo: `/overlay-tournament.html?channel=${encodeURIComponent(chan)}&demo=1` },
+    { url: 'obsSpPickerUrl', preview: 'obsSpPickerPreview', path: `/overlay-slot-picker.html?channel=${encodeURIComponent(chan)}`,    demo: `/overlay-slot-picker.html?channel=${encodeURIComponent(chan)}` },
   ];
 
   links.forEach(({ url, preview, path, demo }) => {
@@ -4270,8 +4426,80 @@ function escHtml(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-const BH_SLOTS = [
-  // Pragmatic Play
+// ── Slot image CDN helper (shared by Bonus Hunt + Slot Picker) ────────────────
+function slotImgUrl(slot) {
+  if (!slot || !slot.gameId) return null;
+  switch (slot.provider) {
+    case 'Pragmatic Play':
+      return `https://cms.pragmaticplay.net/game_pic/square/200/${slot.gameId}.png`;
+    case 'Hacksaw Gaming':
+      return `https://cdn.softswiss.net/i/s4/hacksaw/${slot.gameId}.png`;
+    case 'Nolimit City':
+      return `https://cdn.softswiss.net/i/s4/nolimitcity/${slot.gameId}.png`;
+    case "Play'n GO":
+      return `https://cdn.softswiss.net/i/s4/playngo/${slot.gameId}.png`;
+    case 'Push Gaming':
+      return `https://cdn.softswiss.net/i/s4/pushgaming/${slot.gameId}.png`;
+    case 'Relax Gaming':
+      return `https://cdn.softswiss.net/i/s4/relaxgaming/${slot.gameId}.png`;
+    case 'Big Time Gaming':
+      return `https://cdn.softswiss.net/i/s4/bigtimegaming/${slot.gameId}.png`;
+    case 'ELK Studios':
+      return `https://cdn.softswiss.net/i/s4/elk/${slot.gameId}.png`;
+    case 'Blueprint Gaming':
+      return `https://cdn.softswiss.net/i/s4/blueprintgaming/${slot.gameId}.png`;
+    case 'Thunderkick':
+      return `https://cdn.softswiss.net/i/s4/thunderkick/${slot.gameId}.png`;
+    case 'NetEnt':
+      return `https://cdn.softswiss.net/i/s4/netent/${slot.gameId}.png`;
+    case 'Yggdrasil':
+      return `https://cdn.softswiss.net/i/s4/yggdrasil/${slot.gameId}.png`;
+    case 'BGaming':
+      return `https://cdn.softswiss.net/i/s4/bgaming/${slot.gameId}.png`;
+    case 'Quickspin':
+      return `https://cdn.softswiss.net/i/s4/quickspin/${slot.gameId}.png`;
+    case 'Red Tiger':
+      return `https://cdn.softswiss.net/i/s4/redtiger/${slot.gameId}.png`;
+    default:
+      return null;
+  }
+}
+
+let BH_SLOTS = [];
+let BH_SLOTS_SOURCE = 'loading'; // 'live' | 'cache' | 'static' | 'legacy'
+
+function _applySlots(slots, source) {
+  // Merge live slots with legacy list so nothing is ever lost
+  const liveNames = new Set(slots.map(s => s.name.toLowerCase().trim()));
+  const extras = (_UNUSED_LEGACY || [])
+    .filter(s => !liveNames.has(s.name.toLowerCase().trim()))
+    .map(s => ({ id: null, name: s.name, provider: s.provider, gameId: null, bonusBuy: false, maxWin: null, exclusive: null }));
+  BH_SLOTS = [...slots, ...extras];
+  BH_SLOTS_SOURCE = source;
+  const el = document.getElementById('spCatalogSource');
+  if (el) el.textContent = source === 'live' ? '🟢 Live catalog' : source === 'cache' ? '🟡 Cached catalog' : '⚪ Static list';
+  if (document.getElementById('page-slotpicker')?.classList.contains('active')) {
+    spBuildProviderFilter();
+    spApplyFilters();
+  }
+}
+
+// Primary: live catalog from Netlify function (queries Stake API, 6h cache)
+// Fallback: bundled static JSON
+fetch('/.netlify/functions/slots-catalog')
+  .then(r => r.json())
+  .then(d => _applySlots(d.slots || [], d.source || 'live'))
+  .catch(() =>
+    fetch('/data/slots.json')
+      .then(r => r.json())
+      .then(d => _applySlots(d.slots || [], 'static'))
+      .catch(() => {
+        BH_SLOTS = (_UNUSED_LEGACY || []).map(s => ({ id: null, name: s.name, provider: s.provider, gameId: null, bonusBuy: false, maxWin: null, exclusive: null }));
+        BH_SLOTS_SOURCE = 'legacy';
+      })
+  );
+
+const _UNUSED_LEGACY = [
   { name:'5 Lions Megaways', provider:'Pragmatic Play' },
   { name:'Aztec Bonanza', provider:'Pragmatic Play' },
   { name:'Big Bass Bonanza', provider:'Pragmatic Play' },
@@ -4446,7 +4674,7 @@ const BH_SLOTS = [
   { name:'Gigarise', provider:'Avatarux' },
   { name:'Megapop', provider:'Avatarux' },
   { name:'Popok! Wins', provider:'Avatarux' },
-];
+]; // legacy kept as fallback; BH_SLOTS is now loaded from /data/slots.json
 
 let bhHunt      = null;
 let bhResultRow = null;
@@ -4743,21 +4971,31 @@ function bhSearchSlots(query) {
   const q    = (query || '').toLowerCase().trim();
   if (q.length < 1) { drop.style.display = 'none'; return; }
 
-  const matches = BH_SLOTS.filter(s =>
+  const pool = BH_SLOTS.length ? BH_SLOTS : _UNUSED_LEGACY;
+  const matches = pool.filter(s =>
     s.name.toLowerCase().includes(q) || s.provider.toLowerCase().includes(q)
-  ).slice(0, 10);
+  ).slice(0, 12);
 
   if (!matches.length) { drop.style.display = 'none'; return; }
 
-  drop.innerHTML = matches.map(s => `
+  drop.innerHTML = matches.map(s => {
+    const imgUrl = slotImgUrl(s);
+    const img = imgUrl
+      ? `<img src="${imgUrl}" style="width:38px;height:38px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none'">`
+      : `<div style="width:38px;height:38px;border-radius:6px;background:rgba(0,229,255,0.07);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🎰</div>`;
+    return `
     <div data-name="${escHtml(s.name)}" data-provider="${escHtml(s.provider)}"
          onmousedown="bhSelectSlotEl(this)"
-         style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);"
+         style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);"
          onmouseover="this.style.background='rgba(0,229,255,0.06)'"
          onmouseout="this.style.background=''">
-      <div style="font-size:13px;color:var(--bright);font-weight:500;">${escHtml(s.name)}</div>
-      <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${escHtml(s.provider)}</div>
-    </div>`).join('');
+      ${img}
+      <div style="overflow:hidden;">
+        <div style="font-size:13px;color:var(--bright);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.name)}</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${escHtml(s.provider)}</div>
+      </div>
+    </div>`;
+  }).join('');
   drop.style.display = '';
 }
 
@@ -4920,19 +5158,28 @@ function bhEditSlotSearch(q) {
   const drop = document.getElementById('bhEditSlotDrop');
   const query = (q || '').toLowerCase().trim();
   if (query.length < 1) { drop.style.display = 'none'; return; }
-  const matches = BH_SLOTS.filter(s =>
+  const pool = BH_SLOTS.length ? BH_SLOTS : _UNUSED_LEGACY;
+  const matches = pool.filter(s =>
     s.name.toLowerCase().includes(query) || s.provider.toLowerCase().includes(query)
-  ).slice(0, 10);
+  ).slice(0, 12);
   if (!matches.length) { drop.style.display = 'none'; return; }
-  drop.innerHTML = matches.map(s => `
+  drop.innerHTML = matches.map(s => {
+    const imgUrl = slotImgUrl(s);
+    const img = imgUrl
+      ? `<img src="${imgUrl}" style="width:38px;height:38px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none'">`
+      : `<div style="width:38px;height:38px;border-radius:6px;background:rgba(0,229,255,0.07);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🎰</div>`;
+    return `
     <div data-name="${escHtml(s.name)}" data-provider="${escHtml(s.provider)}"
          onmousedown="bhEditSlotPick(this.dataset.name,this.dataset.provider)"
-         style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);"
+         style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);"
          onmouseover="this.style.background='rgba(0,229,255,0.06)'"
          onmouseout="this.style.background=''">
-      <div style="font-size:13px;color:var(--bright);font-weight:500;">${escHtml(s.name)}</div>
-      <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${escHtml(s.provider)}</div>
-    </div>`).join('');
+      ${img}
+      <div style="overflow:hidden;">
+        <div style="font-size:13px;color:var(--bright);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.name)}</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${escHtml(s.provider)}</div>
+      </div>
+    </div>`; }).join('');
   drop.style.display = '';
 }
 
@@ -5293,7 +5540,8 @@ async function srDismiss(id) {
 function srHuntSlotSearch(q) {
   const drop = document.getElementById('srHuntSlotDrop');
   if (!q || q.length < 1) { drop.style.display = 'none'; return; }
-  const matches = BH_SLOTS.filter(s =>
+  const pool = BH_SLOTS.length ? BH_SLOTS : _UNUSED_LEGACY;
+  const matches = pool.filter(s =>
     s.name.toLowerCase().includes(q.toLowerCase()) || s.provider.toLowerCase().includes(q.toLowerCase())
   ).slice(0, 8);
   if (!matches.length) { drop.style.display = 'none'; return; }
@@ -5321,8 +5569,9 @@ function srAddToHunt(id, slotName) {
   document.getElementById('srHuntBet').value = '';
 
   // Find matches in BH_SLOTS
-  const exact   = BH_SLOTS.find(s => s.name.toLowerCase() === slotName.toLowerCase());
-  const matches = BH_SLOTS.filter(s => s.name.toLowerCase().includes(slotName.toLowerCase()));
+  const _pool   = BH_SLOTS.length ? BH_SLOTS : _UNUSED_LEGACY;
+  const exact   = _pool.find(s => s.name.toLowerCase() === slotName.toLowerCase());
+  const matches = _pool.filter(s => s.name.toLowerCase().includes(slotName.toLowerCase()));
   const note    = document.getElementById('srHuntMatchNote');
 
   if (exact) {
@@ -5490,8 +5739,8 @@ function bbRender() {
 }
 
 function bbMatchCard(m, i) {
-  const statusColor = { upcoming:'var(--text-dim)', voting:'var(--green)', locked:'var(--orange)', complete:'var(--accent)' };
-  const statusLabel = { upcoming:'UPCOMING', voting:'🟢 VOTING OPEN', locked:'🔒 LOCKED', complete:'✅ COMPLETE' };
+  const statusColor = { upcoming:'var(--text-dim)', voting:'var(--green)', locked:'var(--orange)', complete:'var(--accent)', voided:'var(--red)' };
+  const statusLabel = { upcoming:'UPCOMING', voting:'🟢 VOTING OPEN', locked:'🔒 LOCKED', complete:'✅ COMPLETE', voided:'↩ VOIDED' };
 
   const totalPool = (m.slot1Pool || 0) + (m.slot2Pool || 0);
   const s1pct = totalPool ? Math.round((m.slot1Pool || 0) / totalPool * 100) : 50;
@@ -5506,13 +5755,15 @@ function bbMatchCard(m, i) {
 
   const complete = m.status === 'complete';
 
+  const voidBtn = `<button onclick="bbVoidMatch('${m.id}')" style="padding:5px 14px;background:rgba(255,71,87,0.1);border:1px solid rgba(255,71,87,0.3);border-radius:6px;color:var(--red);font-size:11px;font-weight:700;cursor:pointer;">Void & Refund</button>`;
+
   let actionBtns = '';
   if (m.status === 'upcoming') {
-    actionBtns = `<button onclick="bbOpenVoting('${m.id}')" style="padding:5px 14px;background:rgba(83,224,119,0.12);border:1px solid rgba(83,224,119,0.35);border-radius:6px;color:var(--green);font-size:11px;font-weight:700;cursor:pointer;">Open Voting</button>`;
+    actionBtns = `<button onclick="bbOpenVoting('${m.id}')" style="padding:5px 14px;background:rgba(83,224,119,0.12);border:1px solid rgba(83,224,119,0.35);border-radius:6px;color:var(--green);font-size:11px;font-weight:700;cursor:pointer;">Open Voting</button> ${voidBtn}`;
   } else if (m.status === 'voting') {
-    actionBtns = `<button onclick="bbLockVoting('${m.id}')" style="padding:5px 14px;background:rgba(255,167,38,0.12);border:1px solid rgba(255,167,38,0.35);border-radius:6px;color:var(--orange);font-size:11px;font-weight:700;cursor:pointer;">Lock Voting</button>`;
+    actionBtns = `<button onclick="bbLockVoting('${m.id}')" style="padding:5px 14px;background:rgba(255,167,38,0.12);border:1px solid rgba(255,167,38,0.35);border-radius:6px;color:var(--orange);font-size:11px;font-weight:700;cursor:pointer;">Lock Voting</button> ${voidBtn}`;
   } else if (m.status === 'locked') {
-    actionBtns = `<button onclick="bbOpenResult('${m.id}')" style="padding:5px 14px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);border-radius:6px;color:var(--accent);font-size:11px;font-weight:700;cursor:pointer;">Enter Result</button>`;
+    actionBtns = `<button onclick="bbOpenResult('${m.id}')" style="padding:5px 14px;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);border-radius:6px;color:var(--accent);font-size:11px;font-weight:700;cursor:pointer;">Enter Result</button> ${voidBtn}`;
   }
 
   return `
@@ -5563,6 +5814,10 @@ function bbMatchCard(m, i) {
       Paid out <strong style="color:var(--gold);">${m.payout.toLocaleString()} pts</strong> to <strong style="color:var(--bright);">${m.winnersCount||0}</strong> winner${m.winnersCount!==1?'s':''} from a pool of ${totalPool.toLocaleString()} pts
       ${m.winner === 0 ? '— <em>Tie: all bets returned</em>' : ''}
     </div>` : ''}
+    ${m.status === 'voided' ? `
+    <div style="margin-top:12px;padding:8px 12px;background:rgba(255,71,87,0.04);border:1px solid rgba(255,71,87,0.15);border-radius:6px;font-size:12px;color:var(--red);text-align:center;">
+      ↩ Match voided — ${m.refundCount||0} bet${m.refundCount!==1?'s':''} refunded (${(m.refundTotal||0).toLocaleString()} pts returned)
+    </div>` : ''}
   </div>`;
 }
 
@@ -5590,23 +5845,104 @@ async function bbEndBattle() {
   } catch (e) { flash('Failed: ' + e.message, 'error'); }
 }
 
+async function bbVoidMatch(matchId) {
+  if (!bbBattle) return;
+  const m = (bbBattle.matches || []).find(m => m.id === matchId);
+  if (!m) return;
+  if (!confirm(`Void match "${m.slot1.name} vs ${m.slot2.name}" and refund all bets?`)) return;
+  const uid = fb.activeUid;
+  try {
+    const votesSnap = await fb.db.collection('streamers').doc(uid)
+      .collection('bb_votes').where('matchId', '==', matchId).where('paid', '==', false).get();
+    const batch = fb.db.batch();
+    let refundCount = 0, refundTotal = 0;
+    votesSnap.docs.forEach(doc => {
+      const vote = doc.data();
+      batch.update(
+        fb.db.collection('streamers').doc(uid).collection('viewers').doc(vote.kickUsernameKey),
+        { points: firebase.firestore.FieldValue.increment(vote.points) }
+      );
+      batch.update(doc.ref, { paid: true, payout: vote.points, refunded: true });
+      refundCount++;
+      refundTotal += vote.points;
+    });
+    const matches = (bbBattle.matches || []).map(b => b.id === matchId
+      ? { ...b, status: 'voided', refundCount, refundTotal, voidedAt: Date.now() }
+      : b);
+    batch.update(
+      fb.db.collection('streamers').doc(uid).collection('bonus_battles').doc('current'),
+      { matches, updatedAt: Date.now() }
+    );
+    await batch.commit();
+    logAction('bb_payout', { matchId, type: 'void', refundCount, refundTotal });
+    flash(`Match voided — ${refundCount} bet${refundCount !== 1 ? 's' : ''} refunded (${refundTotal.toLocaleString()} pts).`);
+  } catch (e) { flash('Failed to void match: ' + e.message, 'error'); }
+}
+
+async function bbRefundAll() {
+  if (!bbBattle) return;
+  if (!confirm('Refund ALL unpaid bets across every match in this battle?')) return;
+  const uid = fb.activeUid;
+  try {
+    const votesSnap = await fb.db.collection('streamers').doc(uid)
+      .collection('bb_votes').where('paid', '==', false).get();
+    if (votesSnap.empty) { flash('No unpaid bets to refund.'); return; }
+    // Firestore batch limit is 500 — chunk if needed
+    const docs = votesSnap.docs;
+    let refundCount = 0, refundTotal = 0;
+    for (let i = 0; i < docs.length; i += 400) {
+      const chunk = docs.slice(i, i + 400);
+      const batch = fb.db.batch();
+      chunk.forEach(doc => {
+        const vote = doc.data();
+        batch.update(
+          fb.db.collection('streamers').doc(uid).collection('viewers').doc(vote.kickUsernameKey),
+          { points: firebase.firestore.FieldValue.increment(vote.points) }
+        );
+        batch.update(doc.ref, { paid: true, payout: vote.points, refunded: true });
+        refundCount++;
+        refundTotal += vote.points;
+      });
+      await batch.commit();
+    }
+    // Mark all non-complete matches as voided
+    const matches = (bbBattle.matches || []).map(m =>
+      (m.status !== 'complete' && m.status !== 'voided')
+        ? { ...m, status: 'voided', refundCount: 0, refundTotal: 0, voidedAt: Date.now() }
+        : m
+    );
+    await fb.db.collection('streamers').doc(uid).collection('bonus_battles').doc('current')
+      .update({ matches, active: false, updatedAt: Date.now() });
+    logAction('bb_payout', { type: 'refund_all', refundCount, refundTotal });
+    flash(`Refunded ${refundCount} bet${refundCount !== 1 ? 's' : ''} (${refundTotal.toLocaleString()} pts). Battle ended.`);
+  } catch (e) { flash('Failed to refund all: ' + e.message, 'error'); }
+}
+
 function bbSearchSlots(side, query) {
   const drop = document.getElementById(`bbSlot${side}Drop`);
   const q = (query || '').toLowerCase().trim();
   if (q.length < 1) { drop.style.display = 'none'; return; }
-  const matches = BH_SLOTS.filter(s =>
+  const _bPool = BH_SLOTS.length ? BH_SLOTS : _UNUSED_LEGACY;
+  const matches = _bPool.filter(s =>
     s.name.toLowerCase().includes(q) || s.provider.toLowerCase().includes(q)
   ).slice(0, 10);
   if (!matches.length) { drop.style.display = 'none'; return; }
-  drop.innerHTML = matches.map(s => `
+  drop.innerHTML = matches.map(s => {
+    const iurl = slotImgUrl(s);
+    const ihtml = iurl ? `<img src="${iurl}" style="width:36px;height:36px;object-fit:cover;border-radius:5px;flex-shrink:0;" onerror="this.style.display='none'">` : `<div style="width:36px;height:36px;border-radius:5px;background:rgba(0,229,255,0.07);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🎰</div>`;
+    return `
     <div data-name="${escHtml(s.name)}" data-provider="${escHtml(s.provider)}"
          onmousedown="bbSelectSlot(${side},this.dataset.name,this.dataset.provider)"
-         style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);"
+         style="display:flex;align-items:center;gap:9px;padding:7px 12px;cursor:pointer;border-bottom:1px solid var(--border);"
          onmouseover="this.style.background='rgba(0,229,255,0.06)'"
          onmouseout="this.style.background=''">
-      <div style="font-size:13px;color:var(--bright);font-weight:500;">${escHtml(s.name)}</div>
-      <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${escHtml(s.provider)}</div>
-    </div>`).join('');
+      ${ihtml}
+      <div style="overflow:hidden;">
+        <div style="font-size:13px;color:var(--bright);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.name)}</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${escHtml(s.provider)}</div>
+      </div>
+    </div>`;
+  }).join('');
   drop.style.display = '';
 }
 
@@ -7035,6 +7371,157 @@ function formatActivityDetails(action, d) {
   }
 }
 // ── END ACTIVITY LOG ───────────────────────────────────────────────────────────
+
+// ── SLOT PICKER ──────────────────────────────────────────────────────────────
+
+let spPool   = [];
+let spPicked = null;
+
+function initSlotPicker() {
+  const chan  = profile?.kickChannel || '';
+  const obsEl = document.getElementById('spObsLink');
+  if (obsEl && chan) obsEl.href = `/overlay-slot-picker.html?channel=${encodeURIComponent(chan)}`;
+
+  if (!BH_SLOTS.length) {
+    // Catalog fetch still in flight — retry every 500ms until ready
+    setTimeout(initSlotPicker, 500);
+    return;
+  }
+  spBuildProviderFilter();
+  spApplyFilters();
+}
+
+function spBuildProviderFilter() {
+  const sel = document.getElementById('spProviderFilter');
+  if (!sel) return;
+  const providers = [...new Set(BH_SLOTS.map(s => s.provider))].sort();
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">All Providers</option>' +
+    providers.map(p => `<option value="${escHtml(p)}"${p === cur ? ' selected' : ''}>${escHtml(p)}</option>`).join('');
+}
+
+function spApplyFilters() {
+  const provider  = document.getElementById('spProviderFilter')?.value  || '';
+  const exclusive = document.getElementById('spExclusiveFilter')?.value || '';
+  const bonusBuy  = document.getElementById('spBonusBuyFilter')?.checked || false;
+
+  spPool = BH_SLOTS.filter(s => {
+    if (provider  && s.provider  !== provider)  return false;
+    if (exclusive && s.exclusive !== exclusive) return false;
+    if (bonusBuy  && !s.bonusBuy)              return false;
+    return true;
+  });
+
+  const countEl = document.getElementById('spPoolCount');
+  if (countEl) countEl.textContent = `${spPool.length} slot${spPool.length !== 1 ? 's' : ''}`;
+  spRenderGrid();
+}
+
+function spRenderGrid() {
+  const grid  = document.getElementById('spGrid');
+  const empty = document.getElementById('spEmpty');
+  if (!grid) return;
+
+  if (!spPool.length) {
+    grid.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  grid.innerHTML = spPool.map(s => {
+    const imgUrl = slotImgUrl(s);
+    const imgHtml = imgUrl
+      ? `<img src="${imgUrl}" style="width:100%;height:80px;object-fit:cover;display:block;border-radius:0;" alt="" loading="lazy"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+      : '';
+    const fallback = `<div style="display:${imgUrl ? 'none' : 'flex'};width:100%;height:80px;background:rgba(0,229,255,0.04);align-items:center;justify-content:center;font-size:28px;border-radius:0;">🎰</div>`;
+    const bbTag = s.bonusBuy
+      ? `<span style="font-size:9px;background:rgba(0,229,255,0.12);color:var(--accent);border-radius:3px;padding:1px 5px;font-weight:700;letter-spacing:.03em;">BUY</span> `
+      : '';
+    const exTag = s.exclusive
+      ? `<span style="font-size:9px;background:rgba(255,215,0,0.1);color:var(--gold);border-radius:3px;padding:1px 5px;font-weight:700;">${escHtml(s.exclusive.toUpperCase())}</span>`
+      : '';
+    const highlighted = spPicked?.id && spPicked.id === s.id
+      ? 'border-color:var(--accent);box-shadow:0 0 12px rgba(0,229,255,0.25);'
+      : '';
+    return `
+    <div class="sp-slot-card" data-id="${escHtml(s.id || s.name)}"
+         style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;overflow:hidden;${highlighted}transition:border-color 0.15s,box-shadow 0.15s;">
+      <div style="height:80px;overflow:hidden;background:#0d1117;">
+        ${imgHtml}${fallback}
+      </div>
+      <div style="padding:6px 8px;">
+        <div style="font-size:11px;font-weight:600;color:var(--bright);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:28px;">${escHtml(s.name)}</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.provider)}</div>
+        <div style="margin-top:4px;">${bbTag}${exTag}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function spPickSlot() {
+  if (!spPool.length) { flash('No slots match your filters', 'error'); return; }
+
+  const idx = Math.floor(Math.random() * spPool.length);
+  spPicked  = spPool[idx];
+
+  // Refresh grid with highlight
+  spRenderGrid();
+
+  // Scroll picked card into view
+  const card = document.querySelector(`.sp-slot-card[data-id="${CSS.escape(spPicked.id || spPicked.name)}"]`);
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  // Show result banner
+  const rp     = document.getElementById('spResult');
+  const imgUrl = slotImgUrl(spPicked);
+  const imgEl  = imgUrl
+    ? `<img src="${imgUrl}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;flex-shrink:0;" onerror="this.style.display='none'">`
+    : `<div style="width:60px;height:60px;border-radius:8px;background:rgba(0,229,255,0.08);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;">🎰</div>`;
+  if (rp) {
+    rp.style.display = '';
+    rp.innerHTML = `
+      <div style="display:flex;align-items:center;gap:16px;">
+        ${imgEl}
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin-bottom:4px;">🎲 Selected</div>
+          <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--gold);">${escHtml(spPicked.name)}</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">${escHtml(spPicked.provider)}${spPicked.maxWin ? ` · Max ${spPicked.maxWin.toLocaleString()}x` : ''}</div>
+        </div>
+        <div style="margin-left:auto;text-align:right;">
+          <button onclick="spPickSlot()" style="background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);border-radius:7px;color:var(--accent);font-size:12px;cursor:pointer;padding:6px 14px;">🔄 Re-roll</button>
+        </div>
+      </div>`;
+  }
+
+  // Write to Firestore so OBS overlay picks it up
+  if (!fb.currentUser) return;
+  const trigger = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid)
+      .collection('tools').doc('slot_picker')
+      .set({ trigger, picked: spPicked, pool: spPool.slice(0, 200), pickedAt: Date.now() }, { merge: true });
+  } catch (e) {
+    console.warn('[SlotPicker] Firestore write failed:', e.message);
+  }
+}
+
+async function spRefreshCatalog() {
+  const srcEl = document.getElementById('spCatalogSource');
+  if (srcEl) srcEl.textContent = '⏳ Refreshing…';
+  BH_SLOTS = [];
+  try {
+    const d = await fetch('/.netlify/functions/slots-catalog?refresh=1').then(r => r.json());
+    _applySlots(d.slots || [], d.source || 'live');
+    flash(`Catalog refreshed — ${BH_SLOTS.length.toLocaleString()} slots loaded`, 'success');
+  } catch {
+    if (srcEl) srcEl.textContent = '⚠️ Refresh failed';
+    flash('Failed to refresh catalog', 'error');
+  }
+}
+
+// ── END SLOT PICKER ───────────────────────────────────────────────────────────
 </script>
 
 <!-- Finalize Month Modal -->
