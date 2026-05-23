@@ -4427,42 +4427,70 @@ function escHtml(s) {
 }
 
 // ── Slot image CDN helper (shared by Bonus Hunt + Slot Picker) ────────────────
+// Priority: 1) thumbnailUrl from live API  2) derived CDN URL  3) null (shows placeholder)
+const _SW_PROVIDER = {
+  'Pragmatic Play':  'pragmaticplay',
+  'Hacksaw Gaming':  'hacksaw',
+  'Nolimit City':    'nolimitcity',
+  "Play'n GO":       'playngo',
+  'Push Gaming':     'pushgaming',
+  'Relax Gaming':    'relaxgaming',
+  'Big Time Gaming': 'bigtimegaming',
+  'ELK Studios':     'elk',
+  'Blueprint Gaming':'blueprintgaming',
+  'Thunderkick':     'thunderkick',
+  'NetEnt':          'netent',
+  'Yggdrasil':       'yggdrasil',
+  'BGaming':         'bgaming',
+  'Quickspin':       'quickspin',
+  'Red Tiger':       'redtiger',
+  'Avatarux':        'avatarux',
+  'Wazdan':          'wazdan',
+};
+
 function slotImgUrl(slot) {
+  if (!slot) return null;
+  // Live catalog always supplies thumbnailUrl directly from the API
+  if (slot.thumbnailUrl) return slot.thumbnailUrl;
+  if (!slot.gameId) return null;
+  const pSlug = _SW_PROVIDER[slot.provider];
+  if (!pSlug) return null;
+  // SoftSwiss CDN — s3 size (larger coverage than s4)
+  return `https://cdn.softswiss.net/i/s3/${pSlug}/${slot.gameId}.png`;
+}
+
+// Secondary fallback URL tried on onerror before showing placeholder
+function slotImgFallback(slot) {
   if (!slot || !slot.gameId) return null;
-  switch (slot.provider) {
-    case 'Pragmatic Play':
-      return `https://cms.pragmaticplay.net/game_pic/square/200/${slot.gameId}.png`;
-    case 'Hacksaw Gaming':
-      return `https://cdn.softswiss.net/i/s4/hacksaw/${slot.gameId}.png`;
-    case 'Nolimit City':
-      return `https://cdn.softswiss.net/i/s4/nolimitcity/${slot.gameId}.png`;
-    case "Play'n GO":
-      return `https://cdn.softswiss.net/i/s4/playngo/${slot.gameId}.png`;
-    case 'Push Gaming':
-      return `https://cdn.softswiss.net/i/s4/pushgaming/${slot.gameId}.png`;
-    case 'Relax Gaming':
-      return `https://cdn.softswiss.net/i/s4/relaxgaming/${slot.gameId}.png`;
-    case 'Big Time Gaming':
-      return `https://cdn.softswiss.net/i/s4/bigtimegaming/${slot.gameId}.png`;
-    case 'ELK Studios':
-      return `https://cdn.softswiss.net/i/s4/elk/${slot.gameId}.png`;
-    case 'Blueprint Gaming':
-      return `https://cdn.softswiss.net/i/s4/blueprintgaming/${slot.gameId}.png`;
-    case 'Thunderkick':
-      return `https://cdn.softswiss.net/i/s4/thunderkick/${slot.gameId}.png`;
-    case 'NetEnt':
-      return `https://cdn.softswiss.net/i/s4/netent/${slot.gameId}.png`;
-    case 'Yggdrasil':
-      return `https://cdn.softswiss.net/i/s4/yggdrasil/${slot.gameId}.png`;
-    case 'BGaming':
-      return `https://cdn.softswiss.net/i/s4/bgaming/${slot.gameId}.png`;
-    case 'Quickspin':
-      return `https://cdn.softswiss.net/i/s4/quickspin/${slot.gameId}.png`;
-    case 'Red Tiger':
-      return `https://cdn.softswiss.net/i/s4/redtiger/${slot.gameId}.png`;
-    default:
-      return null;
-  }
+  if (slot.provider === 'Pragmatic Play')
+    return `https://cdn.pragmaticplay.net/game_pic/square/200/${slot.gameId}.png`;
+  const pSlug = _SW_PROVIDER[slot.provider];
+  if (!pSlug) return null;
+  return `https://cdn.softswiss.net/i/s4/${pSlug}/${slot.gameId}.png`;
+}
+
+// Build a <img> + hidden <div> placeholder pair for a slot.
+// Tries primary URL → fallback URL → emoji placeholder on consecutive errors.
+function slotImgTag(slot, w = 38, h = 38, extraStyle = '') {
+  const primary  = slotImgUrl(slot);
+  const fallback = slotImgFallback(slot);
+  const sz       = `width:${w}px;height:${h}px;object-fit:cover;border-radius:6px;flex-shrink:0;${extraStyle}`;
+  const ph       = `<div class="slot-img-ph" style="width:${w}px;height:${h}px;border-radius:6px;background:rgba(0,229,255,0.07);display:none;align-items:center;justify-content:center;font-size:${Math.round(h*0.45)}px;flex-shrink:0;">🎰</div>`;
+  if (!primary) return ph.replace('display:none', 'display:flex');
+
+  // onerror: try fallback once, then show placeholder
+  const fb = fallback ? `this.src='${fallback}';this.onerror=function(){this.style.display='none';this.nextElementSibling.style.display='flex'};` : `this.style.display='none';this.nextElementSibling.style.display='flex';`;
+  return `<img src="${primary}" style="${sz}" alt="" loading="lazy" onerror="${fb}">${ph}`;
+}
+
+// Grid card variant — full-width cover image with a sibling placeholder div
+function slotImgCover(slot, height = 80) {
+  const primary  = slotImgUrl(slot);
+  const fallback = slotImgFallback(slot);
+  const ph       = `<div style="display:${primary ? 'none' : 'flex'};width:100%;height:${height}px;background:rgba(0,229,255,0.04);align-items:center;justify-content:center;font-size:28px;">🎰</div>`;
+  if (!primary) return ph;
+  const fb = fallback ? `this.src='${fallback}';this.onerror=function(){this.style.display='none';this.nextElementSibling.style.display='flex'};` : `this.style.display='none';this.nextElementSibling.style.display='flex';`;
+  return `<img src="${primary}" style="width:100%;height:${height}px;object-fit:cover;display:block;" alt="" loading="lazy" onerror="${fb}">${ph}`;
 }
 
 let BH_SLOTS = [];
@@ -4979,17 +5007,13 @@ function bhSearchSlots(query) {
   if (!matches.length) { drop.style.display = 'none'; return; }
 
   drop.innerHTML = matches.map(s => {
-    const imgUrl = slotImgUrl(s);
-    const img = imgUrl
-      ? `<img src="${imgUrl}" style="width:38px;height:38px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none'">`
-      : `<div style="width:38px;height:38px;border-radius:6px;background:rgba(0,229,255,0.07);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🎰</div>`;
     return `
     <div data-name="${escHtml(s.name)}" data-provider="${escHtml(s.provider)}"
          onmousedown="bhSelectSlotEl(this)"
          style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);"
          onmouseover="this.style.background='rgba(0,229,255,0.06)'"
          onmouseout="this.style.background=''">
-      ${img}
+      ${slotImgTag(s)}
       <div style="overflow:hidden;">
         <div style="font-size:13px;color:var(--bright);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.name)}</div>
         <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${escHtml(s.provider)}</div>
@@ -5163,23 +5187,18 @@ function bhEditSlotSearch(q) {
     s.name.toLowerCase().includes(query) || s.provider.toLowerCase().includes(query)
   ).slice(0, 12);
   if (!matches.length) { drop.style.display = 'none'; return; }
-  drop.innerHTML = matches.map(s => {
-    const imgUrl = slotImgUrl(s);
-    const img = imgUrl
-      ? `<img src="${imgUrl}" style="width:38px;height:38px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none'">`
-      : `<div style="width:38px;height:38px;border-radius:6px;background:rgba(0,229,255,0.07);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🎰</div>`;
-    return `
+  drop.innerHTML = matches.map(s => `
     <div data-name="${escHtml(s.name)}" data-provider="${escHtml(s.provider)}"
          onmousedown="bhEditSlotPick(this.dataset.name,this.dataset.provider)"
          style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);"
          onmouseover="this.style.background='rgba(0,229,255,0.06)'"
          onmouseout="this.style.background=''">
-      ${img}
+      ${slotImgTag(s)}
       <div style="overflow:hidden;">
         <div style="font-size:13px;color:var(--bright);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.name)}</div>
         <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${escHtml(s.provider)}</div>
       </div>
-    </div>`; }).join('');
+    </div>`).join('');
   drop.style.display = '';
 }
 
@@ -5927,16 +5946,13 @@ function bbSearchSlots(side, query) {
     s.name.toLowerCase().includes(q) || s.provider.toLowerCase().includes(q)
   ).slice(0, 10);
   if (!matches.length) { drop.style.display = 'none'; return; }
-  drop.innerHTML = matches.map(s => {
-    const iurl = slotImgUrl(s);
-    const ihtml = iurl ? `<img src="${iurl}" style="width:36px;height:36px;object-fit:cover;border-radius:5px;flex-shrink:0;" onerror="this.style.display='none'">` : `<div style="width:36px;height:36px;border-radius:5px;background:rgba(0,229,255,0.07);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🎰</div>`;
-    return `
+  drop.innerHTML = matches.map(s => `
     <div data-name="${escHtml(s.name)}" data-provider="${escHtml(s.provider)}"
          onmousedown="bbSelectSlot(${side},this.dataset.name,this.dataset.provider)"
          style="display:flex;align-items:center;gap:9px;padding:7px 12px;cursor:pointer;border-bottom:1px solid var(--border);"
          onmouseover="this.style.background='rgba(0,229,255,0.06)'"
          onmouseout="this.style.background=''">
-      ${ihtml}
+      ${slotImgTag(s, 36, 36)}
       <div style="overflow:hidden;">
         <div style="font-size:13px;color:var(--bright);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.name)}</div>
         <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${escHtml(s.provider)}</div>
@@ -7430,12 +7446,6 @@ function spRenderGrid() {
   if (empty) empty.style.display = 'none';
 
   grid.innerHTML = spPool.map(s => {
-    const imgUrl = slotImgUrl(s);
-    const imgHtml = imgUrl
-      ? `<img src="${imgUrl}" style="width:100%;height:80px;object-fit:cover;display:block;border-radius:0;" alt="" loading="lazy"
-             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
-      : '';
-    const fallback = `<div style="display:${imgUrl ? 'none' : 'flex'};width:100%;height:80px;background:rgba(0,229,255,0.04);align-items:center;justify-content:center;font-size:28px;border-radius:0;">🎰</div>`;
     const bbTag = s.bonusBuy
       ? `<span style="font-size:9px;background:rgba(0,229,255,0.12);color:var(--accent);border-radius:3px;padding:1px 5px;font-weight:700;letter-spacing:.03em;">BUY</span> `
       : '';
@@ -7449,7 +7459,7 @@ function spRenderGrid() {
     <div class="sp-slot-card" data-id="${escHtml(s.id || s.name)}"
          style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;overflow:hidden;${highlighted}transition:border-color 0.15s,box-shadow 0.15s;">
       <div style="height:80px;overflow:hidden;background:#0d1117;">
-        ${imgHtml}${fallback}
+        ${slotImgCover(s, 80)}
       </div>
       <div style="padding:6px 8px;">
         <div style="font-size:11px;font-weight:600;color:var(--bright);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:28px;">${escHtml(s.name)}</div>
@@ -7474,16 +7484,12 @@ async function spPickSlot() {
   if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
   // Show result banner
-  const rp     = document.getElementById('spResult');
-  const imgUrl = slotImgUrl(spPicked);
-  const imgEl  = imgUrl
-    ? `<img src="${imgUrl}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;flex-shrink:0;" onerror="this.style.display='none'">`
-    : `<div style="width:60px;height:60px;border-radius:8px;background:rgba(0,229,255,0.08);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;">🎰</div>`;
+  const rp = document.getElementById('spResult');
   if (rp) {
     rp.style.display = '';
     rp.innerHTML = `
       <div style="display:flex;align-items:center;gap:16px;">
-        ${imgEl}
+        <div style="flex-shrink:0;display:flex;">${slotImgTag(spPicked, 60, 60, 'border-radius:8px;')}</div>
         <div>
           <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin-bottom:4px;">🎲 Selected</div>
           <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--gold);">${escHtml(spPicked.name)}</div>
