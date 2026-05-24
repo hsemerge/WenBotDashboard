@@ -21,51 +21,30 @@ const CACHE_DOC     = "_cache/slots_catalog";
 const CACHE_TTL_MS  = 6 * 60 * 60 * 1000; // 6 hours
 
 // ── Stake GraphQL query ───────────────────────────────────────────────────────
-// Stake's frontend uses Apollo at https://stake.com/_api/graphql.
-// Game listings are public (no auth required). We paginate in batches of 500.
+// Uses Stake's slugKuratorGroup root field (discovered via browser DevTools).
+// Paginates via offset/limit in batches of 50.
+// NOTE: Stake applies Cloudflare bot-protection to server-side callers —
+// this live fetch will usually 403. The static data/slots.json is the
+// reliable fallback; the live path updates the cache when it succeeds.
 
 const STAKE_GQL = "https://stake.com/_api/graphql";
 
 const GAMES_QUERY = `
-query CasinoGames($first: Int!, $skip: Int!, $query: String, $providerSlug: String) {
-  casino {
-    gamesList: gamesSearch(
-      query: $query
-      first: $first
-      skip: $skip
-      providerSlug: $providerSlug
-    ) {
-      id
+query SlugKuratorGroupGames($slug: String!, $limit: Int!, $offset: Int!) {
+  slugKuratorGroup(slug: $slug) {
+    groupGamesList(limit: $limit, offset: $offset) {
       name
       slug
       thumbnailUrl
-      thumbnailBackground
       provider {
         name
         slug
       }
-      options {
-        id
-      }
     }
   }
 }`;
 
-// Alternative query form if gamesSearch doesn't exist
-const GAMES_QUERY_ALT = `
-query CasinoLobby($first: Int!, $skip: Int!, $providerSlug: String) {
-  casino {
-    games(first: $first, skip: $skip, providerSlug: $providerSlug) {
-      id
-      name
-      slug
-      thumbnailUrl
-      provider { name slug }
-    }
-  }
-}`;
-
-async function fetchPage(queryStr, variables) {
+async function fetchPage(offset) {
   const resp = await fetch(STAKE_GQL, {
     method:  "POST",
     headers: {
@@ -73,48 +52,34 @@ async function fetchPage(queryStr, variables) {
       "Accept":       "application/json",
       "x-language":  "en",
     },
-    body: JSON.stringify({ query: queryStr, variables }),
+    body: JSON.stringify({
+      query: GAMES_QUERY,
+      variables: { slug: "slots", limit: 50, offset },
+    }),
     signal: AbortSignal.timeout(15000),
   });
 
   if (!resp.ok) throw new Error(`Stake API HTTP ${resp.status}`);
   const json = await resp.json();
   if (json.errors?.length) throw new Error(json.errors[0].message);
-
-  const casino = json.data?.casino || {};
-  // Support both query field names
-  return casino.gamesList || casino.games || null;
+  return json.data?.slugKuratorGroup?.groupGamesList || null;
 }
 
-async function fetchAllGames(providerSlug) {
-  const PAGE = 500;
-  let skip    = 0;
-  let all     = [];
-  let queryStr = GAMES_QUERY;
+async function fetchAllGames() {
+  const PAGE = 50;
+  let offset = 0;
+  let all    = [];
 
   while (true) {
-    let page;
-    try {
-      page = await fetchPage(queryStr, { first: PAGE, skip, query: "", providerSlug: providerSlug || null });
-    } catch (err) {
-      // If primary query fails on first page, try alternative field name
-      if (skip === 0 && queryStr === GAMES_QUERY) {
-        console.warn("[slots-catalog] primary query failed, trying alt:", err.message);
-        queryStr = GAMES_QUERY_ALT;
-        page = await fetchPage(queryStr, { first: PAGE, skip, providerSlug: providerSlug || null });
-      } else {
-        throw err;
-      }
-    }
-
-    if (!page || !Array.isArray(page) || page.length === 0) break;
+    const page = await fetchPage(offset);
+    if (!page || page.length === 0) break;
 
     all = all.concat(page);
-    if (page.length < PAGE) break; // last page
-    skip += PAGE;
+    if (page.length < PAGE) break;
+    offset += PAGE;
 
-    // Safety cap at 15,000 games to avoid runaway loops
-    if (all.length >= 15000) break;
+    // Safety cap
+    if (all.length >= 20000) break;
   }
 
   return all;
@@ -201,7 +166,7 @@ exports.handler = async (event) => {
   const staticSlots = loadStatic();
 
   try {
-    const rawGames = await fetchAllGames(providerSlug);
+    const rawGames = await fetchAllGames();
     const liveSlots = rawGames.map(normalizeSlot);
     const merged    = mergeWithStatic(liveSlots, staticSlots);
 

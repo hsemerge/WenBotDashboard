@@ -146,7 +146,7 @@
     .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
     .field label { font-size: 12px; font-weight: 600; color: var(--bright); }
     .field .hint { font-size: 11px; color: var(--text-dim); }
-    input[type=text], input[type=number], input[type=password], input[type=url], input[type=email], select, textarea {
+    input[type=text], input[type=number], input[type=password], input[type=url], input[type=email], input[type=search], select, textarea {
       background: var(--bg-input);
       border: 1px solid var(--border);
       border-radius: 6px;
@@ -158,6 +158,8 @@
       transition: border-color 0.15s;
     }
     input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+    input[type=search]::-webkit-search-decoration,
+    input[type=search]::-webkit-search-cancel-button { -webkit-appearance: none; }
     select option { background: var(--bg-panel); }
 
     .input-row { display: flex; gap: 8px; }
@@ -1743,10 +1745,11 @@
 
         <!-- Filters -->
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <select id="spProviderFilter" onchange="spApplyFilters()" class="form-input" style="flex:1;min-width:160px;max-width:220px;">
+          <input id="spSearchFilter" type="search" class="form-input" placeholder="Search slots…" oninput="spApplyFilters()" style="flex:1;min-width:180px;max-width:260px;">
+          <select id="spProviderFilter" onchange="spApplyFilters()" class="form-input" style="flex:1;min-width:150px;max-width:200px;">
             <option value="">All Providers</option>
           </select>
-          <select id="spExclusiveFilter" onchange="spApplyFilters()" class="form-input" style="width:160px;">
+          <select id="spExclusiveFilter" onchange="spApplyFilters()" class="form-input" style="width:150px;">
             <option value="">All Casinos</option>
             <option value="stake">Stake Exclusives</option>
             <option value="roobet">Roobet Exclusives</option>
@@ -1763,8 +1766,15 @@
       <!-- Picked result banner -->
       <div id="spResult" style="display:none;margin-bottom:16px;" class="card"></div>
 
+      <!-- Browse prompt shown when no specific filter is active -->
+      <div id="spBrowsePrompt" style="text-align:center;padding:48px 24px;color:var(--text-dim);">
+        <div style="font-size:40px;margin-bottom:12px;">🎰</div>
+        <div style="font-size:14px;font-weight:600;color:var(--bright);margin-bottom:6px;">Search or pick a provider to browse</div>
+        <div style="font-size:12px;">The full pool is active for random picks — use filters above to narrow it down, or search by name to find a specific slot.</div>
+      </div>
+
       <!-- Slot grid -->
-      <div id="spGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;"></div>
+      <div id="spGrid" style="display:none;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;"></div>
 
       <div id="spEmpty" style="display:none;text-align:center;padding:48px 24px;color:var(--text-dim);">
         <div style="font-size:36px;margin-bottom:10px;">🎰</div>
@@ -4450,12 +4460,13 @@ const _SW_PROVIDER = {
 
 function slotImgUrl(slot) {
   if (!slot) return null;
-  // Live catalog always supplies thumbnailUrl directly from the API
   if (slot.thumbnailUrl) return slot.thumbnailUrl;
   if (!slot.gameId) return null;
+  // PP has its own CDN that's more reliable than SoftSwiss for PP games
+  if (slot.provider === 'Pragmatic Play')
+    return `https://cdn.pragmaticplay.net/game_pic/square/200/${slot.gameId}.png`;
   const pSlug = _SW_PROVIDER[slot.provider];
   if (!pSlug) return null;
-  // SoftSwiss CDN — s3 size (larger coverage than s4)
   return `https://cdn.softswiss.net/i/s3/${pSlug}/${slot.gameId}.png`;
 }
 
@@ -4484,13 +4495,13 @@ function slotImgTag(slot, w = 38, h = 38, extraStyle = '') {
 }
 
 // Grid card variant — full-width cover image with a sibling placeholder div
-function slotImgCover(slot, height = 80) {
+function slotImgCover(slot) {
   const primary  = slotImgUrl(slot);
   const fallback = slotImgFallback(slot);
-  const ph       = `<div style="display:${primary ? 'none' : 'flex'};width:100%;height:${height}px;background:rgba(0,229,255,0.04);align-items:center;justify-content:center;font-size:28px;">🎰</div>`;
+  const ph       = `<div style="display:${primary ? 'none' : 'flex'};position:absolute;inset:0;background:rgba(0,229,255,0.04);align-items:center;justify-content:center;font-size:28px;">🎰</div>`;
   if (!primary) return ph;
   const fb = fallback ? `this.src='${fallback}';this.onerror=function(){this.style.display='none';this.nextElementSibling.style.display='flex'};` : `this.style.display='none';this.nextElementSibling.style.display='flex';`;
-  return `<img src="${primary}" style="width:100%;height:${height}px;object-fit:cover;display:block;" alt="" loading="lazy" onerror="${fb}">${ph}`;
+  return `<img src="${primary}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;" alt="" loading="lazy" onerror="${fb}">${ph}`;
 }
 
 let BH_SLOTS = [];
@@ -4512,20 +4523,36 @@ function _applySlots(slots, source) {
   }
 }
 
-// Primary: live catalog from Netlify function (queries Stake API, 6h cache)
-// Fallback: bundled static JSON
-fetch('/.netlify/functions/slots-catalog')
-  .then(r => r.json())
-  .then(d => _applySlots(d.slots || [], d.source || 'live'))
-  .catch(() =>
-    fetch('/data/slots.json')
-      .then(r => r.json())
-      .then(d => _applySlots(d.slots || [], 'static'))
-      .catch(() => {
-        BH_SLOTS = (_UNUSED_LEGACY || []).map(s => ({ id: null, name: s.name, provider: s.provider, gameId: null, bonusBuy: false, maxWin: null, exclusive: null }));
-        BH_SLOTS_SOURCE = 'legacy';
-      })
-  );
+// Slot catalog load sequence:
+// 1) Netlify function (Stake live API + 6h Firestore cache) — but Stake is Cloudflare-protected
+//    so this will often return {slots:[]} from the static fallback inside the function
+// 2) Static /data/slots.json served directly (323 curated slots with gameId for CDN images)
+// 3) Legacy hardcoded array (last resort, no images)
+function _loadSlotCatalog() {
+  fetch('/.netlify/functions/slots-catalog')
+    .then(r => r.json())
+    .then(d => {
+      if (d.slots && d.slots.length > 0) {
+        _applySlots(d.slots, d.source || 'live');
+      } else {
+        // Function returned empty (Stake API blocked or static file missing) — load directly
+        return _loadStaticSlots();
+      }
+    })
+    .catch(_loadStaticSlots);
+}
+
+function _loadStaticSlots() {
+  return fetch('/data/slots.json')
+    .then(r => r.json())
+    .then(d => _applySlots(d.slots || [], 'static'))
+    .catch(() => {
+      BH_SLOTS = (_UNUSED_LEGACY || []).map(s => ({ id: null, name: s.name, provider: s.provider, gameId: null, bonusBuy: false, maxWin: null, exclusive: null }));
+      BH_SLOTS_SOURCE = 'legacy';
+    });
+}
+
+_loadSlotCatalog();
 
 const _UNUSED_LEGACY = [
   { name:'5 Lions Megaways', provider:'Pragmatic Play' },
@@ -5946,7 +5973,8 @@ function bbSearchSlots(side, query) {
     s.name.toLowerCase().includes(q) || s.provider.toLowerCase().includes(q)
   ).slice(0, 10);
   if (!matches.length) { drop.style.display = 'none'; return; }
-  drop.innerHTML = matches.map(s => `
+  drop.innerHTML = matches.map(s => {
+    return `
     <div data-name="${escHtml(s.name)}" data-provider="${escHtml(s.provider)}"
          onmousedown="bbSelectSlot(${side},this.dataset.name,this.dataset.provider)"
          style="display:flex;align-items:center;gap:9px;padding:7px 12px;cursor:pointer;border-bottom:1px solid var(--border);"
@@ -7420,32 +7448,58 @@ function spApplyFilters() {
   const provider  = document.getElementById('spProviderFilter')?.value  || '';
   const exclusive = document.getElementById('spExclusiveFilter')?.value || '';
   const bonusBuy  = document.getElementById('spBonusBuyFilter')?.checked || false;
+  const search    = (document.getElementById('spSearchFilter')?.value || '').trim().toLowerCase();
 
   spPool = BH_SLOTS.filter(s => {
     if (provider  && s.provider  !== provider)  return false;
     if (exclusive && s.exclusive !== exclusive) return false;
     if (bonusBuy  && !s.bonusBuy)              return false;
+    if (search    && !s.name.toLowerCase().includes(search) && !s.provider.toLowerCase().includes(search)) return false;
     return true;
   });
 
   const countEl = document.getElementById('spPoolCount');
-  if (countEl) countEl.textContent = `${spPool.length} slot${spPool.length !== 1 ? 's' : ''}`;
-  spRenderGrid();
+  if (countEl) countEl.textContent = `${spPool.length.toLocaleString()} slot${spPool.length !== 1 ? 's' : ''}`;
+  spRenderGrid(search, provider, bonusBuy, exclusive);
 }
 
-function spRenderGrid() {
-  const grid  = document.getElementById('spGrid');
-  const empty = document.getElementById('spEmpty');
+function spRenderGrid(search = '', provider = '', bonusBuy = false, exclusive = '') {
+  const grid    = document.getElementById('spGrid');
+  const empty   = document.getElementById('spEmpty');
+  const prompt  = document.getElementById('spBrowsePrompt');
   if (!grid) return;
 
-  if (!spPool.length) {
+  // Show browse prompt when no active filter would narrow the grid to a manageable size
+  const hasActiveFilter = provider || (search.length >= 2) || bonusBuy || exclusive;
+  if (!hasActiveFilter) {
+    grid.style.display = 'none';
     grid.innerHTML = '';
-    if (empty) empty.style.display = '';
+    if (empty)  empty.style.display  = 'none';
+    if (prompt) prompt.style.display = '';
     return;
   }
-  if (empty) empty.style.display = 'none';
 
-  grid.innerHTML = spPool.map(s => {
+  if (!spPool.length) {
+    grid.style.display = 'none';
+    grid.innerHTML = '';
+    if (prompt) prompt.style.display = 'none';
+    if (empty)  empty.style.display  = '';
+    return;
+  }
+
+  if (empty)  empty.style.display  = 'none';
+  if (prompt) prompt.style.display = 'none';
+
+  // Cap display at 300 cards to keep DOM lean; pool is always full for random picks
+  const MAX_DISPLAY = 300;
+  const visible = spPool.slice(0, MAX_DISPLAY);
+  grid.style.display = 'grid';
+
+  const capNotice = spPool.length > MAX_DISPLAY
+    ? `<div style="grid-column:1/-1;text-align:center;padding:12px;font-size:11px;color:var(--text-dim);border:1px dashed var(--border);border-radius:8px;">Showing ${MAX_DISPLAY} of ${spPool.length.toLocaleString()} slots — refine your search to see more</div>`
+    : '';
+
+  grid.innerHTML = visible.map(s => {
     const bbTag = s.bonusBuy
       ? `<span style="font-size:9px;background:rgba(0,229,255,0.12);color:var(--accent);border-radius:3px;padding:1px 5px;font-weight:700;letter-spacing:.03em;">BUY</span> `
       : '';
@@ -7458,8 +7512,8 @@ function spRenderGrid() {
     return `
     <div class="sp-slot-card" data-id="${escHtml(s.id || s.name)}"
          style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;overflow:hidden;${highlighted}transition:border-color 0.15s,box-shadow 0.15s;">
-      <div style="height:80px;overflow:hidden;background:#0d1117;">
-        ${slotImgCover(s, 80)}
+      <div style="position:relative;padding-top:75%;background:#0d1117;">
+        ${slotImgCover(s)}
       </div>
       <div style="padding:6px 8px;">
         <div style="font-size:11px;font-weight:600;color:var(--bright);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:28px;">${escHtml(s.name)}</div>
@@ -7467,7 +7521,7 @@ function spRenderGrid() {
         <div style="margin-top:4px;">${bbTag}${exTag}</div>
       </div>
     </div>`;
-  }).join('');
+  }).join('') + capNotice;
 }
 
 async function spPickSlot() {
@@ -7476,8 +7530,8 @@ async function spPickSlot() {
   const idx = Math.floor(Math.random() * spPool.length);
   spPicked  = spPool[idx];
 
-  // Refresh grid with highlight
-  spRenderGrid();
+  // Refresh grid with highlight (pass current filter state)
+  spApplyFilters();
 
   // Scroll picked card into view
   const card = document.querySelector(`.sp-slot-card[data-id="${CSS.escape(spPicked.id || spPicked.name)}"]`);
