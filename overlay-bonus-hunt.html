@@ -6,14 +6,16 @@
   <title>Bonus Hunt Overlay — WenBot</title>
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
+    :root{--ov-accent:#00e5ff;--ov-accent-rgb:0,229,255;--ov-panel:rgba(13,17,23,0.93);--ov-text:#ffffff;--ov-font:'Inter',sans-serif;--ov-font-heading:'Exo 2',sans-serif;}
+    
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg:       rgba(13,17,23,0.93);
-      --border:   rgba(0,229,255,0.25);
+      --bg:       var(--ov-panel);
+      --border:   rgba(var(--ov-accent-rgb),0.25);
       --text:     #c9d1d9;
       --text-dim: #8b949e;
-      --bright:   #f0f6fc;
-      --accent:   #00e5ff;
+      --bright:   var(--ov-text);
+      --accent:   var(--ov-accent);
       --green:    #00ff88;
       --red:      #ff4757;
       --orange:   #ffb347;
@@ -22,7 +24,7 @@
 
     body {
       background: transparent;
-      font-family: 'Inter', sans-serif;
+      font-family: var(--ov-font);
       font-size: 13px;
       color: var(--text);
       padding: 12px;
@@ -35,7 +37,7 @@
       border-radius: 12px;
       overflow: hidden;
       backdrop-filter: blur(12px);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,229,255,0.05);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(var(--ov-accent-rgb),0.05);
     }
 
     /* ── HEADER ── */
@@ -50,7 +52,7 @@
       margin-bottom: 7px;
     }
     .header-title {
-      font-family: 'Exo 2', sans-serif;
+      font-family: var(--ov-font-heading);
       font-size: 13px;
       font-weight: 900;
       color: var(--accent);
@@ -87,7 +89,7 @@
       gap: 4px;
     }
     .prog-val {
-      font-family: 'Exo 2', sans-serif;
+      font-family: var(--ov-font-heading);
       font-size: 13px;
       font-weight: 800;
       color: var(--bright);
@@ -121,14 +123,14 @@
       text-overflow: ellipsis;
     }
     .header-best-x {
-      font-family: 'Exo 2', sans-serif;
+      font-family: var(--ov-font-heading);
       font-size: 12px;
       font-weight: 900;
       color: var(--gold);
       white-space: nowrap;
     }
     .progress-count {
-      font-family: 'Exo 2', sans-serif;
+      font-family: var(--ov-font-heading);
       font-size: 12px;
       font-weight: 800;
       color: var(--bright);
@@ -147,7 +149,7 @@
     }
     .stat:last-child { border-right: none; }
     .stat-val {
-      font-family: 'Exo 2', sans-serif;
+      font-family: var(--ov-font-heading);
       font-size: 15px;
       font-weight: 900;
       color: var(--bright);
@@ -192,7 +194,7 @@
       text-overflow: ellipsis;
     }
     .best-x {
-      font-family: 'Exo 2', sans-serif;
+      font-family: var(--ov-font-heading);
       font-size: 13px;
       font-weight: 900;
       color: var(--gold);
@@ -233,7 +235,7 @@
     tbody tr.best-bonus { background: rgba(255,215,0,0.05); }
     tbody tr.newly-revealed { animation: revealFlash 1.2s ease; }
     @keyframes revealFlash {
-      0%   { background: rgba(0,229,255,0.15); }
+      0%   { background: rgba(var(--ov-accent-rgb),0.15); }
       100% { background: transparent; }
     }
 
@@ -263,13 +265,13 @@
     }
     td:nth-child(4) {
       text-align: right;
-      font-family: 'Exo 2', sans-serif;
+      font-family: var(--ov-font-heading);
       font-weight: 700;
       font-size: 12px;
       white-space: nowrap;
     }
 
-    .result-pending { color: var(--text-dim); font-weight: 400; font-family: 'Inter', sans-serif; font-size: 12px; }
+    .result-pending { color: var(--text-dim); font-weight: 400; font-family: var(--ov-font); font-size: 12px; }
     .result-low  { color: var(--red); }
     .result-mid  { color: var(--text); }
     .result-high { color: var(--orange); }
@@ -283,6 +285,7 @@
       font-size: 13px;
     }
   </style>
+  <script src="/js/overlay-theme.js"></script>
 </head>
 <body>
 
@@ -291,7 +294,7 @@
   <!-- Header -->
   <div class="header">
     <div class="header-top">
-      <div class="header-title">🎰 Bonus Hunt</div>
+      <div class="header-title" data-ov-header>🎰 Bonus Hunt</div>
       <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
       <div class="progress-count" id="progressCount">0/0</div>
     </div>
@@ -532,7 +535,7 @@
       // Spacer row to create a visible break between end and start of loop
       const spacer = document.createElement('tr');
       spacer.classList.add('scroll-clone');
-      spacer.innerHTML = `<td colspan="4" style="height:40px;border-top:1px solid rgba(0,229,255,0.1);"></td>`;
+      spacer.innerHTML = `<td colspan="4" style="height:40px;border-top:1px solid rgba(var(--ov-accent-rgb),0.1);"></td>`;
       tbody.appendChild(spacer);
 
       // Clone rows so the loop is seamless

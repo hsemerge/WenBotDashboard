@@ -130,6 +130,14 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
+      // GTB guesses live one level deeper than the single-level catch-all
+      // below can reach (gtb_sessions/{id}/guesses/{id}). Viewer guesses are
+      // written by the bot via admin SDK; the dashboard only needs to read.
+      match /gtb_sessions/{sessionId}/guesses/{guessId} {
+        allow read:  if isOwnerOrMod(uid);
+        allow write: if false;
+      }
+
       // Everything else under the streamer doc — full owner+mod control
       match /{subcollection}/{doc} {
         allow read, write: if isOwnerOrMod(uid);

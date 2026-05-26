@@ -6,21 +6,23 @@
   <title>Slot Requests — WenBot</title>
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
+    :root{--ov-accent:#00e5ff;--ov-accent-rgb:0,229,255;--ov-panel:rgba(13,17,23,0.93);--ov-text:#ffffff;--ov-font:'Inter',sans-serif;--ov-font-heading:'Exo 2',sans-serif;}
+    
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg:       rgba(13,17,23,0.93);
-      --border:   rgba(0,229,255,0.25);
+      --bg:       var(--ov-panel);
+      --border:   rgba(var(--ov-accent-rgb),0.25);
       --text:     #c9d1d9;
       --text-dim: #8b949e;
-      --bright:   #f0f6fc;
-      --accent:   #00e5ff;
+      --bright:   var(--ov-text);
+      --accent:   var(--ov-accent);
       --green:    #00ff88;
       --purple:   #a78bfa;
     }
 
     body {
       background: transparent;
-      font-family: 'Inter', sans-serif;
+      font-family: var(--ov-font);
       font-size: 13px;
       color: var(--text);
       padding: 12px;
@@ -33,7 +35,7 @@
       border-radius: 12px;
       overflow: hidden;
       backdrop-filter: blur(12px);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,229,255,0.05);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(var(--ov-accent-rgb),0.05);
     }
 
     .header {
@@ -44,7 +46,7 @@
       justify-content: space-between;
     }
     .header-title {
-      font-family: 'Exo 2', sans-serif;
+      font-family: var(--ov-font-heading);
       font-size: 12px;
       font-weight: 900;
       color: var(--accent);
@@ -52,7 +54,7 @@
       text-transform: uppercase;
     }
     .header-count {
-      font-family: 'Exo 2', sans-serif;
+      font-family: var(--ov-font-heading);
       font-size: 12px;
       font-weight: 700;
       color: var(--text-dim);
@@ -81,7 +83,7 @@
     .row:last-child { border-bottom: none; }
 
     .row-num {
-      font-family: 'Exo 2', sans-serif;
+      font-family: var(--ov-font-heading);
       font-size: 11px;
       font-weight: 900;
       color: var(--text-dim);
@@ -116,7 +118,7 @@
 
     .spacer-row {
       height: 32px;
-      border-bottom: 1px solid rgba(0,229,255,0.08);
+      border-bottom: 1px solid rgba(var(--ov-accent-rgb),0.08);
     }
 
     .empty {
@@ -142,21 +144,22 @@
       font-size: 11px;
     }
   </style>
+  <script src="/js/overlay-theme.js"></script>
 </head>
 <body>
 <div class="panel">
   <div class="header">
-    <div class="header-title">🎰 Slot Requests</div>
+    <div class="header-title" data-ov-header>🎰 Slot Requests</div>
     <div class="header-count" id="headerCount"><span id="countNum">0</span> in queue</div>
   </div>
 
   <div class="scroll-wrap" id="scrollWrap">
     <div class="scroll-inner" id="scrollInner">
-      <div class="empty" id="emptyState">No requests yet — type <code style="color:var(--accent);font-family:monospace;">!sr &lt;slot name&gt;</code></div>
+      <div class="empty" id="emptyState">No requests yet — type <code style="color:var(--accent);font-family:monospace;">!r &lt;slot name&gt;</code></div>
     </div>
   </div>
 
-  <div class="cmd-hint">Type <code>!sr &lt;slot name&gt;</code> to request a slot</div>
+  <div class="cmd-hint">Type <code>!r &lt;slot name&gt;</code> to request a slot</div>
 </div>
 
 <script>
@@ -189,7 +192,7 @@
 
   function buildRows(requests) {
     if (requests.length === 0) {
-      scrollInner.innerHTML = '<div class="empty" id="emptyState">No requests yet — type <code style="color:var(--accent);font-family:monospace;">!sr &lt;slot name&gt;</code></div>';
+      scrollInner.innerHTML = '<div class="empty" id="emptyState">No requests yet — type <code style="color:var(--accent);font-family:monospace;">!r &lt;slot name&gt;</code></div>';
       document.getElementById('countNum').textContent = '0';
       scrollWrap.style.maxHeight = '';
       cancelAnimationFrame(rafId);

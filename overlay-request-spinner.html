@@ -2,149 +2,84 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Slot Picker — WenBot</title>
+  <title>Slot Request Draw — WenBot</title>
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root{--ov-accent:#00e5ff;--ov-accent-rgb:0,229,255;--ov-panel:rgba(13,17,23,0.93);--ov-text:#ffffff;--ov-font:'Inter',sans-serif;--ov-font-heading:'Exo 2',sans-serif;}
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --accent: var(--ov-accent);
-      --gold:   #ffd700;
-      --green:  #00ff88;
-      --ov-card: 104px;
-      --ov-gap:  12px;
-    }
-    body {
-      background: transparent;
-      font-family: var(--ov-font);
-      overflow: hidden;
-      width: 560px;
-    }
+    :root { --accent: var(--ov-accent); --gold: #ffd700; --ov-card: 104px; --ov-gap: 12px; }
+    body { background: transparent; font-family: var(--ov-font); overflow: hidden; width: 560px; }
     #widget { display: none; }
     #widget.visible { display: block; }
 
     .picker-wrap {
-      position: relative;
-      width: 560px;
+      position: relative; width: 560px;
       background: var(--ov-panel);
       border: 1px solid rgba(var(--ov-accent-rgb),0.3);
-      border-radius: 14px;
-      overflow: hidden;
+      border-radius: 14px; overflow: hidden;
       box-shadow: 0 0 30px rgba(var(--ov-accent-rgb),0.15);
     }
-
     .picker-header {
-      text-align: center;
-      padding: 12px 16px 10px;
+      text-align: center; padding: 12px 16px 10px;
       font-family: var(--ov-font-heading);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      text-transform: uppercase;
+      font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
       color: var(--accent);
       border-bottom: 1px solid rgba(var(--ov-accent-rgb),0.12);
     }
-
-    /* Horizontal reel — clips to show a few slots at once */
-    .reel-viewport {
-      position: relative;
-      overflow: hidden;
-      padding: 22px 0 16px;
-    }
-    /* edge fades */
-    .reel-viewport::before,
-    .reel-viewport::after {
-      content: '';
-      position: absolute;
-      top: 0; bottom: 0;
-      width: 110px;
-      z-index: 2;
-      pointer-events: none;
+    .reel-viewport { position: relative; overflow: hidden; padding: 22px 0 16px; }
+    .reel-viewport::before, .reel-viewport::after {
+      content: ''; position: absolute; top: 0; bottom: 0; width: 110px; z-index: 2; pointer-events: none;
     }
     .reel-viewport::before { left: 0;  background: linear-gradient(to right, var(--ov-panel) 0%, transparent 100%); }
     .reel-viewport::after  { right: 0; background: linear-gradient(to left,  var(--ov-panel) 0%, transparent 100%); }
-
-    /* center landing frame */
     .reel-frame {
-      position: absolute;
-      top: 22px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: var(--ov-card);
-      height: var(--ov-card);
-      border: 2px solid var(--accent);
-      border-radius: 12px;
+      position: absolute; top: 22px; left: 50%; transform: translateX(-50%);
+      width: var(--ov-card); height: var(--ov-card);
+      border: 2px solid var(--accent); border-radius: 12px;
       box-shadow: 0 0 22px rgba(var(--ov-accent-rgb),0.35), inset 0 0 12px rgba(var(--ov-accent-rgb),0.12);
-      z-index: 3;
-      pointer-events: none;
-      transition: box-shadow 0.3s, border-color 0.3s;
+      z-index: 3; pointer-events: none; transition: box-shadow 0.3s, border-color 0.3s;
     }
     .picker-wrap.landed .reel-frame {
       border-color: var(--gold);
       box-shadow: 0 0 30px rgba(255,215,0,0.5), inset 0 0 14px rgba(255,215,0,0.18);
     }
-
     .reel-track {
-      display: flex;
-      gap: var(--ov-gap);
+      display: flex; gap: var(--ov-gap);
       padding: 0 calc(50% - (var(--ov-card) / 2));
       will-change: transform;
     }
     .reel-item { width: var(--ov-card); flex-shrink: 0; }
     .reel-img {
-      position: relative;
-      width: var(--ov-card);
-      height: var(--ov-card);
-      border-radius: 11px;
-      overflow: hidden;
-      background: #0d1117;
+      position: relative; width: var(--ov-card); height: var(--ov-card);
+      border-radius: 11px; overflow: hidden; background: #0d1117;
       border: 1px solid rgba(255,255,255,0.06);
     }
     .reel-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
     .reel-img .slot-img-placeholder {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 30px;
-      background: rgba(var(--ov-accent-rgb),0.06);
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 30px; background: rgba(var(--ov-accent-rgb),0.06);
     }
-    .reel-name {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--ov-text);
-      text-align: center;
-      margin-top: 7px;
-      line-height: 1.2;
-      height: 26px;
-      overflow: hidden;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
+    .reel-user {
+      font-size: 11px; font-weight: 700; color: var(--accent); text-align: center;
+      margin-top: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .reel-slot {
+      font-size: 10px; color: #8b949e; text-align: center;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
-    /* Result reveal */
     .result-panel {
-      display: none;
-      padding: 12px 16px 14px;
-      text-align: center;
+      display: none; padding: 12px 16px 14px; text-align: center;
       border-top: 1px solid rgba(var(--ov-accent-rgb),0.12);
       animation: fadeIn 0.5s ease;
     }
     .result-panel.show { display: block; }
-    .result-label {
-      font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
-      color: var(--accent); margin-bottom: 4px;
-    }
-    .result-name {
-      font-family: var(--ov-font-heading);
-      font-size: 22px; font-weight: 900; color: var(--gold);
-    }
-    .result-provider { font-size: 12px; color: #8b949e; margin-top: 2px; }
+    .result-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold); margin-bottom: 4px; }
+    .result-user { font-family: var(--ov-font-heading); font-size: 22px; font-weight: 900; color: var(--accent); }
+    .result-slot { font-size: 13px; color: var(--ov-text); margin-top: 2px; }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes glow {
       0%, 100% { box-shadow: 0 0 30px rgba(var(--ov-accent-rgb),0.15); }
       50%      { box-shadow: 0 0 50px rgba(var(--ov-accent-rgb),0.35), 0 0 20px rgba(255,215,0,0.2); }
@@ -156,15 +91,15 @@
 <body>
 <div id="widget">
   <div class="picker-wrap" id="pickerWrap">
-    <div class="picker-header" data-ov-header>🎰 Random Slot Picker</div>
+    <div class="picker-header" data-ov-header>🎰 Slot Request Draw</div>
     <div class="reel-viewport">
       <div class="reel-frame"></div>
       <div class="reel-track" id="reelTrack"></div>
     </div>
     <div class="result-panel" id="resultPanel">
-      <div class="result-label">✨ Selected</div>
-      <div class="result-name" id="resultName"></div>
-      <div class="result-provider" id="resultProvider"></div>
+      <div class="result-label">🎉 Drawn</div>
+      <div class="result-user" id="resultUser"></div>
+      <div class="result-slot" id="resultSlot"></div>
     </div>
   </div>
 </div>
@@ -175,14 +110,9 @@
   const WIN_IDX_FALLBACK = 16;
   const POLL_MS = 1500;
 
-  let slotsDB     = [];
   let lastTrigger = null;
   let spinning    = false;
 
-  // Local catalog only used as a fallback if a (legacy) trigger arrives without a reel.
-  fetch('/data/slots.json').then(r => r.json()).then(d => { slotsDB = d.slots || []; }).catch(() => {});
-
-  // ── Provider → SoftSwiss slug map (mirrors the dashboard) ──────────────
   const SW_PROVIDER = {
     'Hacksaw Gaming':'hacksaw', 'Nolimit City':'nolimitcity', "Play'n GO":'playngo',
     'Push Gaming':'pushgaming', 'Relax Gaming':'relaxgaming', 'Big Time Gaming':'bigtimegaming',
@@ -190,7 +120,6 @@
     'NetEnt':'netent', 'Yggdrasil':'yggdrasil', 'BGaming':'bgaming', 'Quickspin':'quickspin',
     'Red Tiger':'redtiger',
   };
-
   function slotImgUrl(slot) {
     if (!slot) return null;
     if (slot.thumbnailUrl) return slot.thumbnailUrl;
@@ -207,14 +136,6 @@
     const slug = SW_PROVIDER[slot.provider];
     return slug ? `https://cdn.softswiss.net/i/s4/${slug}/${slot.gameId}.png` : null;
   }
-
-  // Stake Engine indie studios are stored as lowercase slugs — show them nicely.
-  function prettyProvider(p) {
-    if (!p) return '';
-    if (!/^[a-z0-9][a-z0-9-]*$/.test(p)) return p;
-    return p.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-  }
-
   function imgEl(slot) {
     const primary  = slotImgUrl(slot);
     const fallback = slotImgFallback(slot);
@@ -224,24 +145,24 @@
       : `this.style.display='none';this.nextElementSibling.style.display='flex';`;
     return `<img src="${primary}" alt="" onerror="${onerr}"><div class="slot-img-placeholder" style="display:none;">🎰</div>`;
   }
+  function clean(s) { return (s || '').replace(/[<>]/g, ''); }
 
   function buildReel(items) {
     const track = document.getElementById('reelTrack');
-    track.innerHTML = items.map(s => `
+    track.innerHTML = items.map(e => `
       <div class="reel-item">
-        <div class="reel-img">${imgEl(s)}</div>
-        <div class="reel-name">${(s.name || '').replace(/[<>]/g, '')}</div>
+        <div class="reel-img">${imgEl(e)}</div>
+        <div class="reel-user">@${clean(e.kickUsername)}</div>
+        <div class="reel-slot">${clean(e.slotName)}</div>
       </div>`).join('');
     track.style.transition = '';
     track.style.transform  = 'translateX(0)';
   }
-
   function step(track) {
     if (!track || track.children.length < 2) return 116;
     return track.children[1].offsetLeft - track.children[0].offsetLeft;
   }
 
-  // ── Spin: scroll horizontally then ease onto the winner ──────────────
   function animateSpin(reel, winIdx, picked) {
     const track = document.getElementById('reelTrack');
     const wrap  = document.getElementById('pickerWrap');
@@ -255,43 +176,37 @@
 
     requestAnimationFrame(() => {
       const s = step(track);
-      void track.offsetWidth; // reflow
+      void track.offsetWidth;
       requestAnimationFrame(() => {
         track.style.transition = 'transform 4s cubic-bezier(0.15, 0.85, 0.35, 1)';
         track.style.transform  = `translateX(-${winIdx * s}px)`;
         setTimeout(() => {
           wrap.classList.add('landed', 'glowing');
           rp.classList.add('show');
-          document.getElementById('resultName').textContent     = picked.name || '';
-          document.getElementById('resultProvider').textContent = prettyProvider(picked.provider || '');
+          document.getElementById('resultUser').textContent = '@' + (picked.kickUsername || '');
+          document.getElementById('resultSlot').textContent = picked.slotName || '';
           spinning = false;
         }, 4100);
       });
     });
   }
 
-  // ── Poll the public data endpoint (no auth — overlays run unauthenticated) ──
   function handlePicker(data) {
     if (!data || !data.trigger) return;
-
-    // First sighting: remember the trigger but don't replay an old spin on load.
-    if (lastTrigger === null) { lastTrigger = data.trigger; return; }
+    if (lastTrigger === null) { lastTrigger = data.trigger; return; } // ignore stale on load
     if (data.trigger === lastTrigger) return;
     lastTrigger = data.trigger;
-
     if (spinning) return;
+
     const picked = data.picked;
     if (!picked) return;
 
     let reel   = Array.isArray(data.reel) ? data.reel : null;
     let winIdx = (typeof data.pickedIndex === 'number') ? data.pickedIndex : WIN_IDX_FALLBACK;
 
-    // Legacy fallback: build a reel locally if none was sent.
     if (!reel) {
-      const src = slotsDB.filter(s => s.provider === picked.provider);
-      const pool = src.length ? src : [picked];
       reel = [];
-      for (let i = 0; i < 20; i++) reel.push(i === WIN_IDX_FALLBACK ? picked : pool[Math.floor(Math.random() * pool.length)]);
+      for (let i = 0; i < 20; i++) reel.push(picked); // degenerate fallback
       winIdx = WIN_IDX_FALLBACK;
     }
 
@@ -302,7 +217,7 @@
 
   async function poll() {
     try {
-      const r = await fetch(`/api/slot-picker-data?channel=${encodeURIComponent(channel)}`);
+      const r = await fetch(`/api/request-spinner-data?channel=${encodeURIComponent(channel)}`);
       if (r.ok) {
         const d = await r.json();
         if (d && d.picker) handlePicker(d.picker);

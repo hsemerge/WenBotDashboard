@@ -851,7 +851,7 @@
 
   function renderBattle(s) {
     if (!s.features.battle) {
-      return lockedState('Bonus Battle', 'This streamer is on a plan that doesn't include Bonus Battle.');
+      return lockedState('Bonus Battle', 'This streamer is on a plan that doesn\'t include Bonus Battle.');
     }
     const battle    = s.active?.battle;
     const battleUrl = `/bonus-battle.html?channel=${encodeURIComponent(channel)}`;

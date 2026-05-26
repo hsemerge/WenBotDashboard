@@ -5,13 +5,15 @@
   <title>WenBot — Giveaway Wheel</title>
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
+    :root{--ov-accent:#00e5ff;--ov-accent-rgb:0,229,255;--ov-panel:rgba(13,17,23,0.93);--ov-text:#ffffff;--ov-font:'Inter',sans-serif;--ov-font-heading:'Exo 2',sans-serif;}
+    
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: transparent;
       overflow: hidden;
       width: 100vw; height: 100vh;
       display: flex; align-items: center; justify-content: center;
-      font-family: 'Inter', sans-serif;
+      font-family: var(--ov-font);
     }
 
     .wheel-wrap {
@@ -76,7 +78,7 @@
     }
     .winner-banner .trophy { font-size: 26px; display: block; margin-bottom: 4px; }
     .winner-banner .label  { font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #8b949e; }
-    .winner-banner .name   { font-family: 'Exo 2', sans-serif; font-size: 26px; font-weight: 900; color: #ffd700; text-shadow: 0 0 20px rgba(255,215,0,0.7); margin-top: 2px; }
+    .winner-banner .name   { font-family: var(--ov-font-heading); font-size: 26px; font-weight: 900; color: #ffd700; text-shadow: 0 0 20px rgba(255,215,0,0.7); margin-top: 2px; }
 
     /* Particles */
     .particles { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
@@ -93,11 +95,12 @@
     .empty-label {
       position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
-      font-family: 'Exo 2', sans-serif; font-size: 18px; font-weight: 800;
+      font-family: var(--ov-font-heading); font-size: 18px; font-weight: 800;
       color: rgba(255,255,255,0.35);
       pointer-events: none;
     }
   </style>
+  <script src="/js/overlay-theme.js"></script>
 </head>
 <body>
 

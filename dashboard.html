@@ -112,6 +112,15 @@
 
     .page { flex: 1; overflow-y: auto; padding: 24px; display: none; }
     .page.active { display: block; }
+    #page-overlays { padding: 0; overflow: hidden; }
+    .os-card { display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;transition:background 0.12s,border-color 0.12s;border:1px solid transparent;margin-bottom:4px; }
+    .os-card:hover { background:rgba(255,255,255,0.04); }
+    .os-card.active { background:rgba(0,229,255,0.08);border-color:rgba(0,229,255,0.25); }
+    .os-tag { font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:4px; }
+    .os-tag-hunting    { background:rgba(0,229,255,0.1);color:var(--accent); }
+    .os-tag-giveaway   { background:rgba(0,255,136,0.1);color:var(--green); }
+    .os-tag-battles    { background:rgba(255,71,87,0.1);color:var(--red); }
+    .os-tag-tournament { background:rgba(255,167,38,0.1);color:var(--orange); }
 
     /* ── CARDS & GRID ── */
     .card {
@@ -509,6 +518,14 @@
       </button>
       <div class="topbar-title" id="topbarTitle">Overview</div>
       <div class="topbar-pill" id="channelPill">⚡ <span id="channelPillName">Loading...</span></div>
+      <!-- Account switcher — only shown to users who moderate other streamers
+           (delegatedFor is non-empty). Lets them switch between their own
+           account and the streamers they manage. -->
+      <div class="topbar-pill" id="streamerSwitcherWrap" style="display:none;padding:3px 8px 3px 12px;">
+        <span style="font-size:12px;color:var(--text-dim);font-weight:600;">Profile:</span>
+        <select id="streamerSwitcher" onchange="onStreamerSwitch(this.value)" title="Switch which account you're managing"
+          style="background:transparent;border:none;color:var(--bright);font-size:12px;font-weight:700;padding:2px 4px;font-family:'Inter',sans-serif;cursor:pointer;max-width:150px;outline:none;"></select>
+      </div>
       <!-- Moderating pill — only shown when the auth user is acting as a moderator
            on behalf of another streamer. Distinct color so it's never ambiguous
            whose data is being viewed/edited. -->
@@ -704,6 +721,13 @@
             </div>
             <div class="hint" style="margin-top:6px;">Casino = linked via !verify · Discord = verified in your server</div>
           </div>
+          <div class="toggle-row" style="margin-top:12px;">
+            <div class="toggle-info">
+              <div class="toggle-label">Enter Myself</div>
+              <div class="toggle-desc">Automatically add you to the giveaway when it starts</div>
+            </div>
+            <div class="toggle" id="toggleEnterSelf" onclick="toggleOption(this)"></div>
+          </div>
         </div>
 
         <div class="card">
@@ -722,6 +746,14 @@
             <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">🏆 Winner</div>
             <div id="winnerRevealName" style="font-family:'Exo 2',sans-serif;font-size:20px;font-weight:900;color:var(--gold);text-shadow:0 0 20px rgba(255,215,0,0.5);"></div>
             <div id="winnerRevealDetail" style="font-size:11px;color:var(--text-dim);margin-top:3px;"></div>
+          </div>
+          <!-- Winner chat watcher — surfaces the winner's chat so you can spot them through the noise -->
+          <div id="winnerChatPanel" style="display:none;margin-top:12px;border:1px solid rgba(255,215,0,0.25);border-radius:8px;background:rgba(255,215,0,0.04);overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid rgba(255,215,0,0.15);font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;font-weight:700;">
+              💬 <span id="winnerChatTitle">Winner's Chat</span>
+              <span id="winnerChatWaiting" style="margin-left:auto;color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0;">waiting for them to type…</span>
+            </div>
+            <div id="winnerChatMessages" style="max-height:160px;overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;gap:6px;"></div>
           </div>
           <button class="btn btn-accent" style="width:100%;margin-top:12px;" id="pickWinnerBtn" onclick="spinPicker()" disabled>🎰 Spin to Pick Winner</button>
           <button class="btn btn-ghost" style="width:100%;margin-top:6px;" id="rerollBtn" onclick="spinPicker()" disabled>🔄 Reroll</button>
@@ -1452,7 +1484,7 @@
           <div class="card help-section" style="margin-bottom:0;">
             <h3>🎲 Slot Requests &amp; Verify</h3>
             <div class="cmd-list">
-              <div class="cmd-row"><div class="cmd-name">!sr [slot name]</div><div class="cmd-desc">Suggest a slot for the next Bonus Hunt.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!r [slot name]</div><div class="cmd-desc">Request a slot for the current Bonus Hunt.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!verify</div><div class="cmd-desc">Get a link to verify with Kick OAuth.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!verify [username]</div><div class="cmd-desc">Quick-verify with a specific casino username.</div><div class="cmd-who who-all">ALL</div></div>
             </div>
@@ -1496,8 +1528,8 @@
             <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--text);line-height:1.55;">
               <div><strong style="color:var(--accent);">Overview</strong> — live stats: viewers chatting, points distributed, bot status, recent activity.</div>
               <div><strong style="color:var(--accent);">Giveaway</strong> — start/stop giveaways, configure the keyword + type + restrictions, watch the entries list, spin a winner.</div>
-              <div><strong style="color:var(--accent);">Bonus Hunt</strong> — track slot bonuses live with cost, win, multiplier; chat suggestions via <code>!sr</code>.</div>
-              <div><strong style="color:var(--accent);">Slot Requests</strong> — review and approve <code>!sr</code> submissions; configure eligibility + cooldown.</div>
+              <div><strong style="color:var(--accent);">Bonus Hunt</strong> — track slot bonuses live with cost, win, multiplier; chat suggestions via <code>!r</code>.</div>
+              <div><strong style="color:var(--accent);">Slot Requests</strong> — review and approve <code>!r</code> submissions; configure eligibility + cooldown.</div>
               <div><strong style="color:var(--accent);">Bonus Battles</strong> — two slots, viewers vote with points, payout to winners.</div>
               <div><strong style="color:var(--accent);">Tournaments</strong> — bracket-style head-to-head with point-cost entry.</div>
               <div><strong style="color:var(--accent);">Leaderboard</strong> — your casino's monthly wager rankings + period reset history.</div>
@@ -1586,141 +1618,195 @@
       </div>
     </div>
 
-    <!-- ── OVERLAYS ── -->
-    <div class="page" id="page-overlays">
-      <div style="max-width:720px;">
+    <!-- ── OVERLAY STUDIO ── -->
+    <div class="page" id="page-overlays" style="padding:0;">
+      <div style="display:flex;height:calc(100vh - 56px);overflow:hidden;">
 
-        <div class="card" style="margin-bottom:16px;">
-          <div class="card-title" style="margin-bottom:16px;">🎡 Giveaway Wheel</div>
-          <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">Spinning prize wheel showing all participants as segments. Spins to the winner when you click Spin in the Giveaway page. Great for prize giveaways with a smaller entry pool.</p>
-          <div style="display:flex;flex-direction:column;gap:10px;">
-            <div class="overlay-row">
-              <div class="overlay-row-label">OBS Browser Source URL</div>
+        <!-- ── LEFT SIDEBAR ── -->
+        <div style="width:268px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;background:var(--bg-panel);">
+
+          <!-- Header -->
+          <div style="padding:20px 18px 14px;border-bottom:1px solid var(--border);">
+            <div style="font-family:'Exo 2',sans-serif;font-size:17px;font-weight:900;color:var(--bright);letter-spacing:-.01em;">Overlay Studio</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:3px;">Pick an overlay to configure and preview</div>
+          </div>
+
+          <!-- Overlay list -->
+          <div style="padding:12px 10px 6px;" id="osCardList">
+            <!-- rendered by JS -->
+          </div>
+
+          <!-- Appearance section -->
+          <div style="border-top:1px solid var(--border);padding:16px 14px;margin-top:auto;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+              <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);">Appearance</div>
+              <span id="osScopeName" style="font-size:9px;font-weight:700;color:var(--accent);background:rgba(0,229,255,0.1);padding:2px 7px;border-radius:8px;">—</span>
+            </div>
+            <div style="font-size:10px;color:var(--text-dim);margin-bottom:14px;opacity:0.8;">Each overlay has its own look.</div>
+
+            <!-- Header text (only for overlays that support it) -->
+            <div id="osHeaderWrap" style="margin-bottom:12px;display:none;">
+              <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:6px;">Header Text</div>
+              <input type="text" id="osHeaderInput" maxlength="40" placeholder="🎰 Bonus Hunt"
+                oninput="osHeaderChange(this.value)"
+                style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:7px 9px;font-size:12px;color:var(--bright);outline:none;"
+                onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+            </div>
+
+            <!-- Accent color -->
+            <div style="margin-bottom:12px;">
+              <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:6px;">Accent Color</div>
               <div style="display:flex;gap:8px;align-items:center;">
-                <code class="overlay-url" id="obsWheelUrl">—</code>
-                <button onclick="copyOverlay('obsWheelUrl')" class="btn-copy">Copy</button>
-                <a href="#" target="_blank" id="obsWheelPreview" class="btn-preview">▶ Preview</a>
+                <div style="position:relative;width:34px;height:34px;border-radius:7px;overflow:hidden;border:2px solid var(--border);flex-shrink:0;cursor:pointer;" onclick="document.getElementById('osAccentPicker').click()">
+                  <div id="osAccentSwatch" style="position:absolute;inset:0;background:var(--accent);"></div>
+                  <input type="color" id="osAccentPicker" value="#00e5ff" oninput="osAccentChange(this.value)" style="opacity:0;position:absolute;inset:0;cursor:pointer;width:100%;height:100%;padding:0;border:none;">
+                </div>
+                <input type="text" id="osAccentHex" value="#00e5ff" maxlength="7" placeholder="#00e5ff"
+                  oninput="osAccentHexInput(this.value)"
+                  style="flex:1;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;color:var(--bright);font-family:monospace;outline:none;"
+                  onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
               </div>
-              <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Width: 800, height: 800. Works best with 30 or fewer participants.</div>
             </div>
-          </div>
-        </div>
 
-        <div class="card" style="margin-bottom:16px;">
-          <div class="card-title" style="margin-bottom:16px;">🎰 Winner Spinner</div>
-          <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">Animated slot-machine-style winner reveal. Appears when you spin a winner from the Giveaway page.</p>
-          <div style="display:flex;flex-direction:column;gap:10px;">
-            <div class="overlay-row">
-              <div class="overlay-row-label">OBS Browser Source URL</div>
+            <!-- Background -->
+            <div style="margin-bottom:12px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <div style="font-size:11px;color:var(--text-dim);font-weight:600;">Background</div>
+                <div style="display:flex;align-items:center;gap:7px;cursor:pointer;" onclick="osToggleTransparent()">
+                  <span style="font-size:10px;color:var(--text-dim);">Transparent</span>
+                  <div style="position:relative;width:36px;height:20px;">
+                    <input type="checkbox" id="osBgTransparent" style="opacity:0;position:absolute;width:0;height:0;">
+                    <div id="osBgTrack" style="position:absolute;inset:0;border-radius:10px;background:var(--bg-card);border:1px solid var(--border);transition:background 0.2s;"></div>
+                    <div id="osBgThumb" style="position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--text-dim);transition:all 0.2s;"></div>
+                  </div>
+                </div>
+              </div>
+              <div id="osBgControls">
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+                  <div style="position:relative;width:34px;height:34px;border-radius:7px;overflow:hidden;border:2px solid var(--border);flex-shrink:0;cursor:pointer;" onclick="document.getElementById('osBgPicker').click()">
+                    <div id="osBgSwatch" style="position:absolute;inset:0;background:#0d1117;"></div>
+                    <input type="color" id="osBgPicker" value="#0d1117" oninput="osBgChange(this.value)" style="opacity:0;position:absolute;inset:0;cursor:pointer;width:100%;height:100%;padding:0;border:none;">
+                  </div>
+                  <input type="text" id="osBgHex" value="#0d1117" maxlength="7" oninput="osBgHexInput(this.value)"
+                    style="flex:1;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;color:var(--bright);font-family:monospace;outline:none;"
+                    onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:3px;">
+                  <span>Opacity</span><span id="osBgOpacityVal">90%</span>
+                </div>
+                <input type="range" id="osBgOpacity" min="0" max="100" value="90" oninput="osBgOpacityChange(this.value)" style="width:100%;accent-color:var(--accent);cursor:pointer;">
+              </div>
+            </div>
+
+            <!-- Text color -->
+            <div style="margin-bottom:12px;">
+              <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:6px;">Text Color</div>
               <div style="display:flex;gap:8px;align-items:center;">
-                <code class="overlay-url" id="obsSpinnerUrl">—</code>
-                <button onclick="copyOverlay('obsSpinnerUrl')" class="btn-copy">Copy</button>
-                <a href="#" target="_blank" id="obsSpinnerPreview" class="btn-preview">▶ Preview</a>
-              </div>
-              <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Set width: 1920, height: 1080, transparent background checked</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="card" style="margin-bottom:16px;">
-          <div class="card-title" style="margin-bottom:16px;">📋 Giveaway Entries</div>
-          <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">Live scrolling list of giveaway entries as viewers join. Place as a sidebar or ticker on your scene.</p>
-          <div style="display:flex;flex-direction:column;gap:10px;">
-            <div class="overlay-row">
-              <div class="overlay-row-label">OBS Browser Source URL</div>
-              <div style="display:flex;gap:8px;align-items:center;">
-                <code class="overlay-url" id="obsEntriesUrl">—</code>
-                <button onclick="copyOverlay('obsEntriesUrl')" class="btn-copy">Copy</button>
-                <a href="#" target="_blank" id="obsEntriesPreview" class="btn-preview">▶ Preview</a>
+                <div style="position:relative;width:34px;height:34px;border-radius:7px;overflow:hidden;border:2px solid var(--border);flex-shrink:0;cursor:pointer;" onclick="document.getElementById('osTextPicker').click()">
+                  <div id="osTextSwatch" style="position:absolute;inset:0;background:#ffffff;"></div>
+                  <input type="color" id="osTextPicker" value="#ffffff" oninput="osTextChange(this.value)" style="opacity:0;position:absolute;inset:0;cursor:pointer;width:100%;height:100%;padding:0;border:none;">
+                </div>
+                <input type="text" id="osTextHex" value="#ffffff" maxlength="7" oninput="osTextHexInput(this.value)"
+                  style="flex:1;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;color:var(--bright);font-family:monospace;outline:none;"
+                  onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
               </div>
             </div>
+
+            <!-- Font -->
+            <div style="margin-bottom:14px;">
+              <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:6px;">Font</div>
+              <select id="osFont" class="form-input" style="font-size:12px;padding:7px 10px;" onchange="osFontChange(this.value)">
+                <option value="Inter">Inter (Default)</option>
+                <option value="Poppins">Poppins</option>
+                <option value="Montserrat">Montserrat</option>
+                <option value="Roboto">Roboto</option>
+                <option value="OpenSans">Open Sans</option>
+                <option value="Lato">Lato</option>
+                <option value="WorkSans">Work Sans</option>
+                <option value="DMSans">DM Sans</option>
+                <option value="Rajdhani">Rajdhani (Gaming)</option>
+                <option value="Oswald">Oswald (Condensed)</option>
+                <option value="Exo2">Exo 2 (Tech)</option>
+                <option value="RussoOne">Russo One (Bold)</option>
+                <option value="BebasNeue">Bebas Neue (Display)</option>
+                <option value="Teko">Teko (Tall)</option>
+              </select>
+            </div>
+
+            <div style="display:flex;gap:8px;">
+              <button onclick="osApplyToAll()" title="Copy this overlay's colors & font to every overlay"
+                style="flex:1;padding:9px 4px;background:var(--bg-card);border:1px solid var(--border);border-radius:7px;color:var(--text-dim);font-size:12px;font-weight:700;cursor:pointer;">
+                Apply to All
+              </button>
+              <button onclick="osSaveTheme()"
+                style="flex:1;padding:9px 4px;background:var(--accent);border:none;border-radius:7px;color:#0d1117;font-family:'Exo 2',sans-serif;font-size:13px;font-weight:800;cursor:pointer;">
+                Save
+              </button>
+            </div>
+            <button onclick="osResetOverlay()"
+              style="width:100%;margin-top:8px;background:none;border:none;color:var(--text-dim);font-size:11px;cursor:pointer;text-decoration:underline;opacity:0.7;">
+              Reset this overlay to default
+            </button>
           </div>
         </div>
 
-        <div class="card" style="margin-bottom:16px;">
-          <div class="card-title" style="margin-bottom:16px;">🎰 Bonus Hunt</div>
-          <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">Live bonus hunt tracker. Shows progress, stats, and your full slot list as you hunt through them.</p>
-          <div style="display:flex;flex-direction:column;gap:10px;">
-            <div class="overlay-row">
-              <div class="overlay-row-label">OBS Browser Source URL</div>
-              <div style="display:flex;gap:8px;align-items:center;">
-                <code class="overlay-url" id="obsBonusUrl">—</code>
-                <button onclick="copyOverlay('obsBonusUrl')" class="btn-copy">Copy</button>
-                <a href="#" target="_blank" id="obsBonusPreview" class="btn-preview">▶ Preview</a>
+        <!-- ── RIGHT PREVIEW PANE ── -->
+        <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);">
+
+          <!-- Selected overlay header -->
+          <div style="padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;">
+            <div id="osSelIcon" style="font-size:22px;line-height:1;width:32px;text-align:center;">🖥</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-family:'Exo 2',sans-serif;font-size:15px;font-weight:900;color:var(--bright);" id="osSelName">Select an overlay</div>
+              <div style="font-size:11px;color:var(--text-dim);margin-top:2px;" id="osSelDesc">Click a card on the left to preview it here</div>
+            </div>
+            <div id="osSelBadges" style="display:flex;gap:6px;flex-shrink:0;"></div>
+          </div>
+
+          <!-- Preview viewport -->
+          <div style="flex:1;overflow:hidden;position:relative;display:flex;align-items:flex-start;justify-content:center;padding:20px;">
+            <!-- Empty state -->
+            <div id="osPreviewEmpty" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;">
+              <div style="font-size:48px;opacity:0.15;">🖥</div>
+              <div style="font-size:13px;color:var(--text-dim);opacity:0.5;">← Select an overlay to preview</div>
+            </div>
+            <!-- Iframe container -->
+            <div id="osPreviewContainer" style="display:none;position:relative;overflow:hidden;border-radius:8px;border:1px solid var(--border);box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+              <!-- checkerboard bg for transparent overlays -->
+              <div id="osCheckerBg" style="position:absolute;inset:0;background-image:linear-gradient(45deg,#1c1c1e 25%,transparent 25%,transparent 75%,#1c1c1e 75%),linear-gradient(45deg,#1c1c1e 25%,transparent 25%,transparent 75%,#1c1c1e 75%);background-size:16px 16px;background-position:0 0,8px 8px;background-color:#141414;z-index:0;"></div>
+              <iframe id="osPreviewFrame" src="about:blank" scrolling="no" style="position:relative;z-index:1;border:none;display:block;transform-origin:top left;"></iframe>
+            </div>
+          </div>
+
+          <!-- URL bar + setup info -->
+          <div id="osUrlBar" style="display:none;border-top:1px solid var(--border);padding:14px 20px;flex-shrink:0;background:var(--bg-panel);">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);margin-bottom:5px;">OBS Browser Source URL</div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <input type="text" id="osUrlInput" readonly
+                    style="flex:1;min-width:0;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:11px;color:var(--accent);font-family:monospace;outline:none;cursor:text;"
+                    onclick="this.select()">
+                  <button onclick="osCopyUrl()"
+                    style="padding:7px 16px;background:var(--accent);border:none;border-radius:6px;color:#0d1117;font-size:12px;font-weight:800;font-family:'Exo 2',sans-serif;cursor:pointer;white-space:nowrap;">
+                    Copy
+                  </button>
+                  <a id="osOpenLink" href="#" target="_blank"
+                    style="padding:7px 14px;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:12px;text-decoration:none;white-space:nowrap;">
+                    Preview ↗
+                  </a>
+                </div>
               </div>
-              <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Width: 500px recommended. Position freely — transparent background.</div>
             </div>
-          </div>
-        </div>
-
-        <div class="card" style="margin-bottom:16px;">
-          <div class="card-title" style="margin-bottom:16px;">📋 Slot Requests</div>
-          <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">Live scrolling queue of viewer slot requests. Viewers type <code style="color:var(--accent);font-family:monospace;">!sr &lt;slot name&gt;</code> in chat to add their request.</p>
-          <div style="display:flex;flex-direction:column;gap:10px;">
-            <div class="overlay-row">
-              <div class="overlay-row-label">OBS Browser Source URL</div>
-              <div style="display:flex;gap:8px;align-items:center;">
-                <code class="overlay-url" id="obsSRUrl">—</code>
-                <button onclick="copyOverlay('obsSRUrl')" class="btn-copy">Copy</button>
-                <a href="#" target="_blank" id="obsSRPreview" class="btn-preview">▶ Preview</a>
+            <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;">
+              <div style="font-size:11px;color:var(--text-dim);">
+                <span style="color:var(--bright);font-weight:600;">OBS Size:</span> <span id="osObsSizeText">—</span>
               </div>
-              <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Width: 360px recommended. Transparent background.</div>
+              <div style="font-size:11px;color:var(--text-dim);" id="osSetupNote"></div>
             </div>
           </div>
-        </div>
 
-        <div class="card" style="margin-bottom:16px;">
-          <div class="card-title" style="margin-bottom:16px;">⚔️ Bonus Battles</div>
-          <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">Live Bonus Battle overlay — shows current match, viewer bets, and results in real time.</p>
-          <div style="display:flex;flex-direction:column;gap:10px;">
-            <div class="overlay-row">
-              <div class="overlay-row-label">OBS Browser Source URL</div>
-              <div style="display:flex;gap:8px;align-items:center;">
-                <code class="overlay-url" id="obsBBUrl">—</code>
-                <button onclick="copyOverlay('obsBBUrl')" class="btn-copy">Copy</button>
-                <a href="#" target="_blank" id="obsBBPreview" class="btn-preview">▶ Preview</a>
-              </div>
-              <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Width: 1920, height: 1080, transparent background.</div>
-            </div>
-          </div>
         </div>
-
-        <div class="card" style="margin-bottom:16px;">
-          <div class="card-title" style="margin-bottom:16px;">🏆 Tournaments</div>
-          <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">Live tournament bracket overlay — shows the bracket, match-ups, and winners as the tournament progresses.</p>
-          <div style="display:flex;flex-direction:column;gap:10px;">
-            <div class="overlay-row">
-              <div class="overlay-row-label">OBS Browser Source URL</div>
-              <div style="display:flex;gap:8px;align-items:center;">
-                <code class="overlay-url" id="obsTnUrl">—</code>
-                <button onclick="copyOverlay('obsTnUrl')" class="btn-copy">Copy</button>
-                <a href="#" target="_blank" id="obsTnPreview" class="btn-preview">▶ Preview</a>
-              </div>
-              <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Width: 1920, height: 1080, transparent background.</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Slot Picker overlay -->
-        <div class="card" style="margin-bottom:16px;">
-          <div class="card-title" style="margin-bottom:10px;">🎲 Slot Picker</div>
-          <div class="overlay-row">
-            <div class="overlay-row-label">OBS Browser Source URL</div>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <code class="overlay-url" id="obsSpPickerUrl">—</code>
-              <button onclick="copyOverlay('obsSpPickerUrl')" class="btn-copy">Copy</button>
-              <a href="#" target="_blank" id="obsSpPickerPreview" class="btn-preview">▶ Preview</a>
-            </div>
-            <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Width: 360, height: 500, transparent background. Shows a spin reel when you pick a slot from the dashboard.</div>
-          </div>
-        </div>
-
-        <div class="card" style="background:rgba(0,229,255,0.03);border-color:rgba(0,229,255,0.12);">
-          <div style="font-size:12px;color:var(--text-dim);line-height:1.7;">
-            <strong style="color:var(--accent);">OBS setup tip:</strong> Add each overlay as a <em>Browser Source</em> in OBS. Check <em>Shutdown source when not visible</em> to save resources. The overlays are transparent by default — only content appears on stream.
-          </div>
-        </div>
-
       </div>
     </div>
 
@@ -1733,13 +1819,12 @@
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
           <div>
             <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:var(--bright);">🎲 Random Slot Picker</div>
-            <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Filter the pool, then spin to randomly select a slot. Result broadcasts to your OBS overlay.</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Pick a provider, then spin — the reel scrolls and lands on a random slot. Result broadcasts to your OBS overlay.</div>
             <div style="font-size:11px;color:var(--text-dim);margin-top:5px;" id="spCatalogSource">⏳ Loading catalog…</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button onclick="spRefreshCatalog()" title="Force re-fetch live catalog" style="font-size:12px;padding:7px 12px;border-radius:7px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-dim);cursor:pointer;white-space:nowrap;">↻ Refresh</button>
             <a id="spObsLink" href="#" target="_blank" style="font-size:12px;padding:7px 14px;border-radius:7px;border:1px solid var(--border);color:var(--text-dim);text-decoration:none;white-space:nowrap;">🖥 OBS Overlay</a>
-            <button onclick="spPickSlot()" class="btn btn-accent" style="padding:9px 22px;font-size:14px;">🎲 Pick Random Slot</button>
           </div>
         </div>
 
@@ -1749,11 +1834,10 @@
           <select id="spProviderFilter" onchange="spApplyFilters()" class="form-input" style="flex:1;min-width:150px;max-width:200px;">
             <option value="">All Providers</option>
           </select>
-          <select id="spExclusiveFilter" onchange="spApplyFilters()" class="form-input" style="width:150px;">
-            <option value="">All Casinos</option>
+          <select id="spExclusiveFilter" onchange="spApplyFilters()" class="form-input" style="width:160px;">
+            <option value="">All Slots</option>
             <option value="stake">Stake Exclusives</option>
-            <option value="roobet">Roobet Exclusives</option>
-            <option value="rollbit">Rollbit Exclusives</option>
+            <option value="stakeengine">Stake Engine</option>
           </select>
           <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text-dim);cursor:pointer;white-space:nowrap;">
             <input type="checkbox" id="spBonusBuyFilter" onchange="spApplyFilters()" style="width:15px;height:15px;accent-color:var(--accent);">
@@ -1763,18 +1847,50 @@
         </div>
       </div>
 
-      <!-- Picked result banner -->
-      <div id="spResult" style="display:none;margin-bottom:16px;" class="card"></div>
+      <!-- Spinner carousel -->
+      <style>
+        .sp-stage { --sp-card: 124px; --sp-gap: 14px; max-width: 720px; margin: 0 auto; }
+        .sp-carousel {
+          position: relative; background: var(--bg-card);
+          border: 1px solid var(--border); border-radius: 16px;
+          padding: 26px 0 18px; overflow: hidden;
+        }
+        .sp-viewport { position: relative; overflow: hidden; }
+        /* edge fades */
+        .sp-viewport::before, .sp-viewport::after {
+          content: ''; position: absolute; top: 0; bottom: 0; width: 90px; z-index: 3; pointer-events: none;
+        }
+        .sp-viewport::before { left: 0;  background: linear-gradient(to right, var(--bg-card), transparent); }
+        .sp-viewport::after  { right: 0; background: linear-gradient(to left,  var(--bg-card), transparent); }
+        /* center landing frame */
+        .sp-center-frame {
+          position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+          width: var(--sp-card); height: var(--sp-card);
+          border: 2px solid var(--accent); border-radius: 12px;
+          box-shadow: 0 0 22px rgba(0,229,255,0.35), inset 0 0 12px rgba(0,229,255,0.12);
+          z-index: 2; pointer-events: none; transition: box-shadow 0.3s;
+        }
+        .sp-carousel.landed .sp-center-frame { box-shadow: 0 0 30px rgba(255,215,0,0.5), inset 0 0 14px rgba(255,215,0,0.18); border-color: var(--gold); }
+        .sp-track { display: flex; gap: var(--sp-gap); padding: 0 calc(50% - (var(--sp-card) / 2)); will-change: transform; }
+        .sp-card { width: var(--sp-card); flex-shrink: 0; }
+        .sp-card-img { position: relative; width: var(--sp-card); height: var(--sp-card); border-radius: 11px; overflow: hidden; background: #0d1117; border: 1px solid var(--border); }
+        .sp-card-name { font-size: 11px; font-weight: 600; color: var(--text); text-align: center; margin-top: 7px; line-height: 1.25; height: 28px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+      </style>
 
-      <!-- Browse prompt shown when no specific filter is active -->
-      <div id="spBrowsePrompt" style="text-align:center;padding:48px 24px;color:var(--text-dim);">
-        <div style="font-size:40px;margin-bottom:12px;">🎰</div>
-        <div style="font-size:14px;font-weight:600;color:var(--bright);margin-bottom:6px;">Search or pick a provider to browse</div>
-        <div style="font-size:12px;">The full pool is active for random picks — use filters above to narrow it down, or search by name to find a specific slot.</div>
+      <div id="spStage" class="sp-stage" style="display:none;">
+        <div class="sp-carousel" id="spCarousel">
+          <div class="sp-viewport" id="spViewport">
+            <div class="sp-center-frame"></div>
+            <div class="sp-track" id="spTrack"></div>
+          </div>
+        </div>
+        <div style="text-align:center;margin-top:16px;display:flex;gap:10px;justify-content:center;">
+          <button onclick="spPickSlot()" id="spSpinBtn" class="btn btn-accent" style="padding:12px 36px;font-size:15px;font-weight:800;">🎲 Spin</button>
+        </div>
       </div>
 
-      <!-- Slot grid -->
-      <div id="spGrid" style="display:none;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;"></div>
+      <!-- Picked result banner -->
+      <div id="spResult" style="display:none;margin-top:16px;max-width:720px;margin-left:auto;margin-right:auto;" class="card"></div>
 
       <div id="spEmpty" style="display:none;text-align:center;padding:48px 24px;color:var(--text-dim);">
         <div style="font-size:36px;margin-bottom:10px;">🎰</div>
@@ -1801,7 +1917,7 @@
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
             <div class="field">
-              <label>Who can use !sr</label>
+              <label>Who can use !r</label>
               <select id="srEligibility" class="form-input" onchange="srSaveSettings()">
                 <option value="everyone">Everyone</option>
                 <option value="verified">Verified users only</option>
@@ -1814,9 +1930,56 @@
               <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">0 = no cooldown</div>
             </div>
           </div>
-          <div style="margin-top:14px;display:flex;align-items:center;gap:10px;">
-            <input type="checkbox" id="srAllowMultiple" onchange="srSaveSettings()" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
-            <label for="srAllowMultiple" style="font-size:13px;color:var(--text-dim);cursor:pointer;margin:0;">Allow viewers to have multiple slots pending in queue at once</label>
+          <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div class="field" style="margin-bottom:0;">
+              <label>Max requests per viewer</label>
+              <input type="number" id="srMaxPerUser" class="form-input" min="0" max="20" step="1" value="1" onchange="srSaveSettings()">
+              <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">0 = unlimited</div>
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <label>Allow duplicate slots</label>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+                <div style="position:relative;width:44px;height:24px;" onclick="srToggleDuplicates()">
+                  <input type="checkbox" id="srAllowDuplicates" style="opacity:0;position:absolute;width:0;height:0;">
+                  <div id="srDuplicatesTrack" style="position:absolute;inset:0;border-radius:12px;background:var(--bg-card);border:1px solid var(--border);transition:background 0.2s;"></div>
+                  <div id="srDuplicatesThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--text-dim);transition:all 0.2s;"></div>
+                </div>
+                <span id="srDuplicatesLabel" style="font-size:12px;font-weight:700;color:var(--text-dim);">OFF</span>
+              </div>
+              <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Same slot in queue from multiple viewers</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Request Raffle Spinner -->
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
+            <div class="card-title" style="margin-bottom:0;">🎡 Draw from Requests <span id="rspPoolCount" style="color:var(--text-dim);font-weight:500;font-size:13px;"></span></div>
+            <a href="#" target="_blank" id="rspOverlayLink" style="font-size:12px;padding:6px 12px;border-radius:7px;border:1px solid var(--border);color:var(--text-dim);text-decoration:none;white-space:nowrap;">🖥 OBS Overlay</a>
+          </div>
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">Randomly draw a viewer + their requested slot. Re-drawable — entries stay in the pool until you clear the queue.</div>
+
+          <div id="rspStage" class="sp-stage" style="display:none;">
+            <div class="sp-carousel" id="rspCarousel">
+              <div class="sp-viewport" id="rspViewport">
+                <div class="sp-center-frame"></div>
+                <div class="sp-track" id="rspTrack"></div>
+              </div>
+            </div>
+            <div style="text-align:center;margin-top:16px;">
+              <button onclick="rspSpin()" id="rspSpinBtn" class="btn btn-accent" style="padding:11px 32px;font-size:15px;font-weight:800;">🎲 Spin</button>
+            </div>
+          </div>
+          <div id="rspEmpty" style="text-align:center;padding:32px;color:var(--text-dim);font-size:13px;">No requests in the queue to draw from yet.</div>
+
+          <div id="rspResult" style="display:none;margin-top:14px;"></div>
+
+          <div id="rspDrawnWrap" style="display:none;margin-top:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+              <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);">Drawn this round</div>
+              <button onclick="rspClearDrawn()" style="background:none;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:var(--text-dim);font-size:11px;cursor:pointer;padding:3px 10px;">Clear</button>
+            </div>
+            <div id="rspDrawnList" style="display:flex;flex-direction:column;gap:6px;"></div>
           </div>
         </div>
 
@@ -1986,6 +2149,31 @@
             <div style="background:var(--bg-card);padding:10px 12px;">
               <div style="font-family:'Exo 2',sans-serif;font-size:14px;font-weight:900;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="bhStatBest">—</div>
               <div style="font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);margin-top:2px;">Best Slot</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GTB mini-panel -->
+        <div class="card" id="bhGtbPanel" style="margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="card-title" style="margin-bottom:0;">🏆 Guess The Balance</div>
+              <span id="bhGtbBadge" style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;background:rgba(255,71,87,0.12);color:var(--red);">CLOSED</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button id="bhGtbOpenBtn" onclick="bhGtbStart()" style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:6px;border:none;background:var(--green);color:#0d1117;cursor:pointer;">▶ Open GTB</button>
+              <button id="bhGtbCloseBtn" onclick="bhGtbStop()" style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:6px;border:1px solid rgba(255,71,87,0.35);background:none;color:var(--red);cursor:pointer;" disabled>⏹ Close</button>
+              <a href="#" onclick="showPage('gtb');return false;" style="font-size:11px;color:var(--text-dim);text-decoration:none;opacity:0.75;white-space:nowrap;">Full Page →</a>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;">
+              <div style="font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;">Entries</div>
+              <div style="font-size:22px;font-weight:900;font-family:'Exo 2',sans-serif;color:var(--bright);" id="bhGtbCount">0</div>
+            </div>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;">
+              <div style="font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;">Command</div>
+              <div style="font-size:13px;font-weight:700;color:var(--accent);font-family:monospace;">!gtb &lt;amount&gt;</div>
             </div>
           </div>
         </div>
@@ -2574,9 +2762,10 @@ function showPage(id, el) {
   if (id !== 'store'       && redemptionsUnsub) { redemptionsUnsub(); redemptionsUnsub = null; }
   if (id !== 'raffle'      && raffleHistoryUnsub) { raffleHistoryUnsub(); raffleHistoryUnsub = null; }
   if (id !== 'activity'    && activityUnsub) { activityUnsub(); activityUnsub = null; }
+  if (id !== 'gtb' && id !== 'bonushunt' && gtbUnsubscribe) { gtbUnsubscribe(); gtbUnsubscribe = null; }
   if (id === 'verified') loadVerifiedUsers();
   if (id === 'points') loadTopViewers();
-  if (id === 'gtb') loadGTBGuesses();
+  if (id === 'gtb') openGTBPage();
   if (id === 'leaderboard') loadLeaderboards();
   if (id === 'store') { loadStoreItems(); loadRedemptions(); }
   if (id === 'commands') { loadCommands(); loadCommandAliases(); }
@@ -2585,7 +2774,7 @@ function showPage(id, el) {
   if (id === 'slotrequest')  loadSlotRequests();
   if (id === 'bonusbattle') loadBonusBattle();
   if (id === 'tournament')  loadTournament();
-  if (id === 'overlays')    wireOverlayLinks();
+  if (id === 'overlays')    loadOverlayStudio();
   if (id === 'billing')     renderBillingPage();
   if (id === 'raffle')      loadRafflePage();
   if (id === 'activity')    loadActivityLog();
@@ -2847,6 +3036,51 @@ function applyModContextUI() {
   }
 }
 
+// Populate the account switcher dropdown. Only visible to users who moderate
+// at least one other streamer (delegatedFor is non-empty). Lists their own
+// account plus each streamer they manage, resolving channel names from the
+// streamer docs (mods are allowed to read those per Firestore rules).
+async function buildStreamerSwitcher() {
+  const sel  = document.getElementById('streamerSwitcher');
+  const wrap = document.getElementById('streamerSwitcherWrap');
+  if (!sel || !wrap || !fb.currentUser) return;
+  if (!fb.delegatedFor || fb.delegatedFor.length === 0) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  // Resolve the mod's own channel name (may differ from the active profile)
+  let ownName = '(my account)';
+  try {
+    const ownDoc = await fb.db.collection('streamers').doc(fb.currentUser.uid).get();
+    if (ownDoc.exists && ownDoc.data().kickChannel) ownName = ownDoc.data().kickChannel;
+  } catch {}
+
+  const opts = [`<option value="${fb.currentUser.uid}">👤 ${ownName} (me)</option>`];
+  for (const uid of fb.delegatedFor) {
+    let name = uid.slice(0, 8);
+    try {
+      const d = await fb.db.collection('streamers').doc(uid).get();
+      if (d.exists && d.data().kickChannel) name = d.data().kickChannel;
+    } catch {}
+    opts.push(`<option value="${uid}">🛡 ${name}</option>`);
+  }
+  sel.innerHTML = opts.join('');
+  sel.value = fb.activeUid;
+  wrap.style.display = '';
+}
+
+// Switch the active account from the dropdown, then reload so every listener
+// re-scopes to the newly selected streamer.
+async function onStreamerSwitch(uid) {
+  try {
+    await setActiveStreamer(uid);
+    window.location.reload();
+  } catch (e) {
+    flash(e.message || 'Could not switch account', 'error');
+  }
+}
+
 // Switch the dashboard back to the moderator's own account. If they don't
 // have one onboarded, sign them out.
 async function exitModeration() {
@@ -2900,6 +3134,7 @@ function onAuthReady(user) {
   // export). Mods inherit the streamer's plan / tier — applyTierLocks above
   // already computed userPlan from the streamer's profile.
   applyModContextUI();
+  buildStreamerSwitcher();
 
   // Start live bot status listener — drives the stat card, sidebar indicator, and offline banner.
   // Listeners scope to the *active* streamer (fb.activeUid), not the auth user — a moderator
@@ -2979,6 +3214,7 @@ function onAuthReady(user) {
       document.getElementById('minWagerInput').value = profile.giveawayMinWager;
     }
     if (profile.giveawaySubOnly) document.getElementById('toggleSubOnly').classList.add('on');
+    if (profile.giveawayEnterSelf) document.getElementById('toggleEnterSelf').classList.add('on');
     if (profile.giveawayVerifiedCasino || profile.giveawayVerifiedDiscord) {
       document.getElementById('toggleVerified').classList.add('on');
       document.getElementById('verifiedReqFields').style.display = 'block';
@@ -2996,6 +3232,12 @@ function onAuthReady(user) {
     document.getElementById('stopGiveawayBtn').style.display = '';
     document.getElementById('pickWinnerBtn').disabled = false;
     subscribeEntries();
+  }
+  // Re-attach the winner-chat watcher if a winner was picked before refresh.
+  // Independent of giveawayActive — the giveaway may already be closed but the
+  // streamer still wants to watch the winner's chat.
+  if (profile?.winnerWatch && profile?.winnerWatchAt) {
+    startWinnerChatWatch(profile.winnerWatchName || profile.winnerWatch, profile.winnerWatchAt);
   }
 }
 
@@ -3123,11 +3365,14 @@ async function startGiveaway() {
   const duration        = durSel === 'custom'
     ? (parseInt(document.getElementById('giveawayDurationCustom')?.value, 10) || 0)
     : parseInt(durSel, 10) || 0;
+  const enterSelf       = document.getElementById('toggleEnterSelf')?.classList.contains('on') || false;
 
   giveawayActive = true;
   entries = [];
   winner = null;
   renderEntries();
+  stopWinnerChatWatch();   // clear any leftover winner panel from a prior round
+  document.getElementById('winnerReveal').style.display = 'none';
   updateGiveawayStatus(true);
   document.getElementById('startGiveawayBtn').style.display = 'none';
   document.getElementById('stopGiveawayBtn').style.display = '';
@@ -3158,6 +3403,8 @@ async function startGiveaway() {
     giveawayVerifiedDiscord: verifiedDiscord,
     giveawayDuration:        duration,
     giveawayStartedAt:       Date.now(),
+    giveawayEnterSelf:       enterSelf,
+    winnerWatch:             null,
     pendingChatMessage:      announceMsg,
     pendingChatTs:           Date.now() + Math.random(),
   });
@@ -3165,6 +3412,10 @@ async function startGiveaway() {
   if (gwTarget === 'discord') {
     discordNotify('giveaway_start', { type: currentGiveawayType, keyword });
   }
+  // Note: "Enter Myself" is handled server-side by WenBotServer when it sees
+  // giveawayEnterSelf:true — the bot adds the streamer to its in-memory entries
+  // so the 5s snapshot flush keeps you in the list (a client write would get
+  // overwritten by that flush).
 }
 
 let gwTarget = 'kick';
@@ -3190,7 +3441,8 @@ async function stopGiveaway() {
   document.getElementById('stopGiveawayBtn').style.display = 'none';
   if (entriesUnsub) { entriesUnsub(); entriesUnsub = null; }
   stopCountdown();
-  await saveStreamerProfile({ giveawayActive: false, pendingChatMessage: '🔒 Giveaway entries are now closed!', pendingChatTs: Date.now() + Math.random() });
+  stopWinnerChatWatch();
+  await saveStreamerProfile({ giveawayActive: false, winnerWatch: null, pendingChatMessage: '🔒 Giveaway entries are now closed!', pendingChatTs: Date.now() + Math.random() });
   flash('Giveaway stopped.', 'success');
 }
 
@@ -3318,14 +3570,70 @@ function spinPicker() {
     addRecentWinner(winner.username);
     if (gwTarget === 'discord') discordNotify('giveaway_winner', { winner: winner.username, totalEntries: entries.length });
 
-    // Post winner to chat
+    // Post winner to chat + start watching the winner's chat so the streamer
+    // can spot them through the noise. WenBotServer reads winnerWatch and writes
+    // that user's messages to the winner_chat subcollection.
     const uid = fb.activeUid;
     if (uid) {
+      const watchAt = Date.now();
       fb.db.collection('streamers').doc(uid)
-        .update({ pendingChatMessage: `🏆 Congratulations @${winner.username}! You won the giveaway! 🎉`, pendingChatTs: Date.now() + Math.random() })
+        .update({
+          pendingChatMessage: `🏆 Congratulations @${winner.username}! You won the giveaway! 🎉`,
+          pendingChatTs:      Date.now() + Math.random(),
+          winnerWatch:        winner.username.toLowerCase(),
+          winnerWatchName:    winner.username,
+          winnerWatchAt:      watchAt,
+        })
         .catch(() => {});
+      startWinnerChatWatch(winner.username, watchAt);
     }
   }, 4000);
+}
+
+// ── WINNER CHAT WATCHER ──
+let winnerChatUnsub = null;
+function startWinnerChatWatch(name, watchAt) {
+  const uid = fb.activeUid;
+  if (!uid) return;
+  if (winnerChatUnsub) { winnerChatUnsub(); winnerChatUnsub = null; }
+
+  const panel    = document.getElementById('winnerChatPanel');
+  const titleEl  = document.getElementById('winnerChatTitle');
+  const msgsEl   = document.getElementById('winnerChatMessages');
+  const waitingEl= document.getElementById('winnerChatWaiting');
+  titleEl.textContent = `${name}'s Chat`;
+  msgsEl.innerHTML = '';
+  waitingEl.style.display = '';
+  panel.style.display = 'block';
+
+  winnerChatUnsub = fb.db.collection('streamers').doc(uid)
+    .collection('winner_chat')
+    .where('ts', '>=', watchAt)
+    .orderBy('ts', 'asc')
+    .onSnapshot(snap => {
+      const msgs = snap.docs.map(d => d.data());
+      if (!msgs.length) { waitingEl.style.display = ''; return; }
+      waitingEl.style.display = 'none';
+      msgsEl.innerHTML = msgs.map(m => {
+        const t = m.ts ? new Date(m.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+        return `<div style="font-size:13px;line-height:1.4;">
+          <span style="color:var(--text-dim);font-size:10px;margin-right:6px;">${t}</span>
+          <span style="color:var(--gold);font-weight:600;">${m.kickName || name}:</span>
+          <span style="color:var(--text);"> ${escapeHtml(m.content || '')}</span>
+        </div>`;
+      }).join('');
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+    }, () => {});
+}
+
+function stopWinnerChatWatch() {
+  if (winnerChatUnsub) { winnerChatUnsub(); winnerChatUnsub = null; }
+  const panel = document.getElementById('winnerChatPanel');
+  if (panel) panel.style.display = 'none';
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
 function addRecentWinner(name) {
@@ -3423,6 +3731,24 @@ function promptRemovePoints(username) {
 }
 
 // ── GTB ──
+function bhGtbRender() {
+  const openBtn  = document.getElementById('bhGtbOpenBtn');
+  const closeBtn = document.getElementById('bhGtbCloseBtn');
+  const badge    = document.getElementById('bhGtbBadge');
+  const count    = document.getElementById('bhGtbCount');
+  if (!openBtn) return;
+  const active = gtbActive;
+  badge.textContent        = active ? 'OPEN' : 'CLOSED';
+  badge.style.background   = active ? 'rgba(0,200,100,0.15)' : 'rgba(255,71,87,0.12)';
+  badge.style.color        = active ? 'var(--green)' : 'var(--red)';
+  count.textContent        = activeGuesses.length;
+  openBtn.disabled         = active;
+  closeBtn.disabled        = !active;
+}
+
+async function bhGtbStart() { await startGTB(); }
+async function bhGtbStop()  { await stopGTB();  }
+
 async function startGTB() {
   gtbActive = true;
   gtbSessionId = 'gtb_' + Date.now();
@@ -3440,6 +3766,7 @@ async function startGTB() {
   });
   flash('GTB is open! WenBot is announcing in chat.');
   listenGTBGuesses();
+  bhGtbRender();
 }
 
 async function stopGTB() {
@@ -3454,6 +3781,7 @@ async function stopGTB() {
     pendingChatTs: Date.now(),
   });
   flash('GTB closed. WenBot is announcing in chat.');
+  bhGtbRender();
 }
 
 let gtbUnsubscribe = null;
@@ -3469,7 +3797,34 @@ function listenGTBGuesses() {
       activeGuesses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       document.getElementById('gtbGuessCount').textContent = activeGuesses.length;
       renderGTBGuesses();
+      bhGtbRender();
     });
+}
+
+// Called when navigating to the GTB page — restore session from the profile
+// (covers GTB opened via chat !gtb start, or a page refresh) and attach the
+// real-time guesses listener so new guesses appear without a manual refresh.
+function openGTBPage() {
+  // Restore session state from the profile if the dashboard hasn't tracked it
+  if (profile?.gtbActive && profile?.gtbSessionId) {
+    gtbActive    = true;
+    gtbSessionId = profile.gtbSessionId;
+  } else if (!gtbSessionId && profile?.gtbSessionId) {
+    // GTB closed, but show the last session's guesses
+    gtbSessionId = profile.gtbSessionId;
+  }
+  // Reflect current state in the GTB page controls
+  document.getElementById('gtbStartBtn').disabled = !!gtbActive;
+  document.getElementById('gtbStopBtn').disabled  = !gtbActive;
+  document.getElementById('gtbStatusText').textContent = gtbActive ? '🟢 OPEN' : '🔴 Closed';
+  document.getElementById('gtbStatusText').style.color = gtbActive ? 'var(--green)' : 'var(--red)';
+  document.getElementById('gtbSessionId').textContent  = gtbSessionId || '—';
+  if (gtbSessionId) {
+    listenGTBGuesses();   // live listener — replaces the old one-time .get()
+  } else {
+    activeGuesses = [];
+    renderGTBGuesses();
+  }
 }
 
 async function loadGTBGuesses() {
@@ -3491,10 +3846,12 @@ function renderGTBGuesses(actualBalance) {
   tbody.innerHTML = activeGuesses.map((g, i) => {
     const diff = actualBalance != null ? Math.abs(g.guess - actualBalance) : null;
     const isWinner = diff === 0 || (actualBalance != null && diff === Math.min(...activeGuesses.map(x => Math.abs(x.guess - actualBalance))));
-    const time = g.timestamp ? new Date(g.timestamp).toLocaleTimeString() : '—';
+    const ts = g.submittedAt?.toDate ? g.submittedAt.toDate() : (g.submittedAt || g.timestamp);
+    const time = ts ? new Date(ts).toLocaleTimeString() : '—';
+    const name = g.kickUsername || g.id;
     return `<tr ${isWinner ? 'style="background:rgba(255,215,0,0.05);"' : ''}>
       <td style="color:var(--text-dim);">${i+1}</td>
-      <td class="${isWinner ? 'td-gold' : 'td-highlight'}">${isWinner ? '🏆 ' : ''}${g.id}</td>
+      <td class="${isWinner ? 'td-gold' : 'td-highlight'}">${isWinner ? '🏆 ' : ''}${name}</td>
       <td class="${isWinner ? 'td-gold' : ''}" style="font-weight:600;">$${Number(g.guess).toLocaleString()}</td>
       <td style="color:var(--text-dim);">${time}</td>
       <td>${diff != null ? '<span class="badge '+(isWinner?'badge-accent':'badge-orange')+'">±$'+diff.toLocaleString()+'</span>' : '—'}</td>
@@ -3508,16 +3865,17 @@ function pickGTBWinner() {
   if (!activeGuesses.length) { flash('No guesses to evaluate.', 'error'); return; }
   const sorted = [...activeGuesses].sort((a,b) => Math.abs(a.guess-actual) - Math.abs(b.guess-actual));
   const w = sorted[0];
+  const wName = w.kickUsername || w.id;
   const diff = Math.abs(w.guess - actual);
   document.getElementById('gtbWinnerDisplay').innerHTML = `
     <div style="background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.25);border-radius:8px;padding:12px;text-align:center;">
       <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">CLOSEST GUESS</div>
-      <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:800;color:var(--gold);">🏆 ${w.id}</div>
+      <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:800;color:var(--gold);">🏆 ${wName}</div>
       <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">Guessed $${Number(w.guess).toLocaleString()} — off by $${diff.toLocaleString()}</div>
     </div>`;
-  document.getElementById('gtbAnnounce').value = `🎰 GTB Winner: @${w.id} with a guess of $${Number(w.guess).toLocaleString()}! Actual balance was $${actual.toLocaleString()} (±$${diff.toLocaleString()}) 🏆`;
+  document.getElementById('gtbAnnounce').value = `🎰 GTB Winner: @${wName} with a guess of $${Number(w.guess).toLocaleString()}! Actual balance was $${actual.toLocaleString()} (±$${diff.toLocaleString()}) 🏆`;
   renderGTBGuesses(actual);
-  flash('Winner found: ' + w.id);
+  flash('Winner found: ' + wName);
 }
 
 async function postGTBAnnounce() {
@@ -4392,29 +4750,366 @@ async function submitFinalize() {
   btn.textContent = 'Save Winners';
 }
 
-// ── OVERLAYS ─────────────────────────────────────────────────────────────────
+// ── OVERLAY STUDIO ───────────────────────────────────────────────────────────
 
-function wireOverlayLinks() {
+const OS_OVERLAYS = [
+  { id:'bonushunt',   name:'Bonus Hunt',     icon:'🎰', tag:'hunting',    desc:'Live tracker — progress, stats, and full slot list.',       path:'/overlay-bonus-hunt.html',    obsW:500,  obsH:700,  demo:true,  header:'🎰 Bonus Hunt',          note:'Width: 500px recommended.' },
+  { id:'slotreqs',    name:'Slot Requests',  icon:'📋', tag:'hunting',    desc:'Scrolling queue of viewer !r requests in real time.',        path:'/overlay-slot-requests.html', obsW:360,  obsH:500,  demo:true,  header:'🎰 Slot Requests',       note:'Width: 360px recommended.' },
+  { id:'slotpicker',  name:'Slot Picker',    icon:'🎲', tag:'hunting',    desc:'Spin reel that shows the randomly picked slot.',            path:'/overlay-slot-picker.html',   obsW:360,  obsH:500,  demo:false, header:'🎰 Random Slot Picker',  note:'Width: 360, height: 500.' },
+  { id:'wheel',       name:'Giveaway Wheel', icon:'🎡', tag:'giveaway',   desc:'Spinning wheel with participants as segments.',             path:'/overlay-wheel.html',         obsW:800,  obsH:800,  demo:true,  header:null,                     note:'Best with 30 or fewer entries. Width: 800, height: 800.' },
+  { id:'winner',      name:'Winner Reveal',  icon:'🏆', tag:'giveaway',   desc:'Slot-machine-style animated winner announcement.',          path:'/overlay-winner.html',        obsW:1920, obsH:1080, demo:true,  header:'🎰 Giveaway Winner',     note:'Full-scene overlay. Width: 1920, height: 1080.' },
+  { id:'entries',     name:'Entries Feed',   icon:'📝', tag:'giveaway',   desc:'Live scrolling list of entries as viewers join.',           path:'/overlay-giveaway.html',      obsW:400,  obsH:600,  demo:true,  header:'🎁 Giveaway Live',       note:'Width: 400, height: 600.' },
+  { id:'bonusbattle', name:'Bonus Battle',   icon:'⚔️', tag:'battles',    desc:'Match display with live viewer vote counts and results.',   path:'/overlay-bonus-battle.html',  obsW:1920, obsH:1080, demo:true,  header:null,                     note:'Header comes from the battle title. Width: 1920, height: 1080.' },
+  { id:'tournament',  name:'Tournament',     icon:'🏅', tag:'tournament', desc:'Live bracket — matchups and winners as they progress.',     path:'/overlay-tournament.html',    obsW:1920, obsH:1080, demo:true,  header:null,                     note:'Header comes from the tournament title. Width: 1920, height: 1080.' },
+];
+
+let osSelectedId = null;
+let osThemes = {};            // { overlayId: theme }  — each overlay has its own look
+let _osReloadTimer = null;
+let _osResizeBound = false;
+
+function osDefaultTheme(overlayId) {
+  const o = OS_OVERLAYS.find(x => x.id === overlayId);
+  return {
+    accent:    '#00e5ff',
+    bgMode:    'transparent',  // 'transparent' | 'solid'
+    bgColor:   '#0d1117',
+    bgOpacity: 90,
+    text:      '#ffffff',
+    font:      'Inter',
+    header:    (o && o.header) ? o.header : '',
+  };
+}
+
+// The theme object for the currently selected overlay
+function osCur() {
+  if (!osThemes[osSelectedId]) osThemes[osSelectedId] = osDefaultTheme(osSelectedId);
+  return osThemes[osSelectedId];
+}
+
+function loadOverlayStudio() {
+  // Seed every overlay with defaults synchronously so the first render is valid
+  OS_OVERLAYS.forEach(o => { osThemes[o.id] = osDefaultTheme(o.id); });
+
+  // Load saved per-overlay themes from Firestore (overwrites defaults)
+  fb.db.collection('streamers').doc(fb.activeUid)
+    .collection('overlay_theme').doc('config').get()
+    .then(doc => {
+      if (doc.exists) {
+        const d = doc.data();
+        if (d.overlays) {
+          // New per-overlay format
+          OS_OVERLAYS.forEach(o => {
+            if (d.overlays[o.id]) osThemes[o.id] = Object.assign(osDefaultTheme(o.id), d.overlays[o.id]);
+          });
+        } else if (d.accent || d.bg || d.font) {
+          // Migrate legacy single global theme → apply to every overlay
+          const legacy = {
+            accent:    d.accent    || '#00e5ff',
+            bgMode:    d.bgMode    || (d.bg === 'transparent' ? 'transparent' : (d.bg ? 'solid' : 'transparent')),
+            bgColor:   d.bgColor   || '#0d1117',
+            bgOpacity: (d.bgOpacity != null) ? d.bgOpacity : 90,
+            text:      d.text      || '#ffffff',
+            font:      d.font      || 'Inter',
+          };
+          OS_OVERLAYS.forEach(o => {
+            osThemes[o.id] = Object.assign(osDefaultTheme(o.id), legacy);
+            if (d.headers && d.headers[o.id]) osThemes[o.id].header = d.headers[o.id];
+          });
+        }
+      }
+      if (osSelectedId) osSelectOverlay(osSelectedId);
+    }).catch(() => {});
+
+  // Build overlay cards
+  const list = document.getElementById('osCardList');
+  let lastTag = null;
+  list.innerHTML = OS_OVERLAYS.map(o => {
+    let divider = '';
+    if (o.tag !== lastTag) {
+      lastTag = o.tag;
+      const tagLabels = { hunting:'Hunting', giveaway:'Giveaway', battles:'Battles', tournament:'Tournament' };
+      divider = `<div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);padding:8px 10px 4px;margin-top:4px;">${tagLabels[o.tag]||o.tag}</div>`;
+    }
+    return divider + `
+    <div class="os-card" id="osCard_${o.id}" onclick="osSelectOverlay('${o.id}')">
+      <div style="font-size:18px;width:26px;text-align:center;flex-shrink:0;">${o.icon}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;color:var(--bright);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${o.name}</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:1px;">${o.obsW}×${o.obsH}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Re-scale preview on window resize (bind once)
+  if (!_osResizeBound) {
+    _osResizeBound = true;
+    window.addEventListener('resize', () => { if (osSelectedId && document.getElementById('page-overlays').classList.contains('active')) osScalePreview(); });
+  }
+
+  // Auto-select first overlay
+  osSelectOverlay(OS_OVERLAYS[0].id);
+}
+
+// Push the selected overlay's theme values into the appearance controls
+function osSyncThemeUI() {
+  const t = osCur();
+  document.getElementById('osAccentPicker').value = t.accent;
+  document.getElementById('osAccentHex').value    = t.accent;
+  document.getElementById('osAccentSwatch').style.background = t.accent;
+  document.getElementById('osBgPicker').value     = t.bgColor;
+  document.getElementById('osBgHex').value         = t.bgColor;
+  document.getElementById('osBgSwatch').style.background = t.bgColor;
+  document.getElementById('osBgOpacity').value     = t.bgOpacity;
+  document.getElementById('osBgOpacityVal').textContent = t.bgOpacity + '%';
+  document.getElementById('osTextPicker').value    = t.text;
+  document.getElementById('osTextHex').value        = t.text;
+  document.getElementById('osTextSwatch').style.background = t.text;
+  document.getElementById('osFont').value           = t.font;
+  osSetTransparentUI(t.bgMode === 'transparent');
+}
+
+function osSetTransparentUI(on) {
+  document.getElementById('osBgTransparent').checked = on;
+  document.getElementById('osBgTrack').style.background = on ? 'var(--accent)' : 'var(--bg-card)';
+  document.getElementById('osBgThumb').style.background = on ? '#0d1117' : 'var(--text-dim)';
+  document.getElementById('osBgThumb').style.left = on ? '18px' : '2px';
+  // Dim the color/opacity controls when transparent is on
+  const ctrls = document.getElementById('osBgControls');
+  ctrls.style.opacity = on ? '0.4' : '1';
+  ctrls.style.pointerEvents = on ? 'none' : 'auto';
+}
+
+// Build the theme query string for the selected overlay (shared by OBS + preview URLs)
+function osThemeParams() {
+  const t = osCur();
+  const p = new URLSearchParams();
+  p.set('accent', t.accent.replace('#',''));
+  p.set('text',   t.text.replace('#',''));
+  p.set('font',   t.font);
+  if (t.bgMode === 'transparent') {
+    p.set('bg', 'transparent');
+  } else {
+    p.set('bg',  t.bgColor.replace('#',''));
+    p.set('bgo', t.bgOpacity);
+  }
+  const o = OS_OVERLAYS.find(x => x.id === osSelectedId);
+  if (o && o.header && t.header && t.header.trim()) p.set('header', t.header.trim());
+  return p.toString();
+}
+
+function osSelectOverlay(id) {
+  const o = OS_OVERLAYS.find(x => x.id === id);
+  if (!o) return;
+  osSelectedId = id;
+
+  // Card active state
+  OS_OVERLAYS.forEach(x => {
+    const card = document.getElementById('osCard_' + x.id);
+    if (card) card.classList.toggle('active', x.id === id);
+  });
+
+  // Header bar
+  document.getElementById('osSelIcon').textContent = o.icon;
+  document.getElementById('osSelName').textContent = o.name;
+  document.getElementById('osSelDesc').textContent = o.desc;
+  const tagLabels = { hunting:'Hunting', giveaway:'Giveaway', battles:'Battles', tournament:'Tournament' };
+  document.getElementById('osSelBadges').innerHTML =
+    `<span class="os-tag os-tag-${o.tag}">${tagLabels[o.tag]||o.tag}</span>`;
+
+  // Load this overlay's own theme into the appearance controls
+  document.getElementById('osScopeName').textContent = o.name;
+  osSyncThemeUI();
+
+  // Header text control — only for overlays that support a static header
+  const hdrWrap = document.getElementById('osHeaderWrap');
+  if (o.header) {
+    hdrWrap.style.display = '';
+    const t = osCur();
+    if (!t.header) t.header = o.header;
+    document.getElementById('osHeaderInput').value = t.header;
+    document.getElementById('osHeaderInput').placeholder = o.header;
+  } else {
+    hdrWrap.style.display = 'none';
+  }
+
+  document.getElementById('osObsSizeText').textContent = `${o.obsW} × ${o.obsH}px`;
+  document.getElementById('osSetupNote').textContent = o.note;
+  document.getElementById('osUrlBar').style.display = '';
+  document.getElementById('osPreviewEmpty').style.display = 'none';
+  document.getElementById('osPreviewContainer').style.display = 'block';
+
+  osUpdateUrl();
+  osScalePreview();
+  osReloadFrame();
+}
+
+// Update the URL textbox + open link from current overlay + theme
+function osUpdateUrl() {
+  const o = OS_OVERLAYS.find(x => x.id === osSelectedId);
+  if (!o) return;
   const chan = profile?.kickChannel || '';
-  if (!chan) return;
   const base = window.location.origin;
+  if (!chan) {
+    document.getElementById('osUrlInput').value = '(set your Kick channel in Settings first)';
+    document.getElementById('osOpenLink').href = '#';
+    return;
+  }
+  const tp = osThemeParams();
+  document.getElementById('osUrlInput').value = `${base}${o.path}?channel=${encodeURIComponent(chan)}&${tp}`;
+  document.getElementById('osOpenLink').href  = `${base}${o.path}?channel=${encodeURIComponent(chan)}&demo=1&${tp}`;
+}
 
-  const links = [
-    { url: 'obsSpinnerUrl',  preview: 'obsSpinnerPreview',  path: `/overlay-winner.html?channel=${encodeURIComponent(chan)}`,         demo: `/overlay-winner.html?channel=${encodeURIComponent(chan)}&demo=1` },
-    { url: 'obsEntriesUrl',  preview: 'obsEntriesPreview',  path: `/overlay-giveaway.html?channel=${encodeURIComponent(chan)}`,       demo: `/overlay-giveaway.html?channel=${encodeURIComponent(chan)}&demo=1` },
-    { url: 'obsBonusUrl',    preview: 'obsBonusPreview',    path: `/overlay-bonus-hunt.html?channel=${encodeURIComponent(chan)}`,     demo: `/overlay-bonus-hunt.html?channel=${encodeURIComponent(chan)}&demo=1` },
-    { url: 'obsSRUrl',       preview: 'obsSRPreview',       path: `/overlay-slot-requests.html?channel=${encodeURIComponent(chan)}`,  demo: `/overlay-slot-requests.html?channel=${encodeURIComponent(chan)}&demo=1` },
-    { url: 'obsWheelUrl',    preview: 'obsWheelPreview',    path: `/overlay-wheel.html?channel=${encodeURIComponent(chan)}`,          demo: `/overlay-wheel.html?channel=${encodeURIComponent(chan)}&demo=1` },
-    { url: 'obsBBUrl',       preview: 'obsBBPreview',       path: `/overlay-bonus-battle.html?channel=${encodeURIComponent(chan)}`,   demo: `/overlay-bonus-battle.html?channel=${encodeURIComponent(chan)}&demo=1` },
-    { url: 'obsTnUrl',       preview: 'obsTnPreview',       path: `/overlay-tournament.html?channel=${encodeURIComponent(chan)}`,     demo: `/overlay-tournament.html?channel=${encodeURIComponent(chan)}&demo=1` },
-    { url: 'obsSpPickerUrl', preview: 'obsSpPickerPreview', path: `/overlay-slot-picker.html?channel=${encodeURIComponent(chan)}`,    demo: `/overlay-slot-picker.html?channel=${encodeURIComponent(chan)}` },
-  ];
+// Compute and apply the preview iframe scale to fit the viewport
+function osScalePreview() {
+  const o = OS_OVERLAYS.find(x => x.id === osSelectedId);
+  if (!o) return;
+  const container = document.getElementById('osPreviewContainer');
+  const frame     = document.getElementById('osPreviewFrame');
+  const viewport  = container.parentElement;
+  const availW = viewport.clientWidth  - 48;
+  const availH = viewport.clientHeight - 48;
+  if (availW <= 0 || availH <= 0) { requestAnimationFrame(osScalePreview); return; }
+  const scale = Math.min(availW / o.obsW, availH / o.obsH, 1);
+  frame.style.width     = o.obsW + 'px';
+  frame.style.height    = o.obsH + 'px';
+  frame.style.transform = `scale(${scale})`;
+  container.style.width  = Math.round(o.obsW * scale) + 'px';
+  container.style.height = Math.round(o.obsH * scale) + 'px';
+  document.getElementById('osCheckerBg').style.display = (osCur().bgMode === 'transparent') ? 'block' : 'none';
+}
 
-  links.forEach(({ url, preview, path, demo }) => {
-    const urlEl = document.getElementById(url);
-    const preEl = document.getElementById(preview);
-    if (urlEl) urlEl.textContent = base + path;
-    if (preEl) preEl.href = demo;
+// Reload the preview iframe with the current overlay + theme (debounced)
+function osReloadFrame() {
+  clearTimeout(_osReloadTimer);
+  _osReloadTimer = setTimeout(() => {
+    const o = OS_OVERLAYS.find(x => x.id === osSelectedId);
+    const chan = profile?.kickChannel || '';
+    const frame = document.getElementById('osPreviewFrame');
+    if (!o || !chan) { frame.src = 'about:blank'; return; }
+    const base = window.location.origin;
+    const tp = osThemeParams();
+    const demoFlag = o.demo ? '&demo=1' : '';
+    frame.src = `${base}${o.path}?channel=${encodeURIComponent(chan)}${demoFlag}&${tp}`;
+  }, 220);
+}
+
+// Live refresh after a theme change: update URL immediately, reload iframe debounced
+function osRefresh() {
+  if (!osSelectedId) return;
+  osUpdateUrl();
+  document.getElementById('osCheckerBg').style.display = (osCur().bgMode === 'transparent') ? 'block' : 'none';
+  osReloadFrame();
+}
+
+// ── Appearance control handlers (edit the SELECTED overlay's theme) ──
+function osAccentChange(val) {
+  osCur().accent = val;
+  document.getElementById('osAccentHex').value = val;
+  document.getElementById('osAccentSwatch').style.background = val;
+  osRefresh();
+}
+function osAccentHexInput(val) {
+  if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+    osCur().accent = val;
+    document.getElementById('osAccentPicker').value = val;
+    document.getElementById('osAccentSwatch').style.background = val;
+    osRefresh();
+  }
+}
+function osBgChange(val) {
+  osCur().bgColor = val;
+  document.getElementById('osBgHex').value = val;
+  document.getElementById('osBgSwatch').style.background = val;
+  osRefresh();
+}
+function osBgHexInput(val) {
+  if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+    osCur().bgColor = val;
+    document.getElementById('osBgPicker').value = val;
+    document.getElementById('osBgSwatch').style.background = val;
+    osRefresh();
+  }
+}
+function osBgOpacityChange(val) {
+  osCur().bgOpacity = parseInt(val, 10);
+  document.getElementById('osBgOpacityVal').textContent = osCur().bgOpacity + '%';
+  osRefresh();
+}
+function osToggleTransparent() {
+  const t = osCur();
+  t.bgMode = (t.bgMode === 'transparent') ? 'solid' : 'transparent';
+  osSetTransparentUI(t.bgMode === 'transparent');
+  osRefresh();
+}
+function osTextChange(val) {
+  osCur().text = val;
+  document.getElementById('osTextHex').value = val;
+  document.getElementById('osTextSwatch').style.background = val;
+  osRefresh();
+}
+function osTextHexInput(val) {
+  if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+    osCur().text = val;
+    document.getElementById('osTextPicker').value = val;
+    document.getElementById('osTextSwatch').style.background = val;
+    osRefresh();
+  }
+}
+function osFontChange(val) {
+  osCur().font = val;
+  osRefresh();
+}
+function osHeaderChange(val) {
+  osCur().header = val;
+  osRefresh();
+}
+
+async function osSaveTheme() {
+  if (!fb.currentUser) return;
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid)
+      .collection('overlay_theme').doc('config').set({ overlays: osThemes });
+    flash('Appearance saved for all overlays!');
+  } catch (e) {
+    flash('Failed to save: ' + e.message, 'error');
+  }
+}
+
+// Copy the selected overlay's colors + font to every overlay (headers stay per-overlay)
+function osApplyToAll() {
+  const cur = osCur();
+  OS_OVERLAYS.forEach(o => {
+    const keepHeader = (osThemes[o.id] && osThemes[o.id].header) || (o.header || '');
+    osThemes[o.id] = {
+      accent: cur.accent, bgMode: cur.bgMode, bgColor: cur.bgColor,
+      bgOpacity: cur.bgOpacity, text: cur.text, font: cur.font,
+      header: keepHeader,
+    };
+  });
+  flash('Applied this look to all overlays — click Save to keep it.');
+  osRefresh();
+}
+
+// Reset just the selected overlay back to default appearance
+function osResetOverlay() {
+  if (!osSelectedId) return;
+  osThemes[osSelectedId] = osDefaultTheme(osSelectedId);
+  osSyncThemeUI();
+  const o = OS_OVERLAYS.find(x => x.id === osSelectedId);
+  if (o && o.header) document.getElementById('osHeaderInput').value = osCur().header;
+  flash('Reset — click Save to keep it.');
+  osRefresh();
+}
+
+function osCopyUrl() {
+  const val = document.getElementById('osUrlInput').value;
+  if (!val || val.startsWith('(')) { flash('Set your Kick channel in Settings first', 'error'); return; }
+  navigator.clipboard.writeText(val).then(() => flash('URL copied!')).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = val; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    flash('Copied!');
   });
 }
 
@@ -4750,6 +5445,13 @@ async function loadBonusHunt() {
       .collection('bonus_hunt').doc('current').get();
     bhHunt = doc.exists ? doc.data() : null;
     bhRender();
+    // Restore GTB state from profile if not already set
+    if (bhHunt?.active && !gtbActive && profile?.gtbActive) {
+      gtbActive    = true;
+      gtbSessionId = profile.gtbSessionId || null;
+      if (gtbSessionId && !gtbUnsubscribe) listenGTBGuesses();
+    }
+    bhGtbRender();
   } catch (e) {
     console.error('loadBonusHunt', e);
     flash('Failed to load bonus hunt', 'error');
@@ -4960,9 +5662,10 @@ function bhRender() {
     const safeName = escHtml(b.name).replace(/'/g, '&#39;');
     const nameCell = `<button onclick="bhOpenEditSlotModal('${b.id}','${safeName}','${safeProvider}')"
       title="Click to change slot"
-      style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.18);border-radius:6px;padding:5px 10px;cursor:pointer;color:var(--bright);font-size:13px;font-weight:500;font-family:'Inter',sans-serif;text-align:left;max-width:190px;transition:background 0.15s,border-color 0.15s;"
+      style="display:inline-flex;align-items:center;gap:7px;background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.18);border-radius:6px;padding:4px 8px 4px 4px;cursor:pointer;color:var(--bright);font-size:13px;font-weight:500;font-family:'Inter',sans-serif;text-align:left;max-width:220px;transition:background 0.15s,border-color 0.15s;"
       onmouseover="this.style.background='rgba(0,229,255,0.12)';this.style.borderColor='rgba(0,229,255,0.4)'"
       onmouseout="this.style.background='rgba(0,229,255,0.06)';this.style.borderColor='rgba(0,229,255,0.18)'">
+      ${slotImgTag(b, 28, 28)}
       <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(b.name)}</span>
       <span style="font-size:10px;flex-shrink:0;opacity:0.6;">✏️</span>
     </button>`;
@@ -5083,14 +5786,17 @@ async function bhAddSlot() {
   if (!betSize || betSize <= 0) { flash('Enter a valid bet size', 'error'); return; }
   if (!bhHunt)               return;
 
+  const slotMeta = BH_SLOTS.find(s => s.name.toLowerCase() === name.toLowerCase()) || {};
   const bonus = {
-    id:         Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    id:           Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     name,
     provider,
     betSize,
-    payout:     null,
-    multiplier: null,
-    playedAt:   null,
+    payout:       null,
+    multiplier:   null,
+    playedAt:     null,
+    thumbnailUrl: slotMeta.thumbnailUrl || null,
+    gameId:       slotMeta.gameId       || null,
   };
 
   const bonuses = [...(bhHunt.bonuses || []), bonus];
@@ -5467,7 +6173,12 @@ async function loadSlotRequests() {
       const s = settingsDoc.data();
       if (s.eligibility) document.getElementById('srEligibility').value = s.eligibility;
       if (s.cooldownMins !== undefined) document.getElementById('srCooldown').value = s.cooldownMins;
-      document.getElementById('srAllowMultiple').checked = !!s.allowMultiple;
+      // maxRequestsPerUser replaces old allowMultiple bool; fall back gracefully
+      const maxReq = s.maxRequestsPerUser !== undefined
+        ? s.maxRequestsPerUser
+        : (s.allowMultiple ? 0 : 1);
+      document.getElementById('srMaxPerUser').value = maxReq;
+      srSetDuplicatesUI(!!s.allowDuplicateSlots);
       srSetEnabledUI(s.enabled !== false);
     }
   } catch {}
@@ -5492,6 +6203,8 @@ async function loadSlotRequests() {
     const pl = document.getElementById('srPreviewLink');
     if (ol) ol.href = `/overlay-slot-requests.html?channel=${encodeURIComponent(chan)}`;
     if (pl) pl.href = `/overlay-slot-requests.html?channel=${encodeURIComponent(chan)}&demo=1`;
+    const rol = document.getElementById('rspOverlayLink');
+    if (rol) rol.href = `/overlay-request-spinner.html?channel=${encodeURIComponent(chan)}`;
   }
 }
 
@@ -5500,6 +6213,8 @@ function srRenderQueue() {
   const table  = document.getElementById('srTable');
   const empty  = document.getElementById('srEmpty');
   const count  = document.getElementById('srQueueCount');
+
+  rspRefresh(); // keep the request-raffle spinner in sync with the live queue
 
   count.textContent = srRequests.length ? `(${srRequests.length})` : '';
 
@@ -5532,6 +6247,169 @@ function srRenderQueue() {
   }).join('');
 }
 
+// ── REQUEST RAFFLE SPINNER (rsp) ───────────────────────────────────────────
+// Draws a random viewer + their requested slot from the live pending queue.
+// Re-drawable (raffle): a draw never removes the entry. Reuses the slot-picker
+// carousel CSS + the SP_REEL_LEN / SP_WIN_IDX constants.
+let rspSpinning = false;
+let rspDrawn = [];
+
+function rspMeta(entry) {
+  return BH_SLOTS.find(s => s.name.toLowerCase() === (entry.slotName || '').toLowerCase())
+    || { name: entry.slotName, provider: '', gameId: null, thumbnailUrl: null };
+}
+
+function rspReelCardHtml(entry) {
+  const meta = rspMeta(entry);
+  return `<div class="sp-card">
+    <div class="sp-card-img">${slotImgCover(meta)}</div>
+    <div style="text-align:center;margin-top:7px;">
+      <div style="color:var(--accent);font-weight:700;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">@${escHtml(entry.kickUsername)}</div>
+      <div style="color:var(--text-dim);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(entry.slotName)}</div>
+    </div>
+  </div>`;
+}
+
+function rspRenderReel(items) {
+  const track = document.getElementById('rspTrack');
+  if (track) track.innerHTML = items.map(rspReelCardHtml).join('');
+}
+
+function rspShowReady() {
+  if (!srRequests.length) return;
+  const items = [];
+  for (let i = 0; i < 10; i++) items.push(srRequests[Math.floor(Math.random() * srRequests.length)]);
+  rspRenderReel(items);
+  const track = document.getElementById('rspTrack');
+  if (!track) return;
+  track.style.transition = 'none';
+  requestAnimationFrame(() => { track.style.transform = `translateX(-${3 * spStep(track)}px)`; });
+  document.getElementById('rspCarousel')?.classList.remove('landed');
+}
+
+// Keep the spinner in sync with the live queue (called from srRenderQueue).
+function rspRefresh() {
+  const stage = document.getElementById('rspStage');
+  const empty = document.getElementById('rspEmpty');
+  const count = document.getElementById('rspPoolCount');
+  if (count) count.textContent = srRequests.length ? `(${srRequests.length} in pool)` : '';
+  if (!stage || !empty) return;
+  if (rspSpinning) return; // don't disrupt an active spin
+  if (!srRequests.length) { stage.style.display = 'none'; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  stage.style.display = 'block';
+  rspShowReady();
+}
+
+function rspShowResult(entry) {
+  const meta = rspMeta(entry);
+  const rp = document.getElementById('rspResult');
+  if (!rp) return;
+  rp.style.display = '';
+  rp.innerHTML = `
+    <div class="card" style="display:flex;align-items:center;gap:16px;background:rgba(255,215,0,0.05);border-color:rgba(255,215,0,0.25);margin:0;">
+      <div style="flex-shrink:0;display:flex;">${slotImgTag(meta, 60, 60, 'border-radius:8px;')}</div>
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:4px;">🎉 Drawn</div>
+        <div style="font-family:'Exo 2',sans-serif;font-size:20px;font-weight:900;color:var(--accent);">@${escHtml(entry.kickUsername)}</div>
+        <div style="font-size:13px;color:var(--bright);margin-top:2px;">${escHtml(entry.slotName)}</div>
+      </div>
+      <div style="margin-left:auto;">
+        <button onclick="rspSpin()" style="background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);border-radius:7px;color:var(--accent);font-size:12px;cursor:pointer;padding:6px 14px;">🔄 Draw Again</button>
+      </div>
+    </div>`;
+}
+
+function rspAddDrawn(entry) {
+  rspDrawn.unshift({ kickUsername: entry.kickUsername, slotName: entry.slotName });
+  rspRenderDrawn();
+}
+
+function rspRenderDrawn() {
+  const wrap = document.getElementById('rspDrawnWrap');
+  const list = document.getElementById('rspDrawnList');
+  if (!wrap || !list) return;
+  if (!rspDrawn.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  list.innerHTML = rspDrawn.map((d, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--bg-card);border-radius:6px;font-size:13px;">
+      <span style="color:var(--text-dim);font-size:11px;width:18px;">${rspDrawn.length - i}</span>
+      <span style="color:var(--accent);font-weight:700;">@${escHtml(d.kickUsername)}</span>
+      <span style="color:var(--text-dim);">→</span>
+      <span style="color:var(--bright);">${escHtml(d.slotName)}</span>
+    </div>`).join('');
+}
+
+function rspClearDrawn() { rspDrawn = []; rspRenderDrawn(); }
+
+function rspSlim(entry) {
+  const meta = rspMeta(entry);
+  return {
+    kickUsername: entry.kickUsername || '',
+    slotName:     entry.slotName     || '',
+    provider:     meta.provider      || null,
+    gameId:       meta.gameId        || null,
+    thumbnailUrl: meta.thumbnailUrl  || null,
+  };
+}
+
+async function rspBroadcast(reel, winIdx, winner) {
+  if (!fb.currentUser) return;
+  const trigger = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid)
+      .collection('tools').doc('request_spinner')
+      .set({
+        trigger,
+        picked:      rspSlim(winner),
+        reel:        reel.map(rspSlim),
+        pickedIndex: winIdx,
+        pickedAt:    Date.now(),
+      });
+  } catch (e) {
+    console.warn('[ReqSpinner] Firestore write failed:', e.message);
+  }
+}
+
+async function rspSpin() {
+  if (rspSpinning) return;
+  if (!srRequests.length) { flash('No requests in the queue to draw from', 'error'); return; }
+
+  // True RNG over the whole live queue. Re-drawable — winner stays in the pool.
+  const winner = srRequests[Math.floor(Math.random() * srRequests.length)];
+  const reel = [];
+  for (let i = 0; i < SP_REEL_LEN; i++) {
+    reel.push(i === SP_WIN_IDX ? winner : srRequests[Math.floor(Math.random() * srRequests.length)]);
+  }
+
+  rspSpinning = true;
+  const btn = document.getElementById('rspSpinBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Spinning…'; }
+  document.getElementById('rspResult').style.display = 'none';
+  document.getElementById('rspCarousel')?.classList.remove('landed');
+
+  rspRenderReel(reel);
+  rspBroadcast(reel, SP_WIN_IDX, winner);
+
+  const track = document.getElementById('rspTrack');
+  track.style.transition = 'none';
+  track.style.transform  = 'translateX(0)';
+  await new Promise(requestAnimationFrame);
+  const step = spStep(track);
+  void track.offsetWidth;
+  await new Promise(requestAnimationFrame);
+  track.style.transition = 'transform 4s cubic-bezier(0.15, 0.85, 0.35, 1)';
+  track.style.transform  = `translateX(-${SP_WIN_IDX * step}px)`;
+
+  setTimeout(() => {
+    document.getElementById('rspCarousel')?.classList.add('landed');
+    rspShowResult(winner);
+    rspAddDrawn(winner);
+    rspSpinning = false;
+    if (btn) { btn.disabled = false; btn.textContent = '🎲 Spin Again'; }
+  }, 4100);
+}
+
 function srTimeAgo(ts) {
   if (!ts) return '—';
   const secs = Math.floor((Date.now() - ts) / 1000);
@@ -5556,15 +6434,31 @@ async function srToggleEnabled() {
   await srSaveSettings();
 }
 
+function srSetDuplicatesUI(on) {
+  document.getElementById('srAllowDuplicates').checked = on;
+  document.getElementById('srDuplicatesTrack').style.background = on ? 'var(--accent)' : 'var(--bg-card)';
+  document.getElementById('srDuplicatesThumb').style.background = on ? '#0d1117' : 'var(--text-dim)';
+  document.getElementById('srDuplicatesThumb').style.left = on ? '23px' : '3px';
+  document.getElementById('srDuplicatesLabel').textContent = on ? 'ON' : 'OFF';
+  document.getElementById('srDuplicatesLabel').style.color = on ? 'var(--accent)' : 'var(--text-dim)';
+}
+
+async function srToggleDuplicates() {
+  const current = document.getElementById('srAllowDuplicates').checked;
+  srSetDuplicatesUI(!current);
+  await srSaveSettings();
+}
+
 async function srSaveSettings() {
   if (!fb.currentUser) return;
-  const eligibility   = document.getElementById('srEligibility').value;
-  const cooldownMins  = parseInt(document.getElementById('srCooldown').value, 10) || 0;
-  const enabled       = document.getElementById('srEnabled').checked;
-  const allowMultiple = document.getElementById('srAllowMultiple').checked;
+  const eligibility        = document.getElementById('srEligibility').value;
+  const cooldownMins       = parseInt(document.getElementById('srCooldown').value, 10) || 0;
+  const enabled            = document.getElementById('srEnabled').checked;
+  const maxRequestsPerUser = parseInt(document.getElementById('srMaxPerUser').value, 10) || 0;
+  const allowDuplicateSlots = document.getElementById('srAllowDuplicates').checked;
   try {
     await fb.db.collection('streamers').doc(fb.activeUid)
-      .collection('sr_settings').doc('config').set({ eligibility, cooldownMins, enabled, allowMultiple });
+      .collection('sr_settings').doc('config').set({ eligibility, cooldownMins, enabled, maxRequestsPerUser, allowDuplicateSlots });
     flash('Settings saved.');
   } catch (e) {
     flash('Failed to save settings: ' + e.message, 'error');
@@ -5674,16 +6568,19 @@ async function srConfirmAddToHunt() {
 
     const hunt = huntDoc.data();
     const bonuses = hunt.bonuses || [];
+    const srSlotMeta = BH_SLOTS.find(s => s.name.toLowerCase() === slotName.toLowerCase()) || {};
     const newBonus = {
-      id:          Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      name:        slotName,
+      id:           Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      name:         slotName,
       provider,
-      betSize:     bet,
-      payout:      null,
-      multiplier:  null,
-      notes:       '',
-      suggestedBy: srPendingHunt.suggestedBy || null,
-      addedAt:     Date.now(),
+      betSize:      bet,
+      payout:       null,
+      multiplier:   null,
+      notes:        '',
+      suggestedBy:  srPendingHunt.suggestedBy || null,
+      addedAt:      Date.now(),
+      thumbnailUrl: srSlotMeta.thumbnailUrl || null,
+      gameId:       srSlotMeta.gameId       || null,
     };
     bonuses.push(newBonus);
     await fb.db.collection('streamers').doc(uid)
@@ -7435,136 +8332,204 @@ function initSlotPicker() {
   spApplyFilters();
 }
 
+// Stake Engine studios stored Title-Case (the bulk are stored as lowercase
+// slugs, caught by the regex below).
+const SP_STAKE_ENGINE_NAMED = new Set(['Titan Gaming', 'Paperclip Gaming', 'Twist Gaming', 'Massive Studios']);
+
+// Mainstream providers are stored Title Case ("Pragmatic Play"); Stake Engine
+// indie studios are stored as lowercase slugs ("bacon-bits", "colorful-play").
+function spIsStakeEngine(provider) {
+  if (!provider) return false;
+  if (SP_STAKE_ENGINE_NAMED.has(provider)) return true;
+  return /^[a-z0-9][a-z0-9-]*$/.test(provider); // all-lowercase slug = Engine indie studio
+}
+
+// Turn a slug provider ("bacon-bits") into a display name ("Bacon Bits").
+// Title-Case providers pass through unchanged.
+function spPrettyProvider(p) {
+  if (!p) return '';
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(p)) return p;
+  return p.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
 function spBuildProviderFilter() {
   const sel = document.getElementById('spProviderFilter');
   if (!sel) return;
-  const providers = [...new Set(BH_SLOTS.map(s => s.provider))].sort();
+  const providers = [...new Set(BH_SLOTS.map(s => s.provider))]
+    .sort((a, b) => spPrettyProvider(a).localeCompare(spPrettyProvider(b)));
   const cur = sel.value;
   sel.innerHTML = '<option value="">All Providers</option>' +
-    providers.map(p => `<option value="${escHtml(p)}"${p === cur ? ' selected' : ''}>${escHtml(p)}</option>`).join('');
+    providers.map(p => `<option value="${escHtml(p)}"${p === cur ? ' selected' : ''}>${escHtml(spPrettyProvider(p))}</option>`).join('');
 }
+
+let spSpinning = false;
+
+// Reel sizing — keep short so each spin only hotlinks ~SP_REEL_LEN images.
+const SP_REEL_LEN = 20;
+const SP_WIN_IDX  = 16; // winner lands here; a few decoys trail it to fill the right side
 
 function spApplyFilters() {
   const provider  = document.getElementById('spProviderFilter')?.value  || '';
-  const exclusive = document.getElementById('spExclusiveFilter')?.value || '';
+  const mode      = document.getElementById('spExclusiveFilter')?.value || ''; // '' | 'stake' | 'stakeengine'
   const bonusBuy  = document.getElementById('spBonusBuyFilter')?.checked || false;
   const search    = (document.getElementById('spSearchFilter')?.value || '').trim().toLowerCase();
 
   spPool = BH_SLOTS.filter(s => {
-    if (provider  && s.provider  !== provider)  return false;
-    if (exclusive && s.exclusive !== exclusive) return false;
-    if (bonusBuy  && !s.bonusBuy)              return false;
-    if (search    && !s.name.toLowerCase().includes(search) && !s.provider.toLowerCase().includes(search)) return false;
+    if (provider && s.provider !== provider) return false;
+    if (mode === 'stake'       && s.exclusive !== 'stake')   return false;
+    if (mode === 'stakeengine' && !spIsStakeEngine(s.provider)) return false;
+    if (bonusBuy && !s.bonusBuy) return false;
+    if (search   && !s.name.toLowerCase().includes(search) && !spPrettyProvider(s.provider).toLowerCase().includes(search)) return false;
     return true;
   });
 
   const countEl = document.getElementById('spPoolCount');
   if (countEl) countEl.textContent = `${spPool.length.toLocaleString()} slot${spPool.length !== 1 ? 's' : ''}`;
-  spRenderGrid(search, provider, bonusBuy, exclusive);
+
+  const stage = document.getElementById('spStage');
+  const empty = document.getElementById('spEmpty');
+  if (!spPool.length) {
+    if (stage) stage.style.display = 'none';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  if (stage) stage.style.display = '';
+  spShowReady();
 }
 
-function spRenderGrid(search = '', provider = '', bonusBuy = false, exclusive = '') {
-  const grid    = document.getElementById('spGrid');
-  const empty   = document.getElementById('spEmpty');
-  const prompt  = document.getElementById('spBrowsePrompt');
-  if (!grid) return;
+// One reel card. slotImgCover handles the hotlinked thumbnail + emoji fallback.
+function spReelCardHtml(s) {
+  return `<div class="sp-card">
+    <div class="sp-card-img">${slotImgCover(s)}</div>
+    <div class="sp-card-name">${escHtml(s.name)}</div>
+  </div>`;
+}
 
-  // Show browse prompt when no active filter would narrow the grid to a manageable size
-  const hasActiveFilter = provider || (search.length >= 2) || bonusBuy || exclusive;
-  if (!hasActiveFilter) {
-    grid.style.display = 'none';
-    grid.innerHTML = '';
-    if (empty)  empty.style.display  = 'none';
-    if (prompt) prompt.style.display = '';
-    return;
+function spRenderReel(items) {
+  const track = document.getElementById('spTrack');
+  if (track) track.innerHTML = items.map(spReelCardHtml).join('');
+}
+
+// Distance between two adjacent cards (card width + gap), measured live so it
+// stays correct regardless of CSS tweaks.
+function spStep(track) {
+  if (!track || track.children.length < 2) return 138;
+  return track.children[1].offsetLeft - track.children[0].offsetLeft;
+}
+
+// Idle/ready state — a static reel so the carousel never looks empty.
+function spShowReady() {
+  if (!spPool.length) return;
+  const items = [];
+  for (let i = 0; i < 10; i++) items.push(spPool[Math.floor(Math.random() * spPool.length)]);
+  spRenderReel(items);
+  const track = document.getElementById('spTrack');
+  if (!track) return;
+  track.style.transition = 'none';
+  requestAnimationFrame(() => {
+    track.style.transform = `translateX(-${3 * spStep(track)}px)`; // center ~index 3
+  });
+  document.getElementById('spCarousel')?.classList.remove('landed');
+}
+
+// Build the spin reel: SP_WIN_IDX is the winner, every other card is a random
+// decoy purely for the scroll. The winner was already drawn from the FULL pool,
+// so decoys never affect the odds.
+function spBuildReel(pool, winner) {
+  const items = [];
+  for (let i = 0; i < SP_REEL_LEN; i++) {
+    items.push(i === SP_WIN_IDX ? winner : pool[Math.floor(Math.random() * pool.length)]);
   }
+  return items;
+}
 
-  if (!spPool.length) {
-    grid.style.display = 'none';
-    grid.innerHTML = '';
-    if (prompt) prompt.style.display = 'none';
-    if (empty)  empty.style.display  = '';
-    return;
-  }
-
-  if (empty)  empty.style.display  = 'none';
-  if (prompt) prompt.style.display = 'none';
-
-  // Cap display at 300 cards to keep DOM lean; pool is always full for random picks
-  const MAX_DISPLAY = 300;
-  const visible = spPool.slice(0, MAX_DISPLAY);
-  grid.style.display = 'grid';
-
-  const capNotice = spPool.length > MAX_DISPLAY
-    ? `<div style="grid-column:1/-1;text-align:center;padding:12px;font-size:11px;color:var(--text-dim);border:1px dashed var(--border);border-radius:8px;">Showing ${MAX_DISPLAY} of ${spPool.length.toLocaleString()} slots — refine your search to see more</div>`
-    : '';
-
-  grid.innerHTML = visible.map(s => {
-    const bbTag = s.bonusBuy
-      ? `<span style="font-size:9px;background:rgba(0,229,255,0.12);color:var(--accent);border-radius:3px;padding:1px 5px;font-weight:700;letter-spacing:.03em;">BUY</span> `
-      : '';
-    const exTag = s.exclusive
-      ? `<span style="font-size:9px;background:rgba(255,215,0,0.1);color:var(--gold);border-radius:3px;padding:1px 5px;font-weight:700;">${escHtml(s.exclusive.toUpperCase())}</span>`
-      : '';
-    const highlighted = spPicked?.id && spPicked.id === s.id
-      ? 'border-color:var(--accent);box-shadow:0 0 12px rgba(0,229,255,0.25);'
-      : '';
-    return `
-    <div class="sp-slot-card" data-id="${escHtml(s.id || s.name)}"
-         style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;overflow:hidden;${highlighted}transition:border-color 0.15s,box-shadow 0.15s;">
-      <div style="position:relative;padding-top:75%;background:#0d1117;">
-        ${slotImgCover(s)}
+function spShowResult(slot) {
+  const rp = document.getElementById('spResult');
+  if (!rp) return;
+  rp.style.display = '';
+  rp.innerHTML = `
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div style="flex-shrink:0;display:flex;">${slotImgTag(slot, 64, 64, 'border-radius:8px;')}</div>
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin-bottom:4px;">🎲 Selected</div>
+        <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--gold);">${escHtml(slot.name)}</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">${escHtml(spPrettyProvider(slot.provider))}${slot.maxWin ? ` · Max ${slot.maxWin.toLocaleString()}x` : ''}</div>
       </div>
-      <div style="padding:6px 8px;">
-        <div style="font-size:11px;font-weight:600;color:var(--bright);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:28px;">${escHtml(s.name)}</div>
-        <div style="font-size:10px;color:var(--text-dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.provider)}</div>
-        <div style="margin-top:4px;">${bbTag}${exTag}</div>
+      <div style="margin-left:auto;text-align:right;">
+        <button onclick="spPickSlot()" style="background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);border-radius:7px;color:var(--accent);font-size:12px;cursor:pointer;padding:6px 14px;">🔄 Spin Again</button>
       </div>
     </div>`;
-  }).join('') + capNotice;
 }
 
-async function spPickSlot() {
-  if (!spPool.length) { flash('No slots match your filters', 'error'); return; }
+// Trim a slot to just what the overlay reel needs (and avoid undefined fields,
+// which Firestore rejects).
+function spSlim(s) {
+  return {
+    id:           s.id           || null,
+    name:         s.name         || '',
+    provider:     s.provider     || '',
+    gameId:       s.gameId       || null,
+    thumbnailUrl: s.thumbnailUrl || null,
+    maxWin:       s.maxWin       || null,
+  };
+}
 
-  const idx = Math.floor(Math.random() * spPool.length);
-  spPicked  = spPool[idx];
-
-  // Refresh grid with highlight (pass current filter state)
-  spApplyFilters();
-
-  // Scroll picked card into view
-  const card = document.querySelector(`.sp-slot-card[data-id="${CSS.escape(spPicked.id || spPicked.name)}"]`);
-  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-  // Show result banner
-  const rp = document.getElementById('spResult');
-  if (rp) {
-    rp.style.display = '';
-    rp.innerHTML = `
-      <div style="display:flex;align-items:center;gap:16px;">
-        <div style="flex-shrink:0;display:flex;">${slotImgTag(spPicked, 60, 60, 'border-radius:8px;')}</div>
-        <div>
-          <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin-bottom:4px;">🎲 Selected</div>
-          <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--gold);">${escHtml(spPicked.name)}</div>
-          <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">${escHtml(spPicked.provider)}${spPicked.maxWin ? ` · Max ${spPicked.maxWin.toLocaleString()}x` : ''}</div>
-        </div>
-        <div style="margin-left:auto;text-align:right;">
-          <button onclick="spPickSlot()" style="background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);border-radius:7px;color:var(--accent);font-size:12px;cursor:pointer;padding:6px 14px;">🔄 Re-roll</button>
-        </div>
-      </div>`;
-  }
-
-  // Write to Firestore so OBS overlay picks it up
+async function spBroadcast(reelItems, winIdx, winner) {
   if (!fb.currentUser) return;
   const trigger = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   try {
     await fb.db.collection('streamers').doc(fb.activeUid)
       .collection('tools').doc('slot_picker')
-      .set({ trigger, picked: spPicked, pool: spPool.slice(0, 200), pickedAt: Date.now() }, { merge: true });
+      .set({
+        trigger,
+        picked:      spSlim(winner),
+        reel:        reelItems.map(spSlim),
+        pickedIndex: winIdx,
+        pickedAt:    Date.now(),
+      });
   } catch (e) {
     console.warn('[SlotPicker] Firestore write failed:', e.message);
   }
+}
+
+async function spPickSlot() {
+  if (spSpinning) return;
+  if (!spPool.length) { flash('No slots match your filters', 'error'); return; }
+
+  // True RNG over the ENTIRE filtered pool — reel length is irrelevant to odds.
+  const winner = spPool[Math.floor(Math.random() * spPool.length)];
+  spPicked = winner;
+
+  const reel = spBuildReel(spPool, winner);
+  spSpinning = true;
+  const btn = document.getElementById('spSpinBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Spinning…'; }
+  document.getElementById('spResult').style.display = 'none';
+  document.getElementById('spCarousel')?.classList.remove('landed');
+
+  spRenderReel(reel);
+
+  // Broadcast immediately so the OBS overlay spins in sync with the dashboard.
+  spBroadcast(reel, SP_WIN_IDX, winner);
+
+  const track = document.getElementById('spTrack');
+  // Reset to start, then ease to the winner's centered position.
+  track.style.transition = 'none';
+  track.style.transform  = 'translateX(0)';
+  await new Promise(requestAnimationFrame);
+  const step = spStep(track);
+  void track.offsetWidth; // force reflow so the reset position registers
+  await new Promise(requestAnimationFrame);
+  track.style.transition = 'transform 4s cubic-bezier(0.15, 0.85, 0.35, 1)';
+  track.style.transform  = `translateX(-${SP_WIN_IDX * step}px)`;
+
+  setTimeout(() => {
+    document.getElementById('spCarousel')?.classList.add('landed');
+    spShowResult(winner);
+    spSpinning = false;
+    if (btn) { btn.disabled = false; btn.textContent = '🎲 Spin Again'; }
+  }, 4100);
 }
 
 async function spRefreshCatalog() {

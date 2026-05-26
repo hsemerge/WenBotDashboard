@@ -4,11 +4,13 @@
   <meta charset="UTF-8">
   <title>WenBot Winner Overlay</title>
   <style>
+    :root{--ov-accent:#00e5ff;--ov-accent-rgb:0,229,255;--ov-panel:rgba(13,17,23,0.93);--ov-text:#ffffff;--ov-font:'Inter',sans-serif;--ov-font-heading:'Exo 2',sans-serif;}
+    
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       background: transparent;
-      font-family: 'Exo 2', 'Inter', sans-serif;
+      font-family: var(--ov-font-heading);
       overflow: hidden;
       width: 100vw;
       height: 100vh;
@@ -29,13 +31,13 @@
 
     .machine-header {
       text-align: center;
-      font-family: 'Exo 2', sans-serif;
+      font-family: var(--ov-font-heading);
       font-size: 15px;
       font-weight: 800;
       letter-spacing: 2px;
       text-transform: uppercase;
-      color: #00e5ff;
-      text-shadow: 0 0 20px rgba(0,229,255,0.8);
+      color: var(--ov-accent);
+      text-shadow: 0 0 20px rgba(var(--ov-accent-rgb),0.8);
       margin-bottom: 10px;
     }
 
@@ -74,9 +76,9 @@
       top: 50%; left: 0; right: 0;
       height: 40px;
       transform: translateY(-50%);
-      border-top: 1px solid rgba(0,229,255,0.35);
-      border-bottom: 1px solid rgba(0,229,255,0.35);
-      background: rgba(0,229,255,0.06);
+      border-top: 1px solid rgba(var(--ov-accent-rgb),0.35);
+      border-bottom: 1px solid rgba(var(--ov-accent-rgb),0.35);
+      background: rgba(var(--ov-accent-rgb),0.06);
       z-index: 1;
       pointer-events: none;
     }
@@ -92,7 +94,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: 'Exo 2', sans-serif;
+      font-family: var(--ov-font-heading);
       font-size: 18px;
       font-weight: 700;
       color: #8b949e;
@@ -131,7 +133,7 @@
     }
     .winner-banner .trophy { font-size: 28px; display: block; margin-bottom: 4px; }
     .winner-banner .label { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #8b949e; }
-    .winner-banner .name  { font-family: 'Exo 2', sans-serif; font-size: 28px; font-weight: 900; color: #ffd700; text-shadow: 0 0 20px rgba(255,215,0,0.6); margin-top: 2px; }
+    .winner-banner .name  { font-family: var(--ov-font-heading); font-size: 28px; font-weight: 900; color: #ffd700; text-shadow: 0 0 20px rgba(255,215,0,0.6); margin-top: 2px; }
     .winner-banner .sub   { font-size: 12px; color: #8b949e; margin-top: 4px; }
 
     /* ── PARTICLES ── */
@@ -155,13 +157,14 @@
     }
   </style>
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <script src="/js/overlay-theme.js"></script>
 </head>
 <body>
 
 <div class="particle-container" id="particles"></div>
 
 <div class="machine" id="machine">
-  <div class="machine-header">🎰 Giveaway Winner</div>
+  <div class="machine-header" data-ov-header>🎰 Giveaway Winner</div>
   <div class="machine-body">
     <div class="drum-wrap">
       <div class="drum-highlight"></div>

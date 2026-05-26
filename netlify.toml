@@ -1,17 +1,19 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "DENY"
+    X-Frame-Options = "SAMEORIGIN"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
     # Content-Security-Policy
+    # - frame-ancestors 'self': allows overlay pages to be embedded in the Overlay Studio dashboard
+    #   (same origin only — no third-party clickjacking risk).
+    # - frame-src 'self': allows the dashboard to embed same-origin overlay iframes (Overlay Studio preview);
+    #   still blocks any third-party iframe.
     # - script-src/style-src 'unsafe-inline' is needed because many pages have inline <script>/<style> blocks.
-    #   CSP still defends against XSS-exfiltration via connect-src restrictions and against clickjacking
-    #   via frame-ancestors. Tightening to nonces would require refactoring every inline block — future work.
     # - connect-src lists the third parties our pages need to talk to:
     #   *.googleapis.com (Firebase Auth/Firestore), *.kick.com (Kick API/OAuth), discord.com (OAuth)
-    Content-Security-Policy = "default-src 'self'; script-src 'self' https://www.gstatic.com 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https://files.kick.com https://cdn.discordapp.com https://firebasestorage.googleapis.com https://*.firebasestorage.app https://lh3.googleusercontent.com https://cdn.softswiss.net https://cdn.pragmaticplay.net https://cms.pragmaticplay.net https://*.cloudfront.net https://mediumrare.imgix.net data:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://api.kick.com https://id.kick.com https://kick.com https://discord.com; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' https://www.gstatic.com 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https://files.kick.com https://cdn.discordapp.com https://firebasestorage.googleapis.com https://*.firebasestorage.app https://lh3.googleusercontent.com https://cdn.softswiss.net https://cdn.pragmaticplay.net https://cms.pragmaticplay.net https://*.cloudfront.net https://mediumrare.imgix.net data:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://api.kick.com https://id.kick.com https://kick.com https://discord.com; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
 
 [[redirects]]
   from   = "/api/kick-store-wenbot"
@@ -91,6 +93,16 @@
 [[redirects]]
   from   = "/api/slot-request-data"
   to     = "/.netlify/functions/slot-request-data"
+  status = 200
+
+[[redirects]]
+  from   = "/api/slot-picker-data"
+  to     = "/.netlify/functions/slot-picker-data"
+  status = 200
+
+[[redirects]]
+  from   = "/api/request-spinner-data"
+  to     = "/.netlify/functions/request-spinner-data"
   status = 200
 
 [[redirects]]
