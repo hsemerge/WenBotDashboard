@@ -107,6 +107,7 @@
 <script>
   const params  = new URLSearchParams(location.search);
   const channel = (params.get('channel') || '').toLowerCase();
+  const isDemo  = params.get('demo') === '1';
   const WIN_IDX_FALLBACK = 16;
   const POLL_MS = 1500;
 
@@ -193,9 +194,18 @@
 
   function handlePicker(data) {
     if (!data || !data.trigger) return;
-    if (lastTrigger === null) { lastTrigger = data.trigger; return; } // ignore stale on load
     if (data.trigger === lastTrigger) return;
+
+    // First-load handling: only suppress STALE triggers (>60s old). A fresh
+    // draw should still play even if it happened right before the overlay
+    // opened — otherwise opening the OBS source after a draw shows nothing.
+    const isFirstSighting = lastTrigger === null;
     lastTrigger = data.trigger;
+    if (isFirstSighting) {
+      const isFresh = data.pickedAt && (Date.now() - data.pickedAt < 60000);
+      if (!isFresh) return;
+    }
+
     if (spinning) return;
 
     const picked = data.picked;
@@ -225,12 +235,41 @@
     } catch {}
   }
 
+  // Demo state for the Overlay Studio preview (?demo=1). Shows the widget
+  // with a static sample reel landed on a fake @user + slot so the chrome
+  // is visible without needing a real draw.
+  function initDemo() {
+    const sample = [
+      { kickUsername:'streamer_fan',  slotName:'Rocket Blast Megaways', provider:'Pragmatic Play', gameId:'vs20rocketb',  thumbnailUrl:null },
+      { kickUsername:'bigwinner99',   slotName:'Sweet Bonanza',         provider:'Pragmatic Play', gameId:'vs20fruitsw',  thumbnailUrl:null },
+      { kickUsername:'slot_hunter',   slotName:'Gates of Olympus',      provider:'Pragmatic Play', gameId:'vs20olympgate',thumbnailUrl:null },
+      { kickUsername:'chipsking',     slotName:'Le Rapper',             provider:'Hacksaw Gaming', gameId:'lerapper',     thumbnailUrl:null },
+      { kickUsername:'kicker420',     slotName:'Le Bandit',             provider:'Hacksaw Gaming', gameId:'lebandit',     thumbnailUrl:null },
+      { kickUsername:'wenfan22',      slotName:'Tombstone RIP',         provider:'Nolimit City',   gameId:'tombstonerip', thumbnailUrl:null },
+      { kickUsername:'rolla_99',      slotName:'Big Bass Bonanza',      provider:'Pragmatic Play', gameId:'vs10bbbonanza',thumbnailUrl:null },
+    ];
+    const winIdx = 3;
+    document.getElementById('widget').classList.add('visible');
+    buildReel(sample);
+    const track = document.getElementById('reelTrack');
+    requestAnimationFrame(() => {
+      const s = step(track);
+      track.style.transition = 'none';
+      track.style.transform  = `translateX(-${winIdx * s}px)`;
+      document.getElementById('pickerWrap').classList.add('landed');
+      document.getElementById('resultPanel').classList.add('show');
+      document.getElementById('resultUser').textContent = '@' + sample[winIdx].kickUsername;
+      document.getElementById('resultSlot').textContent = sample[winIdx].slotName;
+    });
+  }
+
   if (channel) {
     poll();
     setInterval(poll, POLL_MS);
-  } else {
+  } else if (!isDemo) {
     document.getElementById('widget').style.display = 'none';
   }
+  if (isDemo) initDemo();
 </script>
 </body>
 </html>

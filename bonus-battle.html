@@ -12,10 +12,12 @@
 
     .bb-wrap { max-width: 560px; margin: 0 auto; padding: 24px 16px 60px; }
 
-    .bb-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .bb-header { position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; }
     .bb-logo   { display: flex; align-items: center; }
-    .bb-logo img { height: 32px; width: auto; }
-    .bb-title  { font-family: 'Exo 2', sans-serif; font-size: 22px; font-weight: 900; color: var(--bright); margin-bottom: 4px; }
+    .bb-logo img { height: 120px; width: auto; }
+    /* Log-out sits in the top-right without pushing the centered logo off-center */
+    .bb-header > #logoutBtn { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
+    .bb-title  { font-family: 'Exo 2', sans-serif; font-size: 28px; font-weight: 900; color: var(--bright); margin-bottom: 4px; }
     .bb-sub    { font-size: 12px; color: var(--text-dim); }
 
     .viewer-bar { display: flex; align-items: center; gap: 10px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; }
@@ -277,12 +279,12 @@
         <div class="bet-label">Bet on <strong id="betOn_${m.id}">a slot</strong>:</div>
         <div class="bet-row">
           <input type="number" class="bet-input" id="betAmt_${m.id}"
-            placeholder="${(state.battle.minBet||100).toLocaleString()}"
-            min="${state.battle.minBet||100}" max="${state.battle.maxBet||10000}" step="100">
+            placeholder="${(state.battle.minBet||500).toLocaleString()}"
+            min="${state.battle.minBet||1}" max="${state.battle.maxBet||10000}" step="100">
           <button class="btn-vote" id="voteBtn_${m.id}" onclick="submitVote('${m.id}')" disabled>Vote</button>
         </div>
         <div class="bet-quick">
-          ${[100,500,1000,5000].filter(v => v >= (state.battle.minBet||0) && v <= (state.battle.maxBet||999999))
+          ${[500,1000,5000,10000].filter(v => v >= (state.battle.minBet||0) && v <= (state.battle.maxBet||999999))
             .map(v => `<button onclick="setBet('${m.id}',${v})">${v.toLocaleString()}</button>`).join('')}
           <button onclick="setBet('${m.id}', ${state.viewerPoints||0})">All In</button>
         </div>

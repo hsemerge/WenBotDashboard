@@ -110,7 +110,7 @@
     }
     .topbar-pill.live { border-color: rgba(0,255,136,0.3); color: var(--green); background: rgba(0,255,136,0.06); }
 
-    .page { flex: 1; overflow-y: auto; padding: 24px; display: none; }
+    .page { flex: 1; min-height: 0; overflow-y: auto; padding: 24px; display: none; }
     .page.active { display: block; }
     #page-overlays { padding: 0; overflow: hidden; }
     .os-card { display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;transition:background 0.12s,border-color 0.12s;border:1px solid transparent;margin-bottom:4px; }
@@ -518,6 +518,9 @@
       </button>
       <div class="topbar-title" id="topbarTitle">Overview</div>
       <div class="topbar-pill" id="channelPill">⚡ <span id="channelPillName">Loading...</span></div>
+      <!-- Quick link to the streamer's public portal page. Populated in onAuthReady. -->
+      <a id="topbarPortalLink" href="#" target="_blank" rel="noopener" title="Open your public portal page" class="topbar-pill"
+         style="display:none;text-decoration:none;color:var(--accent);font-weight:700;cursor:pointer;border-color:rgba(0,229,255,0.3);">🪟 My Portal</a>
       <!-- Account switcher — only shown to users who moderate other streamers
            (delegatedFor is non-empty). Lets them switch between their own
            account and the streamers they manage. -->
@@ -1824,7 +1827,8 @@
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button onclick="spRefreshCatalog()" title="Force re-fetch live catalog" style="font-size:12px;padding:7px 12px;border-radius:7px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-dim);cursor:pointer;white-space:nowrap;">↻ Refresh</button>
-            <a id="spObsLink" href="#" target="_blank" style="font-size:12px;padding:7px 14px;border-radius:7px;border:1px solid var(--border);color:var(--text-dim);text-decoration:none;white-space:nowrap;">🖥 OBS Overlay</a>
+            <a id="spObsLink" href="#" onclick="copyObsUrl('spObsLink');return false;" title="Copy this URL into OBS as a Browser Source" style="font-size:12px;padding:7px 14px;border-radius:7px;border:1px solid var(--border);color:var(--text-dim);text-decoration:none;white-space:nowrap;cursor:pointer;">📋 Copy OBS URL</a>
+            <a id="spPreviewLink" href="#" target="_blank" style="font-size:11px;padding:7px 12px;color:var(--text-dim);text-decoration:none;white-space:nowrap;opacity:0.8;">▶ Preview</a>
           </div>
         </div>
 
@@ -1955,7 +1959,8 @@
         <div class="card">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;">
             <div class="card-title" style="margin-bottom:0;">🎡 Draw from Requests <span id="rspPoolCount" style="color:var(--text-dim);font-weight:500;font-size:13px;"></span></div>
-            <a href="#" target="_blank" id="rspOverlayLink" style="font-size:12px;padding:6px 12px;border-radius:7px;border:1px solid var(--border);color:var(--text-dim);text-decoration:none;white-space:nowrap;">🖥 OBS Overlay</a>
+            <a href="#" id="rspOverlayLink" onclick="copyObsUrl('rspOverlayLink');return false;" title="Copy this URL into OBS as a Browser Source" style="font-size:12px;padding:6px 12px;border-radius:7px;border:1px solid var(--border);color:var(--text-dim);text-decoration:none;white-space:nowrap;cursor:pointer;">📋 Copy OBS URL</a>
+            <a href="#" target="_blank" id="rspPreviewLink" style="font-size:11px;padding:6px 10px;color:var(--text-dim);text-decoration:none;white-space:nowrap;opacity:0.8;">▶ Preview</a>
           </div>
           <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">Randomly draw a viewer + their requested slot. Re-drawable — entries stay in the pool until you clear the queue.</div>
 
@@ -2755,7 +2760,7 @@ function showPage(id, el) {
   document.getElementById('topbarTitle').textContent = titles[id] || id;
   // Tear down SR listeners when leaving their pages
   if (id !== 'slotrequest' && srUnsub)        { srUnsub(); srUnsub = null; }
-  if (id !== 'bonushunt') { unsubBhSr(); if (bhHistoryUnsub) { bhHistoryUnsub(); bhHistoryUnsub = null; } }
+  if (id !== 'bonushunt') { unsubBhSr(); if (bhHistoryUnsub) { bhHistoryUnsub(); bhHistoryUnsub = null; } if (bhUnsub) { bhUnsub(); bhUnsub = null; } }
   if (id !== 'bonusbattle' && bbUnsub)        { bbUnsub(); bbUnsub = null; }
   if (id !== 'tournament'  && tnUnsub)        { tnUnsub(); tnUnsub = null; }
   if (id !== 'verified'    && verifiedUnsub)  { verifiedUnsub(); verifiedUnsub = null; }
@@ -3143,6 +3148,12 @@ function onAuthReady(user) {
   startLiveBadgeListeners(fb.activeUid);
   document.getElementById('channelPillName').textContent = profile?.kickChannel || '—';
   document.getElementById('statChannel').textContent = profile?.kickChannel || '—';
+  // Wire My Portal link if the channel is set
+  const _portalLink = document.getElementById('topbarPortalLink');
+  if (_portalLink && profile?.kickChannel) {
+    _portalLink.href = `/${encodeURIComponent(profile.kickChannel)}`;
+    _portalLink.style.display = '';
+  }
   document.getElementById('statCurrency').textContent = (profile?.currencyName || 'points') + ' total';
 
   if (profile?.currencyName) document.getElementById('currencyNameInput').value = profile.currencyName;
@@ -4755,10 +4766,11 @@ async function submitFinalize() {
 const OS_OVERLAYS = [
   { id:'bonushunt',   name:'Bonus Hunt',     icon:'🎰', tag:'hunting',    desc:'Live tracker — progress, stats, and full slot list.',       path:'/overlay-bonus-hunt.html',    obsW:500,  obsH:700,  demo:true,  header:'🎰 Bonus Hunt',          note:'Width: 500px recommended.' },
   { id:'slotreqs',    name:'Slot Requests',  icon:'📋', tag:'hunting',    desc:'Scrolling queue of viewer !r requests in real time.',        path:'/overlay-slot-requests.html', obsW:360,  obsH:500,  demo:true,  header:'🎰 Slot Requests',       note:'Width: 360px recommended.' },
-  { id:'slotpicker',  name:'Slot Picker',    icon:'🎲', tag:'hunting',    desc:'Spin reel that shows the randomly picked slot.',            path:'/overlay-slot-picker.html',   obsW:360,  obsH:500,  demo:false, header:'🎰 Random Slot Picker',  note:'Width: 360, height: 500.' },
+  { id:'slotpicker',  name:'Slot Picker',    icon:'🎲', tag:'hunting',    desc:'Horizontal carousel that spins through slots and lands on the pick.', path:'/overlay-slot-picker.html',   obsW:560,  obsH:380,  demo:true,  header:'🎰 Random Slot Picker',  note:'Width: 560, height: 380.' },
+  { id:'reqspinner',  name:'Request Raffle', icon:'🎡', tag:'hunting',    desc:'Spins through pending slot-request viewers and lands on @user + their slot.', path:'/overlay-request-spinner.html', obsW:560,  obsH:380,  demo:true,  header:'🎰 Slot Request Draw',  note:'Width: 560, height: 380.' },
   { id:'wheel',       name:'Giveaway Wheel', icon:'🎡', tag:'giveaway',   desc:'Spinning wheel with participants as segments.',             path:'/overlay-wheel.html',         obsW:800,  obsH:800,  demo:true,  header:null,                     note:'Best with 30 or fewer entries. Width: 800, height: 800.' },
   { id:'winner',      name:'Winner Reveal',  icon:'🏆', tag:'giveaway',   desc:'Slot-machine-style animated winner announcement.',          path:'/overlay-winner.html',        obsW:1920, obsH:1080, demo:true,  header:'🎰 Giveaway Winner',     note:'Full-scene overlay. Width: 1920, height: 1080.' },
-  { id:'entries',     name:'Entries Feed',   icon:'📝', tag:'giveaway',   desc:'Live scrolling list of entries as viewers join.',           path:'/overlay-giveaway.html',      obsW:400,  obsH:600,  demo:true,  header:'🎁 Giveaway Live',       note:'Width: 400, height: 600.' },
+  { id:'entries',     name:'Entries Feed',   icon:'📝', tag:'giveaway',   desc:'Live scrolling list of entries as viewers join.',           path:'/overlay-giveaway.html',      obsW:440,  obsH:740,  demo:true,  header:'🎁 Giveaway Live',       note:'Width: 440, height: 740. The list scrolls inside the OBS source if entries overflow.' },
   { id:'bonusbattle', name:'Bonus Battle',   icon:'⚔️', tag:'battles',    desc:'Match display with live viewer vote counts and results.',   path:'/overlay-bonus-battle.html',  obsW:1920, obsH:1080, demo:true,  header:null,                     note:'Header comes from the battle title. Width: 1920, height: 1080.' },
   { id:'tournament',  name:'Tournament',     icon:'🏅', tag:'tournament', desc:'Live bracket — matchups and winners as they progress.',     path:'/overlay-tournament.html',    obsW:1920, obsH:1080, demo:true,  header:null,                     note:'Header comes from the tournament title. Width: 1920, height: 1080.' },
 ];
@@ -5428,6 +5440,7 @@ const _UNUSED_LEGACY = [
 
 let bhHunt      = null;
 let bhResultRow = null;
+let bhUnsub     = null;
 
 async function loadBonusHunt() {
   if (!fb.currentUser) return;
@@ -5440,22 +5453,25 @@ async function loadBonusHunt() {
   if (obsEl && chan) obsEl.href = `/overlay-bonus-hunt.html?channel=${encodeURIComponent(chan)}`;
   if (preEl && chan) preEl.href = `/overlay-bonus-hunt.html?channel=${encodeURIComponent(chan)}&demo=1`;
 
-  try {
-    const doc = await fb.db.collection('streamers').doc(uid)
-      .collection('bonus_hunt').doc('current').get();
-    bhHunt = doc.exists ? doc.data() : null;
-    bhRender();
-    // Restore GTB state from profile if not already set
-    if (bhHunt?.active && !gtbActive && profile?.gtbActive) {
-      gtbActive    = true;
-      gtbSessionId = profile.gtbSessionId || null;
-      if (gtbSessionId && !gtbUnsubscribe) listenGTBGuesses();
-    }
-    bhGtbRender();
-  } catch (e) {
-    console.error('loadBonusHunt', e);
-    flash('Failed to load bonus hunt', 'error');
-  }
+  // Live listener so a mod's edits (added slot, marked played, etc.) appear on
+  // the streamer's dashboard without a refresh. Previously a one-time .get().
+  if (bhUnsub) { bhUnsub(); bhUnsub = null; }
+  bhUnsub = fb.db.collection('streamers').doc(uid)
+    .collection('bonus_hunt').doc('current')
+    .onSnapshot(doc => {
+      bhHunt = doc.exists ? doc.data() : null;
+      bhRender();
+      // Restore GTB state from profile if not already set
+      if (bhHunt?.active && !gtbActive && profile?.gtbActive) {
+        gtbActive    = true;
+        gtbSessionId = profile.gtbSessionId || null;
+        if (gtbSessionId && !gtbUnsubscribe) listenGTBGuesses();
+      }
+      bhGtbRender();
+    }, e => {
+      console.error('loadBonusHunt listener', e);
+      flash('Failed to load bonus hunt', 'error');
+    });
 }
 
 let bhSrUnsub = null;
@@ -6205,6 +6221,8 @@ async function loadSlotRequests() {
     if (pl) pl.href = `/overlay-slot-requests.html?channel=${encodeURIComponent(chan)}&demo=1`;
     const rol = document.getElementById('rspOverlayLink');
     if (rol) rol.href = `/overlay-request-spinner.html?channel=${encodeURIComponent(chan)}`;
+    const rpl = document.getElementById('rspPreviewLink');
+    if (rpl) rpl.href = `/overlay-request-spinner.html?channel=${encodeURIComponent(chan)}&demo=1`;
   }
 }
 
@@ -8318,10 +8336,27 @@ function formatActivityDetails(action, d) {
 let spPool   = [];
 let spPicked = null;
 
+// Copy an OBS overlay link's href to clipboard with a flash confirmation.
+// Falls back to opening the URL if clipboard access fails. Reused by every
+// "Copy OBS URL" affordance so we don't duplicate per-section logic.
+function copyObsUrl(linkId) {
+  const a = document.getElementById(linkId);
+  if (!a || !a.href || a.href === window.location.href + '#' || a.href.endsWith('#')) return;
+  const url = a.href;
+  const ok = () => flash('📋 OBS URL copied! Paste it into OBS as a Browser Source.');
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(url).then(ok).catch(() => window.open(url, '_blank'));
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
 function initSlotPicker() {
   const chan  = profile?.kickChannel || '';
   const obsEl = document.getElementById('spObsLink');
   if (obsEl && chan) obsEl.href = `/overlay-slot-picker.html?channel=${encodeURIComponent(chan)}`;
+  const preEl = document.getElementById('spPreviewLink');
+  if (preEl && chan) preEl.href = `/overlay-slot-picker.html?channel=${encodeURIComponent(chan)}&demo=1`;
 
   if (!BH_SLOTS.length) {
     // Catalog fetch still in flight — retry every 500ms until ready

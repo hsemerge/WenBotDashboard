@@ -172,6 +172,7 @@
 <script>
   const params  = new URLSearchParams(location.search);
   const channel = (params.get('channel') || '').toLowerCase();
+  const isDemo  = params.get('demo') === '1';
   const WIN_IDX_FALLBACK = 16;
   const POLL_MS = 1500;
 
@@ -179,8 +180,12 @@
   let lastTrigger = null;
   let spinning    = false;
 
-  // Local catalog only used as a fallback if a (legacy) trigger arrives without a reel.
-  fetch('/data/slots.json').then(r => r.json()).then(d => { slotsDB = d.slots || []; }).catch(() => {});
+  // Local catalog (used as a fallback if a legacy trigger arrives without a
+  // reel, AND for the demo state in the Overlay Studio preview).
+  fetch('/data/slots.json').then(r => r.json()).then(d => {
+    slotsDB = d.slots || [];
+    if (isDemo) initDemo();
+  }).catch(() => {});
 
   // ── Provider → SoftSwiss slug map (mirrors the dashboard) ──────────────
   const SW_PROVIDER = {
@@ -273,11 +278,17 @@
   // ── Poll the public data endpoint (no auth — overlays run unauthenticated) ──
   function handlePicker(data) {
     if (!data || !data.trigger) return;
-
-    // First sighting: remember the trigger but don't replay an old spin on load.
-    if (lastTrigger === null) { lastTrigger = data.trigger; return; }
     if (data.trigger === lastTrigger) return;
+
+    // First-load handling: only suppress STALE triggers (>60s old). A fresh
+    // spin should still play even if it happened right before the overlay
+    // opened — otherwise opening the OBS source after a spin shows nothing.
+    const isFirstSighting = lastTrigger === null;
     lastTrigger = data.trigger;
+    if (isFirstSighting) {
+      const isFresh = data.pickedAt && (Date.now() - data.pickedAt < 60000);
+      if (!isFresh) return;
+    }
 
     if (spinning) return;
     const picked = data.picked;
@@ -310,10 +321,31 @@
     } catch {}
   }
 
+  // Demo state for the Overlay Studio preview (or anyone hitting ?demo=1).
+  // Shows the widget with a static sample reel landed on a "winner" so the
+  // chrome is visible without needing a real spin trigger.
+  function initDemo() {
+    if (!slotsDB.length) { setTimeout(initDemo, 200); return; }
+    const sample = slotsDB.slice(0, 8);
+    const winIdx = 3;
+    document.getElementById('widget').classList.add('visible');
+    buildReel(sample);
+    const track = document.getElementById('reelTrack');
+    requestAnimationFrame(() => {
+      const s = step(track);
+      track.style.transition = 'none';
+      track.style.transform  = `translateX(-${winIdx * s}px)`;
+      document.getElementById('pickerWrap').classList.add('landed');
+      document.getElementById('resultPanel').classList.add('show');
+      document.getElementById('resultName').textContent     = sample[winIdx]?.name || 'Sample Slot';
+      document.getElementById('resultProvider').textContent = prettyProvider(sample[winIdx]?.provider || 'Demo');
+    });
+  }
+
   if (channel) {
     poll();
     setInterval(poll, POLL_MS);
-  } else {
+  } else if (!isDemo) {
     document.getElementById('widget').style.display = 'none';
   }
 </script>
