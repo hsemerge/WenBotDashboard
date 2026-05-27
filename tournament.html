@@ -40,8 +40,9 @@
     .standings-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; }
     input[type=number] { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 8px; color: #fff; padding: 10px 12px; font-size: 14px; font-family: 'Inter', sans-serif; width: 100%; outline: none; }
     input[type=number]:focus { border-color: var(--accent); }
-    #screen-login, #screen-main { display: none; }
-    #screen-login.active, #screen-main.active { display: block; }
+    /* Screens hidden initially via inline style so show()/hide() can flip them.
+       The previous .active-class approach didn't match the JS (which uses
+       style.display='') and left the page permanently blank. */
     .center { text-align: center; }
     .text-dim { color: var(--dim); }
     .text-gold { color: var(--gold); }
@@ -60,7 +61,7 @@
 <div class="container">
 
   <!-- Login screen -->
-  <div id="screen-login">
+  <div id="screen-login" style="display:none;">
     <div class="card center" style="padding:52px 36px;">
       <div style="font-size:48px;margin-bottom:16px;">🏆</div>
       <h2 style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;margin-bottom:8px;">Join the Tournament</h2>
@@ -70,7 +71,7 @@
   </div>
 
   <!-- Main screen -->
-  <div id="screen-main">
+  <div id="screen-main" style="display:none;">
     <div id="verifyBanner" class="banner banner-warn" style="display:none;">
       ⚠️ Your account isn't verified. <a href="#" id="verifyLink" style="color:#ffa726;font-weight:700;">Verify now</a> to enter tournaments.
     </div>

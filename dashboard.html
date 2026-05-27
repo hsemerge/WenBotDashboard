@@ -2300,6 +2300,7 @@
               <div style="font-size:11px;color:var(--text-dim);">Voters</div>
               <div style="font-size:22px;font-weight:800;color:var(--accent);" id="bbTotalVoters">0</div>
             </div>
+            <button onclick="bbOpenAllVoting()" style="padding:8px 16px;background:rgba(83,224,119,0.1);border:1px solid rgba(83,224,119,0.35);border-radius:8px;color:var(--green);font-size:12px;cursor:pointer;font-weight:700;">🟢 Open All Voting</button>
             <button onclick="bbRefundAll()" style="padding:8px 16px;background:none;border:1px solid rgba(255,167,38,0.35);border-radius:8px;color:var(--orange);font-size:12px;cursor:pointer;font-weight:600;">↩ Refund All</button>
             <button onclick="bbEndBattle()" style="padding:8px 16px;background:none;border:1px solid rgba(255,71,87,0.35);border-radius:8px;color:var(--red);font-size:12px;cursor:pointer;font-weight:600;">End Battle</button>
           </div>
@@ -6947,6 +6948,20 @@ async function bbSetMatchStatus(matchId, status) {
 
 function bbOpenVoting(id)  { bbSetMatchStatus(id, 'voting'); }
 function bbLockVoting(id)  { bbSetMatchStatus(id, 'locked'); }
+
+// Flip every upcoming match to 'voting' in a single Firestore write — saves
+// the streamer clicking Open Voting on each match individually.
+async function bbOpenAllVoting() {
+  if (!bbBattle) return;
+  const upcomingCount = (bbBattle.matches || []).filter(m => m.status === 'upcoming').length;
+  if (!upcomingCount) { flash('No upcoming matches to open.', 'error'); return; }
+  const matches = (bbBattle.matches || []).map(m => m.status === 'upcoming' ? { ...m, status: 'voting' } : m);
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid)
+      .collection('bonus_battles').doc('current').update({ matches, updatedAt: Date.now() });
+    flash(`Opened voting on ${upcomingCount} match${upcomingCount === 1 ? '' : 'es'}`);
+  } catch (e) { flash('Failed: ' + e.message, 'error'); }
+}
 
 function bbOpenResult(matchId) {
   const m = (bbBattle?.matches || []).find(m => m.id === matchId);
