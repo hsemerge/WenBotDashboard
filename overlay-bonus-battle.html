@@ -182,8 +182,27 @@
     document.getElementById('ovTotalPool').textContent   = total.toLocaleString() + ' pts';
   }
 
-  poll();
-  setInterval(poll, 5000);
+  // Demo state for the Overlay Studio preview (?demo=1) — fakes an active
+  // bonus battle so the overlay chrome is visible without one running.
+  const isDemo = new URLSearchParams(location.search).get('demo') === '1';
+  if (isDemo) {
+    render({
+      active: true,
+      title: 'Friday Night Battles',
+      matches: [{
+        id: 'demo1', status: 'voting',
+        slot1: { name: 'Rocket Blast Megaways', provider: 'Pragmatic Play' },
+        slot2: { name: 'Le Bandit',             provider: 'Hacksaw Gaming' },
+        slot1Pool: 2400, slot2Pool: 1600,
+        slot1Votes: 12,  slot2Votes: 8,
+        slot1Multiplier: null, slot2Multiplier: null,
+        winner: null,
+      }],
+    });
+  } else if (channel) {
+    poll();
+    setInterval(poll, 5000);
+  }
 </script>
 </body>
 </html>

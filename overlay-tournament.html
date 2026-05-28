@@ -154,8 +154,30 @@ function escHtml(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-poll();
-setInterval(poll, 6000);
+// Demo state for the Overlay Studio preview (?demo=1) — fakes an active
+// tournament so the overlay chrome is visible without a real one running.
+const isDemo = new URLSearchParams(location.search).get('demo') === '1';
+if (isDemo) {
+  render({
+    active: true,
+    status: 'registration',
+    title: 'Friday Showdown',
+    currentRound: 1,
+    prizePool: 12500,
+    participants: [
+      { kickUsername: 'streamer_fan',  eliminated: false },
+      { kickUsername: 'bigwinner99',   eliminated: false },
+      { kickUsername: 'slot_hunter',   eliminated: false },
+      { kickUsername: 'chipsking',     eliminated: false },
+      { kickUsername: 'kicker420',     eliminated: false },
+      { kickUsername: 'wenfan22',      eliminated: false },
+    ],
+    rounds: [],
+  });
+} else if (channel) {
+  poll();
+  setInterval(poll, 6000);
+}
 </script>
 </body>
 </html>
