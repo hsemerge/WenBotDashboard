@@ -286,6 +286,12 @@
     .store-img img { width:100%; height:100%; object-fit:contain; display:block; }
     .buy-cmd { display:inline-flex; align-items:center; gap:6px; margin-top:12px; padding:7px 10px; border-radius:8px; background:rgba(255,255,255,0.03); border:1px solid var(--border); font-size:12px; color:var(--text); cursor:pointer; font-family:monospace; transition:.15s; }
     .buy-cmd:hover { border-color: var(--accent); color: var(--bright); }
+    .btn-kick { display:inline-flex; align-items:center; gap:7px; background:#53fc18; color:#0b1402; font-weight:800; border:none; border-radius:9px; padding:8px 14px; cursor:pointer; font-size:13px; }
+    .btn-kick:hover { filter:brightness(1.08); }
+    .store-buy { margin-top:12px; width:100%; background:linear-gradient(90deg,var(--accent),#7b5cff); color:#fff; font-weight:800; border:none; border-radius:9px; padding:10px; cursor:pointer; font-size:13px; transition:.15s; }
+    .store-buy:hover:not(:disabled) { filter:brightness(1.1); }
+    .store-buy:disabled { opacity:.5; cursor:not-allowed; }
+    .store-buy.raffle { background:linear-gradient(90deg,var(--gold),#ffe27a); color:#1a1407; }
     .store-name { font-family: 'Exo 2', sans-serif; font-weight: 800; font-size: 15px; color: var(--bright); margin-bottom: 4px; }
     .store-desc { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.45; min-height: 32px; }
     .store-footer { display: flex; justify-content: space-between; align-items: center; }
@@ -382,6 +388,12 @@
       <svg viewBox="0 0 24 24"><path fill="#53FC18" fill-rule="evenodd" d="M2.435 1h7.174v4.783H12V3.39h2.391V1h7.174v7.174h-2.391v2.391h-2.391v2.87h2.39v2.391h2.392V23h-7.174v-2.391H12v-2.392H9.609V23H2.435z" clip-rule="evenodd"/></svg>
       <span id="kickLinkText">Watch Live</span>
     </a>
+    <button class="btn-kick" id="viewerLoginBtn" onclick="viewerLogin()" style="display:none;">🟢 Sign in with Kick</button>
+    <span id="viewerInfo" style="display:none;font-size:13px;">
+      <span id="viewerName" style="color:var(--bright);font-weight:600;"></span> ·
+      <span id="viewerPts" style="color:var(--gold);font-weight:700;font-family:'Exo 2',sans-serif;">…</span> ·
+      <span onclick="viewerLogout()" style="color:var(--text-dim);cursor:pointer;text-decoration:underline;">Log out</span>
+    </span>
   </div>
 </nav>
 
@@ -431,6 +443,7 @@
   </p>
 </footer>
 
+<script src="/js/kick-auth.js"></script>
 <script>
   // -------- Params + state ----------
   // Channel can come from EITHER:
@@ -484,6 +497,61 @@
 
   let state = null; // populated after /api/portal-data
   let currentTab = null;
+  let viewer = null; // Kick viewer session (for store purchases)
+
+  // -------- Viewer auth (Kick) + store purchase ----------
+  function refreshViewerUI() {
+    const loginBtn = document.getElementById('viewerLoginBtn');
+    const info     = document.getElementById('viewerInfo');
+    if (viewer) {
+      loginBtn.style.display = 'none'; info.style.display = '';
+      document.getElementById('viewerName').textContent = '@' + viewer.kickUsername;
+    } else {
+      loginBtn.style.display = ''; info.style.display = 'none';
+    }
+    // Re-render store tab if it's showing, so buy buttons reflect sign-in state.
+    if (currentTab === 'store' && state) renderTabContent('store');
+  }
+  async function fetchBalance() {
+    if (!viewer) return;
+    try {
+      const r = await fetch(`/api/bb-state?channel=${encodeURIComponent(channel)}&kick=${encodeURIComponent(viewer.kickUsername)}`);
+      const d = await r.json();
+      const pts = d && d.viewerPoints != null ? d.viewerPoints : 0;
+      document.getElementById('viewerPts').textContent = Number(pts).toLocaleString() + ' ' + (state?.streamer?.currency || 'pts');
+    } catch { document.getElementById('viewerPts').textContent = '—'; }
+  }
+  window.viewerLogin  = function () { initiateKickAuth('viewer', channel); };
+  window.viewerLogout = function () { clearKickViewerSession(); viewer = null; refreshViewerUI(); };
+  window.buyItem = async function (itemId) {
+    if (!viewer) { initiateKickAuth('viewer', channel); return; }
+    const item = (state?.store?.items || []).find(i => i.id === itemId);
+    if (!item) return;
+    const cur = state?.streamer?.currency || 'points';
+    const verb = item.isRaffleItem ? 'enter the ' + item.name + ' raffle' : 'buy ' + item.name;
+    if (!confirm(`Spend ${Number(item.price).toLocaleString()} ${cur} to ${verb}?`)) return;
+    const btn = document.querySelector(`.store-buy[data-id="${(window.CSS&&CSS.escape)?CSS.escape(itemId):itemId}"]`);
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    try {
+      const r = await fetch('/api/store-buy', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel, kickUsername: viewer.kickUsername, accessToken: viewer.accessToken, itemId }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        if (r.status === 401) { clearKickViewerSession(); viewer = null; refreshViewerUI(); }
+        alert(d.error || 'Purchase failed.');
+        if (btn) { btn.disabled = false; btn.textContent = item.isRaffleItem ? 'Enter raffle' : 'Buy'; }
+        return;
+      }
+      if (d.newBalance != null) document.getElementById('viewerPts').textContent = Number(d.newBalance).toLocaleString() + ' ' + cur;
+      alert(d.message || 'Success!');
+      load(); // refresh stock
+    } catch (e) {
+      alert('Purchase failed: ' + e.message);
+      if (btn) { btn.disabled = false; btn.textContent = item.isRaffleItem ? 'Enter raffle' : 'Buy'; }
+    }
+  };
 
   // -------- Helpers ----------
   function esc(s) {
@@ -918,6 +986,9 @@
       const img = it.imageUrl
         ? `<div class="store-img"><img src="${esc(it.imageUrl)}" alt="" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
         : '';
+      const out = it.stock === 0;
+      const label = it.isRaffleItem ? 'Enter raffle' : 'Buy';
+      const buyBtn = `<button class="store-buy${it.isRaffleItem ? ' raffle' : ''}" data-id="${esc(it.id)}" ${out ? 'disabled' : ''} onclick="buyItem('${esc(it.id)}')">${out ? 'Out of stock' : (viewer ? label : '🟢 Sign in to ' + label.toLowerCase())}</button>`;
       return `
         <div class="store-card${it.isRaffleItem ? ' raffle' : ''}">
           ${img}
@@ -927,6 +998,7 @@
             <div class="store-price">${fmtNum(it.price)}<small>${esc(s.streamer.currency)}</small></div>
             ${stockHtml}
           </div>
+          ${buyBtn}
           <div class="buy-cmd" title="Copy command" onclick="navigator.clipboard&&navigator.clipboard.writeText('${buyCmd.replace(/'/g,"\\'")}');this.textContent='✓ Copied — paste in chat';">📋 ${esc(buyCmd)}</div>
         </div>`;
     }).join('');
@@ -1056,12 +1128,35 @@
       renderHero(state);
       renderActiveStrip(state);
       renderTabs(state);
+      // Now that we have the currency, refresh the balance label if signed in.
+      if (viewer) fetchBalance();
     } catch (err) {
       showError('Portal unavailable', 'Try refreshing in a moment.');
     }
   }
 
-  load();
+  // Resolve viewer session (incl. cross-domain ?s= handoff) BEFORE first render
+  // so store buy-buttons show the correct state immediately after sign-in.
+  async function initViewer() {
+    const params = new URLSearchParams(location.search);
+    const code = params.get('s');
+    if (code) {
+      try {
+        const r = await fetch('/api/kick-session-claim', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code }),
+        });
+        const d = await r.json();
+        if (r.ok && d.session) localStorage.setItem('kick_viewer_session', JSON.stringify(d.session));
+      } catch {}
+      params.delete('s');
+      history.replaceState(null, '', location.pathname + (params.toString() ? '?' + params : '') + location.hash);
+    }
+    try { viewer = (typeof getKickViewerSession === 'function') ? getKickViewerSession() : null; } catch { viewer = null; }
+    refreshViewerUI();
+  }
+
+  (async () => { await initViewer(); load(); })();
 
   // Light refresh: re-pull data every 60s so live banners/leaderboard stay fresh
   // without slamming the function. We re-render the current tab in place.

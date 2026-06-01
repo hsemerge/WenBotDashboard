@@ -47,11 +47,12 @@
   .nav-links a { color:var(--dim); text-decoration:none; font-weight:600; transition:color .15s; }
   .nav-links a:hover { color:var(--bright); }
 
-  /* LINK BAR (socials + custom links) */
-  .linkbar { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:8px 0 28px;
-    background:rgba(255,255,255,.02); border:1px solid var(--border); border-radius:14px; padding:12px; }
-  .linkbar a { display:inline-flex; align-items:center; gap:7px; padding:8px 16px; border-radius:10px;
-    color:var(--text); text-decoration:none; font-size:13px; font-weight:600; border:1px solid transparent; transition:.15s; }
+  /* LINK BAR (socials + custom links) — items truly centered as a group */
+  .linkbar { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; align-items:center;
+    margin:8px 0 28px; background:rgba(255,255,255,.02); border:1px solid var(--border);
+    border-radius:14px; padding:12px 16px; }
+  .linkbar a { display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:8px 16px; border-radius:10px;
+    color:var(--text); text-decoration:none; font-size:13px; font-weight:600; border:1px solid transparent; transition:.15s; white-space:nowrap; }
   .linkbar a:hover { border-color:var(--accent); background:rgba(168,85,247,.08); color:var(--bright); }
 
   /* HERO */
@@ -83,20 +84,41 @@
   .cd-num { font-family:'Exo 2',sans-serif; font-weight:900; font-size:38px; color:var(--accent2); }
   .cd-lab { font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.12em; margin-top:4px; }
 
-  /* PODIUM */
-  .podium { display:flex; justify-content:center; align-items:flex-end; gap:16px; margin:26px 0 10px; flex-wrap:wrap; }
-  .pod { width:190px; background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:22px 14px 18px; text-align:center; position:relative; }
-  .pod.first { border-color:var(--gold); box-shadow:0 0 30px rgba(245,197,24,.18); transform:translateY(-18px); }
-  .pod .crown { font-size:26px; }
-  .pod .av { width:62px; height:62px; border-radius:50%; margin:6px auto 10px; background:rgba(168,85,247,.12); border:2px solid var(--accent);
-    display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--accent2); overflow:hidden; }
+  /* PODIUM — top 3, with the #1 standing out (larger, elevated, gold glow). */
+  .podium { display:flex; justify-content:center; align-items:flex-end; gap:18px; margin:26px 0 14px; flex-wrap:wrap; }
+  .pod { width:210px; background:linear-gradient(180deg,rgba(255,255,255,.04),var(--bg-card)); border:1px solid var(--border);
+    border-radius:18px; padding:28px 16px 18px; text-align:center; position:relative; }
+  /* Rank-tinted top edge + glow so each place reads at a glance. */
+  .pod.rank-1 { border-color:var(--gold);   box-shadow:0 0 38px rgba(245,197,24,.28); transform:translateY(-26px); width:236px; padding-top:34px; }
+  .pod.rank-2 { border-color:#c9d3e6; box-shadow:0 0 22px rgba(201,211,230,.12); }
+  .pod.rank-3 { border-color:#d8995a; box-shadow:0 0 22px rgba(216,153,90,.12); }
+  /* Crown above the avatar, colored by rank. */
+  .pod .crown { font-size:30px; line-height:1; margin-bottom:2px; }
+  .pod.rank-1 .crown { font-size:38px; filter:drop-shadow(0 0 10px rgba(245,197,24,.6)); }
+  /* Avatar with a numbered rank badge. */
+  .pod .av-wrap { position:relative; width:78px; height:78px; margin:6px auto 12px; }
+  .pod.rank-1 .av-wrap { width:96px; height:96px; }
+  .pod .av { width:100%; height:100%; border-radius:50%; background:rgba(168,85,247,.12); border:3px solid var(--accent2);
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:22px; color:var(--accent2); overflow:hidden; }
   .pod .av img { width:100%; height:100%; object-fit:cover; }
-  .pod.first .av { border-color:var(--gold); width:74px; height:74px; }
-  .pod .nm { font-weight:700; color:var(--bright); font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .pod .wg { color:var(--dim); font-weight:600; font-size:13px; margin-top:4px; }
-  .pod .rk { position:absolute; top:10px; left:12px; font-family:'Exo 2',sans-serif; font-weight:900; color:var(--dim); }
-  .pod-prize { margin-top:10px; font-family:'Exo 2',sans-serif; font-weight:900; font-size:20px; color:var(--gold);
-    background:rgba(245,197,24,.1); border:1px solid rgba(245,197,24,.35); border-radius:10px; padding:5px 0; }
+  .pod.rank-1 .av { border-color:var(--gold); }
+  .pod.rank-2 .av { border-color:#c9d3e6; }
+  .pod.rank-3 .av { border-color:#d8995a; }
+  .pod .badge { position:absolute; bottom:-4px; left:50%; transform:translateX(-50%);
+    min-width:24px; height:24px; padding:0 6px; border-radius:12px; font-family:'Exo 2',sans-serif; font-weight:900; font-size:13px;
+    color:#0b0b12; display:flex; align-items:center; justify-content:center; border:2px solid var(--bg); }
+  .pod.rank-1 .badge { background:var(--gold); } .pod.rank-2 .badge { background:#c9d3e6; } .pod.rank-3 .badge { background:#d8995a; }
+  .pod .nm { font-family:'Exo 2',sans-serif; font-weight:800; color:var(--bright); font-size:17px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:12px; }
+  .pod.rank-1 .nm { font-size:19px; }
+  /* "TOTAL WAGERED" labeled box. */
+  .pod .wg-box { background:rgba(0,0,0,.28); border:1px solid var(--border); border-radius:10px; padding:9px 8px; margin-bottom:8px; }
+  .pod .wg-lab { font-size:9px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); font-weight:700; }
+  .pod .wg { font-family:'Exo 2',sans-serif; color:var(--bright); font-weight:800; font-size:18px; margin-top:2px; }
+  .pod.rank-1 .wg { font-size:22px; }
+  /* Prize bar. */
+  .pod-prize { font-family:'Exo 2',sans-serif; font-weight:900; font-size:17px; color:var(--gold);
+    background:rgba(245,197,24,.1); border:1px solid rgba(245,197,24,.3); border-radius:10px; padding:8px 0; }
+  .pod.rank-1 .pod-prize { font-size:20px; background:rgba(245,197,24,.16); border-color:rgba(245,197,24,.5); }
   .pod.first .pod-prize { font-size:24px; }
   /* Prize pill in the leaderboard table (next to the leader's name) */
   .lb-prize { font-family:'Exo 2',sans-serif; font-weight:900; font-size:13px; color:var(--gold);
@@ -298,6 +320,14 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const money = n => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const initials = s => (s || '?').slice(0, 2).toUpperCase();
+  // Privacy mask for viewer-facing names: first 2 + asterisks + last 1
+  // (e.g. "Robertc" -> "Ro****c"). "Anonymous" and very short names pass through.
+  function maskName(name) {
+    const s = String(name || '');
+    if (!s || s.toLowerCase() === 'anonymous' || s.length <= 3) return s;
+    const stars = '*'.repeat(Math.max(1, s.length - 3));
+    return s.slice(0, 2) + stars + s.slice(-1);
+  }
 
   // -- Starfield --
   (function stars() {
@@ -345,7 +375,6 @@
     if (s.features && s.features.store && (s.store?.items || []).length) navItems.push(['#store', 'Store']);
     (s.portal?.pages || []).forEach(p => navItems.push(['#' + p.id, p.label]));
     if (s.pastWinners && s.pastWinners.length) navItems.push(['#winners', 'Winners']);
-    navItems.push(['#about', 'About']);
     if (s.streamer.socials?.kick) navItems.push([s.streamer.socials.kick, 'Stream', true]);
     nav.innerHTML = navItems.map(([href, label, ext]) =>
       `<a href="${esc(href)}" ${ext ? 'target="_blank" rel="noopener"' : `onclick="return goTo('${href}')"`}>${esc(label)}</a>`).join('');
@@ -446,18 +475,24 @@
   function renderPodium(ranks, prizes) {
     const top = ranks.slice(0, 3);
     if (top.length < 3) { document.getElementById('podium').style.display = 'none'; return; }
+    document.getElementById('podium').style.display = '';
     const order = [top[1], top[0], top[2]]; // 2nd, 1st, 3rd visually
+    const crowns = { 1: '👑', 2: '🥈', 3: '🥉' };
     document.getElementById('podium').innerHTML = order.map(e => {
-      const first = e.rank === 1;
-      const av = e.avatarUrl ? `<img src="${esc(e.avatarUrl)}" alt="">` : esc(initials(e.username));
+      const av = e.avatarUrl ? `<img src="${esc(e.avatarUrl)}" alt="" onerror="this.parentElement.textContent='${esc(initials(e.username))}'">` : esc(initials(e.username));
       const prize = prizeFor(e.rank, prizes);
-      return `<div class="pod ${first ? 'first' : ''}">
-        <div class="rk">#${e.rank}</div>
-        <div class="crown">${first ? '👑' : '🏅'}</div>
-        <div class="av">${av}</div>
-        <div class="nm">${esc(e.username)}</div>
-        <div class="wg">${money(e.wagered)}</div>
-        ${prize ? `<div class="pod-prize">${esc(prize)}</div>` : ''}
+      return `<div class="pod rank-${e.rank}">
+        <div class="crown">${crowns[e.rank] || '🏅'}</div>
+        <div class="av-wrap">
+          <div class="av">${av}</div>
+          <div class="badge">${e.rank}</div>
+        </div>
+        <div class="nm">${esc(maskName(e.username))}</div>
+        <div class="wg-box">
+          <div class="wg-lab">Total Wagered</div>
+          <div class="wg">${money(e.wagered)}</div>
+        </div>
+        ${prize ? `<div class="pod-prize">🏆 ${esc(prize)}</div>` : ''}
       </div>`;
     }).join('');
   }
@@ -481,7 +516,7 @@
       return `<div class="lb-row ${e.rank <= 3 ? 'top' : ''}">
         <div class="r">${e.rank}</div>
         ${av}
-        <div class="n">${esc(e.username)}</div>
+        <div class="n">${esc(maskName(e.username))}</div>
         ${prize ? `<div class="lb-prize">${esc(prize)}</div>` : ''}
         <div class="w">${money(e.wagered)}</div>
       </div>`;
@@ -608,7 +643,7 @@
     document.getElementById('winnersList').innerHTML = winners.map(w => {
       const d = w.drawnAt ? new Date(w.drawnAt._seconds ? w.drawnAt._seconds * 1000 : w.drawnAt) : null;
       const ds = d ? d.toLocaleDateString('en-US', { month:'short', day:'numeric' }) : '';
-      return `<div class="pw-row"><span class="pw-mode">${esc(w.mode || 'raffle')}</span><span class="pw-name">${esc(w.winner || '—')}</span><span class="pw-date">${ds}</span></div>`;
+      return `<div class="pw-row"><span class="pw-mode">${esc(w.mode || 'raffle')}</span><span class="pw-name">${esc(maskName(w.winner) || '—')}</span><span class="pw-date">${ds}</span></div>`;
     }).join('');
   }
 
