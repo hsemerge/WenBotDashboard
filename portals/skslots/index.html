@@ -51,9 +51,10 @@
   .linkbar { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; align-items:center;
     margin:8px 0 28px; background:rgba(255,255,255,.02); border:1px solid var(--border);
     border-radius:14px; padding:12px 16px; }
-  .linkbar a { display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:8px 16px; border-radius:10px;
-    color:var(--text); text-decoration:none; font-size:13px; font-weight:600; border:1px solid transparent; transition:.15s; white-space:nowrap; }
-  .linkbar a:hover { border-color:var(--accent); background:rgba(168,85,247,.08); color:var(--bright); }
+  .linkbar a { display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:8px 15px; border-radius:10px;
+    color:var(--text); text-decoration:none; font-size:13px; font-weight:600; border:1px solid var(--border); background:rgba(255,255,255,.02); transition:.15s; white-space:nowrap; }
+  .linkbar a:hover { border-color:var(--accent); background:rgba(168,85,247,.1); color:var(--bright); transform:translateY(-1px); }
+  .linkbar .lk-emote { font-size:15px; line-height:1; }
 
   /* HERO */
   .hero { text-align:center; padding:18px 0 14px; position:relative; }
@@ -216,6 +217,50 @@
   footer a { color:var(--accent2); text-decoration:none; }
   .loading,.empty { text-align:center; color:var(--dim); padding:30px; font-size:14px; }
   .hidden { display:none; }
+
+  /* ── MOBILE / RESPONSIVE ─────────────────────────────────────────────────
+     The page was desktop-only; these stack the nav, shrink the podium, and keep
+     rows from overflowing/overlapping on phones. */
+  @media (max-width: 860px) {
+    nav { flex-direction:column; gap:12px; padding:16px 0 8px; text-align:center; }
+    .brand { justify-content:center; }
+    .viewer-bar { justify-content:center; flex-wrap:wrap; }
+    /* Podium stacks vertically; the #1 elevation/translate is removed so cards
+       don't overlap when wrapped. */
+    .podium { gap:12px; }
+    .pod, .pod.rank-1 { width:100%; max-width:340px; transform:none; }
+    /* Stacked: show 1st, then 2nd, then 3rd (override the desktop 2-1-3 order). */
+    .pod.rank-1 { order:1; } .pod.rank-2 { order:2; } .pod.rank-3 { order:3; }
+  }
+  @media (max-width: 560px) {
+    .wrap { padding:0 14px; }
+    .glow { filter:blur(90px); opacity:.16; }       /* lighter so it doesn't wash text */
+    .hero { padding:10px 0 8px; }
+    .hero-chip { width:104px; height:104px; margin-bottom:10px; }
+    .hero h1 { font-size:clamp(24px,8vw,40px); }
+    .hero .prize { font-size:clamp(32px,11vw,52px); }
+    .countdown { gap:8px; }
+    .cd-cell { min-width:64px; padding:10px 12px; }
+    .cd-num { font-size:28px; }
+    .linkbar { padding:10px; gap:8px; }
+    .linkbar a { padding:7px 12px; font-size:12px; }
+    .section-title { font-size:16px; margin:24px 0 12px; }
+    /* Leaderboard rows: tighten and let long names ellipsis instead of pushing
+       the wager/prize off-screen. */
+    .lb-row { gap:9px; padding:11px 12px; font-size:13px; }
+    .lb-av { width:28px; height:28px; }
+    .lb-prize { font-size:11px; padding:2px 8px; }
+    .lb-row .w { font-size:13px; }
+    /* Store: single column. */
+    .store-grid { grid-template-columns:1fr; }
+    /* Rewards tables/cards stack cleanly. */
+    .rw-sec { padding:16px; }
+    .rw-cards { grid-template-columns:1fr; }
+    .rw-bonus-amt { font-size:36px; }
+    .rw-prizes { gap:8px; }
+    .rw-prize { min-width:0; flex:1 1 30%; padding:12px 6px; }
+    .reward-grid { grid-template-columns:1fr; }
+  }
 </style>
 </head>
 <body>
@@ -276,7 +321,7 @@
   <!-- Store — its own routed view (#store) -->
   <div id="storeView" class="hidden">
     <div class="hero" style="padding:8px 0 4px;">
-      <h1 id="storeTitle">STORE</h1>
+      <h1 id="storeTitle">🛒 STORE</h1>
       <p style="color:var(--dim);max-width:680px;margin:14px auto 0;line-height:1.6;">Spend your <span id="storeCurrencyLabel">points</span> on rewards. Sign in with Kick to buy, or use <code style="color:var(--accent2)">!buy</code> in chat.</p>
     </div>
     <div id="storeSection">
@@ -287,7 +332,7 @@
 
   <!-- Past Winners — its own routed view (#winners) -->
   <div id="winnersView" class="hidden">
-    <div class="hero" style="padding:8px 0 4px;"><h1>PAST WINNERS</h1></div>
+    <div class="hero" style="padding:8px 0 4px;"><h1>👑 PAST WINNERS</h1></div>
     <div id="winnersSection">
       <div class="lb" id="winnersList"></div>
     </div>
@@ -296,7 +341,7 @@
   <!-- Wager Rewards — separate routed view (#rewards) -->
   <div id="rewardsView" class="hidden">
     <div class="hero" style="padding:8px 0 4px;">
-      <h1 id="rewardsTitle">SKSLOTS WAGER REWARDS</h1>
+      <h1 id="rewardsTitle">🎁 SKSLOTS WAGER REWARDS</h1>
       <p id="rewardsIntro" style="color:var(--dim);max-width:680px;margin:14px auto 0;line-height:1.6;"></p>
     </div>
     <div id="rewardGrid"></div>
@@ -368,31 +413,39 @@
   }
 
   function renderLinks(s) {
-    // Top nav: in-page routes. Only include sections that actually have content,
-    // so a link never points at a hidden (unscrollable) target.
-    const nav = document.getElementById('navLinks');
-    const navItems = [['#leaderboard', 'Leaderboard']];
-    if (s.features && s.features.store && (s.store?.items || []).length) navItems.push(['#store', 'Store']);
-    (s.portal?.pages || []).forEach(p => navItems.push(['#' + p.id, p.label]));
-    if (s.pastWinners && s.pastWinners.length) navItems.push(['#winners', 'Winners']);
-    if (s.streamer.socials?.kick) navItems.push([s.streamer.socials.kick, 'Stream', true]);
-    nav.innerHTML = navItems.map(([href, label, ext]) =>
-      `<a href="${esc(href)}" ${ext ? 'target="_blank" rel="noopener"' : `onclick="return goTo('${href}')"`}>${esc(label)}</a>`).join('');
+    // ONE unified bar: in-page sections (with emotes) + external socials + the
+    // streamer's custom links. Deduped — each destination appears exactly once.
+    // The old top "navLinks" row is no longer used (kept empty).
+    const navEl = document.getElementById('navLinks');
+    if (navEl) navEl.innerHTML = '';
 
-    // Link bar: socials + the streamer's custom links (e.g. Gambulls referral).
-    const bar = document.getElementById('linkbar');
-    const items = [];
     const soc = s.streamer.socials || {};
-    if (soc.kick)    items.push(['🟢 Kick', soc.kick]);
-    (s.portal?.links || []).forEach(l => items.push([`${l.icon || '🔗'} ${l.label}`, l.href]));
-    (s.portal?.pages || []).forEach(p => items.push([`🎁 ${p.label}`, '#' + p.id]));
-    if (soc.youtube) items.push(['▶ YouTube', soc.youtube]);
-    if (soc.twitter) items.push(['𝕏 Twitter', soc.twitter]);
-    if (soc.discord) items.push(['💬 Discord', soc.discord]);
-    bar.innerHTML = items.map(([label, href]) =>
-      href.startsWith('#')
-        ? `<a href="${esc(href)}" onclick="return goTo('${esc(href)}')">${esc(label)}</a>`
-        : `<a href="${esc(href)}" target="_blank" rel="noopener">${esc(label)}</a>`).join('');
+    const items = []; // [emote, label, href, isExternal]
+
+    // In-page section routes (emote + label).
+    items.push(['🏆', 'Leaderboard', '#leaderboard', false]);
+    if (s.features && s.features.store && (s.store?.items || []).length) items.push(['🛒', 'Store', '#store', false]);
+    (s.portal?.pages || []).forEach(p => items.push(['🎁', p.label, '#' + p.id, false]));
+    if (s.pastWinners && s.pastWinners.length) items.push(['👑', 'Winners', '#winners', false]);
+
+    // External: the streamer's custom links (e.g. Gambulls referral) + socials.
+    (s.portal?.links || []).forEach(l => items.push([l.icon || '🔗', l.label, l.href, true]));
+    if (soc.kick)    items.push(['🟢', 'Kick',    soc.kick,    true]);
+    if (soc.discord) items.push(['💬', 'Discord', soc.discord, true]);
+    if (soc.youtube) items.push(['▶',  'YouTube', soc.youtube, true]);
+    if (soc.twitter) items.push(['𝕏',  'Twitter', soc.twitter, true]);
+
+    // Dedupe by href so a page never shows twice (e.g. Wager Rewards).
+    const seen = new Set();
+    const bar = document.getElementById('linkbar');
+    bar.innerHTML = items.filter(([, , href]) => {
+      const key = String(href).toLowerCase();
+      if (seen.has(key)) return false; seen.add(key); return true;
+    }).map(([emote, label, href, ext]) =>
+      ext
+        ? `<a href="${esc(href)}" target="_blank" rel="noopener"><span class="lk-emote">${emote}</span>${esc(label)}</a>`
+        : `<a href="${esc(href)}" onclick="return goTo('${esc(href)}')"><span class="lk-emote">${emote}</span>${esc(label)}</a>`
+    ).join('');
   }
 
   // Hash router. Each id in PAGE_VIEWS is a standalone full-page view (its own
