@@ -55,10 +55,10 @@
   .linkbar a:hover { border-color:var(--accent); background:rgba(168,85,247,.08); color:var(--bright); }
 
   /* HERO */
-  .hero { text-align:center; padding:36px 0 20px; position:relative; }
+  .hero { text-align:center; padding:18px 0 14px; position:relative; }
   /* Static, serious logo treatment — no spin. Subtle dual-color glow + a slow
      breathing pulse so it still feels alive without being playful. */
-  .hero-chip { width:160px; height:160px; margin:0 auto 24px; display:block;
+  .hero-chip { width:130px; height:130px; margin:0 auto 14px; display:block;
     filter:drop-shadow(0 0 26px rgba(168,85,247,.55)) drop-shadow(0 0 46px rgba(63,189,245,.25));
     animation:chipPulse 5s ease-in-out infinite; }
   @keyframes chipPulse {
@@ -72,9 +72,9 @@
   .hero h1 { font-family:'Exo 2',sans-serif; font-weight:900; font-size:clamp(30px,5vw,58px); line-height:1.05;
     background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; background-clip:text;
     -webkit-text-fill-color:transparent; letter-spacing:.02em; }
-  .hero .prize { font-family:'Exo 2',sans-serif; font-weight:900; font-size:clamp(40px,7vw,76px);
-    color:var(--gold); text-shadow:0 0 30px rgba(245,197,24,.45); margin:10px 0; }
-  .bonus { display:inline-block; margin-top:6px; padding:11px 26px; border-radius:30px; font-weight:800; font-size:14px;
+  .hero .prize { font-family:'Exo 2',sans-serif; font-weight:900; font-size:clamp(36px,6.5vw,68px);
+    color:var(--gold); text-shadow:0 0 30px rgba(245,197,24,.45); margin:6px 0; }
+  .bonus { display:inline-block; margin-top:4px; padding:10px 24px; border-radius:30px; font-weight:800; font-size:14px;
     color:#06121a; background:linear-gradient(90deg,var(--accent2),#7be4c9); box-shadow:0 0 26px rgba(63,189,245,.4); }
 
   /* COUNTDOWN */
@@ -84,7 +84,7 @@
   .cd-lab { font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.12em; margin-top:4px; }
 
   /* PODIUM */
-  .podium { display:flex; justify-content:center; align-items:flex-end; gap:16px; margin:46px 0 10px; flex-wrap:wrap; }
+  .podium { display:flex; justify-content:center; align-items:flex-end; gap:16px; margin:26px 0 10px; flex-wrap:wrap; }
   .pod { width:190px; background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:22px 14px 18px; text-align:center; position:relative; }
   .pod.first { border-color:var(--gold); box-shadow:0 0 30px rgba(245,197,24,.18); transform:translateY(-18px); }
   .pod .crown { font-size:26px; }
@@ -119,8 +119,10 @@
   .store-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:18px; display:flex; flex-direction:column; gap:8px; transition:.15s; position:relative; }
   .store-card:hover { border-color:var(--accent); transform:translateY(-2px); }
   .store-card.raffle { border-color:var(--gold); background:linear-gradient(180deg,rgba(245,197,24,.06),var(--bg-card)); }
-  .store-img { width:100%; aspect-ratio:16/10; border-radius:10px; overflow:hidden; background:rgba(255,255,255,.03); border:1px solid var(--border); }
-  .store-img img { width:100%; height:100%; object-fit:cover; display:block; }
+  /* contain (not cover) so the full promo graphic shows — these are designed
+     images with text, so cropping would cut off titles. Letterboxes gracefully. */
+  .store-img { width:100%; aspect-ratio:1/1; border-radius:10px; overflow:hidden; background:rgba(0,0,0,.25); border:1px solid var(--border); }
+  .store-img img { width:100%; height:100%; object-fit:contain; display:block; }
   .store-name { font-family:'Exo 2',sans-serif; font-weight:800; font-size:16px; color:var(--bright); }
   .store-desc { font-size:12px; color:var(--dim); line-height:1.45; flex:1; min-height:30px; }
   .store-foot { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:4px; }
@@ -551,6 +553,9 @@
     } else {
       loginBtn.classList.remove('hidden'); info.classList.add('hidden');
     }
+    // Re-render the store so the buy buttons reflect the current sign-in state
+    // immediately (no manual refresh needed). Only if a state was already loaded.
+    if (window.__S) renderStore(window.__S);
   }
   async function fetchBalance() {
     if (!viewer) return;
@@ -644,10 +649,10 @@
     const hero = portal.hero || {};
     if (hero.title) document.getElementById('heroTitle').textContent = hero.title;
     document.getElementById('heroPrize').textContent = hero.prize || '';
-    // Code + "Play on Gambulls" CTA (replaces the old deposit-bonus line).
-    const codeLine = hero.code ? `<div class="hero-code">Code <b>${esc(hero.code)}</b></div>` : '';
+    // "Play on Gambulls — code SKSlots" CTA. (The separate "Code SKSlots" line was
+    // removed — the code is already in the CTA label, so it was redundant.)
     const cta = hero.ctaHref ? `<a class="bonus" href="${esc(hero.ctaHref)}" target="_blank" rel="noopener">${esc(hero.ctaLabel || 'Play now')}</a>` : '';
-    document.getElementById('heroCtaWrap').innerHTML = codeLine + cta;
+    document.getElementById('heroCtaWrap').innerHTML = cta;
 
     if (portal.bgImage) {
       document.body.style.background = `linear-gradient(rgba(8,7,13,.88),rgba(8,7,13,.95)), url("${portal.bgImage}") center/cover fixed no-repeat`;
@@ -720,9 +725,14 @@
     if (viewer) fetchBalance();
   }
 
-  initViewer();
-  load();
-  setInterval(load, 60000); // refresh live data each minute
+  // Resolve the viewer session BEFORE the first render — otherwise, right after
+  // the OAuth handoff, the store would paint with viewer=null ("Sign in to…")
+  // until the next refresh. Awaiting initViewer fixes the stale-button bug.
+  (async () => {
+    await initViewer();
+    load();
+    setInterval(load, 60000); // refresh live data each minute
+  })();
 })();
 </script>
 </body>

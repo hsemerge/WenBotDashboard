@@ -71,8 +71,10 @@
     .item-card:hover { border-color: rgba(0,229,255,0.3); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
 
     .item-img {
-      width: 100%; height: 180px; object-fit: cover;
-      background: var(--bg-card); display: block;
+      /* contain so the full promo graphic shows (designed images with text) —
+         cover was cropping titles off the top/bottom. */
+      width: 100%; height: 220px; object-fit: contain;
+      background: rgba(0,0,0,0.25); display: block;
     }
     .item-img-placeholder {
       width: 100%; height: 180px;
