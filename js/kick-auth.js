@@ -80,12 +80,38 @@ async function initiateKickAuth(purpose = "streamer", payload = "") {
     scopes = "chat:write user:read";
 
   } else if (purpose === "viewer") {
-    const channel = (typeof payload === "string" ? payload : "").toLowerCase().trim();
+    // payload is either a channel string, or { channel, returnOrigin } for the
+    // cross-domain handoff.
+    const channel = (typeof payload === "string"
+      ? payload
+      : (payload && payload.channel) || "").toLowerCase().trim();
     if (!channel) { alert("Missing channel."); return; }
 
+    // Cross-domain handling: the Kick OAuth callback only runs on the auth origin
+    // (KICK_AUTH_ORIGIN, where the single registered redirect URI lives). If the
+    // viewer is on a white-label custom domain (e.g. skslots.co.uk), the PKCE
+    // verifier + callback can't be read here, so we must run the WHOLE OAuth on
+    // the auth origin and hand the finished session back. We do that by bouncing
+    // to the auth origin's bootstrap page, carrying the channel + returnOrigin.
+    const authOrigin = "https://wenbot.gg";
+    const here       = window.location.origin;
+    if (here !== authOrigin) {
+      const u = new URL(authOrigin + "/auth/kick/start.html");
+      u.searchParams.set("channel", channel);
+      u.searchParams.set("returnOrigin", here);
+      window.location.href = u.toString();
+      return;
+    }
+
     const nonce = makeNonce();
+    // returnOrigin (when present) tells the callback to mint a one-time code and
+    // redirect back to the originating custom domain instead of staying here.
+    const ro = (typeof payload === "object" && payload && payload.returnOrigin) || null;
     localStorage.setItem(`oauth_state_${nonce}`, JSON.stringify({
       purpose: "viewer", channel, createdAt: Date.now(),
+      returnOrigin: ro,
+      // Same-origin return path for normal (non-custom-domain) viewer logins.
+      returnUrl: window.location.pathname + window.location.search + window.location.hash,
     }));
     state  = `viewer_${nonce}`;
     scopes = "user:read";

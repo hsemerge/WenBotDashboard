@@ -71,6 +71,12 @@
     .nav-badge.red { background: var(--red); color: #fff; }
     .nav-item.nav-locked { opacity: 0.45; }
     .nav-item.nav-locked:hover { background: none; color: var(--text-dim); cursor: default; }
+    /* A locked item that's the current selection (showing the upgrade wall) must
+       still read as "active" even while hovered — otherwise the highlight only
+       appears after the cursor leaves, because .nav-locked:hover (more specific)
+       was cancelling the .active background. These win on specificity. */
+    .nav-item.nav-locked.active,
+    .nav-item.nav-locked.active:hover { background: rgba(0,229,255,0.08); color: var(--accent); opacity: 1; }
     .nav-lock-pill { margin-left: auto; font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 10px; letter-spacing: .03em; }
     .nav-lock-pill.pro-pill  { background: rgba(167,139,250,0.2); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
     .nav-lock-pill.elite-pill { background: rgba(255,215,0,0.15); color: #ffd700; border: 1px solid rgba(255,215,0,0.3); }
@@ -205,6 +211,9 @@
     .btn-xl { padding: 14px 28px; font-size: 16px; border-radius: 8px; font-family: 'Exo 2', sans-serif; font-weight: 800; letter-spacing: 0.5px; }
     .btn-sm { padding: 5px 10px; font-size: 11px; }
     .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .lb-dur-btn { padding: 7px 16px; border-radius: 7px; border: 1px solid var(--border); background: var(--bg-panel); color: var(--text-dim); font-size: 12px; font-weight: 700; cursor: pointer; transition: all .15s; }
+    .lb-dur-btn:hover { color: var(--bright); border-color: var(--accent); }
+    .lb-dur-btn.active { background: linear-gradient(135deg,#00e5ff,#00b8d4); color: #0d1117; border-color: transparent; }
 
     /* ── GIVEAWAY PAGE ── */
     .giveaway-hero {
@@ -632,20 +641,43 @@
       <style>
         /* Streamable 3-col Giveaway layout. The middle Participants column is
            designed so a streamer can capture this part directly on stream. */
-        .gw-stage { display: grid; grid-template-columns: 300px 1fr 320px; gap: 16px; margin-top: 14px; }
+        /* Columns stretch to match the tallest sibling (default grid behavior).
+           In practice Settings is usually tallest because of all the fields,
+           so Participants + Winners visually align to it. The 78vh max-height
+           on .gw-col still caps any column from getting absurdly tall when
+           there are many participants. */
+        .gw-stage { display: grid; grid-template-columns: 320px minmax(0,1fr) 460px; gap: 16px; margin-top: 14px; }
         @media (max-width: 1100px) { .gw-stage { grid-template-columns: 1fr; } }
-        .gw-col { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; min-height: 480px; }
+        .gw-col { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; min-height: 480px; max-height: 78vh; }
         .gw-col-title { font-family:'Exo 2',sans-serif;font-size:13px;font-weight:900;color:var(--bright);letter-spacing:.05em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px; }
         .gw-col-title .gw-count { color:var(--accent);font-size:18px;margin-left:auto; }
+        .gw-clear-btn { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-dim); font-size: 11px; padding: 4px 8px; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 600; transition: all 0.15s; }
+        .gw-clear-btn:hover { color: #ff6b6b; border-color: rgba(255,107,107,0.4); background: rgba(255,107,107,0.06); }
+        .gw-row-remove { background: transparent; border: none; color: var(--text-dim); cursor: pointer; padding: 0 4px; font-size: 18px; line-height: 1; opacity: 0.5; transition: opacity 0.15s, color 0.15s; flex-shrink: 0; }
+        .gw-row-remove:hover { opacity: 1; color: #ff6b6b; }
         .gw-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; min-height: 0; }
         .gw-empty { color: var(--text-dim); font-size: 12px; text-align: center; padding: 32px 12px; }
         .gw-entry { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; }
         .gw-avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(0,229,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: var(--accent); overflow: hidden; flex-shrink: 0; border: 1px solid rgba(0,229,255,0.18); }
         .gw-avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .gw-name { font-size: 15px; font-weight: 700; color: var(--bright); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* .gw-name is now a flex row so badges stay visible even when the
+           username is long — the username text gets the ellipsis, badges
+           never shrink. */
+        .gw-name { font-size: 15px; font-weight: 700; color: var(--bright); flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; }
+        .gw-name-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
         .gw-meta { font-size: 11px; color: var(--text-dim); flex-shrink: 0; }
         .gw-winner-row .gw-name { color: var(--gold); }
         .gw-winner-row .gw-avatar { border-color: rgba(255,215,0,0.4); background: rgba(255,215,0,0.06); }
+        /* Verification badges next to a name. Casino = gold, Discord = blurple.
+           Hover shows the tooltip (title attr). Subtle so they don't overpower
+           the name itself but still signal status at a glance. */
+        .gw-badge { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; font-size: 10px; font-weight: 800; line-height: 1; flex-shrink: 0; }
+        .gw-badge-casino  { background: rgba(255,215,0,0.18);  color: #ffd700; border: 1px solid rgba(255,215,0,0.45); }
+        .gw-badge-discord { background: rgba(88,101,242,0.18); color: #a5b3f5; border: 1px solid rgba(88,101,242,0.45); }
+        /* Subtle row tint when verified — gives a glanceable signal across the
+           list without making it noisy. Casino takes priority over Discord. */
+        .gw-entry.gw-verified-casino  { background: linear-gradient(90deg, rgba(255,215,0,0.06), var(--bg-card) 70%); border-color: rgba(255,215,0,0.18); }
+        .gw-entry.gw-verified-discord { background: linear-gradient(90deg, rgba(88,101,242,0.06), var(--bg-card) 70%); border-color: rgba(88,101,242,0.18); }
         /* Pop-in animation for new entries — gives the stream a name-pop effect */
         .gw-pop-in { animation: gwPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1); }
         @keyframes gwPop {
@@ -653,11 +685,21 @@
           80%  { opacity: 1; transform: translateY(0) scale(1.04); }
           100% { opacity: 1; transform: translateY(0) scale(1); }
         }
-        /* Carousel spinner overlays the Participants column during a spin so
-           the streamer captures the same area. */
+        /* Spinner iframe overlays the Participants column during a spin so the
+           streamer captures the same area. The iframe is absolutely centered
+           inside the overlay and scaled via transform so each style's native
+           dimensions (560×380 carousel, 800×800 wheel, 1920×1080 winner) fit
+           cleanly. overflow:hidden clips anything outside the overlay box. */
         #gwColParticipants { position: relative; }
-        .gw-spinner-overlay { position: absolute; inset: 0; background: rgba(13,17,23,0.96); border-radius: 14px; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 14px; z-index: 5; }
-        .gw-spinner-overlay.active { display: flex; }
+        .gw-spinner-overlay { position: absolute; inset: 0; background: rgba(13,17,23,0.96); border-radius: 14px; display: none; overflow: hidden; z-index: 5; }
+        .gw-spinner-overlay.active { display: block; }
+        .gw-spinner-overlay #gwSpinnerFrame {
+          position: absolute;
+          top: 50%; left: 50%;
+          border: none;
+          background: transparent;
+          transform-origin: center center;
+        }
         .gw-spinner-overlay .sp-carousel { background: transparent; border: none; padding: 12px 0; }
         /* Round avatars in the spinner cards */
         .gw-spin-card .sp-card-img { border-radius: 50%; background: rgba(0,229,255,0.08); }
@@ -763,12 +805,20 @@
               </label>
             </div>
           </div>
-          <div class="toggle-row" style="margin-top:10px;">
-            <div class="toggle-info">
-              <div class="toggle-label">Enter Myself</div>
-              <div class="toggle-desc" style="font-size:11px;">Auto-add you on start</div>
-            </div>
-            <div class="toggle" id="toggleEnterSelf" onclick="toggleOption(this)"></div>
+
+          <!-- OBS overlay style picker — the streamer picks which spinner
+               variant they want as their OBS Browser Source. The "Copy OBS
+               URL" button at the bottom of the page follows this selection.
+               (Customize each variant's colors/duration in Overlay Studio.) -->
+          <div class="field" style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px;margin-bottom:0;">
+            <label>OBS Spinner Style</label>
+            <select id="gwOverlayStyle" class="form-input" onchange="gwSetOverlayStyle(this.value)"
+              style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:8px 10px;width:100%;font-family:'Inter',sans-serif;">
+              <option value="gwspinner">🎲 Avatar Carousel (default)</option>
+              <option value="wheel">🎡 Spinning Wheel</option>
+              <option value="winner">🎰 Spinning Names</option>
+            </select>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Copy OBS URL below uses this style. Customize colors in Overlay Studio.</div>
           </div>
         </div>
 
@@ -779,50 +829,77 @@
             <div class="gw-empty">Entries appear here as viewers join.</div>
           </div>
 
-          <!-- Spinner overlay — shows the avatar carousel during a draw -->
+          <!-- Spinner overlay — embeds the chosen OBS overlay (Carousel / Wheel /
+               Winner Reveal) in an iframe so the dashboard preview matches OBS
+               pixel-for-pixel. The dashboard writes spinTrigger to Firestore;
+               the iframe polls /api/overlay-data and animates the same as OBS.
+               Some styles (Winner Reveal at 1920x1080) are full-scene and won't
+               preview well in this small column — for those, gwSyncSpinnerFrame
+               swaps in a placeholder explaining they're best viewed in OBS. -->
           <div class="gw-spinner-overlay" id="gwSpinnerOverlay">
-            <div class="sp-stage" style="--sp-card:124px;--sp-gap:14px;width:100%;max-width:560px;">
-              <div class="sp-carousel" id="gwSpinCarousel">
-                <div class="sp-viewport">
-                  <div class="sp-center-frame"></div>
-                  <div class="sp-track" id="gwSpinTrack"></div>
-                </div>
-              </div>
-            </div>
-            <div id="winnerReveal" style="display:none;text-align:center;margin-top:18px;">
-              <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">🏆 Winner</div>
-              <div id="winnerRevealName" style="font-family:'Exo 2',sans-serif;font-size:24px;font-weight:900;color:var(--gold);text-shadow:0 0 20px rgba(255,215,0,0.5);"></div>
-              <div id="winnerRevealDetail" style="font-size:11px;color:var(--text-dim);margin-top:3px;"></div>
+            <iframe id="gwSpinnerFrame" title="Giveaway spinner preview"
+              style="border:none;background:transparent;transform-origin:center center;"></iframe>
+            <!-- Legacy reveal elements kept for backward-compat with code paths
+                 that reference them. The iframe handles the visible reveal. -->
+            <div id="winnerReveal" style="display:none;">
+              <div id="winnerRevealName"></div>
+              <div id="winnerRevealDetail"></div>
             </div>
           </div>
         </div>
 
         <!-- RIGHT: Winners + Spin -->
         <div class="gw-col">
-          <div class="gw-col-title">🏆 Winners <span class="gw-count" id="gwWinnerCount">0</span></div>
+          <div class="gw-col-title">🏆 Winners <span class="gw-count" id="gwWinnerCount">0</span>
+            <button type="button" class="gw-clear-btn" id="gwClearWinnersBtn" onclick="clearWinners()" title="Clear winners list" style="display:none;">Clear</button>
+          </div>
           <div class="gw-list" id="gwWinnersList">
             <div class="gw-empty">No winners drawn yet.</div>
           </div>
           <button class="btn btn-accent" id="pickWinnerBtn" onclick="spinPicker()" disabled style="width:100%;margin-top:12px;font-size:14px;padding:11px;">🎲 Spin to Pick Winner</button>
-          <button class="btn btn-ghost" id="rerollBtn" onclick="spinPicker()" disabled style="width:100%;margin-top:6px;font-size:12px;">🔄 Reroll</button>
+          <div style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:6px;line-height:1.4;">Click again to pick another winner — entries stay.</div>
         </div>
       </div>
 
-      <!-- Winner chat watcher (existing) -->
-      <div id="winnerChatPanel" style="display:none;margin-top:14px;border:1px solid rgba(255,215,0,0.25);border-radius:8px;background:rgba(255,215,0,0.04);overflow:hidden;max-width:760px;margin-left:auto;margin-right:auto;">
-        <div style="display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid rgba(255,215,0,0.15);font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;font-weight:700;">
-          💬 <span id="winnerChatTitle">Winner's Chat</span>
-          <span id="winnerChatWaiting" style="margin-left:auto;color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0;">waiting for them to type…</span>
+      <!-- Winner action card — floats directly under the visible spinner/wheel
+           graphic the moment a winner is drawn, with a one-click "remove from
+           pool so they can't win again". Anchored to the scaled spinner iframe
+           so it tracks the graphic and never drops onto the chat below. -->
+      <div id="gwWinnerPopup" style="display:none;position:fixed;z-index:665;background:var(--bg-card);border:1px solid rgba(255,215,0,0.45);border-radius:12px;padding:12px 16px;box-shadow:0 14px 44px rgba(0,0,0,0.55);min-width:320px;max-width:94vw;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <span style="font-size:20px;">🏆</span>
+          <div><span id="gwWinnerPopupName" style="color:var(--gold);font-weight:800;font-size:16px;"></span> <span style="color:var(--text-dim);font-size:13px;">won the giveaway</span></div>
         </div>
-        <div id="winnerChatMessages" style="max-height:160px;overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;gap:6px;"></div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <button id="gwWinnerPopupRemoveBtn" onclick="gwPopupRemoveFromPool()" style="flex:1;padding:9px 12px;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.4);border-radius:8px;color:var(--red);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">🚫 Remove — can't win again</button>
+          <button onclick="closeWinnerPopup()" style="padding:9px 16px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:13px;cursor:pointer;">Keep</button>
+        </div>
+      </div>
+
+      <!-- Winner chat watcher — wrapped in the same 3-col grid as the stage so it
+           lines up directly under the middle Participants column instead of
+           floating off-center. -->
+      <div class="gw-stage" id="winnerChatWrap" style="display:none;">
+        <div></div>
+        <div id="winnerChatPanel" style="border:1px solid rgba(255,215,0,0.25);border-radius:8px;background:rgba(255,215,0,0.04);overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid rgba(255,215,0,0.15);font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;font-weight:700;">
+            💬 <span id="winnerChatTitle">Winner's Chat</span>
+            <span id="winnerChatWaiting" style="margin-left:auto;color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0;">waiting for them to type…</span>
+          </div>
+          <div id="winnerChatMessages" style="max-height:160px;overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;gap:6px;"></div>
+        </div>
+        <div></div>
       </div>
 
       <!-- Overlay links + Export -->
       <div style="margin-top:18px;display:flex;gap:18px;justify-content:center;flex-wrap:wrap;font-size:11px;align-items:center;">
-        <a href="#" target="_blank" id="overlayLink" style="color:var(--accent);text-decoration:none;">🎰 Spinner Overlay (OBS)</a>
-        <a href="#" target="_blank" id="overlayWheelLink" style="color:var(--accent);text-decoration:none;">🎡 Wheel Overlay (OBS)</a>
-        <a href="#" target="_blank" id="overlayEntriesLink" style="color:var(--accent);text-decoration:none;">📋 Entries Overlay (OBS)</a>
-        <a href="#" target="_blank" id="overlayPreviewLink" style="color:var(--text-dim);text-decoration:none;opacity:0.7;">▶ Preview</a>
+        <!-- Primary OBS link follows the Style picker above. The Entries Feed
+             is a separate always-on widget the streamer can stack alongside. -->
+        <a href="#" id="overlayLink" onclick="copyObsUrl('overlayLink');return false;" title="Copy this URL into OBS as a Browser Source" style="color:var(--accent);text-decoration:none;cursor:pointer;">📋 Copy OBS URL <span id="overlayStyleLabel" style="color:var(--text-dim);font-weight:400;">(Avatar Carousel)</span></a>
+        <a href="#" target="_blank" id="overlayPreviewLink" style="color:var(--text-dim);text-decoration:none;opacity:0.8;">▶ Preview</a>
+        <a href="#" target="_blank" id="overlayEntriesLink" style="color:var(--accent);text-decoration:none;">📋 Entries Feed Overlay</a>
+        <!-- Hidden legacy element kept so existing setGwTarget/related code refs don't break -->
+        <a href="#" target="_blank" id="overlayWheelLink" style="display:none;"></a>
         <span style="color:var(--border);">·</span>
         <button class="btn btn-ghost btn-sm" onclick="exportEntries()" style="font-size:11px;padding:4px 12px;">Export Entries</button>
       </div>
@@ -887,15 +964,24 @@
       </div>
 
       <div class="card">
-        <div class="card-title" style="justify-content:space-between;">
-          <span>🏅 Top Viewers by Points</span>
-          <button class="btn btn-ghost btn-sm" onclick="loadTopViewers()">Refresh</button>
+        <div class="card-title" style="justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <span>🏅 Viewers by Points</span>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="text" id="pointsSearch" placeholder="Search a viewer…" oninput="onPointsSearch()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:12px;width:170px;">
+            <button class="btn btn-ghost btn-sm" onclick="loadTopViewers()">Refresh</button>
+            <button class="btn btn-danger btn-sm" onclick="nukeAllPoints()" title="Reset EVERY viewer's points to 0">💣 Reset all</button>
+          </div>
         </div>
         <div class="table-wrap">
           <table>
             <thead><tr><th>#</th><th>Viewer</th><th>Points</th><th>Last Active</th><th>Actions</th></tr></thead>
             <tbody id="topViewersTable"><tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;">Loading...</td></tr></tbody>
           </table>
+        </div>
+        <div id="pointsPager" style="display:flex;gap:10px;justify-content:center;align-items:center;margin-top:12px;">
+          <button class="btn btn-ghost btn-sm" id="pointsPrevBtn" onclick="pointsPrevPage()" disabled>← Prev</button>
+          <span id="pointsPageInfo" style="font-size:12px;color:var(--text-dim);"></span>
+          <button class="btn btn-ghost btn-sm" id="pointsNextBtn" onclick="pointsNextPage()">Next →</button>
         </div>
       </div>
     </div>
@@ -1075,20 +1161,20 @@
         </div>
         <div class="grid-2" style="gap:10px;">
           <div class="field">
-            <label style="font-size:11px;">Points check <span style="color:var(--text-dim);font-weight:400;">(default: !pts)</span></label>
-            <input type="text" id="alias_pts" placeholder="pts" maxlength="20">
+            <label style="font-size:11px;">Points check <span style="color:var(--text-dim);font-weight:400;">(default: !points)</span></label>
+            <input type="text" id="alias_pts" placeholder="points" maxlength="20">
           </div>
           <div class="field">
             <label style="font-size:11px;">Give points <span style="color:var(--text-dim);font-weight:400;">(default: !pgive)</span></label>
             <input type="text" id="alias_pgive" placeholder="pgive" maxlength="20">
           </div>
           <div class="field">
-            <label style="font-size:11px;">Top points <span style="color:var(--text-dim);font-weight:400;">(default: !ptop)</span></label>
-            <input type="text" id="alias_ptop" placeholder="ptop" maxlength="20">
+            <label style="font-size:11px;">Top points <span style="color:var(--text-dim);font-weight:400;">(default: !top, !ptop also works)</span></label>
+            <input type="text" id="alias_ptop" placeholder="top" maxlength="20">
           </div>
           <div class="field">
-            <label style="font-size:11px;">Points rank <span style="color:var(--text-dim);font-weight:400;">(default: !prank)</span></label>
-            <input type="text" id="alias_prank" placeholder="prank" maxlength="20">
+            <label style="font-size:11px;">Points rank <span style="color:var(--text-dim);font-weight:400;">(default: !rank, !prank also works)</span></label>
+            <input type="text" id="alias_prank" placeholder="rank" maxlength="20">
           </div>
           <div class="field">
             <label style="font-size:11px;">Slot request <span style="color:var(--text-dim);font-weight:400;">(default: !request, !r always works)</span></label>
@@ -1099,11 +1185,7 @@
             <input type="text" id="alias_store" placeholder="store" maxlength="20">
           </div>
           <div class="field">
-            <label style="font-size:11px;">Redeem item <span style="color:var(--text-dim);font-weight:400;">(default: !redeem)</span></label>
-            <input type="text" id="alias_redeem" placeholder="redeem" maxlength="20">
-          </div>
-          <div class="field">
-            <label style="font-size:11px;">Buy item <span style="color:var(--text-dim);font-weight:400;">(default: !buy)</span></label>
+            <label style="font-size:11px;">Buy item <span style="color:var(--text-dim);font-weight:400;">(default: !buy, !redeem also works)</span></label>
             <input type="text" id="alias_buy" placeholder="buy" maxlength="20">
           </div>
         </div>
@@ -1149,6 +1231,33 @@
               <button onclick="copyLbUrl()" style="padding:8px 14px;background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:12px;cursor:pointer;white-space:nowrap;" id="copyLbBtn">Copy</button>
               <a id="lbOpenLink" href="#" target="_blank" style="padding:8px 14px;background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;color:var(--accent);font-size:12px;text-decoration:none;white-space:nowrap;">Open ↗</a>
             </div>
+          </div>
+          <!-- Period & countdown -->
+          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:12px;">
+            <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Leaderboard Period</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+              <button id="lbDur_weekly"   onclick="selectLbDuration('weekly')"   class="lb-dur-btn">1 Week</button>
+              <button id="lbDur_biweekly" onclick="selectLbDuration('biweekly')" class="lb-dur-btn">Bi-weekly</button>
+              <button id="lbDur_monthly"  onclick="selectLbDuration('monthly')"  class="lb-dur-btn">Monthly</button>
+              <button id="lbDur_custom"   onclick="selectLbDuration('custom')"   class="lb-dur-btn">Custom dates</button>
+            </div>
+            <div id="lbCustomDates" style="display:none;flex-direction:column;gap:6px;margin-bottom:10px;">
+              <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+                <label style="font-size:11px;color:var(--text-dim);display:flex;flex-direction:column;gap:3px;">Start (date &amp; time)<input type="datetime-local" id="lbCustomStart" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;color-scheme:dark;"></label>
+                <label style="font-size:11px;color:var(--text-dim);display:flex;flex-direction:column;gap:3px;">End (date &amp; time)<input type="datetime-local" id="lbCustomEnd" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;color-scheme:dark;"></label>
+              </div>
+              <div style="font-size:11px;color:var(--text-dim);">🕒 Click a field to pick a date &amp; time. Times are in <strong id="lbTzLabel">your local time</strong>.</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:10px;">
+              <button class="btn btn-accent btn-sm" onclick="startLeaderboard()">▶ Start Leaderboard</button>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);cursor:pointer;" title="When a period ends, immediately start the next one (re-baselined to 0).">
+                <input type="checkbox" id="lbAutoRenew" onchange="toggleLeaderboardAutoRenew()" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">
+                Auto-renew
+              </label>
+              <button id="lbStopTimerBtn" onclick="stopLeaderboardTimer()" style="display:none;background:none;border:none;cursor:pointer;color:var(--red);font-size:12px;padding:0;">Stop</button>
+            </div>
+            <div id="lbPeriodStatus" style="font-size:12px;color:var(--text-dim);">No period running — pick a length and Start.</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5;">▶ Start <strong>resets the board to 0</strong> — current wagers become the baseline, so only wagering after that counts. When the period ends, standings snapshot to <strong>Past Winners</strong>.</div>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text-dim);">
             <span>Updates live · viewers see current casino rankings + past winners</span>
@@ -1304,9 +1413,74 @@
               <div class="hint">Store redemptions and other notifications</div>
             </div>
           </div>
+          <div class="field" style="margin-top:12px;">
+            <label>/giveall — Authorized Discord ID</label>
+            <input type="text" id="discordGiveallAuthorId" placeholder="Your Discord user ID (e.g. 123456789012345678)">
+            <div class="hint">Only this exact Discord account can run <strong>/giveall</strong> in your server (drops points to every active chatter). In Discord, enable Developer Mode, then right-click your name → <em>Copy User ID</em>. Leave blank to keep the command disabled.</div>
+          </div>
           <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap;">
             <button class="btn btn-accent" onclick="saveDiscordSettings()">Save Discord Settings</button>
             <button class="btn" onclick="populateDiscordChannels()" style="font-size:13px;padding:8px 16px;">↺ Refresh Channels</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Discord Verification & Roles -->
+      <div style="margin-top:16px;">
+        <div class="card">
+          <div class="card-title">🛡️ Verification &amp; Roles</div>
+          <p style="font-size:12px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">Have WenBot assign a role when someone verifies, and optionally act as your server's verification gate. Both default off — works <strong>alongside</strong> other bots like Double Counter (leave the gate off and just use the role), or as your whole front door.</p>
+
+          <!-- Toggle 1: role on verify -->
+          <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin-bottom:12px;">
+            <input type="checkbox" id="dvAssignRole" onchange="dvToggleChanged()" style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;">
+            <label for="dvAssignRole" style="cursor:pointer;flex:1;">
+              <div style="font-size:13px;color:var(--bright);font-weight:600;">Assign a role when a member verifies</div>
+              <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Grants a "Casino Verified" role once they link Kick + casino. Safe to use alongside Double Counter.</div>
+            </label>
+          </div>
+          <div class="field" id="dvRoleField" style="display:none;">
+            <label>Verified role</label>
+            <select id="dvRoleId"><option value="">— select a role —</option></select>
+            <div class="hint">WenBot needs <strong>Manage Roles</strong> and its own role positioned <strong>above</strong> this one in your server's role list.</div>
+          </div>
+
+          <!-- Always-available: post a clickable verify link to a channel.
+               Independent of the gate toggle, so Double Counter users can still
+               drop a WenBot verify button in a channel. -->
+          <div class="field" style="margin-top:6px;">
+            <label>Verify message channel <span style="color:var(--text-dim);font-weight:400;">(optional)</span></label>
+            <select id="dvGateChannelId"><option value="">— select a channel —</option></select>
+            <div class="hint">WenBot posts a clickable <strong>Verify</strong> button here. Works even if another bot (e.g. Double Counter) is your anti-bot gate — this just gives users a link to link Kick + casino.</div>
+          </div>
+          <button class="btn" onclick="postVerifyGate()" style="font-size:13px;padding:8px 16px;">📨 Post / refresh the verify message</button>
+
+          <!-- Toggle 2: full anti-bot gate -->
+          <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin:16px 0 12px;">
+            <input type="checkbox" id="dvGatekeeper" onchange="dvToggleChanged()" style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;">
+            <label for="dvGatekeeper" style="cursor:pointer;flex:1;">
+              <div style="font-size:13px;color:var(--bright);font-weight:600;">Use WenBot as the anti-bot gate</div>
+              <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Adds account-age + captcha checks during verification, and the Verified role above becomes your unlock role (lock your channels behind it). Leave off if Double Counter handles your gate.</div>
+            </label>
+          </div>
+          <div id="dvGateOptions" style="display:none;">
+            <div class="field" style="max-width:280px;">
+              <label>Min Discord account age (days)</label>
+              <input type="number" id="dvMinAge" min="0" max="3650" placeholder="0">
+              <div class="hint">Reject accounts newer than this. 0 = no limit.</div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin-bottom:12px;">
+              <input type="checkbox" id="dvCaptcha" style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;">
+              <label for="dvCaptcha" style="cursor:pointer;flex:1;">
+                <div style="font-size:13px;color:var(--bright);font-weight:600;">Require captcha</div>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Adds a Cloudflare Turnstile check on the verify page to block bots. (Requires Turnstile keys configured on the server.)</div>
+              </label>
+            </div>
+          </div>
+
+          <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-accent" onclick="saveVerifySettings()">Save Verification Settings</button>
+            <button class="btn" onclick="populateDiscordChannels()" style="font-size:13px;padding:8px 16px;">↺ Refresh roles &amp; channels</button>
           </div>
         </div>
       </div>
@@ -1374,6 +1548,77 @@
                   <code id="portalThemeColorValue" style="font-size:12px;color:var(--text-dim);flex:1;font-family:monospace;">#00e5ff</code>
                   <button class="btn btn-ghost" onclick="resetPortalTheme()" style="padding:4px 10px;font-size:11px;flex-shrink:0;">Reset</button>
                 </div>
+              </div>
+            </div>
+
+            <!-- Portal theme — Elite+ perk (and white-label overrides). Writes profile.portal. -->
+            <div id="wlBrandingBlock" style="display:none;margin-top:20px;padding-top:18px;border-top:1px solid var(--border);">
+              <div style="font-family:'Exo 2',sans-serif;font-size:14px;font-weight:800;color:var(--bright);margin-bottom:4px;">🎨 Portal Theme <span style="font-size:10px;color:#a855f7;border:1px solid #a855f7;border-radius:10px;padding:2px 8px;margin-left:6px;vertical-align:middle;">ELITE</span></div>
+              <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">Full brand palette, logo, background &amp; tagline for your portal. Replaces the default accent color.</p>
+
+              <div class="field">
+                <label>Brand logo</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <img id="wlLogoPreview" src="" alt="" style="width:48px;height:48px;border-radius:8px;object-fit:cover;background:var(--bg-card);border:1px solid var(--border);display:none;">
+                  <input type="file" id="wlLogoFile" accept="image/*" onchange="wlUploadLogo(this.files[0])" style="font-size:12px;">
+                  <span id="wlLogoStatus" style="font-size:11px;color:var(--text-dim);"></span>
+                  <button type="button" id="wlLogoClear" onclick="wlClearLogo()" style="display:none;background:none;border:none;color:var(--red);cursor:pointer;font-size:11px;">Remove</button>
+                </div>
+                <div class="hint">PNG/JPG — uploaded to your WenBot storage and shown as the portal avatar. Remove to fall back to your Kick avatar.</div>
+              </div>
+
+              <div class="field">
+                <label>Background image (optional)</label>
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                  <img id="wlBgPreview" src="" alt="" style="width:64px;height:40px;border-radius:6px;object-fit:cover;background:var(--bg-card);border:1px solid var(--border);display:none;">
+                  <input type="file" id="wlBgFile" accept="image/*" onchange="wlUploadBg(this.files[0])" style="font-size:12px;">
+                  <span id="wlBgStatus" style="font-size:11px;color:var(--text-dim);"></span>
+                  <button type="button" id="wlBgClear" onclick="wlClearBg()" style="display:none;background:none;border:none;color:var(--red);cursor:pointer;font-size:11px;">Remove</button>
+                </div>
+                <div class="hint">Shown behind the portal, darkened for readability. Leave empty for a solid background.</div>
+              </div>
+
+              <div class="field">
+                <label>Hero tagline</label>
+                <input type="text" id="wlTagline" maxlength="120" placeholder="Live leaderboards, giveaways &amp; rewards">
+              </div>
+
+              <div class="grid-2" style="gap:12px;">
+                <div class="field"><label>Primary (accent)</label>
+                  <div style="display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:6px 10px;">
+                    <input type="color" id="wlAccent" value="#a855f7" oninput="document.getElementById('wlAccentVal').textContent=this.value" style="width:32px;height:28px;border:none;background:transparent;cursor:pointer;padding:0;flex-shrink:0;">
+                    <code id="wlAccentVal" style="font-size:12px;color:var(--text-dim);font-family:monospace;">#a855f7</code>
+                  </div>
+                </div>
+                <div class="field"><label>Secondary (gradient)</label>
+                  <div style="display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:6px 10px;">
+                    <input type="color" id="wlAccent2" value="#3fbdf5" oninput="document.getElementById('wlAccent2Val').textContent=this.value" style="width:32px;height:28px;border:none;background:transparent;cursor:pointer;padding:0;flex-shrink:0;">
+                    <code id="wlAccent2Val" style="font-size:12px;color:var(--text-dim);font-family:monospace;">#3fbdf5</code>
+                  </div>
+                </div>
+                <div class="field"><label>Gold / highlight</label>
+                  <div style="display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:6px 10px;">
+                    <input type="color" id="wlGold" value="#f5c518" oninput="document.getElementById('wlGoldVal').textContent=this.value" style="width:32px;height:28px;border:none;background:transparent;cursor:pointer;padding:0;flex-shrink:0;">
+                    <code id="wlGoldVal" style="font-size:12px;color:var(--text-dim);font-family:monospace;">#f5c518</code>
+                  </div>
+                </div>
+                <div class="field"><label>Background</label>
+                  <div style="display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:6px 10px;">
+                    <input type="color" id="wlBg" value="#08070d" oninput="document.getElementById('wlBgVal').textContent=this.value" style="width:32px;height:28px;border:none;background:transparent;cursor:pointer;padding:0;flex-shrink:0;">
+                    <code id="wlBgVal" style="font-size:12px;color:var(--text-dim);font-family:monospace;">#08070d</code>
+                  </div>
+                </div>
+                <div class="field"><label>Card background</label>
+                  <div style="display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:6px 10px;">
+                    <input type="color" id="wlBgCard" value="#13111c" oninput="document.getElementById('wlBgCardVal').textContent=this.value" style="width:32px;height:28px;border:none;background:transparent;cursor:pointer;padding:0;flex-shrink:0;">
+                    <code id="wlBgCardVal" style="font-size:12px;color:var(--text-dim);font-family:monospace;">#13111c</code>
+                  </div>
+                </div>
+              </div>
+
+              <div id="wlGrantRow" class="owner-only" style="display:flex;align-items:center;gap:10px;margin-top:8px;padding:10px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;">
+                <input type="checkbox" id="wlEnabled" style="width:16px;height:16px;accent-color:#a855f7;cursor:pointer;">
+                <label for="wlEnabled" style="cursor:pointer;flex:1;font-size:12px;color:var(--text);">White-label this streamer — unlocks agency features + branding on their portal</label>
               </div>
             </div>
 
@@ -1478,9 +1723,9 @@
           <div class="card help-section" style="margin-bottom:0;">
             <h3>🎁 Giveaway Commands</h3>
             <div class="cmd-list">
-              <div class="cmd-row"><div class="cmd-name">!giveaway start code</div><div class="cmd-desc">Code-only giveaway — verified affiliate users only.</div><div class="cmd-who who-mod">MOD</div></div>
-              <div class="cmd-row"><div class="cmd-name">!giveaway start wager</div><div class="cmd-desc">Wager-weighted — more wagers = more entries.</div><div class="cmd-who who-mod">MOD</div></div>
-              <div class="cmd-row"><div class="cmd-name">!giveaway start open</div><div class="cmd-desc">Anyone can enter — no verification required.</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!giveaway start</div><div class="cmd-desc">Start using your Giveaway-page settings (type, keyword, criteria, duration).</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!giveaway start everyone</div><div class="cmd-desc">Anyone can enter — no verification.</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!giveaway start code</div><div class="cmd-desc">Verified affiliate (code) users only. Min-wager + weighting (set on the Giveaway page) apply here.</div><div class="cmd-who who-mod">MOD</div></div>
               <div class="cmd-row"><div class="cmd-name">!giveaway stop</div><div class="cmd-desc">Close entries for the active giveaway.</div><div class="cmd-who who-mod">MOD</div></div>
               <div class="cmd-row"><div class="cmd-name">!winner</div><div class="cmd-desc">Pick a random winner from current entries.</div><div class="cmd-who who-mod">MOD</div></div>
               <div class="cmd-row"><div class="cmd-name">[your keyword]</div><div class="cmd-desc">What viewers type to enter (set in Giveaway page).</div><div class="cmd-who who-all">ALL</div></div>
@@ -1492,7 +1737,7 @@
             <div class="cmd-list">
               <div class="cmd-row"><div class="cmd-name">!points</div><div class="cmd-desc">Check your own balance.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!points @user</div><div class="cmd-desc">Check another viewer's balance.</div><div class="cmd-who who-all">ALL</div></div>
-              <div class="cmd-row"><div class="cmd-name">!give @user [amount]</div><div class="cmd-desc">Gift points to another viewer.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!pgive @user [amount]</div><div class="cmd-desc">Gift points to another viewer.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!top</div><div class="cmd-desc">Show the top 5 by points.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!rank</div><div class="cmd-desc">See your current rank.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!addpoints @user [n]</div><div class="cmd-desc">Add points to a viewer.</div><div class="cmd-who who-mod">MOD</div></div>
@@ -1509,12 +1754,12 @@
             <h3>🛒 Store &amp; Raffles</h3>
             <div class="cmd-list">
               <div class="cmd-row"><div class="cmd-name">!store</div><div class="cmd-desc">List items currently for sale.</div><div class="cmd-who who-all">ALL</div></div>
-              <div class="cmd-row"><div class="cmd-name">!redeem [item name]</div><div class="cmd-desc">Spend points on an item. Partial match works.</div><div class="cmd-who who-all">ALL</div></div>
-              <div class="cmd-row"><div class="cmd-name">!buy [item name]</div><div class="cmd-desc">Alias for !redeem.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!buy [item name]</div><div class="cmd-desc">Spend points on an item. Partial match works.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!redeem [item name]</div><div class="cmd-desc">Alias for !buy.</div><div class="cmd-who who-all">ALL</div></div>
             </div>
             <div style="margin-top:10px;font-size:11px;color:var(--text-dim);line-height:1.5;">
               Mark a store item as a <strong>raffle item</strong> in its edit form to turn every
-              <code>!redeem</code> of that item into a raffle ticket. Draw winners under
+              <code>!buy</code> of that item into a raffle ticket. Draw winners under
               <strong>Raffles → Point Raffle</strong>.
             </div>
           </div>
@@ -1714,6 +1959,33 @@
                   oninput="osAccentHexInput(this.value)"
                   style="flex:1;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;color:var(--bright);font-family:monospace;outline:none;"
                   onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+              </div>
+            </div>
+
+            <!-- Winner reveal customization — only shown for spinner-style overlays
+                 (hasWinnerReveal:true). Lets streamers theme the winner name color
+                 and how long the reveal stays on stream before fading. -->
+            <div id="osWinnerWrap" style="margin-bottom:12px;display:none;">
+              <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:6px;">Winner Color</div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <div style="position:relative;width:34px;height:34px;border-radius:7px;overflow:hidden;border:2px solid var(--border);flex-shrink:0;cursor:pointer;" onclick="document.getElementById('osWinnerPicker').click()">
+                  <div id="osWinnerSwatch" style="position:absolute;inset:0;background:#ffd700;"></div>
+                  <input type="color" id="osWinnerPicker" value="#ffd700" oninput="osWinnerChange(this.value)" style="opacity:0;position:absolute;inset:0;cursor:pointer;width:100%;height:100%;padding:0;border:none;">
+                </div>
+                <input type="text" id="osWinnerHex" value="#ffd700" maxlength="7" placeholder="#ffd700"
+                  oninput="osWinnerHexInput(this.value)"
+                  style="flex:1;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;color:var(--bright);font-family:monospace;outline:none;"
+                  onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+              </div>
+              <div style="margin-top:10px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:4px;">
+                  <span>Reveal Duration</span>
+                  <span style="color:var(--bright);font-family:monospace;"><span id="osDurationVal">10</span>s</span>
+                </div>
+                <input type="range" id="osDurationSlider" min="0" max="20" step="1" value="10"
+                  oninput="osDurationChange(this.value)"
+                  style="width:100%;accent-color:var(--accent);">
+                <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">How long the winner stays on screen after the spin. 0 = stay forever.</div>
               </div>
             </div>
 
@@ -1925,6 +2197,13 @@
         .sp-card { width: var(--sp-card); flex-shrink: 0; }
         .sp-card-img { position: relative; width: var(--sp-card); height: var(--sp-card); border-radius: 11px; overflow: hidden; background: #0d1117; border: 1px solid var(--border); }
         .sp-card-name { font-size: 11px; font-weight: 600; color: var(--text); text-align: center; margin-top: 7px; line-height: 1.25; height: 28px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        /* Request-raffle reel cards: the VIEWER is the main visual (full-size
+           circular avatar), the requested slot becomes secondary text. The
+           generic slot art was confusing when a request slot isn't in the
+           catalog. */
+        .rsp-card-avatar { position: relative; width: var(--sp-card); height: var(--sp-card); border-radius: 50%; overflow: hidden; background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.25); }
+        .rsp-card-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .rsp-card-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 48px; font-weight: 900; color: var(--accent); }
       </style>
 
       <div id="spStage" class="sp-stage" style="display:none;">
@@ -2347,6 +2626,7 @@
               <div style="font-size:22px;font-weight:800;color:var(--accent);" id="bbTotalVoters">0</div>
             </div>
             <button onclick="bbOpenAllVoting()" style="padding:8px 16px;background:rgba(83,224,119,0.1);border:1px solid rgba(83,224,119,0.35);border-radius:8px;color:var(--green);font-size:12px;cursor:pointer;font-weight:700;">🟢 Open All Voting</button>
+            <button onclick="bbLockAllVoting()" style="padding:8px 16px;background:rgba(255,167,38,0.1);border:1px solid rgba(255,167,38,0.35);border-radius:8px;color:var(--orange);font-size:12px;cursor:pointer;font-weight:700;">🔒 Lock All Voting</button>
             <button onclick="bbRefundAll()" style="padding:8px 16px;background:none;border:1px solid rgba(255,167,38,0.35);border-radius:8px;color:var(--orange);font-size:12px;cursor:pointer;font-weight:600;">↩ Refund All</button>
             <button onclick="bbEndBattle()" style="padding:8px 16px;background:none;border:1px solid rgba(255,71,87,0.35);border-radius:8px;color:var(--red);font-size:12px;cursor:pointer;font-weight:600;">End Battle</button>
           </div>
@@ -2565,8 +2845,8 @@
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Kick Name</th><th>Casino Username</th><th>Wager Since Period</th><th>Tickets</th></tr></thead>
-              <tbody id="wagerTicketTable"><tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">Start a period to see ticket holders.</td></tr></tbody>
+              <thead><tr><th>Kick Name</th><th>Casino Username</th><th>Wager Since Period</th><th>Tickets</th><th style="text-align:right;">Actions</th></tr></thead>
+              <tbody id="wagerTicketTable"><tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;">Start a period to see ticket holders.</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -2575,6 +2855,7 @@
           <div class="card-title">🎰 Draw Wager Raffle Winner</div>
           <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
             <div id="wrEntryCount" style="font-size:13px;color:var(--text-dim);">No entries loaded.</div>
+            <button class="btn btn-ghost btn-sm" id="wrClearExclBtn" onclick="clearWagerExclusions()" style="display:none;" title="Re-include everyone you've excluded from this period's draws">Clear exclusions</button>
             <button class="btn btn-accent" id="wrDrawBtn" onclick="drawRaffleWinner('wager')" disabled>🎰 Draw Winner</button>
           </div>
         </div>
@@ -2612,8 +2893,8 @@
           <div id="prEntryStats" style="margin-bottom:8px;"></div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Viewer</th><th>Tickets</th><th>Last Purchase</th></tr></thead>
-              <tbody id="pointRaffleTable"><tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">Select a raffle item above to see entries.</td></tr></tbody>
+              <thead><tr><th>Viewer</th><th>Tickets</th><th>Last Purchase</th><th style="text-align:right;">Actions</th></tr></thead>
+              <tbody id="pointRaffleTable"><tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">Select a raffle item above to see entries.</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -2751,8 +3032,18 @@
     <div style="font-size:22px;margin-bottom:4px;">🏆</div>
     <div style="font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#8b949e;">Raffle Winner</div>
     <div id="rafWheelWinnerName" style="font-family:'Exo 2',sans-serif;font-size:26px;font-weight:900;color:#ffd700;text-shadow:0 0 20px rgba(255,215,0,0.7);margin-top:4px;"></div>
+    <div id="rafWheelActions" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px;"></div>
   </div>
   <button onclick="closeRaffleWheelModal()" style="padding:9px 22px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#8b949e;font-size:13px;cursor:pointer;">Close</button>
+</div>
+
+<!-- Viewer profile — live Kick "mod card" (follow date, sub, role, ban status)
+     pulled on demand when vetting a giveaway winner. Nothing is stored; the
+     "View on Kick" button opens Kick's own tools for message history. -->
+<div id="viewerProfileModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:660;align-items:center;justify-content:center;" onclick="if(event.target===this)closeViewerProfile()">
+  <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;width:min(440px,94vw);max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+    <div id="vpBody" style="padding:22px;"></div>
+  </div>
 </div>
 
 <div class="flash" id="flash"></div>
@@ -2949,7 +3240,12 @@ async function upgradeNow(callerBtn) {
   if (btn) { btn.disabled = true; btn.textContent = 'Redirecting to checkout…'; }
   if (status) status.textContent = '';
   try {
-    const idToken = await fb.currentUser.getIdToken();
+    // Refresh auth state + force a fresh ID token. If the user verified their
+    // email after logging in, their cached token still says email_verified:false
+    // (tokens live ~1h), which would make the server reject checkout. reload()
+    // pulls the latest emailVerified; getIdToken(true) mints a token with it.
+    try { await fb.currentUser.reload(); } catch {}
+    const idToken = await fb.currentUser.getIdToken(true);
     const r = await fetch('/api/create-checkout-session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
@@ -3249,16 +3545,19 @@ function onAuthReady(user) {
   }
   updateLeaderboardLink(profile?.activeProvider || 'gambulls');
 
-  // Set OBS overlay link using the streamer's kick channel
-  const chan = profile?.kickChannel || '';
-  const overlayLink = document.getElementById('overlayLink');
-  if (overlayLink && chan) overlayLink.href = `/overlay-winner.html?channel=${encodeURIComponent(chan)}`;
-  const overlayWheelLink = document.getElementById('overlayWheelLink');
-  if (overlayWheelLink && chan) overlayWheelLink.href = `/overlay-wheel.html?channel=${encodeURIComponent(chan)}`;
-  const overlayPreviewLink = document.getElementById('overlayPreviewLink');
-  if (overlayPreviewLink && chan) overlayPreviewLink.href = `/overlay-winner.html?channel=${encodeURIComponent(chan)}&demo=1`;
-  const overlayEntriesLink = document.getElementById('overlayEntriesLink');
-  if (overlayEntriesLink && chan) overlayEntriesLink.href = `/overlay-giveaway.html?channel=${encodeURIComponent(chan)}`;
+  // Restore the saved giveaway overlay style preference + wire links via the
+  // themed helper so they match OBS Studio. Also pre-load the spinner iframe
+  // so it's ready to animate the moment the streamer hits Spin.
+  if (profile?.giveawayOverlayStyle) gwOverlayStyle = profile.giveawayOverlayStyle;
+  const _gwStyleSel = document.getElementById('gwOverlayStyle');
+  if (_gwStyleSel) _gwStyleSel.value = gwOverlayStyle;
+  gwUpdateOverlayLinks();
+  gwSyncSpinnerFrame();
+
+  // Subscribe to winners_log so the Giveaway right column + Overview Recent
+  // Winners card stay populated across page refreshes (and pick up raffle
+  // draws too).
+  subscribeWinnersLog();
 
   // Restore giveaway state if it was active before refresh
   if (profile?.giveawayActive) {
@@ -3272,7 +3571,6 @@ function onAuthReady(user) {
       document.getElementById('minWagerInput').value = profile.giveawayMinWager;
     }
     if (profile.giveawaySubOnly) document.getElementById('toggleSubOnly').classList.add('on');
-    if (profile.giveawayEnterSelf) document.getElementById('toggleEnterSelf').classList.add('on');
     if (profile.giveawayVerifiedCasino || profile.giveawayVerifiedDiscord) {
       document.getElementById('toggleVerified').classList.add('on');
       document.getElementById('verifiedReqFields').style.display = 'block';
@@ -3314,6 +3612,49 @@ let winner = null;
 let entriesUnsub = null;
 let gwCountdownInterval = null;
 let gwEndTime = null;
+// Which overlay style the streamer wants for the giveaway spin (drives "Copy
+// OBS URL"). One of: 'gwspinner' (default — avatar carousel), 'wheel',
+// 'winner' (full-screen reveal).
+let gwOverlayStyle = 'gwspinner';
+const _gwStyleLabel = { gwspinner: 'Avatar Carousel', wheel: 'Spinning Wheel', winner: 'Spinning Names' };
+
+// User picked a new OBS overlay style — persist, update OBS links, reload
+// the dashboard preview iframe, and refit it (overlays have different native
+// dimensions: 560×380, 800×800, 1920×1080).
+//
+// We briefly hide the iframe (visibility:hidden) while the new src loads so
+// the streamer never sees the OLD style rendered at the NEW size (which was
+// the "square box flash" bug — e.g. Wheel content clipped to Carousel bounds
+// during the load).
+async function gwSetOverlayStyle(val) {
+  gwOverlayStyle = val;
+  gwUpdateOverlayLinks();
+  const frame = document.getElementById('gwSpinnerFrame');
+  if (frame) frame.style.visibility = 'hidden';
+  await gwSyncSpinnerFrame();   // src is set now
+  gwResizeSpinnerFrame();        // resize to new style's native dimensions
+  // Give the iframe ~350ms to load before showing — long enough that most
+  // overlays have rendered, short enough that the user perceives it as instant.
+  setTimeout(() => { if (frame) frame.style.visibility = ''; }, 350);
+  try { await saveStreamerProfile({ giveawayOverlayStyle: val }); } catch {}
+}
+
+// Rebuild the giveaway page's OBS / Preview / Entries links from the current
+// picker selection + saved overlay theme.
+function gwUpdateOverlayLinks() {
+  const chan = profile?.kickChannel || '';
+  if (!chan) return;
+  osLoadThemesIfNeeded().then(() => {
+    const ol = document.getElementById('overlayLink');
+    const pl = document.getElementById('overlayPreviewLink');
+    const el = document.getElementById('overlayEntriesLink');
+    const lbl = document.getElementById('overlayStyleLabel');
+    if (ol) ol.href = gwOverlayUrl(gwOverlayStyle);
+    if (pl) pl.href = gwOverlayUrl(gwOverlayStyle, { demo: true });
+    if (el) el.href = gwOverlayUrl('entries');
+    if (lbl) lbl.textContent = '(' + (_gwStyleLabel[gwOverlayStyle] || 'Spinner') + ')';
+  });
+}
 let spinningNow = false;
 
 function startCountdown(durationSecs) {
@@ -3387,7 +3728,10 @@ function updateLeaderboardLink(casino) {
 }
 
 function setType(type) {
-  if (type === 'verified') type = 'code'; // legacy fallback
+  // Normalize legacy/unknown values — the UI only has Everyone and Code, and a
+  // stale type (e.g. old "wager"/"verified") must resolve to code, never fall
+  // through to an open giveaway that lets unverified users in.
+  type = (type === 'everyone' || type === 'open' || type === 'all') ? 'everyone' : 'code';
   currentGiveawayType = type;
   ['code','everyone'].forEach(t => {
     document.getElementById('type'+t.charAt(0).toUpperCase()+t.slice(1))?.classList.toggle('active', t === type);
@@ -3423,7 +3767,6 @@ async function startGiveaway() {
   const duration        = durSel === 'custom'
     ? (parseInt(document.getElementById('giveawayDurationCustom')?.value, 10) || 0)
     : parseInt(durSel, 10) || 0;
-  const enterSelf       = document.getElementById('toggleEnterSelf')?.classList.contains('on') || false;
 
   giveawayActive = true;
   entries = [];
@@ -3469,7 +3812,6 @@ async function startGiveaway() {
     giveawayVerifiedDiscord: verifiedDiscord,
     giveawayDuration:        duration,
     giveawayStartedAt:       Date.now(),
-    giveawayEnterSelf:       enterSelf,
     giveawayEntriesClosed:   false,  // fresh start, entries are open
     winnerWatch:             null,
     pendingChatMessage:      announceMsg,
@@ -3479,10 +3821,6 @@ async function startGiveaway() {
   if (gwTarget === 'discord') {
     discordNotify('giveaway_start', { type: currentGiveawayType, keyword });
   }
-  // Note: "Enter Myself" is handled server-side by WenBotServer when it sees
-  // giveawayEnterSelf:true — the bot adds the streamer to its in-memory entries
-  // so the 5s snapshot flush keeps you in the list (a client write would get
-  // overwritten by that flush).
 }
 
 let gwTarget = 'kick';
@@ -3537,7 +3875,6 @@ async function gwClearAndEnd() {
   document.getElementById('stopGiveawayBtn').style.display = 'none';
   document.getElementById('clearEndBtn').style.display = 'none';
   document.getElementById('pickWinnerBtn').disabled = true;
-  document.getElementById('rerollBtn').disabled = true;
   if (entriesUnsub) { entriesUnsub(); entriesUnsub = null; }
   entries = [];
   renderEntries();
@@ -3555,6 +3892,9 @@ function subscribeEntries() {
   if (entriesUnsub) entriesUnsub();
   const uid = fb.activeUid;
   if (!uid) return;
+  // Make sure the verified-users + discord-links subscriptions are live so
+  // the entry rows show their badges from the first render.
+  _gwSubscribeVerifiedIfNeeded();
   entriesUnsub = fb.db.collection('streamers').doc(uid)
     .collection('giveaway_state').doc('snapshot').onSnapshot(snap => {
       if (!snap.exists) { entries = []; renderEntries(); return; }
@@ -3605,12 +3945,125 @@ function updateGiveawayStatus(active) {
 // pop-in animation (and existing ones don't re-animate on every snapshot).
 let _gwShownKeys = new Set();
 
+// Persistent across-session cache of Kick avatars keyed by lowercase username.
+// localStorage so the same viewer doesn't get re-fetched on every giveaway.
+// Values: { url, ts }. A null url means "Kick returned no avatar / 404" and
+// we don't keep hammering for it.
+const _gwAvatarCache = (() => {
+  try { return JSON.parse(localStorage.getItem('wenbot_avatar_cache') || '{}'); }
+  catch { return {}; }
+})();
+const _gwAvatarInflight = new Set(); // usernames currently being fetched
+
+function _gwSaveAvatarCache() {
+  try { localStorage.setItem('wenbot_avatar_cache', JSON.stringify(_gwAvatarCache)); } catch {}
+}
+
+// Fire-and-forget fetch of a Kick avatar. Resolves when cached. The caller
+// triggers a re-render once the cache populates so the new <img> appears.
+async function _gwFetchKickAvatar(username) {
+  const key = (username || '').toLowerCase();
+  if (!key) return null;
+  if (key in _gwAvatarCache) return _gwAvatarCache[key]?.url || null;
+  if (_gwAvatarInflight.has(key)) return null;
+  _gwAvatarInflight.add(key);
+  try {
+    const r = await fetch(`/api/kick-channel?username=${encodeURIComponent(key)}`);
+    if (!r.ok) { _gwAvatarCache[key] = { url: null, ts: Date.now() }; _gwSaveAvatarCache(); return null; }
+    const data = await r.json();
+    const url = data?.avatar_url || null;
+    _gwAvatarCache[key] = { url, ts: Date.now() };
+    _gwSaveAvatarCache();
+    return url;
+  } catch {
+    _gwAvatarCache[key] = { url: null, ts: Date.now() };
+    _gwSaveAvatarCache();
+    return null;
+  } finally {
+    _gwAvatarInflight.delete(key);
+  }
+}
+
 function gwAvatarHtml(entry) {
   const initials = escHtml((entry.username || '?')[0].toUpperCase());
-  if (entry.avatarUrl) {
-    return `<div class="gw-avatar"><img src="${escHtml(entry.avatarUrl)}" alt="" onerror="this.style.display='none';this.parentElement.textContent='${initials}';"></div>`;
+  // Resolve avatar through three layers: the entry itself (set by the bot),
+  // the streamer's profile (for self-entries), then the localStorage cache
+  // populated by lazy /api/kick-channel fetches for anyone else missing one.
+  let avatarUrl = entry.avatarUrl;
+  const lcKey = (entry.kickKey || entry.username || '').toLowerCase();
+  if (!avatarUrl && profile?.kickAvatar && profile?.kickChannel &&
+      lcKey === (profile.kickChannel || '').toLowerCase()) {
+    avatarUrl = profile.kickAvatar;
+  }
+  if (!avatarUrl && lcKey && lcKey in _gwAvatarCache) {
+    avatarUrl = _gwAvatarCache[lcKey]?.url || null;
+  }
+  // Kick off a background fetch if we still don't have one — the entries
+  // listener will re-render naturally on the next snapshot, but we also
+  // re-render directly when the fetch resolves so it doesn't sit on the
+  // initial until then.
+  if (!avatarUrl && lcKey && !(lcKey in _gwAvatarCache)) {
+    _gwFetchKickAvatar(lcKey).then(url => {
+      if (url && typeof renderEntries === 'function') renderEntries();
+    });
+  }
+  if (avatarUrl) {
+    return `<div class="gw-avatar"><img src="${escHtml(avatarUrl)}" alt="" onerror="this.style.display='none';this.parentElement.textContent='${initials}';"></div>`;
   }
   return `<div class="gw-avatar">${initials}</div>`;
+}
+
+// Verified-user lookup sets for the Giveaway page. Populated lazily by
+// _gwSubscribeVerifiedIfNeeded so the badges stay accurate without forcing
+// a Firestore read on every page load.
+let _gwVerifiedCasinoSet  = new Set();
+let _gwVerifiedDiscordSet = new Set();
+let _gwVerifiedCasinoUnsub  = null;
+let _gwVerifiedDiscordUnsub = null;
+
+function _gwSubscribeVerifiedIfNeeded() {
+  const uid = fb.activeUid;
+  if (!uid) return;
+  if (!_gwVerifiedCasinoUnsub) {
+    _gwVerifiedCasinoUnsub = fb.db.collection('streamers').doc(uid)
+      .collection('verified_users')
+      .onSnapshot(snap => {
+        const next = new Set();
+        snap.docs.forEach(d => {
+          const data = d.data() || {};
+          if (data.kickName) next.add(data.kickName.toLowerCase());
+        });
+        _gwVerifiedCasinoSet = next;
+        if (typeof renderEntries === 'function') renderEntries();
+      }, () => {});
+  }
+  if (!_gwVerifiedDiscordUnsub) {
+    _gwVerifiedDiscordUnsub = fb.db.collection('streamers').doc(uid)
+      .collection('discord_links')
+      .onSnapshot(snap => {
+        const next = new Set();
+        snap.docs.forEach(d => {
+          const data = d.data() || {};
+          if (data.kickUsername) next.add(data.kickUsername.toLowerCase());
+        });
+        _gwVerifiedDiscordSet = next;
+        if (typeof renderEntries === 'function') renderEntries();
+      }, () => {});
+  }
+}
+
+// Build the small ✓ / D badges shown next to a giveaway entry's name and
+// return them as inline HTML. Also returns the CSS class to apply to the
+// .gw-entry wrapper for the subtle row-tint signal.
+function _gwBadgesFor(entry) {
+  const key = (entry.kickKey || entry.username || '').toLowerCase();
+  const casino  = _gwVerifiedCasinoSet.has(key);
+  const discord = _gwVerifiedDiscordSet.has(key);
+  let html = '';
+  if (casino)  html += '<span class="gw-badge gw-badge-casino"  title="Casino verified">✓</span>';
+  if (discord) html += '<span class="gw-badge gw-badge-discord" title="Discord linked">D</span>';
+  const rowClass = casino ? 'gw-verified-casino' : (discord ? 'gw-verified-discord' : '');
+  return { html, rowClass };
 }
 
 function renderEntries() {
@@ -3635,10 +4088,15 @@ function renderEntries() {
     const meta = [];
     if (e.wager)       meta.push(`$${e.wager.toLocaleString()}`);
     if (e.tickets > 1) meta.push(`${e.tickets}× tickets`);
-    return `<div class="gw-entry${isNew ? ' gw-pop-in' : ''}" data-key="${escHtml(e.kickKey || '')}">
+    const badges = _gwBadgesFor(e);
+    const classes = ['gw-entry'];
+    if (isNew) classes.push('gw-pop-in');
+    if (badges.rowClass) classes.push(badges.rowClass);
+    return `<div class="${classes.join(' ')}" data-key="${escHtml(e.kickKey || '')}">
       ${gwAvatarHtml(e)}
-      <div class="gw-name">@${escHtml(e.username)}</div>
+      <div class="gw-name"><span class="gw-name-text">@${escHtml(e.username)}</span>${badges.html}</div>
       ${meta.length ? `<div class="gw-meta">${meta.join(' · ')}</div>` : ''}
+      <button class="gw-row-remove" onclick="gwRemoveParticipant(this)" title="Remove this entry">×</button>
     </div>`;
   }).join('');
 
@@ -3646,101 +4104,224 @@ function renderEntries() {
   _gwShownKeys = new Set(entries.map(e => e.kickKey).filter(Boolean));
 }
 
-// Build a giveaway-spinner card (round avatar + @username). Reuses the
-// slot-picker .sp-card chrome but with a rounded image area.
-function gwSpinCardHtml(e) {
-  const initials = escHtml((e.username || '?')[0].toUpperCase());
-  const inner = e.avatarUrl
-    ? `<img src="${escHtml(e.avatarUrl)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="gw-init" style="display:none;">${initials}</div>`
-    : `<div class="gw-init">${initials}</div>`;
-  return `<div class="sp-card gw-spin-card">
-    <div class="sp-card-img">${inner}</div>
-    <div class="sp-card-name">@${escHtml(e.username)}</div>
-  </div>`;
+// Scale the spinner iframe to fit its container, using the chosen overlay's
+// NATIVE dimensions from OS_OVERLAYS. The iframe is absolutely positioned at
+// the overlay's center (top:50%/left:50%), so translate(-50%,-50%) centers
+// the box and the scale() shrinks it visually around that center.
+function gwResizeSpinnerFrame() {
+  const frame = document.getElementById('gwSpinnerFrame');
+  const overlay = document.getElementById('gwSpinnerOverlay');
+  if (!frame || !overlay) return;
+  const o = OS_OVERLAYS.find(x => x.id === gwOverlayStyle) || { obsW: 560, obsH: 380 };
+  frame.style.width  = o.obsW + 'px';
+  frame.style.height = o.obsH + 'px';
+  const cw = overlay.clientWidth;
+  const ch = overlay.clientHeight;
+  if (cw <= 0 || ch <= 0) return;
+  // Leave a tiny margin so the wheel's pointer overhang isn't flush against
+  // the column edge.
+  const scale = Math.max(0.15, Math.min((cw - 16) / o.obsW, (ch - 16) / o.obsH, 1));
+  frame.style.transform = `translate(-50%, -50%) scale(${scale})`;
+}
+window.addEventListener('resize', () => { if (document.getElementById('gwSpinnerOverlay')?.classList.contains('active')) gwResizeSpinnerFrame(); });
+
+// Track the LAST URL we set on the iframe explicitly. The browser normalizes
+// frame.src (percent-encoding, etc.) so comparing strings against
+// frame.src is unreliable — using our own variable avoids that and prevents
+// unnecessary iframe reloads (which were causing mid-spin "deaths" and the
+// "square box flash" when switching styles).
+let _gwLastFrameUrl = null;
+// The preview iframe runs in embed mode and talks to us via postMessage.
+// Track readiness so we can defer a spin message that fires before the
+// iframe finishes loading (eg. very first click after a style switch).
+let _gwSpinnerReady   = false;
+let _gwPendingSpinMsg = null;
+// Pending "hide the dashboard spinner overlay" setTimeout. Each spin
+// schedules one; the next spin cancels it so an old timer can't fire mid-
+// spin-2 and yank the overlay away (which previously looked like a crash).
+let _gwOverlayHideTimer = null;
+
+// Mark the iframe as ready and flush any queued spin message. Called from
+// EITHER the iframe's 'spinner-ready' postMessage OR the iframe element's
+// native 'load' event — whichever lands first. Belt-and-suspenders so a
+// missed message can't strand a queued spin.
+function _gwMarkSpinnerReady() {
+  if (_gwSpinnerReady) return;
+  _gwSpinnerReady = true;
+  const frame = document.getElementById('gwSpinnerFrame');
+  if (frame && _gwPendingSpinMsg && frame.contentWindow) {
+    try { frame.contentWindow.postMessage(_gwPendingSpinMsg, '*'); } catch {}
+    _gwPendingSpinMsg = null;
+  }
+}
+
+window.addEventListener('message', (e) => {
+  // Only listen for messages from the preview iframe — same origin, so the
+  // source check by id is enough.
+  const frame = document.getElementById('gwSpinnerFrame');
+  if (!frame || e.source !== frame.contentWindow) return;
+  if (e.data?.type === 'spinner-ready') _gwMarkSpinnerReady();
+});
+
+// Send a spin message to the preview iframe immediately if it's ready, or
+// queue it for when 'spinner-ready' arrives. Only ONE message is queued —
+// later spins overwrite earlier ones because the iframe should always show
+// the most recent winner anyway.
+function gwSendSpinToPreview(msg) {
+  const frame = document.getElementById('gwSpinnerFrame');
+  if (!frame || !frame.contentWindow) return;
+  if (_gwSpinnerReady) {
+    try { frame.contentWindow.postMessage(msg, '*'); } catch {}
+  } else {
+    _gwPendingSpinMsg = msg;
+  }
+}
+
+// Make sure the iframe has the right src for the current picker. Returns a
+// promise that resolves once src is set so callers can sequence after it.
+function gwSyncSpinnerFrame() {
+  const frame = document.getElementById('gwSpinnerFrame');
+  if (!frame) return Promise.resolve();
+  // Ensure visible — earlier placeholder code may have left display:none.
+  frame.style.display = '';
+  return osLoadThemesIfNeeded().then(() => {
+    const url = gwOverlayUrl(gwOverlayStyle, { embed: true });
+    if (url !== '#' && url !== _gwLastFrameUrl) {
+      _gwLastFrameUrl   = url;
+      _gwSpinnerReady   = false;
+      _gwPendingSpinMsg = null;
+      // Attach a one-shot load listener BEFORE setting src — guarantees we
+      // catch the native load event even if the iframe's 'spinner-ready'
+      // postMessage is lost in transit (which was suspected for the wheel
+      // "dies instantly on first spin" bug).
+      const onLoad = () => {
+        frame.removeEventListener('load', onLoad);
+        _gwMarkSpinnerReady();
+      };
+      frame.addEventListener('load', onLoad);
+      frame.src = url;
+    }
+  });
 }
 
 async function spinPicker() {
   if (!entries.length) { flash('No entries to pick from.', 'error'); return; }
+  // Minimal debounce — just enough to absorb double-clicks. Spam is handled
+  // properly on the iframe side: while a spin is animating, additional
+  // clicks queue up and the iframe rolls into the latest winner the moment
+  // the current spin lands. No animation gets interrupted mid-flight.
   if (spinningNow) return;
   spinningNow = true;
-  document.getElementById('pickWinnerBtn').disabled = true;
-  document.getElementById('rerollBtn').disabled = true;
-  document.getElementById('winnerReveal').style.display = 'none';
-
-  // Show the carousel overlay over the Participants column
-  const overlay = document.getElementById('gwSpinnerOverlay');
-  overlay.classList.add('active');
+  setTimeout(() => { spinningNow = false; }, 250);
 
   // True RNG over the weighted pool (each entry repeated by their tickets)
   const pool = [];
   entries.forEach(e => { for (let i = 0; i < (e.tickets || 1); i++) pool.push(e); });
   winner = pool[Math.floor(Math.random() * pool.length)];
+  const pickedWinner = winner;
 
-  // Fire OBS overlay trigger IMMEDIATELY so it starts in sync with the dashboard animation
+  // Make sure the iframe is loaded with the chosen overlay style + activated.
+  // Cancel any pending overlay-hide timer from a previous spin — otherwise it
+  // can fire mid spin 2 and remove the overlay, which looks like a crash.
+  if (_gwOverlayHideTimer) { clearTimeout(_gwOverlayHideTimer); _gwOverlayHideTimer = null; }
+  gwSyncSpinnerFrame();
+  const overlay = document.getElementById('gwSpinnerOverlay');
+  overlay.classList.add('active');
+  requestAnimationFrame(gwResizeSpinnerFrame);
+
+  // Tell the preview iframe to spin. The iframe queues messages internally
+  // while spinning, so rapid clicks don't interrupt the current animation —
+  // they cascade through and the latest queued winner is the one that
+  // actually animates next.
+  //
+  // We enrich entries with avatar URLs from our local cache (and the
+  // streamer's profile for their own self-entry) so the carousel reel shows
+  // real avatars even for entries the bot didn't fetch one for.
+  const selfKey = (profile?.kickChannel || '').toLowerCase();
+  gwSendSpinToPreview({
+    type:    'spin',
+    winner:  pickedWinner.username,
+    wager:   pickedWinner.wager || 0,
+    entries: entries.map(e => {
+      const lcKey = (e.username || '').toLowerCase();
+      let av = e.avatarUrl;
+      if (!av && lcKey === selfKey && profile?.kickAvatar) av = profile.kickAvatar;
+      if (!av && lcKey && _gwAvatarCache[lcKey]) av = _gwAvatarCache[lcKey].url || null;
+      return {
+        kickName:  e.username,
+        kickKey:   lcKey,
+        wager:     e.wager || 0,
+        avatarUrl: av || null,
+        tickets:   e.tickets || 1,
+      };
+    }),
+  });
+
+  // Write the spin trigger for any OBS browser source the streamer has added.
+  // That overlay runs in poll mode (no embed) so it still picks up triggers
+  // from Firestore.
   const _spinUid = fb.activeUid;
   if (_spinUid) {
     fb.db.collection('streamers').doc(_spinUid).collection('giveaway_state').doc('snapshot')
-      .set({ spinTrigger: { winner: winner.username, wager: winner.wager || 0, triggeredAt: Date.now() } }, { merge: true })
+      .set({ spinTrigger: { winner: pickedWinner.username, wager: pickedWinner.wager || 0, triggeredAt: Date.now() } }, { merge: true })
       .catch(() => {});
   }
-
-  // Build a 20-card reel with the winner placed at the landing index. The
-  // winner was already drawn above; the decoys are visual only.
-  const REEL_LEN = 20, WIN_IDX = 16;
-  const reel = [];
-  for (let i = 0; i < REEL_LEN; i++) {
-    reel.push(i === WIN_IDX ? winner : pool[Math.floor(Math.random() * pool.length)]);
-  }
-  const track = document.getElementById('gwSpinTrack');
-  track.innerHTML = reel.map(gwSpinCardHtml).join('');
-
-  // Reset → ease into winner's centered position
-  track.style.transition = 'none';
-  track.style.transform  = 'translateX(0)';
-  await new Promise(requestAnimationFrame);
-  const step = (track.children[1]?.offsetLeft || 138) - (track.children[0]?.offsetLeft || 0);
-  void track.offsetWidth;
-  await new Promise(requestAnimationFrame);
-  track.style.transition = 'transform 4s cubic-bezier(0.15, 0.85, 0.35, 1)';
-  track.style.transform  = `translateX(-${WIN_IDX * step}px)`;
-
-  setTimeout(() => {
-    // Reveal
-    document.getElementById('winnerRevealName').textContent = '@' + winner.username;
-    document.getElementById('winnerRevealDetail').textContent = winner.wager ? `$${winner.wager.toLocaleString()} wagered` : '';
-    document.getElementById('winnerReveal').style.display = 'block';
-
-    document.getElementById('rerollBtn').disabled = false;
-    spinningNow = false;
-    flash('🏆 Winner: ' + winner.username);
-    addRecentWinner(winner);
-    if (gwTarget === 'discord') discordNotify('giveaway_winner', { winner: winner.username, totalEntries: entries.length });
-
-    // Auto-fade the overlay back to participants after a few seconds so the
-    // streamer can keep capturing the same column
-    setTimeout(() => {
-      overlay.classList.remove('active');
-    }, 6000);
-
-    // Post winner to chat + start watching the winner's chat so the streamer
-    // can spot them through the noise. WenBotServer reads winnerWatch and writes
-    // that user's messages to the winner_chat subcollection.
-    const uid = fb.activeUid;
-    if (uid) {
-      const watchAt = Date.now();
-      fb.db.collection('streamers').doc(uid)
-        .update({
-          pendingChatMessage: `🏆 Congratulations @${winner.username}! You won the giveaway! 🎉`,
-          pendingChatTs:      Date.now() + Math.random(),
-          winnerWatch:        winner.username.toLowerCase(),
-          winnerWatchName:    winner.username,
-          winnerWatchAt:      watchAt,
-        })
-        .catch(() => {});
-      startWinnerChatWatch(winner.username, watchAt);
-    }
-  }, 4100);
+  // Side-effects (list update, chat congrats, discord notify) fire when the
+  // iframe sends 'spin-landed' back — that way they only happen for spins
+  // that ACTUALLY completed visually, not for ones that got queued past.
 }
+
+// The iframe sends 'spin-landed' once an animation has visually landed on a
+// winner (and only for the final winner of a cascade — intermediate queued
+// winners are skipped). Side-effects key off this so the Winners list and
+// chat congrats always match what the streamer just saw.
+window.addEventListener('message', (e) => {
+  const frame = document.getElementById('gwSpinnerFrame');
+  if (!frame || e.source !== frame.contentWindow) return;
+  if (e.data?.type !== 'spin-landed') return;
+  const data = e.data;
+  const pickedWinner = {
+    username:  String(data.winner || ''),
+    wager:     Number(data.wager) || 0,
+    avatarUrl: data.avatarUrl || null,
+  };
+  if (!pickedWinner.username) return;
+
+  flash('🏆 Winner: ' + pickedWinner.username);
+  addRecentWinner(pickedWinner);
+  showWinnerActionPopup(pickedWinner);
+  if (gwTarget === 'discord') {
+    discordNotify('giveaway_winner', { winner: pickedWinner.username, totalEntries: entries.length });
+  }
+
+  // Hide the dashboard's spinner overlay after the configured reveal
+  // duration — matches the iframe's own reveal-hide timer. Tracked so the
+  // next spin can cancel it (otherwise it fires mid-next-spin and yanks
+  // the overlay away).
+  const overlay = document.getElementById('gwSpinnerOverlay');
+  const dur = (osThemes[gwOverlayStyle]?.duration != null ? osThemes[gwOverlayStyle].duration : 10) * 1000;
+  if (_gwOverlayHideTimer) clearTimeout(_gwOverlayHideTimer);
+  _gwOverlayHideTimer = setTimeout(() => {
+    _gwOverlayHideTimer = null;
+    if (overlay) overlay.classList.remove('active');
+  }, dur);
+
+  // Chat congrats + winner-chat watcher — dashboard-only side effects.
+  const uid = fb.activeUid;
+  if (uid) {
+    const watchAt = Date.now();
+    fb.db.collection('streamers').doc(uid)
+      .update({
+        pendingChatMessage: `🏆 Congratulations @${pickedWinner.username}! You won the giveaway! 🎉`,
+        pendingChatTs:      Date.now() + Math.random(),
+        winnerWatch:        pickedWinner.username.toLowerCase(),
+        winnerWatchName:    pickedWinner.username,
+        winnerWatchAt:      watchAt,
+      })
+      .catch(() => {});
+    startWinnerChatWatch(pickedWinner.username, watchAt);
+  }
+});
 
 // ── WINNER CHAT WATCHER ──
 let winnerChatUnsub = null;
@@ -3754,9 +4335,13 @@ function startWinnerChatWatch(name, watchAt) {
   const msgsEl   = document.getElementById('winnerChatMessages');
   const waitingEl= document.getElementById('winnerChatWaiting');
   titleEl.textContent = `${name}'s Chat`;
+  titleEl.style.cursor = 'pointer';
+  titleEl.title = `View ${name}'s profile`;
+  titleEl.onclick = () => openViewerProfile(name);
   msgsEl.innerHTML = '';
   waitingEl.style.display = '';
-  panel.style.display = 'block';
+  const wrap = document.getElementById('winnerChatWrap');
+  if (wrap) wrap.style.display = '';
 
   winnerChatUnsub = fb.db.collection('streamers').doc(uid)
     .collection('winner_chat')
@@ -3767,10 +4352,12 @@ function startWinnerChatWatch(name, watchAt) {
       if (!msgs.length) { waitingEl.style.display = ''; return; }
       waitingEl.style.display = 'none';
       msgsEl.innerHTML = msgs.map(m => {
-        const t = m.ts ? new Date(m.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+        const t    = m.ts ? new Date(m.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+        const who  = m.kickName || name;
+        const whoJs = String(who).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         return `<div style="font-size:13px;line-height:1.4;">
           <span style="color:var(--text-dim);font-size:10px;margin-right:6px;">${t}</span>
-          <span style="color:var(--gold);font-weight:600;">${m.kickName || name}:</span>
+          <span onclick="openViewerProfile('${whoJs}')" title="View ${escapeHtml(who)}'s profile" style="color:var(--gold);font-weight:600;cursor:pointer;text-decoration:underline;">${escapeHtml(who)}:</span>
           <span style="color:var(--text);"> ${escapeHtml(m.content || '')}</span>
         </div>`;
       }).join('');
@@ -3780,38 +4367,491 @@ function startWinnerChatWatch(name, watchAt) {
 
 function stopWinnerChatWatch() {
   if (winnerChatUnsub) { winnerChatUnsub(); winnerChatUnsub = null; }
-  const panel = document.getElementById('winnerChatPanel');
-  if (panel) panel.style.display = 'none';
+  const wrap = document.getElementById('winnerChatWrap');
+  if (wrap) wrap.style.display = 'none';
 }
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
-// Add a winner to the right-column Winners list (newest at top).
-// Accepts either a string (legacy) or an entry object with avatarUrl/wager.
-function addRecentWinner(arg) {
-  const list = document.getElementById('gwWinnersList');
-  if (!list) return;
-  // Clear the empty placeholder if present
-  const empty = list.querySelector('.gw-empty');
-  if (empty) empty.remove();
+// ── VIEWER PROFILE ───────────────────────────────────────────────────────────
+// A live "mod card" for a viewer, opened by clicking their name in the Winners
+// list or the winner chat panel — to help decide whether to award a giveaway.
+// Kick details (follow date, sub, role, ban status) are fetched live on demand
+// THROUGH THE BOT: Kick's user endpoint is Cloudflare-blocked from Netlify but
+// not from the bot's IP, so the dashboard asks the bot (via a Firestore request
+// field) and reads the result it writes to kick_profiles/{user}. Nothing about
+// chat is stored. Message history isn't available through Kick's API without the
+// streamer's own mod login, so the "View on Kick" button covers that.
+let _vpReqId = 0;
 
-  const e = typeof arg === 'string' ? { username: arg } : arg;
-  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const meta = [];
-  if (e.wager) meta.push(`$${Number(e.wager).toLocaleString()}`);
-  meta.push(time);
-  const html = `<div class="gw-entry gw-winner-row gw-pop-in" data-key="${escHtml(e.kickKey || e.username || '')}">
-    ${gwAvatarHtml(e)}
-    <div class="gw-name">🏆 @${escHtml(e.username || '?')}</div>
-    <div class="gw-meta">${meta.join(' · ')}</div>
+async function openViewerProfile(username) {
+  username = String(username || '').replace(/^@/, '').trim();
+  if (!username) return;
+  const modal = document.getElementById('viewerProfileModal');
+  const body  = document.getElementById('vpBody');
+  if (!modal || !body) return;
+  modal.style.display = 'flex';
+  const reqId   = ++_vpReqId;
+  const kickUrl = 'https://kick.com/' + encodeURIComponent(username);
+
+  body.innerHTML = _vpRender(username, kickUrl, null, { points: null, lastSeen: null, casino: false, discord: false }, true);
+
+  const tool = await _vpToolData(username);
+
+  const kick = await _vpFetchKickViaBot(username, reqId);
+  if (reqId !== _vpReqId) return; // closed or superseded by another click
+  body.innerHTML = _vpRender(username, kickUrl, kick, tool, false);
+}
+
+// Ask the bot to fetch the viewer's Kick profile (reliable from its IP), then
+// read the result it writes to kick_profiles/{user}. Resolves null on timeout
+// (bot down / Kick slow) so the card falls back to the View-on-Kick link.
+function _vpFetchKickViaBot(username, reqId) {
+  return new Promise((resolve) => {
+    const uid = fb.activeUid;
+    if (!uid) { resolve(null); return; }
+    const userLower = username.toLowerCase();
+    const ts = Date.now();
+    let unsub = null, settled = false;
+    const finish = (val) => { if (settled) return; settled = true; if (unsub) { try { unsub(); } catch {} } resolve(val); };
+    // Tell the bot to fetch it.
+    fb.db.collection('streamers').doc(uid).update({ kickProfileReq: { user: userLower, ts } }).catch(() => {});
+    // Listen for the bot's result — must be for THIS request (reqTs >= ts).
+    unsub = fb.db.collection('streamers').doc(uid).collection('kick_profiles').doc(userLower)
+      .onSnapshot((doc) => {
+        if (reqId !== _vpReqId) return finish(null);
+        const d = doc.data();
+        if (d && typeof d.reqTs === 'number' && d.reqTs >= ts) finish(d.ok ? d : null);
+      }, () => finish(null));
+    setTimeout(() => finish(null), 8000);
+  });
+}
+
+function closeViewerProfile() {
+  _vpReqId++; // cancel any in-flight render
+  const modal = document.getElementById('viewerProfileModal');
+  if (modal) modal.style.display = 'none';
+}
+
+// Data we already hold in the tool — no extra Kick call, no storage created.
+async function _vpToolData(username) {
+  const out = { points: null, lastSeen: null, casino: false, discord: false };
+  const key = username.toLowerCase();
+  try {
+    if (typeof _gwVerifiedCasinoSet  !== 'undefined') out.casino  = _gwVerifiedCasinoSet.has(key);
+    if (typeof _gwVerifiedDiscordSet !== 'undefined') out.discord = _gwVerifiedDiscordSet.has(key);
+  } catch {}
+  try {
+    const uid = fb.activeUid;
+    if (uid) {
+      const doc = await fb.db.collection('streamers').doc(uid).collection('viewers').doc(key).get();
+      if (doc.exists) { const d = doc.data(); out.points = d.points || 0; out.lastSeen = d.lastSeen || null; }
+    }
+  } catch {}
+  return out;
+}
+
+function _vpRow(label, value) {
+  return `<div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px;">
+    <span style="color:var(--text-dim);">${label}</span>
+    <span style="color:var(--text);text-align:right;">${value}</span>
   </div>`;
-  list.insertAdjacentHTML('afterbegin', html);
+}
 
-  // Update count
-  const countEl = document.getElementById('gwWinnerCount');
-  if (countEl) countEl.textContent = list.querySelectorAll('.gw-winner-row').length;
+function _vpDate(v) {
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return { date: String(v), rel: '' };
+  const date = d.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+  const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+  let rel;
+  if (days < 1)        rel = 'today';
+  else if (days < 30)  rel = `${days}d ago`;
+  else if (days < 365) rel = `${Math.floor(days / 30)}mo ago`;
+  else                 rel = `${(days / 365).toFixed(1)}y ago`;
+  return { date, rel };
+}
+
+function _vpBanText(b) {
+  if (!b || typeof b !== 'object') return 'Banned / timed out';
+  if (b.permanent) return 'Permanently banned';
+  if (b.expires_at) {
+    const e = new Date(b.expires_at);
+    if (!isNaN(e.getTime())) return `Timed out until ${e.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+  }
+  return 'Banned / timed out';
+}
+
+function _vpRender(username, kickUrl, kick, tool, loading) {
+  const avatar = kick?.profilePic
+    ? `<img src="${escHtml(kick.profilePic)}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--border);">`
+    : `<div style="width:56px;height:56px;border-radius:50%;background:rgba(0,229,255,0.1);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--accent);">${escHtml((username[0] || '?').toUpperCase())}</div>`;
+
+  const roleMap = { broadcaster: ['Broadcaster', '#ffd700'], moderator: ['Mod', '#53e077'], staff: ['Staff', '#a78bfa'], vip: ['VIP', '#ff6bd6'], og: ['OG', '#00e5ff'] };
+  const roleChips = (kick?.roles || []).map(r => {
+    const [label, color] = roleMap[r] || [r, '#8b949e'];
+    return `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;background:${color}1a;color:${color};border:1px solid ${color}55;">${escHtml(label)}</span>`;
+  }).join('');
+  const verifiedChip = kick?.verified ? `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;background:rgba(0,229,255,0.1);color:var(--accent);border:1px solid rgba(0,229,255,0.35);">✓ Verified</span>` : '';
+
+  let kickRows;
+  if (loading) {
+    kickRows = `<div style="color:var(--text-dim);font-size:13px;padding:6px 0;">Loading live details from Kick…</div>`;
+  } else if (!kick) {
+    kickRows = `<div style="color:var(--orange);font-size:12px;padding:6px 0;line-height:1.5;">Couldn't load live Kick details right now. Use <strong>View on Kick</strong> below to open their profile and Kick's mod tools (incl. message history).</div>`;
+  } else {
+    const follow = kick.followingSince ? _vpDate(kick.followingSince) : null;
+    kickRows = [
+      _vpRow('🗓️ Following since', follow ? `${follow.date} <span style="color:var(--text-dim);">(${follow.rel})</span>` : 'Not following'),
+      _vpRow('⭐ Subscriber', kick.isSubscriber ? (kick.subscribedFor > 0 ? `Yes — ${kick.subscribedFor} mo` : 'Yes') : 'No'),
+      _vpRow('⛔ Ban / timeout', kick.banned ? `<span style="color:var(--red);font-weight:700;">${escHtml(_vpBanText(kick.banned))}</span>` : '<span style="color:var(--green);">None</span>'),
+    ].join('');
+  }
+
+  const toolRows = [
+    tool.points != null ? _vpRow('🪙 Points', Number(tool.points).toLocaleString()) : '',
+    tool.lastSeen ? _vpRow('👀 Last seen', _vpDate(tool.lastSeen).rel) : '',
+    _vpRow('🎰 Casino verified', tool.casino ? '<span style="color:var(--green);">Yes</span>' : 'No'),
+    _vpRow('💬 Discord linked', tool.discord ? '<span style="color:var(--green);">Yes</span>' : 'No'),
+  ].join('');
+
+  return `
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+      ${avatar}
+      <div style="min-width:0;">
+        <div style="font-size:18px;font-weight:800;color:var(--bright);word-break:break-word;">${escHtml(username)}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">${roleChips}${verifiedChip}</div>
+      </div>
+    </div>
+    <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin:4px 0 4px;">From Kick</div>
+    ${kickRows}
+    <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin:16px 0 4px;">In your tool</div>
+    ${toolRows}
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <a href="${escHtml(kickUrl)}" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:10px;background:rgba(83,224,119,0.12);border:1px solid rgba(83,224,119,0.4);border-radius:8px;color:var(--green);font-size:13px;font-weight:700;text-decoration:none;">View on Kick ↗</a>
+      <button onclick="closeViewerProfile()" style="padding:10px 18px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:13px;cursor:pointer;">Close</button>
+    </div>`;
+}
+
+// ── WINNERS LOG (Firestore-backed) ──────────────────────────────────────────
+//
+// Winners now persist to `streamers/{uid}/winners_log` so a page refresh
+// doesn't wipe the right-column list, and the Overview's Recent Winners
+// card actually shows something. Both giveaway picks and raffle draws are
+// logged into the same collection with a `type` field — that lets the
+// Overview show a unified recent-history feed, while the Giveaway page
+// filters down to just `type === 'giveaway'` for its right column.
+
+let _winnersCache  = [];   // latest snapshot of winners_log (newest first)
+let _winnersUnsub  = null;
+
+function subscribeWinnersLog() {
+  if (_winnersUnsub) { _winnersUnsub(); _winnersUnsub = null; }
+  const uid = fb.activeUid;
+  if (!uid) return;
+  _winnersUnsub = fb.db.collection('streamers').doc(uid)
+    .collection('winners_log')
+    .orderBy('drawnAt', 'desc')
+    .limit(50)
+    .onSnapshot(
+      snap => {
+        _winnersCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderWinnersLists();
+      },
+      err => { /* read failures are non-critical — just log to console */ console.warn('[winners_log] subscribe error:', err.message); }
+    );
+}
+
+// Re-render the two consumers of the winners cache:
+//   1. The Giveaway page right column (giveaway picks only)
+//   2. The Overview "Recent Winners" card (giveaway + raffle, mixed)
+function renderWinnersLists() {
+  const gwList   = document.getElementById('gwWinnersList');
+  const gwCount  = document.getElementById('gwWinnerCount');
+  const clearBtn = document.getElementById('gwClearWinnersBtn');
+  if (gwList) {
+    const gwOnly = _winnersCache.filter(w => (w.type || 'giveaway') === 'giveaway');
+    if (!gwOnly.length) {
+      gwList.innerHTML = '<div class="gw-empty">No winners drawn yet.</div>';
+    } else {
+      gwList.innerHTML = gwOnly.map(_renderGwWinnerRow).join('');
+    }
+    if (gwCount)  gwCount.textContent = gwOnly.length;
+    if (clearBtn) clearBtn.style.display = gwOnly.length ? '' : 'none';
+  }
+
+  const ovList = document.getElementById('recentWinnersList');
+  if (ovList) {
+    if (!_winnersCache.length) {
+      ovList.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:16px;">No winners yet</div>';
+    } else {
+      ovList.innerHTML = _winnersCache.slice(0, 8).map(_renderOverviewWinnerRow).join('');
+    }
+  }
+}
+
+function _renderGwWinnerRow(w) {
+  const time = w.drawnAt ? new Date(w.drawnAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+  const meta = [];
+  if (w.wager) meta.push(`$${Number(w.wager).toLocaleString()}`);
+  if (time) meta.push(time);
+  const lookupEntry = { kickKey: w.kickKey || (w.username || '').toLowerCase(), username: w.username, avatarUrl: w.avatarUrl };
+  const badges = _gwBadgesFor(lookupEntry);
+  const classes = ['gw-entry', 'gw-winner-row'];
+  if (badges.rowClass) classes.push(badges.rowClass);
+  return `<div class="${classes.join(' ')}" data-id="${escHtml(w.id)}" data-key="${escHtml(lookupEntry.kickKey)}">
+    ${gwAvatarHtml(lookupEntry)}
+    <div class="gw-name"><span class="gw-name-text" style="cursor:pointer;" title="View ${escHtml(w.username || '')}'s profile — click to vet" onclick="openViewerProfile('${escHtml(w.username || '')}')">🏆 @${escHtml(w.username || '?')}</span>${badges.html}</div>
+    <div class="gw-meta">${meta.join(' · ')}</div>
+    <button class="gw-row-remove" onclick="gwRemoveWinnerFromPool(this)" title="Remove from giveaway pool — they can't be drawn again">🚫</button>
+    <button class="gw-row-remove" onclick="gwRemoveWinner(this)" title="Remove this winner from the list">×</button>
+  </div>`;
+}
+
+function _renderOverviewWinnerRow(w) {
+  const time = w.drawnAt ? new Date(w.drawnAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+  const isRaffle = w.type === 'raffle';
+  const icon = isRaffle ? '🎰' : '🏆';
+  const sub  = isRaffle && w.slotName
+    ? `<div style="font-size:10px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(w.slotName)}</div>`
+    : '';
+  return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg-card);border-radius:6px;">
+    <span style="font-size:14px;flex-shrink:0;">${icon}</span>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:12px;color:var(--bright);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">@${escHtml(w.username || '?')}</div>
+      ${sub}
+    </div>
+    <span style="font-size:10px;color:var(--text-dim);flex-shrink:0;">${time}</span>
+  </div>`;
+}
+
+// Persist a newly drawn winner to Firestore. Snapshot listener will re-render
+// both the Giveaway right column and the Overview card.
+function _writeWinnerLog({ type, username, avatarUrl, wager, slotName }) {
+  const uid = fb.activeUid;
+  if (!uid || !username) return;
+  fb.db.collection('streamers').doc(uid)
+    .collection('winners_log').add({
+      type:      type || 'giveaway',
+      username,
+      kickKey:   String(username).toLowerCase(),
+      avatarUrl: avatarUrl || null,
+      wager:     wager || 0,
+      slotName:  slotName || null,
+      drawnAt:   Date.now(),
+    })
+    .catch(err => console.warn('[winners_log] write failed:', err.message));
+}
+
+// Back-compat wrapper — older code paths still call addRecentWinner. Funnel
+// through the new Firestore write so the snapshot listener handles render.
+function addRecentWinner(arg) {
+  const e = typeof arg === 'string' ? { username: arg } : arg;
+  _writeWinnerLog({ type: 'giveaway', username: e.username, avatarUrl: e.avatarUrl, wager: e.wager });
+}
+
+// Wipe the right-column Winners list (giveaway picks only — raffle winners
+// still show in the Overview) AND stop the chat watcher. Now batch-deletes
+// from Firestore so the change persists across refresh.
+async function clearWinners() {
+  const uid = fb.activeUid;
+  if (!uid) return;
+  try {
+    const snap = await fb.db.collection('streamers').doc(uid)
+      .collection('winners_log').where('type', '==', 'giveaway').get();
+    if (snap.empty) return;
+    const batch = fb.db.batch();
+    snap.docs.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+  } catch (err) {
+    console.warn('[winners_log] clear failed:', err.message);
+  }
+  _gwClearWinnerWatcher();
+  // Snapshot listener re-renders empty automatically.
+}
+
+// Remove a single winner row (× button). Deletes the Firestore doc; the
+// snapshot listener re-renders. If the removed row was the topmost (newest),
+// also clear the chat watcher — the watcher always tracks the most recent
+// pick, so removing it means there's nothing to watch anymore.
+async function gwRemoveWinner(btn) {
+  const row = btn && btn.closest && btn.closest('.gw-winner-row');
+  if (!row) return;
+  const docId = row.getAttribute('data-id');
+  const list = document.getElementById('gwWinnersList');
+  const wasTop = list && list.firstElementChild === row;
+  if (!docId) return;
+  // Optimistic dim while the Firestore delete is in flight.
+  row.style.opacity = '0.35';
+  row.style.pointerEvents = 'none';
+  const uid = fb.activeUid;
+  if (!uid) return;
+  try {
+    await fb.db.collection('streamers').doc(uid).collection('winners_log').doc(docId).delete();
+  } catch (err) {
+    row.style.opacity = '';
+    row.style.pointerEvents = '';
+    flash('Failed to remove', 'error');
+    return;
+  }
+  if (wasTop) _gwClearWinnerWatcher();
+}
+
+// Streamer-initiated removal of a participant from the giveaway. Runs in a
+// Firestore transaction so a concurrent !join from the bot can't sneak in
+// between read and write. The entries listener will re-render once Firestore
+// syncs — we fade the row in the meantime so the click feels immediate.
+async function gwRemoveParticipant(btn) {
+  const row = btn && btn.closest && btn.closest('.gw-entry');
+  if (!row) return;
+  const key = row.getAttribute('data-key');
+  if (!key) return;
+  const uid = fb.activeUid;
+  if (!uid) return;
+  row.style.opacity = '0.35';
+  row.style.pointerEvents = 'none';
+  try {
+    const ref = fb.db.collection('streamers').doc(uid).collection('giveaway_state').doc('snapshot');
+    await fb.db.runTransaction(async (txn) => {
+      const doc = await txn.get(ref);
+      const data = doc.data() || {};
+      const oldEntries = Array.isArray(data.entries) ? data.entries : [];
+      const newEntries = oldEntries.filter(e => (e.kickKey || '').toLowerCase() !== key.toLowerCase());
+      txn.update(ref, { entries: newEntries });
+    });
+  } catch (err) {
+    row.style.opacity = '';
+    row.style.pointerEvents = '';
+    flash('Failed to remove entry', 'error');
+  }
+}
+
+// Remove a drawn winner from the ACTIVE giveaway pool so they can't be drawn
+// again on a subsequent spin. Their winners-list row stays (they did win) —
+// this only pulls their entry from the snapshot the spinner draws from.
+// Remove a participant from the live giveaway pool by their kickKey (lowercased
+// username). Returns true on success. Shared by the Winners-list 🚫 button and
+// the winner-reveal popup.
+async function _gwRemoveEntryByKey(key) {
+  const uid = fb.activeUid;
+  if (!uid || !key) return false;
+  try {
+    const ref = fb.db.collection('streamers').doc(uid).collection('giveaway_state').doc('snapshot');
+    await fb.db.runTransaction(async (txn) => {
+      const doc = await txn.get(ref);
+      const data = doc.data() || {};
+      const oldEntries = Array.isArray(data.entries) ? data.entries : [];
+      txn.update(ref, { entries: oldEntries.filter(e => (e.kickKey || '').toLowerCase() !== key.toLowerCase()) });
+    });
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+async function gwRemoveWinnerFromPool(btn) {
+  const row = btn && btn.closest && btn.closest('.gw-winner-row');
+  if (!row) return;
+  const key = row.getAttribute('data-key');
+  if (!key) return;
+  btn.disabled = true;
+  if (await _gwRemoveEntryByKey(key)) {
+    flash("Removed from the giveaway pool — they won't be drawn again.");
+    btn.textContent = '✓';
+    btn.title = 'Removed from pool';
+  } else {
+    btn.disabled = false;
+    flash('Failed to remove from pool', 'error');
+  }
+}
+
+// ── WINNER-REVEAL POPUP ──────────────────────────────────────────────────────
+// Pops up the moment a giveaway winner is drawn, offering a one-click "remove
+// from pool so they can't win again" (e.g. when re-spinning for more winners).
+let _gwWinnerPopupTimer = null;
+
+function showWinnerActionPopup(winner) {
+  const popup = document.getElementById('gwWinnerPopup');
+  if (!popup || !winner || !winner.username) return;
+  document.getElementById('gwWinnerPopupName').textContent = '@' + winner.username;
+  popup.setAttribute('data-key', winner.username.toLowerCase());
+  const btn = document.getElementById('gwWinnerPopupRemoveBtn');
+  if (btn) { btn.disabled = false; btn.textContent = "🚫 Remove — can't win again"; }
+  popup.style.display = 'block';
+  _positionWinnerPopup();
+  clearTimeout(_gwWinnerPopupTimer);
+  _gwWinnerPopupTimer = setTimeout(closeWinnerPopup, 15000);
+}
+
+// Float the card directly under the visible wheel/carousel. We anchor to the
+// spinner IFRAME's rect, which already reflects its CSS scale transform, so the
+// card hugs the bottom of the graphic the streamer actually sees. If the spinner
+// isn't visible (rect collapsed), we leave the card where it last sat instead of
+// clamping it to the bottom of the page (which used to drop it onto the chat).
+function _positionWinnerPopup() {
+  const popup = document.getElementById('gwWinnerPopup');
+  if (!popup || popup.style.display === 'none') return;
+  const frame = document.getElementById('gwSpinnerFrame');
+  const ov    = document.getElementById('gwSpinnerOverlay');
+  let r = frame && frame.getBoundingClientRect();
+  if (!r || r.width < 2 || r.height < 2) r = ov && ov.getBoundingClientRect();
+  if (!r || r.width < 2) return;
+  const pw = popup.offsetWidth  || 330;
+  const ph = popup.offsetHeight || 90;
+  let left = r.left + r.width / 2 - pw / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+  let top = r.bottom + 10;
+  // Never cover the winner's chat panel below it — if hugging the spinner's
+  // bottom would overlap the chat (e.g. the tall carousel style), pull the card
+  // up so it sits just above the chat instead.
+  const chat = document.getElementById('winnerChatPanel');
+  if (chat && chat.offsetParent !== null) {
+    const ct = chat.getBoundingClientRect().top;
+    if (top + ph > ct - 8) top = ct - ph - 8;
+  }
+  top = Math.max(8, top);
+  popup.style.left   = left + 'px';
+  popup.style.top    = top + 'px';
+  popup.style.bottom = 'auto';
+  popup.style.transform = 'none';
+}
+window.addEventListener('resize', _positionWinnerPopup);
+window.addEventListener('scroll', _positionWinnerPopup, true);
+
+function closeWinnerPopup() {
+  clearTimeout(_gwWinnerPopupTimer);
+  const popup = document.getElementById('gwWinnerPopup');
+  if (popup) popup.style.display = 'none';
+}
+
+async function gwPopupRemoveFromPool() {
+  const popup = document.getElementById('gwWinnerPopup');
+  const key = popup && popup.getAttribute('data-key');
+  const btn = document.getElementById('gwWinnerPopupRemoveBtn');
+  if (!key) return;
+  if (btn) btn.disabled = true;
+  if (await _gwRemoveEntryByKey(key)) {
+    if (btn) btn.textContent = "✓ Removed — won't be drawn again";
+    setTimeout(closeWinnerPopup, 1400);
+  } else {
+    if (btn) btn.disabled = false;
+    flash('Failed to remove from pool', 'error');
+  }
+}
+
+// Stop watching the previous winner's chat — closes the dashboard listener,
+// hides the chat panel, and clears the Firestore fields so the WenBotServer
+// stops capturing new messages for that user.
+function _gwClearWinnerWatcher() {
+  stopWinnerChatWatch();
+  const uid = fb.activeUid;
+  if (!uid) return;
+  fb.db.collection('streamers').doc(uid).update({
+    winnerWatch:     '',
+    winnerWatchName: '',
+    winnerWatchAt:   0,
+  }).catch(() => {});
 }
 
 function exportEntries() {
@@ -3845,29 +4885,133 @@ async function saveEarnRates() {
   flash('Earn rates saved!');
 }
 
+// ── Points: paginated viewer list + search + reset-all ──
+const POINTS_PAGE_SIZE = 25;
+let _pointsCursors   = []; // _pointsCursors[i] = last doc of page i (cursor into page i+1)
+let _pointsPage      = 0;
+let _pointsSearching = false;
+let _pointsSearchTimer = null;
+
+function _renderViewerRow(d, rank) {
+  const data = d.data();
+  const last = data.lastSeen ? new Date(data.lastSeen).toLocaleDateString() : '—';
+  const currency = profile?.currencyName || 'points';
+  const id = escHtml(d.id);
+  return `<tr>
+    <td style="color:var(--text-dim);">${rank != null ? rank : ''}</td>
+    <td class="td-highlight">${id}</td>
+    <td class="td-green">${(data.points||0).toLocaleString()} ${currency}</td>
+    <td style="color:var(--text-dim);">${last}</td>
+    <td style="display:flex;gap:4px;">
+      <button class="btn btn-ghost btn-sm" onclick="promptAddPoints('${id}')">+</button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="promptRemovePoints('${id}')">−</button>
+    </td>
+  </tr>`;
+}
+
 async function loadTopViewers() {
+  _pointsCursors = [];
+  _pointsPage = 0;
+  _pointsSearching = false;
+  const s = document.getElementById('pointsSearch'); if (s) s.value = '';
+  await _loadPointsPage(null);
+}
+
+async function _loadPointsPage(startAfterDoc) {
   const tbody = document.getElementById('topViewersTable');
-  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:16px;">Loading...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px;">Loading…</td></tr>';
   try {
-    const snap = await fb.db.collection('streamers').doc(fb.activeUid)
-      .collection('viewers').orderBy('points','desc').limit(20).get();
-    if (snap.empty) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px;">No data yet</td></tr>'; return; }
-    const currency = profile?.currencyName || 'points';
-    tbody.innerHTML = snap.docs.map((d,i) => {
-      const data = d.data();
-      const last = data.lastSeen ? new Date(data.lastSeen).toLocaleDateString() : '—';
-      return `<tr>
-        <td style="color:var(--text-dim);">${i+1}</td>
-        <td class="td-highlight">${d.id}</td>
-        <td class="td-green">${(data.points||0).toLocaleString()} ${currency}</td>
-        <td style="color:var(--text-dim);">${last}</td>
-        <td style="display:flex;gap:4px;">
-          <button class="btn btn-ghost btn-sm" onclick="promptAddPoints('${d.id}')">+</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="promptRemovePoints('${d.id}')">−</button>
-        </td>
-      </tr>`;
-    }).join('');
-  } catch(e) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--red);">Error loading</td></tr>'; }
+    const col = fb.db.collection('streamers').doc(fb.activeUid).collection('viewers');
+    let q = col.orderBy('points', 'desc').limit(POINTS_PAGE_SIZE + 1);
+    if (startAfterDoc) q = col.orderBy('points', 'desc').startAfter(startAfterDoc).limit(POINTS_PAGE_SIZE + 1);
+    const snap = await q.get();
+    if (snap.empty) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px;">No viewers yet</td></tr>';
+      _updatePointsPager(false); return;
+    }
+    const hasNext  = snap.docs.length > POINTS_PAGE_SIZE;
+    const pageDocs = hasNext ? snap.docs.slice(0, POINTS_PAGE_SIZE) : snap.docs;
+    const base     = _pointsPage * POINTS_PAGE_SIZE;
+    tbody.innerHTML = pageDocs.map((d, i) => _renderViewerRow(d, base + i + 1)).join('');
+    _pointsCursors[_pointsPage] = pageDocs[pageDocs.length - 1];
+    _updatePointsPager(hasNext);
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--red);">Error loading</td></tr>';
+  }
+}
+
+function _updatePointsPager(hasNext) {
+  const pager = document.getElementById('pointsPager');
+  if (!pager) return;
+  pager.style.display = _pointsSearching ? 'none' : 'flex';
+  const prev = document.getElementById('pointsPrevBtn');
+  const next = document.getElementById('pointsNextBtn');
+  const info = document.getElementById('pointsPageInfo');
+  if (prev) prev.disabled = _pointsPage === 0;
+  if (next) next.disabled = !hasNext;
+  if (info) info.textContent = `Page ${_pointsPage + 1}`;
+}
+
+function pointsNextPage() {
+  const cursor = _pointsCursors[_pointsPage];
+  if (!cursor) return;
+  _pointsPage++;
+  _loadPointsPage(cursor);
+}
+function pointsPrevPage() {
+  if (_pointsPage === 0) return;
+  _pointsPage--;
+  _loadPointsPage(_pointsPage === 0 ? null : _pointsCursors[_pointsPage - 1]);
+}
+
+function onPointsSearch() {
+  const term = (document.getElementById('pointsSearch').value || '').trim().toLowerCase();
+  clearTimeout(_pointsSearchTimer);
+  if (!term) { loadTopViewers(); return; }
+  _pointsSearchTimer = setTimeout(() => _runPointsSearch(term), 250);
+}
+
+async function _runPointsSearch(term) {
+  _pointsSearching = true;
+  const tbody = document.getElementById('topViewersTable');
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px;">Searching…</td></tr>';
+  _updatePointsPager(false);
+  try {
+    // Viewer doc IDs are the lowercased username — prefix-match on the doc id.
+    const docId = firebase.firestore.FieldPath.documentId();
+    const snap = await fb.db.collection('streamers').doc(fb.activeUid).collection('viewers')
+      .orderBy(docId).startAt(term).endAt(term + '').limit(25).get();
+    if (snap.empty) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px;">No viewer matching "${escHtml(term)}"</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = snap.docs.map(d => _renderViewerRow(d, null)).join('');
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--red);">Search error</td></tr>';
+  }
+}
+
+async function nukeAllPoints() {
+  const currency = profile?.currencyName || 'points';
+  if (!confirm(`⚠️ This resets EVERY viewer's ${currency} to 0. This cannot be undone.\n\nContinue?`)) return;
+  const typed = prompt('Type RESET (all caps) to confirm:');
+  if (typed !== 'RESET') { flash('Cancelled — confirmation text did not match.', 'error'); return; }
+  flash('Resetting all points…');
+  try {
+    const snap = await fb.db.collection('streamers').doc(fb.activeUid).collection('viewers').get();
+    const docs = snap.docs.filter(d => (d.data().points || 0) !== 0);
+    let count = 0;
+    for (let i = 0; i < docs.length; i += 400) {
+      const batch = fb.db.batch();
+      docs.slice(i, i + 400).forEach(d => { batch.update(d.ref, { points: 0 }); count++; });
+      await batch.commit();
+    }
+    logAction('points_nuke_all', { count });
+    flash(`Reset ${count.toLocaleString()} viewer${count !== 1 ? 's' : ''} to 0 ${currency}.`);
+    loadTopViewers();
+  } catch (e) {
+    flash('Failed to reset: ' + e.message, 'error');
+  }
 }
 
 function promptAddPoints(username) {
@@ -4066,7 +5210,7 @@ async function clearGTBSession() {
 
 // ── COMMANDS ──
 
-const ALIAS_KEYS = ['pts','pgive','ptop','prank','request','store','redeem','buy'];
+const ALIAS_KEYS = ['pts','pgive','ptop','prank','request','store','buy'];
 
 function loadCommandAliases() {
   const aliases = profile?.commandAliases || {};
@@ -4087,16 +5231,19 @@ async function saveCommandAliases() {
 }
 
 async function addCommand() {
-  const trigger  = document.getElementById('newCmdTrigger').value.trim();
+  let trigger    = document.getElementById('newCmdTrigger').value.trim().toLowerCase();
   const response = document.getElementById('newCmdResponse').value.trim();
   const cooldown = parseInt(document.getElementById('newCmdCooldown').value) || 30;
   const modOnly  = document.getElementById('newCmdModOnly').checked;
   if (!trigger || !response) { flash('Fill in trigger and response.', 'error'); return; }
+  if (!trigger.startsWith('!')) trigger = '!' + trigger; // normalize so the bot matches it
   await fb.db.collection('streamers').doc(fb.activeUid)
-    .collection('commands').doc(trigger).set({ trigger, response, cooldown, modOnly, createdAt: Date.now() });
+    .collection('commands').doc(trigger).set({ trigger, response, cooldown, modOnly, enabled: true, createdAt: Date.now() });
+  // Nudge the bot to reload commands now (it also refreshes on a 3-min timer).
+  await fb.db.collection('streamers').doc(fb.activeUid).update({ commandsUpdatedAt: Date.now() }).catch(() => {});
   document.getElementById('newCmdTrigger').value = '';
   document.getElementById('newCmdResponse').value = '';
-  flash('Command added!');
+  flash('Command added! Bot will pick it up within seconds.');
   loadCommands();
 }
 
@@ -4118,6 +5265,7 @@ async function loadCommands() {
 
 async function deleteCommand(id) {
   await fb.db.collection('streamers').doc(fb.activeUid).collection('commands').doc(id).delete();
+  await fb.db.collection('streamers').doc(fb.activeUid).update({ commandsUpdatedAt: Date.now() }).catch(() => {});
   flash('Command deleted.');
   loadCommands();
 }
@@ -4376,6 +5524,117 @@ function loadPortalSettings() {
     const chEl = document.getElementById('portalUpgradeChannel');
     if (chEl) chEl.textContent = channel || 'yourchannel';
   }
+
+  loadWlBranding();
+}
+
+// ── WHITE-LABEL BRANDING (agency / owner) ──
+// Writes profile.portal (theme palette, logo, tagline). Mirrors buildPortalConfig
+// in netlify/functions/portal-data.js. Visible only to white-label-eligible
+// accounts; the owner (switched into any streamer) can also grant the flag.
+let _wlLogoUrl = null;
+let _wlBgImage = null;
+
+// Full theme/branding editor — an Elite+ perk, plus any white-label override
+// (owner / agency / manual whiteLabel flag).
+function wlEligible() {
+  return isOwnerAcct
+    || profile?.whiteLabel === true
+    || (PLAN_RANK[userPlan] ?? 0) >= PLAN_RANK['elite'];
+}
+
+function loadWlBranding() {
+  const block = document.getElementById('wlBrandingBlock');
+  if (!block) return;
+  if (!wlEligible()) { block.style.display = 'none'; return; }
+  block.style.display = '';
+
+  // The full palette supersedes the old single accent picker — hide that field
+  // for eligible streamers so there aren't two competing color controls.
+  const singleColorField = document.getElementById('portalThemeColor')?.closest('.field');
+  if (singleColorField) singleColorField.style.display = 'none';
+
+  const p = profile?.portal || {};
+  const t = p.theme || {};
+  const setC = (id, val, def) => {
+    const el = document.getElementById(id); if (!el) return;
+    const v = val || def; el.value = v;
+    const lab = document.getElementById(id + 'Val'); if (lab) lab.textContent = v;
+  };
+  setC('wlAccent',  t.accent,  '#a855f7');
+  setC('wlAccent2', t.accent2, '#3fbdf5');
+  setC('wlGold',    t.gold,    '#f5c518');
+  setC('wlBg',      t.bg,      '#08070d');
+  setC('wlBgCard',  t.bgCard,  '#13111c');
+  document.getElementById('wlTagline').value = p.hero?.tagline || '';
+
+  _wlLogoUrl = p.logoUrl || null;
+  const prev = document.getElementById('wlLogoPreview');
+  const lClr = document.getElementById('wlLogoClear');
+  if (_wlLogoUrl) { prev.src = _wlLogoUrl; prev.style.display = ''; if (lClr) lClr.style.display = ''; }
+  else { prev.style.display = 'none'; if (lClr) lClr.style.display = 'none'; }
+
+  _wlBgImage = p.bgImage || null;
+  const bgPrev = document.getElementById('wlBgPreview');
+  const bgClr  = document.getElementById('wlBgClear');
+  if (_wlBgImage) { bgPrev.src = _wlBgImage; bgPrev.style.display = ''; bgClr.style.display = ''; }
+  else { bgPrev.style.display = 'none'; bgClr.style.display = 'none'; }
+
+  const en = document.getElementById('wlEnabled');
+  if (en) en.checked = profile?.whiteLabel === true;
+}
+
+async function wlUploadLogo(file) {
+  if (!file) return;
+  const status = document.getElementById('wlLogoStatus');
+  status.textContent = 'Uploading…';
+  try {
+    const safe = file.name.replace(/[^a-z0-9._-]/gi, '_');
+    const ref  = fb.storage.ref(`portal/${fb.activeUid}/logo_${Date.now()}_${safe}`);
+    await ref.put(file);
+    _wlLogoUrl = await ref.getDownloadURL();
+    const prev = document.getElementById('wlLogoPreview');
+    prev.src = _wlLogoUrl; prev.style.display = '';
+    status.textContent = 'Uploaded ✓';
+  } catch (e) {
+    status.textContent = 'Upload failed';
+    flash('Logo upload failed: ' + (e.message || e), 'error');
+  }
+}
+
+async function wlUploadBg(file) {
+  if (!file) return;
+  const status = document.getElementById('wlBgStatus');
+  status.textContent = 'Uploading…';
+  try {
+    const safe = file.name.replace(/[^a-z0-9._-]/gi, '_');
+    const ref  = fb.storage.ref(`portal/${fb.activeUid}/bg_${Date.now()}_${safe}`);
+    await ref.put(file);
+    _wlBgImage = await ref.getDownloadURL();
+    const prev = document.getElementById('wlBgPreview');
+    prev.src = _wlBgImage; prev.style.display = '';
+    document.getElementById('wlBgClear').style.display = '';
+    status.textContent = 'Uploaded ✓';
+  } catch (e) {
+    status.textContent = 'Upload failed';
+    flash('Background upload failed: ' + (e.message || e), 'error');
+  }
+}
+
+function wlClearBg() {
+  _wlBgImage = null;
+  document.getElementById('wlBgPreview').style.display = 'none';
+  document.getElementById('wlBgClear').style.display = 'none';
+  document.getElementById('wlBgFile').value = '';
+  document.getElementById('wlBgStatus').textContent = 'Removed (Save to apply)';
+}
+
+function wlClearLogo() {
+  _wlLogoUrl = null;
+  document.getElementById('wlLogoPreview').style.display = 'none';
+  document.getElementById('wlLogoClear').style.display = 'none';
+  document.getElementById('wlLogoFile').value = '';
+  document.getElementById('wlLogoStatus').textContent = 'Removed (Save to apply)';
 }
 
 function resetPortalTheme() {
@@ -4412,8 +5671,31 @@ async function savePortalSettings() {
     payload.themeColor = document.getElementById('portalThemeColor').value || null;
   }
 
+  // White-label branding → profile.portal (read by buildPortalConfig server-side).
+  if (wlEligible()) {
+    payload.portal = {
+      ...(profile?.portal || {}),
+      theme: {
+        accent:  document.getElementById('wlAccent').value,
+        accent2: document.getElementById('wlAccent2').value,
+        gold:    document.getElementById('wlGold').value,
+        bg:      document.getElementById('wlBg').value,
+        bgCard:  document.getElementById('wlBgCard').value,
+      },
+      logoUrl: _wlLogoUrl || null,
+      bgImage: _wlBgImage || null,
+      hero: {
+        ...((profile?.portal || {}).hero || {}),
+        tagline: document.getElementById('wlTagline').value.trim() || null,
+      },
+    };
+    // Owner can grant/revoke white-label for the streamer they're editing.
+    if (isOwnerAcct) payload.whiteLabel = document.getElementById('wlEnabled').checked;
+  }
+
   try {
     await saveStreamerProfile(payload);
+    if (profile) { if (payload.portal) profile.portal = payload.portal; if ('whiteLabel' in payload) profile.whiteLabel = payload.whiteLabel; }
     flash('Portal settings saved!');
   } catch (e) {
     flash('Save failed: ' + (e.message || e), 'error');
@@ -4549,8 +5831,9 @@ async function loadLeaderboards() {
     : pSnap.docs.map((d,i) => `
       <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(48,54,61,0.4);">
         <span style="color:var(--text-dim);font-size:12px;width:20px;text-align:right;">${i+1}</span>
-        <span style="flex:1;color:var(--bright);font-weight:500;">${d.id}</span>
+        <span style="flex:1;color:var(--bright);font-weight:500;">${escHtml(d.id)}</span>
         <span style="color:var(--green);font-weight:600;font-size:12px;">${(d.data().points||0).toLocaleString()} ${currency}</span>
+        <button onclick="removePointsUser('${String(d.id).replace(/'/g,"\\'")}')" title="Reset this viewer's ${currency} to 0" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 2px;line-height:1;opacity:0.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">✕</button>
       </div>`).join('');
 
   // Wager leaderboard — live from casino API
@@ -4565,13 +5848,28 @@ async function loadLeaderboards() {
   try {
     const resp = await fetch(`/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1`);
     const data = await resp.json();
+    const excluded = (profile?.leaderboardPeriod?.excluded || []);
     if (data.rankings && data.rankings.length > 0) {
-      document.getElementById('wagerLeaderboard').innerHTML = data.rankings.slice(0, 15).map((e, i) => `
+      const rows = data.rankings.slice(0, 15).map((e, i) => {
+        const key = _lbPeriodKey(e);
+        const nm  = String(e.username).replace(/'/g, "\\'");
+        const xBtn = key
+          ? `<button onclick="excludeLbUser('${key}','${nm}')" title="Remove from leaderboard permanently" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 2px;line-height:1;opacity:0.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">✕</button>`
+          : `<span title="Anonymous on the casino API — can't be removed individually" style="width:16px;display:inline-block;"></span>`;
+        return `
         <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(48,54,61,0.4);">
           <span style="color:var(--text-dim);font-size:12px;width:20px;text-align:right;font-weight:700;">${e.rank}</span>
-          <span style="flex:1;color:var(--bright);font-weight:500;">${e.username}</span>
+          <span style="flex:1;color:var(--bright);font-weight:500;">${escHtml(e.username)}</span>
           <span style="color:var(--green);font-weight:600;font-size:12px;">$${Number(e.wagered).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
-        </div>`).join('');
+          ${xBtn}
+        </div>`;
+      }).join('');
+      const removedBar = excluded.length
+        ? `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0 2px;font-size:11px;color:var(--text-dim);">
+             <span>${excluded.length} user${excluded.length===1?'':'s'} removed from the leaderboard</span>
+             <button onclick="clearLbExclusions()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;padding:0;">Restore all</button>
+           </div>` : '';
+      document.getElementById('wagerLeaderboard').innerHTML = rows + removedBar;
     } else {
       document.getElementById('wagerLeaderboard').innerHTML = `<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">${data.error || 'No wager data yet. Make sure your API key is configured in Settings.'}</div>`;
     }
@@ -4592,7 +5890,229 @@ function updatePublicLbCard() {
   if (enabled) {
     document.getElementById('lbPublicUrl').textContent = url;
     document.getElementById('lbOpenLink').href = url;
+    renderLeaderboardPeriodUI();
   }
+}
+
+// ── LEADERBOARD PERIOD / TIMER ──────────────────────────────────────────────
+// Streamers pick a cadence (weekly / bi-weekly / monthly); the public page shows
+// a live countdown to the period end. When it expires, the bot snapshots the
+// standings into Past Winners (with the date range) and either rolls to the next
+// period (auto-renew) or stops.
+function computePeriodEnd(startMs, duration) {
+  const d = new Date(startMs);
+  if (duration === 'weekly')        d.setDate(d.getDate() + 7);
+  else if (duration === 'biweekly') d.setDate(d.getDate() + 14);
+  else                              d.setMonth(d.getMonth() + 1); // monthly (calendar)
+  return d.getTime();
+}
+
+// The selected duration (just the UI choice — Start actually begins the period).
+let _lbSelectedDuration = null;
+
+// Stable key for baseline/removal matching — must mirror periodKey() in
+// netlify/functions/leaderboard-live.js. Prefer the provider user id; fall back
+// to a non-anonymous name. Anonymous users with no id aren't trackable.
+function _lbPeriodKey(e) {
+  if (e.uid != null && e.uid !== '') return 'id:' + e.uid;
+  const name = (e.username || '').toLowerCase();
+  if (name && name !== 'anonymous') return 'nm:' + name;
+  return null;
+}
+
+function selectLbDuration(duration) {
+  _lbSelectedDuration = duration;
+  ['weekly', 'biweekly', 'monthly', 'custom'].forEach(key => {
+    const btn = document.getElementById('lbDur_' + key);
+    if (btn) btn.classList.toggle('active', key === duration);
+  });
+  const custom = document.getElementById('lbCustomDates');
+  if (custom) custom.style.display = duration === 'custom' ? 'flex' : 'none';
+  const tz = document.getElementById('lbTzLabel');
+  if (tz && duration === 'custom') {
+    try { tz.textContent = 'your local time (' + Intl.DateTimeFormat().resolvedOptions().timeZone + ')'; } catch {}
+  }
+}
+
+// Start a fresh leaderboard period. This BASELINES every viewer's current wager
+// to 0 (we snapshot the raw casino totals and store them as `baselines`), so the
+// public board only counts wagering from this moment until the period ends.
+async function startLeaderboard() {
+  const channel = profile?.kickChannel;
+  const casino  = profile?.activeProvider || profile?.casino || 'gambulls';
+  if (!channel) { flash('Set your Kick channel in Settings first.', 'error'); return; }
+
+  const duration = _lbSelectedDuration || profile?.leaderboardPeriod?.duration || 'weekly';
+
+  const now = Date.now();
+  let startAt = now, endAt;
+  if (duration === 'custom') {
+    // datetime-local values look like "2026-05-31T18:30" and parse as local time.
+    const sv = (document.getElementById('lbCustomStart').value || '').trim();
+    const ev = (document.getElementById('lbCustomEnd').value || '').trim();
+    if (!ev) { flash('Pick an end date & time for the custom period.', 'error'); return; }
+    startAt = sv ? new Date(sv).getTime() : now;
+    endAt   = new Date(ev).getTime();
+    if (isNaN(endAt)) { flash('That end date & time is invalid.', 'error'); return; }
+    if (endAt <= startAt) { flash('End must be after the start.', 'error'); return; }
+  } else {
+    endAt = computePeriodEnd(now, duration);
+  }
+
+  if (!confirm(
+    `Start a new ${_lbDurationLabel(duration)} leaderboard period?\n\n` +
+    `⚠️ This RESETS the board to 0 — everyone's current wager becomes their baseline, ` +
+    `so only wagering from now on counts. The current standings are replaced.`
+  )) return;
+
+  flash('Capturing baselines…');
+  // Snapshot the RAW (unbaselined) casino totals as the new baseline.
+  let baselines = {};
+  try {
+    const resp = await fetch(`/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1&raw=1`);
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'fetch failed');
+    // Key baselines by the stable per-user id (NOT the display name — anonymous
+    // users all share "Anonymous"). Untrackable users are skipped.
+    (data.rankings || []).forEach(e => { const k = _lbPeriodKey(e); if (k) baselines[k] = e.wagered || 0; });
+  } catch (e) {
+    flash('Failed to capture baselines: ' + e.message, 'error');
+    return;
+  }
+
+  const prev = profile?.leaderboardPeriod || {};
+  const lp = {
+    duration,
+    startAt,
+    endAt,
+    // Custom (fixed-date) periods don't auto-renew; presets default to the prior choice (on).
+    autoRenew: duration !== 'custom' && prev.autoRenew !== false,
+    active:    true,
+    baselines,
+    excluded:  [], // a fresh Start clears any prior removals
+    // Month the baselines were captured in (UTC). The bot scheduler uses this to
+    // bank carryover when a period spans a casino month-reset, so the board
+    // doesn't wipe at the boundary. Cleared snapshots start fresh.
+    anchorMonth:  new Date().toISOString().slice(0, 7),
+    carryover:    {},
+    liveSnapshot: {},
+    carryMonth:   new Date().toISOString().slice(0, 7),
+  };
+  await saveStreamerProfile({ leaderboardPeriod: lp });
+  if (profile) profile.leaderboardPeriod = lp;
+  renderLeaderboardPeriodUI();
+  if (typeof loadLeaderboards === 'function') loadLeaderboards();
+  flash(`Leaderboard started — board reset to 0 (${_lbDurationLabel(duration)}).`);
+}
+
+async function toggleLeaderboardAutoRenew() {
+  const lp = { ...(profile?.leaderboardPeriod || {}) };
+  if (!lp.duration) return; // nothing running yet
+  lp.autoRenew = document.getElementById('lbAutoRenew').checked;
+  await saveStreamerProfile({ leaderboardPeriod: lp });
+  if (profile) profile.leaderboardPeriod = lp;
+  renderLeaderboardPeriodUI();
+}
+
+async function stopLeaderboardTimer() {
+  const lp = { ...(profile?.leaderboardPeriod || {}) };
+  if (!lp.duration) return;
+  lp.active = false;
+  await saveStreamerProfile({ leaderboardPeriod: lp });
+  if (profile) profile.leaderboardPeriod = lp;
+  renderLeaderboardPeriodUI();
+  flash('Leaderboard period stopped.');
+}
+
+function _lbDurationLabel(d) {
+  return d === 'weekly' ? '1 Week' : d === 'biweekly' ? 'Bi-weekly' : d === 'custom' ? 'Custom' : 'Monthly';
+}
+
+function renderLeaderboardPeriodUI() {
+  const lp = profile?.leaderboardPeriod || null;
+  const active = !!(lp && lp.active && lp.duration);
+
+  // Reflect the running period as the selected button (unless the user is mid-pick).
+  if (active && _lbSelectedDuration === null) _lbSelectedDuration = lp.duration;
+  ['weekly', 'biweekly', 'monthly', 'custom'].forEach(key => {
+    const btn = document.getElementById('lbDur_' + key);
+    if (btn) btn.classList.toggle('active', _lbSelectedDuration === key);
+  });
+  const customWrap = document.getElementById('lbCustomDates');
+  if (customWrap) customWrap.style.display = _lbSelectedDuration === 'custom' ? 'flex' : 'none';
+
+  const auto = document.getElementById('lbAutoRenew');
+  if (auto) auto.checked = !!(lp && lp.autoRenew);
+
+  const stopBtn = document.getElementById('lbStopTimerBtn');
+  if (stopBtn) stopBtn.style.display = active ? '' : 'none';
+
+  const status = document.getElementById('lbPeriodStatus');
+  if (status) {
+    if (!active) {
+      status.textContent = 'No period running — pick a length and Start.';
+    } else {
+      const ms = lp.endAt - Date.now();
+      const ends = new Date(lp.endAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+      const exCount = (lp.excluded || []).length;
+      const exNote  = exCount ? ` · <span style="color:var(--red);">${exCount} removed</span>` : '';
+      if (ms <= 0) {
+        status.innerHTML = `<span style="color:var(--orange);">${_lbDurationLabel(lp.duration)} period ended — finalizing…</span>${exNote}`;
+      } else {
+        const days  = Math.floor(ms / 86400000);
+        const hours = Math.floor((ms % 86400000) / 3600000);
+        const left  = days >= 1 ? `${days}d ${hours}h` : `${hours}h ${Math.floor((ms % 3600000) / 60000)}m`;
+        status.innerHTML = `<span style="color:var(--bright);font-weight:600;">${_lbDurationLabel(lp.duration)}</span> · ends ${ends} <span style="color:var(--accent);">(${left} left)</span>${exNote}`;
+      }
+    }
+  }
+}
+
+// Permanently remove a viewer from the current leaderboard period. They stay out
+// even if they keep wagering (the public board filters `excluded`), until the
+// streamer restores them or starts a new period.
+async function excludeLbUser(key, displayName) {
+  if (!key) { flash("This user is anonymous on the casino's API and can't be removed individually.", 'error'); return; }
+  const who = displayName || key;
+  const lp = { ...(profile?.leaderboardPeriod || {}) };
+  if (!confirm(`Remove ${who} from the leaderboard?\n\nThey'll stay off the board even if they keep wagering, until you restore them.`)) return;
+  const excluded = Array.isArray(lp.excluded) ? lp.excluded.slice() : [];
+  if (!excluded.includes(key)) excluded.push(key);
+  lp.excluded = excluded;
+  await saveStreamerProfile({ leaderboardPeriod: lp });
+  if (profile) profile.leaderboardPeriod = lp;
+  if (typeof logAction === 'function') logAction('leaderboard_exclude', { key, username: who });
+  renderLeaderboardPeriodUI();
+  loadLeaderboards();
+  flash(`${who} removed from the leaderboard.`);
+}
+
+// Reset a single viewer's points to 0 (drops them off the points leaderboard).
+async function removePointsUser(username) {
+  const cur = profile?.currencyName || 'points';
+  if (!confirm(`Reset ${username}'s ${cur} to 0?\n\nThis removes them from the points leaderboard. Their balance is set to 0.`)) return;
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid)
+      .collection('viewers').doc(username).set({ points: 0 }, { merge: true });
+    if (typeof logAction === 'function') logAction('points_reset_user', { username });
+    loadLeaderboards();
+    if (typeof loadTopViewers === 'function') loadTopViewers();
+    flash(`${username}'s ${cur} reset to 0.`);
+  } catch (e) {
+    flash('Failed to reset: ' + e.message, 'error');
+  }
+}
+
+async function clearLbExclusions() {
+  const lp = { ...(profile?.leaderboardPeriod || {}) };
+  if (!lp.excluded || !lp.excluded.length) return;
+  if (!confirm('Restore all removed users to the leaderboard?')) return;
+  lp.excluded = [];
+  await saveStreamerProfile({ leaderboardPeriod: lp });
+  if (profile) profile.leaderboardPeriod = lp;
+  renderLeaderboardPeriodUI();
+  loadLeaderboards();
+  flash('All removed users restored.');
 }
 
 async function activateLeaderboard() {
@@ -4927,10 +6447,11 @@ async function submitFinalize() {
 const OS_OVERLAYS = [
   { id:'bonushunt',   name:'Bonus Hunt',     icon:'🎰', tag:'hunting',    desc:'Live tracker — progress, stats, and full slot list.',       path:'/overlay-bonus-hunt.html',    obsW:500,  obsH:700,  demo:true,  header:'🎰 Bonus Hunt',          note:'Width: 500px recommended.' },
   { id:'slotreqs',    name:'Slot Requests',  icon:'📋', tag:'hunting',    desc:'Scrolling queue of viewer !r requests in real time.',        path:'/overlay-slot-requests.html', obsW:360,  obsH:500,  demo:true,  header:'🎰 Slot Requests',       note:'Width: 360px recommended.' },
-  { id:'slotpicker',  name:'Slot Picker',    icon:'🎲', tag:'hunting',    desc:'Horizontal carousel that spins through slots and lands on the pick.', path:'/overlay-slot-picker.html',   obsW:560,  obsH:380,  demo:true,  header:'🎰 Random Slot Picker',  note:'Width: 560, height: 380.' },
-  { id:'reqspinner',  name:'Request Raffle', icon:'🎡', tag:'hunting',    desc:'Spins through pending slot-request viewers and lands on @user + their slot.', path:'/overlay-request-spinner.html', obsW:560,  obsH:380,  demo:true,  header:'🎰 Slot Request Draw',  note:'Width: 560, height: 380.' },
+  { id:'slotpicker',  name:'Slot Picker',    icon:'🎲', tag:'hunting',    desc:'Horizontal carousel that spins through slots and lands on the pick.', path:'/overlay-slot-picker.html',   obsW:560,  obsH:380,  demo:true,  hasWinnerReveal:true, header:'🎰 Random Slot Picker',  note:'Width: 560, height: 380.' },
+  { id:'reqspinner',  name:'Request Raffle', icon:'🎡', tag:'hunting',    desc:'Spins through pending slot-request viewers and lands on @user + their slot.', path:'/overlay-request-spinner.html', obsW:560,  obsH:380,  demo:true,  hasWinnerReveal:true, header:'🎰 Slot Request Draw',  note:'Width: 560, height: 380.' },
+  { id:'gwspinner',   name:'Giveaway Carousel', icon:'🎲', tag:'giveaway', desc:'Horizontal carousel with Kick avatars that scrolls and lands on the winner.', path:'/overlay-giveaway-spinner.html', obsW:560, obsH:380, demo:true, hasWinnerReveal:true, header:'🎁 Giveaway Winner', note:'Width: 560, height: 380.' },
   { id:'wheel',       name:'Giveaway Wheel', icon:'🎡', tag:'giveaway',   desc:'Spinning wheel with participants as segments.',             path:'/overlay-wheel.html',         obsW:800,  obsH:800,  demo:true,  header:null,                     note:'Best with 30 or fewer entries. Width: 800, height: 800.' },
-  { id:'winner',      name:'Winner Reveal',  icon:'🏆', tag:'giveaway',   desc:'Slot-machine-style animated winner announcement.',          path:'/overlay-winner.html',        obsW:1920, obsH:1080, demo:true,  header:'🎰 Giveaway Winner',     note:'Full-scene overlay. Width: 1920, height: 1080.' },
+  { id:'winner',      name:'Spinning Names', icon:'🎰', tag:'giveaway',   desc:'Slot-machine drum that scrolls viewer names and lands on the winner.', path:'/overlay-winner.html',        obsW:480,  obsH:440,  demo:true,  header:'🎰 Giveaway Winner',     note:'Width: 480, height: 440 (the machine itself is ~380px wide).' },
   { id:'entries',     name:'Entries Feed',   icon:'📝', tag:'giveaway',   desc:'Live scrolling list of entries as viewers join.',           path:'/overlay-giveaway.html',      obsW:440,  obsH:740,  demo:true,  header:'🎁 Giveaway Live',       note:'Width: 440, height: 740. The list scrolls inside the OBS source if entries overflow.' },
   { id:'bonusbattle', name:'Bonus Battle',   icon:'⚔️', tag:'battles',    desc:'Match display with live viewer vote counts and results.',   path:'/overlay-bonus-battle.html',  obsW:1920, obsH:1080, demo:true,  header:null,                     note:'Header comes from the battle title. Width: 1920, height: 1080.' },
   { id:'tournament',  name:'Tournament',     icon:'🏅', tag:'tournament', desc:'Live bracket — matchups and winners as they progress.',     path:'/overlay-tournament.html',    obsW:1920, obsH:1080, demo:true,  header:null,                     note:'Header comes from the tournament title. Width: 1920, height: 1080.' },
@@ -4951,6 +6472,11 @@ function osDefaultTheme(overlayId) {
     text:      '#ffffff',
     font:      'Inter',
     header:    (o && o.header) ? o.header : '',
+    // Winner-reveal customization for spinner overlays:
+    //   winner    — hex color used for the winner name + glow (default gold)
+    //   duration  — seconds the result panel stays visible after a spin (0 = forever)
+    winner:    '#ffd700',
+    duration:  10,
   };
 }
 
@@ -4958,6 +6484,62 @@ function osDefaultTheme(overlayId) {
 function osCur() {
   if (!osThemes[osSelectedId]) osThemes[osSelectedId] = osDefaultTheme(osSelectedId);
   return osThemes[osSelectedId];
+}
+
+// Seed osThemes with defaults + load saved overlay themes from Firestore.
+// Called once at dashboard init so every section's OBS link uses the same
+// theme params Overlay Studio uses — no surprise mismatches.
+let _osThemesLoaded = null; // Promise so concurrent callers share the work
+function osLoadThemesIfNeeded() {
+  if (_osThemesLoaded) return _osThemesLoaded;
+  OS_OVERLAYS.forEach(o => { if (!osThemes[o.id]) osThemes[o.id] = osDefaultTheme(o.id); });
+  if (!fb.activeUid) return Promise.resolve();
+  _osThemesLoaded = fb.db.collection('streamers').doc(fb.activeUid)
+    .collection('overlay_theme').doc('config').get()
+    .then(doc => {
+      if (!doc.exists) return;
+      const d = doc.data() || {};
+      if (d.overlays) {
+        OS_OVERLAYS.forEach(o => {
+          if (d.overlays[o.id]) osThemes[o.id] = Object.assign(osDefaultTheme(o.id), d.overlays[o.id]);
+        });
+      }
+    }).catch(() => {});
+  return _osThemesLoaded;
+}
+
+// Build an OBS overlay URL for a given catalog id, including the same theme
+// params Overlay Studio uses. Call after osLoadThemesIfNeeded() resolves so
+// custom themes are reflected (defaults work fine before that).
+function gwOverlayUrl(overlayId, opts) {
+  opts = opts || {};
+  const o = OS_OVERLAYS.find(x => x.id === overlayId);
+  if (!o) return '#';
+  const chan = profile?.kickChannel || '';
+  if (!chan) return '#';
+  const t = osThemes[overlayId] || osDefaultTheme(overlayId);
+  const p = new URLSearchParams();
+  p.set('channel', chan);
+  if (opts.demo)  p.set('demo',  '1');
+  // Embed mode skips Firestore polling — the parent dashboard talks to the
+  // iframe directly via postMessage. Only used for the in-page preview;
+  // never used for the "Copy OBS URL" link (which needs poll mode).
+  if (opts.embed) p.set('embed', '1');
+  p.set('accent', (t.accent || '#00e5ff').replace('#',''));
+  p.set('text',   (t.text   || '#ffffff').replace('#',''));
+  p.set('font',    t.font   || 'Inter');
+  if (t.bgMode === 'transparent') {
+    p.set('bg', 'transparent');
+  } else {
+    p.set('bg',  (t.bgColor || '#0d1117').replace('#',''));
+    p.set('bgo', (t.bgOpacity != null ? t.bgOpacity : 90));
+  }
+  if (o.header && t.header && t.header.trim()) p.set('header', t.header.trim());
+  if (o.hasWinnerReveal) {
+    if (t.winner)             p.set('winner',   t.winner.replace('#',''));
+    if (t.duration != null)   p.set('duration', t.duration);
+  }
+  return o.path + '?' + p.toString();
 }
 
 function loadOverlayStudio() {
@@ -5040,6 +6622,22 @@ function osSyncThemeUI() {
   document.getElementById('osTextSwatch').style.background = t.text;
   document.getElementById('osFont').value           = t.font;
   osSetTransparentUI(t.bgMode === 'transparent');
+
+  // Winner-reveal controls — only meaningful for spinner-style overlays
+  const o = OS_OVERLAYS.find(x => x.id === osSelectedId);
+  const winWrap = document.getElementById('osWinnerWrap');
+  if (winWrap) {
+    if (o && o.hasWinnerReveal) {
+      winWrap.style.display = '';
+      document.getElementById('osWinnerPicker').value = t.winner || '#ffd700';
+      document.getElementById('osWinnerHex').value    = t.winner || '#ffd700';
+      document.getElementById('osWinnerSwatch').style.background = t.winner || '#ffd700';
+      document.getElementById('osDurationSlider').value = (t.duration != null ? t.duration : 10);
+      document.getElementById('osDurationVal').textContent = (t.duration != null ? t.duration : 10);
+    } else {
+      winWrap.style.display = 'none';
+    }
+  }
 }
 
 function osSetTransparentUI(on) {
@@ -5068,6 +6666,12 @@ function osThemeParams() {
   }
   const o = OS_OVERLAYS.find(x => x.id === osSelectedId);
   if (o && o.header && t.header && t.header.trim()) p.set('header', t.header.trim());
+  // Winner-reveal params — only meaningful for spinner-style overlays. Other
+  // overlays ignore them harmlessly.
+  if (o && o.hasWinnerReveal) {
+    if (t.winner)   p.set('winner',   t.winner.replace('#',''));
+    if (t.duration != null) p.set('duration', t.duration);
+  }
   return p.toString();
 }
 
@@ -5189,6 +6793,27 @@ function osAccentHexInput(val) {
     document.getElementById('osAccentSwatch').style.background = val;
     osRefresh();
   }
+}
+// Winner reveal handlers — only fire for spinner-style overlays.
+function osWinnerChange(val) {
+  osCur().winner = val;
+  document.getElementById('osWinnerHex').value = val;
+  document.getElementById('osWinnerSwatch').style.background = val;
+  osRefresh();
+}
+function osWinnerHexInput(val) {
+  if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+    osCur().winner = val;
+    document.getElementById('osWinnerPicker').value = val;
+    document.getElementById('osWinnerSwatch').style.background = val;
+    osRefresh();
+  }
+}
+function osDurationChange(val) {
+  const n = Math.max(0, Math.min(15, parseInt(val, 10) || 0));
+  osCur().duration = n;
+  document.getElementById('osDurationVal').textContent = n;
+  osRefresh();
 }
 function osBgChange(val) {
   osCur().bgColor = val;
@@ -5607,12 +7232,14 @@ async function loadBonusHunt() {
   if (!fb.currentUser) return;
   const uid = fb.activeUid;
 
-  // Wire OBS links with channel
+  // Wire OBS links to the themed URL (same params Overlay Studio uses).
   const chan = profile?.kickChannel || '';
-  const obsEl = document.getElementById('bhOverlayLink');
-  const preEl = document.getElementById('bhPreviewLink');
-  if (obsEl && chan) obsEl.href = `/overlay-bonus-hunt.html?channel=${encodeURIComponent(chan)}`;
-  if (preEl && chan) preEl.href = `/overlay-bonus-hunt.html?channel=${encodeURIComponent(chan)}&demo=1`;
+  osLoadThemesIfNeeded().then(() => {
+    const obsEl = document.getElementById('bhOverlayLink');
+    const preEl = document.getElementById('bhPreviewLink');
+    if (obsEl && chan) obsEl.href = gwOverlayUrl('bonushunt');
+    if (preEl && chan) preEl.href = gwOverlayUrl('bonushunt', { demo: true });
+  });
 
   // Live listener so a mod's edits (added slot, marked played, etc.) appear on
   // the streamer's dashboard without a refresh. Previously a one-time .get().
@@ -6270,13 +7897,17 @@ async function loadDiscordSettings() {
   if (!fb.currentUser) return;
   const cfg = profile?.discordConfig || {};
   if (cfg.guildId) document.getElementById('discordGuildId').value = cfg.guildId;
+  document.getElementById('discordGiveallAuthorId').value = cfg.giveallAuthorId || '';
   updateDiscordStatusBadge(cfg.guildId);
   if (cfg.guildId) await populateDiscordChannels(cfg.giveawayChannelId, cfg.announcementChannelId);
+  loadVerifySettings();
 }
 
 async function populateDiscordChannels(selectedGiveaway, selectedAnnouncement) {
   const gSel = document.getElementById('discordGiveawayChannelId');
   const aSel = document.getElementById('discordAnnouncementChannelId');
+  const cSel = document.getElementById('dvGateChannelId');
+  const rSel = document.getElementById('dvRoleId');
   gSel.innerHTML = '<option value="">Loading channels…</option>';
   aSel.innerHTML = '<option value="">Loading channels…</option>';
   try {
@@ -6284,19 +7915,89 @@ async function populateDiscordChannels(selectedGiveaway, selectedAnnouncement) {
     const resp = await fetch('/api/discord-channels', {
       headers: { 'Authorization': 'Bearer ' + idToken },
     });
-    const { channels, error } = await resp.json();
+    const { channels, roles, error } = await resp.json();
     if (error) throw new Error(error);
-    const blank = '<option value="">— select a channel —</option>';
-    const opts = (channels || []).map(c =>
-      `<option value="${c.id}">${c.type === 5 ? '📣' : '#'} ${c.name}</option>`
+    const blankC = '<option value="">— select a channel —</option>';
+    const chanOpts = (channels || []).map(c =>
+      `<option value="${c.id}">${c.type === 5 ? '📣' : '#'} ${escHtml(c.name)}</option>`
     ).join('');
-    gSel.innerHTML = blank + opts;
-    aSel.innerHTML = blank + opts;
+    gSel.innerHTML = blankC + chanOpts;
+    aSel.innerHTML = blankC + chanOpts;
+    if (cSel) cSel.innerHTML = blankC + chanOpts;
+    if (rSel) rSel.innerHTML = '<option value="">— select a role —</option>' +
+      (roles || []).map(r => `<option value="${r.id}">@${escHtml(r.name)}</option>`).join('');
     if (selectedGiveaway)    gSel.value = selectedGiveaway;
     if (selectedAnnouncement) aSel.value = selectedAnnouncement;
+    // Restore the verify-card selections too (their values come from the same lists).
+    const v = (profile?.discordConfig?.verify) || {};
+    if (cSel && v.gateChannelId) cSel.value = v.gateChannelId;
+    if (rSel && v.roleId)        rSel.value = v.roleId;
   } catch (e) {
     gSel.innerHTML = '<option value="">Failed to load channels</option>';
     aSel.innerHTML = '<option value="">Failed to load channels</option>';
+  }
+}
+
+// ── Discord Verification & Roles ──
+function dvToggleChanged() {
+  const assign = document.getElementById('dvAssignRole')?.checked;
+  const gate   = document.getElementById('dvGatekeeper')?.checked;
+  const roleField = document.getElementById('dvRoleField');
+  const gateOpts  = document.getElementById('dvGateOptions');
+  if (roleField) roleField.style.display = (assign || gate) ? '' : 'none';
+  if (gateOpts)  gateOpts.style.display  = gate ? '' : 'none';
+}
+
+function loadVerifySettings() {
+  const v = (profile?.discordConfig?.verify) || {};
+  const setChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+  setChk('dvAssignRole', v.assignRole);
+  setChk('dvGatekeeper', v.gatekeeper);
+  setChk('dvCaptcha',    v.requireCaptcha);
+  const role = document.getElementById('dvRoleId');        if (role && v.roleId)        role.value = v.roleId;
+  const gch  = document.getElementById('dvGateChannelId'); if (gch && v.gateChannelId)  gch.value  = v.gateChannelId;
+  const age  = document.getElementById('dvMinAge');        if (age)                     age.value  = v.minAccountAgeDays || 0;
+  dvToggleChanged();
+}
+
+async function saveVerifySettings() {
+  if (!fb.currentUser) return;
+  const verify = {
+    assignRole:        document.getElementById('dvAssignRole')?.checked || false,
+    roleId:            document.getElementById('dvRoleId')?.value || '',
+    gatekeeper:        document.getElementById('dvGatekeeper')?.checked || false,
+    gateChannelId:     document.getElementById('dvGateChannelId')?.value || '',
+    requireCaptcha:    document.getElementById('dvCaptcha')?.checked || false,
+    minAccountAgeDays: Math.max(0, parseInt(document.getElementById('dvMinAge')?.value, 10) || 0),
+  };
+  if ((verify.assignRole || verify.gatekeeper) && !verify.roleId) {
+    flash('Pick a Verified role first.', 'error'); return;
+  }
+  try {
+    const discordConfig = { ...(profile?.discordConfig || {}), verify };
+    await saveStreamerProfile({ discordConfig });
+    if (profile) profile.discordConfig = discordConfig;
+    flash('Verification settings saved!');
+  } catch (e) {
+    flash('Failed to save: ' + e.message, 'error');
+  }
+}
+
+async function postVerifyGate() {
+  if (!fb.currentUser) return;
+  const v = profile?.discordConfig?.verify || {};
+  if (!v.gateChannelId) { flash('Pick a verification channel and Save first.', 'error'); return; }
+  try {
+    const idToken = await fb.currentUser.getIdToken();
+    const resp = await fetch('/api/discord-post-gate', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + idToken },
+    });
+    const data = await resp.json();
+    if (!resp.ok || data.error) throw new Error(data.error || 'Failed to post');
+    flash('Verify message posted to your channel!');
+  } catch (e) {
+    flash('Failed to post: ' + e.message, 'error');
   }
 }
 
@@ -6319,10 +8020,18 @@ async function saveDiscordSettings() {
   const guildId               = document.getElementById('discordGuildId').value.trim();
   const giveawayChannelId     = document.getElementById('discordGiveawayChannelId').value;
   const announcementChannelId = document.getElementById('discordAnnouncementChannelId').value;
+  const giveallAuthorId       = document.getElementById('discordGiveallAuthorId').value.trim();
+
+  if (giveallAuthorId && !/^\d{17,20}$/.test(giveallAuthorId)) {
+    flash('That doesn\'t look like a Discord user ID (it should be 17–20 digits).', 'error');
+    return;
+  }
 
   try {
-    const discordConfig = { guildId, giveawayChannelId, announcementChannelId };
+    // Preserve verify settings (managed by the Verification & Roles card).
+    const discordConfig = { ...(profile?.discordConfig || {}), guildId, giveawayChannelId, announcementChannelId, giveallAuthorId };
     await saveStreamerProfile({ discordConfig });
+    if (profile) profile.discordConfig = discordConfig;
     updateDiscordStatusBadge(guildId);
     flash('Discord settings saved!');
   } catch (e) {
@@ -6376,14 +8085,17 @@ async function loadSlotRequests() {
   // Wire overlay links
   const chan = profile?.kickChannel || '';
   if (chan) {
-    const ol = document.getElementById('srOverlayLink');
-    const pl = document.getElementById('srPreviewLink');
-    if (ol) ol.href = `/overlay-slot-requests.html?channel=${encodeURIComponent(chan)}`;
-    if (pl) pl.href = `/overlay-slot-requests.html?channel=${encodeURIComponent(chan)}&demo=1`;
-    const rol = document.getElementById('rspOverlayLink');
-    if (rol) rol.href = `/overlay-request-spinner.html?channel=${encodeURIComponent(chan)}`;
-    const rpl = document.getElementById('rspPreviewLink');
-    if (rpl) rpl.href = `/overlay-request-spinner.html?channel=${encodeURIComponent(chan)}&demo=1`;
+    // OBS links use the same themed URL Overlay Studio generates.
+    osLoadThemesIfNeeded().then(() => {
+      const ol = document.getElementById('srOverlayLink');
+      const pl = document.getElementById('srPreviewLink');
+      if (ol) ol.href = gwOverlayUrl('slotreqs');
+      if (pl) pl.href = gwOverlayUrl('slotreqs', { demo: true });
+      const rol = document.getElementById('rspOverlayLink');
+      if (rol) rol.href = gwOverlayUrl('reqspinner');
+      const rpl = document.getElementById('rspPreviewLink');
+      if (rpl) rpl.href = gwOverlayUrl('reqspinner', { demo: true });
+    });
   }
 }
 
@@ -6408,8 +8120,11 @@ function srRenderQueue() {
   tbody.innerHTML = srRequests.map((r, i) => {
     const ago = srTimeAgo(r.requestedAt);
     const initial = escHtml((r.kickUsername || '?')[0].toUpperCase());
-    const avatar = r.avatarUrl
-      ? `<img src="${escHtml(r.avatarUrl)}" alt="" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex';"><span style="display:none;width:24px;height:24px;border-radius:50%;background:rgba(0,229,255,0.1);color:var(--accent);font-size:11px;font-weight:800;align-items:center;justify-content:center;flex-shrink:0;">${initial}</span>`
+    // Resolve through cache + lazy /api/kick-channel fetch so older requests
+    // without an avatarUrl on the doc still get a real avatar.
+    const resolvedAvatar = srResolveAvatar(r);
+    const avatar = resolvedAvatar
+      ? `<img src="${escHtml(resolvedAvatar)}" alt="" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex';"><span style="display:none;width:24px;height:24px;border-radius:50%;background:rgba(0,229,255,0.1);color:var(--accent);font-size:11px;font-weight:800;align-items:center;justify-content:center;flex-shrink:0;">${initial}</span>`
       : `<span style="display:inline-flex;width:24px;height:24px;border-radius:50%;background:rgba(0,229,255,0.1);color:var(--accent);font-size:11px;font-weight:800;align-items:center;justify-content:center;flex-shrink:0;">${initial}</span>`;
     return `<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
       <td style="padding:8px 10px;font-size:12px;color:var(--text-dim);font-weight:600;">${i + 1}</td>
@@ -6445,10 +8160,34 @@ function rspMeta(entry) {
     || { name: entry.slotName, provider: '', gameId: null, thumbnailUrl: null };
 }
 
+// Resolve a slot-request entry's user avatar via the same 3-layer chain the
+// giveaway page uses: entry → profile self-fallback → cached / lazy-fetched
+// Kick avatar. Returns just the URL (null if nothing yet). Triggers a
+// re-render when a background fetch resolves so the badge populates.
+function srResolveAvatar(entry) {
+  if (entry.avatarUrl) return entry.avatarUrl;
+  const lcKey = (entry.kickUsername || '').toLowerCase();
+  if (!lcKey) return null;
+  if (profile?.kickAvatar && lcKey === (profile.kickChannel || '').toLowerCase()) {
+    return profile.kickAvatar;
+  }
+  if (lcKey in _gwAvatarCache) return _gwAvatarCache[lcKey]?.url || null;
+  _gwFetchKickAvatar(lcKey).then(url => {
+    if (!url) return;
+    try { if (typeof rspRefresh    === 'function') rspRefresh(); } catch {}
+    try { if (typeof srRenderQueue === 'function') srRenderQueue(); } catch {}
+  });
+  return null;
+}
+
 function rspReelCardHtml(entry) {
-  const meta = rspMeta(entry);
+  const avatarUrl = srResolveAvatar(entry);
+  const initials  = escHtml((entry.kickUsername || '?')[0].toUpperCase());
+  const inner = avatarUrl
+    ? `<img src="${escHtml(avatarUrl)}" alt="" onerror="this.outerHTML='<div class=\\'rsp-card-fallback\\'>${initials}</div>';">`
+    : `<div class="rsp-card-fallback">${initials}</div>`;
   return `<div class="sp-card">
-    <div class="sp-card-img">${slotImgCover(meta)}</div>
+    <div class="rsp-card-avatar">${inner}</div>
     <div style="text-align:center;margin-top:7px;">
       <div style="color:var(--accent);font-weight:700;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">@${escHtml(entry.kickUsername)}</div>
       <div style="color:var(--text-dim);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(entry.slotName)}</div>
@@ -6591,6 +8330,15 @@ async function rspSpin() {
     document.getElementById('rspCarousel')?.classList.add('landed');
     rspShowResult(winner);
     rspAddDrawn(winner);
+    // Persist to winners_log so the Overview "Recent Winners" card picks it
+    // up alongside giveaway winners. Uses the same Firestore-backed pipeline
+    // so it survives a page refresh.
+    _writeWinnerLog({
+      type:      'raffle',
+      username:  winner.kickUsername,
+      avatarUrl: winner.avatarUrl || null,
+      slotName:  winner.slotName,
+    });
     rspSpinning = false;
     if (btn) { btn.disabled = false; btn.textContent = '🎲 Spin Again'; }
   }, 4100);
@@ -7127,6 +8875,20 @@ async function bbOpenAllVoting() {
     await fb.db.collection('streamers').doc(fb.activeUid)
       .collection('bonus_battles').doc('current').update({ matches, updatedAt: Date.now() });
     flash(`Opened voting on ${upcomingCount} match${upcomingCount === 1 ? '' : 'es'}`);
+  } catch (e) { flash('Failed: ' + e.message, 'error'); }
+}
+
+// Flip every match that's currently open for voting to 'locked' in one write —
+// the counterpart to Open All, so the streamer can stop all betting at once.
+async function bbLockAllVoting() {
+  if (!bbBattle) return;
+  const votingCount = (bbBattle.matches || []).filter(m => m.status === 'voting').length;
+  if (!votingCount) { flash('No matches are open for voting.', 'error'); return; }
+  const matches = (bbBattle.matches || []).map(m => m.status === 'voting' ? { ...m, status: 'locked' } : m);
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid)
+      .collection('bonus_battles').doc('current').update({ matches, updatedAt: Date.now() });
+    flash(`Locked voting on ${votingCount} match${votingCount === 1 ? '' : 'es'}`);
   } catch (e) { flash('Failed: ' + e.message, 'error'); }
 }
 
@@ -7726,7 +9488,7 @@ async function startWagerPeriod() {
   document.getElementById('wrPeriodInfo').textContent = 'Fetching baselines…';
   let baselines = {};
   try {
-    const resp = await fetch(`/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1`);
+    const resp = await fetch(`/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1&raw=1`);
     const data = await resp.json();
     (data.rankings || []).forEach(e => { baselines[e.username.toLowerCase()] = e.wagered || 0; });
   } catch(e) {
@@ -7738,12 +9500,52 @@ async function startWagerPeriod() {
   await fb.db.collection('streamers').doc(uid).update({
     'wagerRaffle.periodStart': periodStart,
     'wagerRaffle.baselines':   baselines,
+    'wagerRaffle.excluded':    [],
   });
   if (!profile.wagerRaffle) profile.wagerRaffle = {};
   profile.wagerRaffle.periodStart = periodStart;
   profile.wagerRaffle.baselines   = baselines;
+  profile.wagerRaffle.excluded    = [];
   flash(`New period started! ${Object.keys(baselines).length} users baselined.`);
   loadWagerRafflePanel();
+}
+
+// Wager-raffle exclusions persist on profile.wagerRaffle.excluded as an array
+// of lowercased casino usernames. They're reset whenever a new period starts or
+// the current one ends, so an exclusion only ever applies to the active period.
+function _wagerExcludedSet() {
+  const arr = (profile && profile.wagerRaffle && profile.wagerRaffle.excluded) || [];
+  return new Set(arr.map(s => String(s).toLowerCase()));
+}
+
+async function excludeWagerEntrant(casinoNameLower, displayName) {
+  const uid = fb.activeUid;
+  if (!uid || !casinoNameLower) return;
+  const set = _wagerExcludedSet();
+  if (set.has(casinoNameLower)) { flash(`@${displayName || casinoNameLower} is already excluded.`); return; }
+  set.add(casinoNameLower);
+  const arr = [...set];
+  try {
+    await fb.db.collection('streamers').doc(uid).update({ 'wagerRaffle.excluded': arr });
+    if (!profile.wagerRaffle) profile.wagerRaffle = {};
+    profile.wagerRaffle.excluded = arr;
+    flash(`@${displayName || casinoNameLower} excluded from this wager raffle.`);
+    logAction('wager_raffle_excluded', { casinoName: casinoNameLower });
+    loadWagerTickets();
+  } catch (e) { flash('Error: ' + e.message, 'error'); }
+}
+
+async function clearWagerExclusions() {
+  const uid = fb.activeUid;
+  if (!uid) return;
+  if (!confirm('Re-include everyone you excluded from this period’s wager-raffle draws?')) return;
+  try {
+    await fb.db.collection('streamers').doc(uid).update({ 'wagerRaffle.excluded': [] });
+    if (!profile.wagerRaffle) profile.wagerRaffle = {};
+    profile.wagerRaffle.excluded = [];
+    flash('Exclusions cleared.');
+    loadWagerTickets();
+  } catch (e) { flash('Error: ' + e.message, 'error'); }
 }
 
 async function loadWagerTickets() {
@@ -7755,7 +9557,7 @@ async function loadWagerTickets() {
   const threshold = wr.threshold || 1000;
   const baselines = wr.baselines || {};
 
-  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:16px;">Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px;">Loading…</td></tr>';
 
   // Map casinoUsername.lower → kickName
   let verifiedMap = {};
@@ -7771,22 +9573,27 @@ async function loadWagerTickets() {
   // Fetch live wager data
   let rankings = [];
   try {
-    const resp = await fetch(`/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1`);
+    const resp = await fetch(`/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1&raw=1`);
     const data = await resp.json();
     rankings = data.rankings || [];
   } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="4" style="color:var(--red);padding:16px;">${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--red);padding:16px;">${e.message}</td></tr>`;
     return;
   }
 
-  // Compute tickets from period wager delta
+  // Compute tickets from period wager delta. Excluded entrants (manually
+  // removed after a draw) are filtered out of the draw pool entirely.
+  const excluded = _wagerExcludedSet();
+  let   excludedShown = 0;
   const entries = [];
   rankings.forEach(e => {
     const key       = e.username.toLowerCase();
     const base      = baselines[key] || 0;
     const wagerSince = Math.max(0, (e.wagered || 0) - base);
     const tickets   = Math.floor(wagerSince / threshold);
-    if (tickets > 0) entries.push({
+    if (tickets <= 0) return;
+    if (excluded.has(key)) { excludedShown++; return; }
+    entries.push({
       username:   verifiedMap[key] || e.username,
       casinoName: e.username,
       wagerSince,
@@ -7798,20 +9605,29 @@ async function loadWagerTickets() {
 
   const totalTix = entries.reduce((s, e) => s + e.tickets, 0);
   document.getElementById('wrEntryCount').textContent = entries.length
-    ? `${entries.length} viewer${entries.length !== 1 ? 's' : ''} — ${totalTix} total tickets`
-    : 'No ticket holders yet.';
+    ? `${entries.length} viewer${entries.length !== 1 ? 's' : ''} — ${totalTix} total tickets${excludedShown ? ` · ${excludedShown} excluded` : ''}`
+    : (excludedShown ? `No eligible ticket holders (${excludedShown} excluded).` : 'No ticket holders yet.');
   document.getElementById('wrDrawBtn').disabled = entries.length === 0;
+  const wrClearExcl = document.getElementById('wrClearExclBtn');
+  if (wrClearExcl) wrClearExcl.style.display = excluded.size ? '' : 'none';
 
   if (!entries.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">No ticket holders yet. Viewers earn tickets by wagering since the period started.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;">No ticket holders yet. Viewers earn tickets by wagering since the period started.</td></tr>';
     return;
   }
-  tbody.innerHTML = entries.map(e => `<tr>
-    <td class="td-highlight">${e.username}</td>
-    <td style="color:var(--text-dim);font-size:12px;">${e.casinoName}</td>
+  tbody.innerHTML = entries.map(e => {
+    const cn = escHtml(e.casinoName);
+    const dn = escHtml(e.username);
+    return `<tr>
+    <td class="td-highlight">${dn}</td>
+    <td style="color:var(--text-dim);font-size:12px;">${cn}</td>
     <td class="td-green">$${Number(e.wagerSince).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
     <td><span style="background:rgba(0,229,255,0.1);color:var(--accent);border:1px solid rgba(0,229,255,0.2);border-radius:4px;padding:2px 8px;font-size:12px;font-weight:700;">${e.tickets}</span></td>
-  </tr>`).join('');
+    <td style="text-align:right;white-space:nowrap;">
+      <button class="btn btn-danger btn-sm" title="Exclude @${dn} from this period's wager-raffle draws" onclick="excludeWagerEntrant('${(e.casinoName||'').toLowerCase().replace(/'/g,'')}','${dn}')">Exclude</button>
+    </td>
+  </tr>`;
+  }).join('');
 }
 
 // ── POINT RAFFLE ──────────────────────────────────────────────────────────────
@@ -7843,7 +9659,7 @@ async function loadPointRafflePanel() {
       </div>`;
     selectedRaffleItemId = null;
     document.getElementById('pointRaffleTable').innerHTML =
-      '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">No raffle items yet.</td></tr>';
+      '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">No raffle items yet.</td></tr>';
     document.getElementById('prEntryCount').textContent = 'No entries.';
     document.getElementById('prEntryStats').innerHTML = '';
     document.getElementById('prDrawBtn').disabled       = true;
@@ -7900,7 +9716,7 @@ async function loadPointRaffleEntries() {
   const tbody = document.getElementById('pointRaffleTable');
 
   if (!selectedRaffleItemId) {
-    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:16px;">Select a raffle item to see entries.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:16px;">Select a raffle item to see entries.</td></tr>';
     document.getElementById('prEntryCount').textContent = 'No entries.';
     document.getElementById('prEntryStats').innerHTML = '';
     document.getElementById('prDrawBtn').disabled       = true;
@@ -7910,7 +9726,7 @@ async function loadPointRaffleEntries() {
     return;
   }
 
-  tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:16px;">Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:16px;">Loading…</td></tr>';
 
   try {
     const snap = await fb.db.collection('streamers').doc(uid).collection('store_redemptions')
@@ -7950,16 +9766,23 @@ async function loadPointRaffleEntries() {
       : '';
 
     if (!entries.length) {
-      tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px;">No entries yet. Viewers redeem "${itemName}" from the store to enter.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">No entries yet. Viewers redeem "${itemName}" from the store to enter.</td></tr>`;
       return;
     }
-    tbody.innerHTML = entries.map(e => `<tr>
-      <td class="td-highlight">${e.username}</td>
+    tbody.innerHTML = entries.map(e => {
+      const u = escHtml(e.username);
+      return `<tr>
+      <td class="td-highlight">${u}</td>
       <td><span style="background:rgba(0,229,255,0.1);color:var(--accent);border:1px solid rgba(0,229,255,0.2);border-radius:4px;padding:2px 8px;font-size:12px;font-weight:700;">${e.tickets}</span></td>
       <td style="color:var(--text-dim);font-size:12px;">${e.lastTs ? new Date(e.lastTs).toLocaleDateString() : '—'}</td>
-    </tr>`).join('');
+      <td style="text-align:right;white-space:nowrap;">
+        <button class="btn btn-ghost btn-sm" title="Remove one ticket from @${u}" onclick="removePointRaffleTicket('${u}')" ${e.tickets <= 1 ? 'disabled' : ''}>−1</button>
+        <button class="btn btn-danger btn-sm" title="Remove @${u} entirely from this raffle" onclick="removePointRaffleEntrant('${u}')">Remove</button>
+      </td>
+    </tr>`;
+    }).join('');
   } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="3" style="color:var(--red);padding:16px;">${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" style="color:var(--red);padding:16px;">${e.message}</td></tr>`;
   }
 }
 
@@ -7989,6 +9812,48 @@ async function clearPointRaffleEntries() {
   }
 }
 
+// Mark a viewer's raffle_entry redemptions for the selected item as fulfilled
+// (i.e. pull them out of the draw pool). `limitCount` null removes all of that
+// viewer's tickets; a number removes up to that many. Returns how many were removed.
+async function _fulfillRaffleTickets(uid, itemId, usernameLower, limitCount) {
+  const snap = await fb.db.collection('streamers').doc(uid).collection('store_redemptions')
+    .where('itemId', '==', itemId)
+    .where('status', '==', 'raffle_entry').get();
+  const mine = snap.docs.filter(d => (d.data().kickUsername || '').toLowerCase() === usernameLower);
+  const targets = limitCount == null ? mine : mine.slice(0, limitCount);
+  for (let i = 0; i < targets.length; i += 400) {
+    const batch = fb.db.batch();
+    targets.slice(i, i + 400).forEach(d => batch.update(d.ref, { status: 'fulfilled', fulfilledAt: new Date() }));
+    await batch.commit();
+  }
+  return targets.length;
+}
+
+async function removePointRaffleTicket(username) {
+  const uid = fb.activeUid;
+  if (!uid || !selectedRaffleItemId) return;
+  try {
+    const n = await _fulfillRaffleTickets(uid, selectedRaffleItemId, username.toLowerCase(), 1);
+    flash(n ? `Removed 1 ticket from @${username}.` : `No tickets to remove for @${username}.`, n ? 'success' : 'error');
+    if (n) logAction('raffle_ticket_removed', { kickUsername: username, itemId: selectedRaffleItemId, count: n });
+    loadPointRaffleEntries();
+    return n;
+  } catch (e) { flash('Error: ' + e.message, 'error'); }
+}
+
+async function removePointRaffleEntrant(username) {
+  const uid = fb.activeUid;
+  if (!uid || !selectedRaffleItemId) return;
+  if (!confirm(`Remove @${username} entirely from this raffle? All of their tickets for this item are pulled from the draw pool.`)) return;
+  try {
+    const n = await _fulfillRaffleTickets(uid, selectedRaffleItemId, username.toLowerCase(), null);
+    flash(`Removed @${username} from the raffle (${n} ticket${n !== 1 ? 's' : ''}).`);
+    logAction('raffle_entrant_removed', { kickUsername: username, itemId: selectedRaffleItemId, count: n });
+    loadPointRaffleEntries();
+    return n;
+  } catch (e) { flash('Error: ' + e.message, 'error'); }
+}
+
 async function deactivateRaffleItem() {
   const uid = fb.activeUid;
   if (!selectedRaffleItemId) return;
@@ -8013,21 +9878,67 @@ async function endWagerPeriod() {
   await fb.db.collection('streamers').doc(uid).update({
     'wagerRaffle.periodStart': firebase.firestore.FieldValue.delete(),
     'wagerRaffle.baselines':   firebase.firestore.FieldValue.delete(),
+    'wagerRaffle.excluded':    [],
   });
   if (!profile.wagerRaffle) profile.wagerRaffle = {};
   profile.wagerRaffle.periodStart = null;
   profile.wagerRaffle.baselines   = {};
+  profile.wagerRaffle.excluded    = [];
   wagerRaffleEntries = [];
   const endBtn = document.getElementById('wrEndPeriodBtn');
   if (endBtn) endBtn.style.display = 'none';
   document.getElementById('wrPeriodInfo').textContent = 'No active period. Click "Start New Period" to begin.';
   document.getElementById('wrEntryCount').textContent = 'No entries loaded.';
   document.getElementById('wrDrawBtn').disabled = true;
-  document.getElementById('wagerTicketTable').innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">Start a period to see ticket holders.</td></tr>';
+  document.getElementById('wagerTicketTable').innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;">Start a period to see ticket holders.</td></tr>';
   flash('Period ended.');
 }
 
 // ── DRAW ──────────────────────────────────────────────────────────────────────
+
+// Winner-reveal action buttons (shown in the raffle wheel modal once a winner
+// lands). Point raffles can drop one ticket or remove the entrant entirely;
+// wager raffles (no per-ticket records) can exclude the winner from future draws.
+let _rafWinName = null;
+let _rafWinMode = null;
+
+function _rafRenderWinnerActions(mode, winnerName) {
+  const el = document.getElementById('rafWheelActions');
+  if (!el) return;
+  if (mode === 'point') {
+    el.innerHTML =
+      `<button class="btn btn-ghost btn-sm" onclick="_rafModalRemoveTicket()">− Remove 1 ticket</button>
+       <button class="btn btn-danger btn-sm" onclick="_rafModalRemoveEntrant()">Remove from raffle</button>`;
+  } else {
+    el.innerHTML =
+      `<button class="btn btn-danger btn-sm" onclick="_rafModalExclude()">Exclude from future draws</button>`;
+  }
+}
+
+function _rafModalDone(msg) {
+  const el = document.getElementById('rafWheelActions');
+  if (el) el.innerHTML = `<span style="color:#8b949e;font-size:12px;">✓ ${msg}</span>`;
+}
+
+async function _rafModalRemoveTicket() {
+  if (!_rafWinName) return;
+  const n = await removePointRaffleTicket(_rafWinName);
+  if (n) _rafModalDone(`Removed 1 ticket from @${_rafWinName}`);
+}
+
+async function _rafModalRemoveEntrant() {
+  if (!_rafWinName) return;
+  const n = await removePointRaffleEntrant(_rafWinName);
+  if (n != null) _rafModalDone(`@${_rafWinName} removed from raffle`);
+}
+
+async function _rafModalExclude() {
+  if (!_rafWinName) return;
+  const ent = wagerRaffleEntries.find(e => e.username === _rafWinName);
+  const casinoKey = (ent?.casinoName || _rafWinName).toLowerCase();
+  await excludeWagerEntrant(casinoKey, _rafWinName);
+  _rafModalDone(`@${_rafWinName} excluded`);
+}
 
 async function drawRaffleWinner(mode) {
   if (raffleAnimating) return;
@@ -8060,6 +9971,7 @@ function openRaffleWheelModal(entries, winner, mode, itemName) {
   raffleAnimating = true;
   document.getElementById('raffleWheelModal').style.display = 'flex';
   document.getElementById('rafWheelWinner').style.display   = 'none';
+  document.getElementById('rafWheelActions').innerHTML      = '';
   rafWheelAngle = 0;
   rafDrawWheel(entries, 0);
   setTimeout(() => rafSpinToWinner(entries, winner, mode, itemName), 300);
@@ -8160,6 +10072,9 @@ function rafSpinToWinner(entries, winnerName, mode, itemName) {
     rafDrawWheel(entries, rafWheelAngle);
     document.getElementById('rafWheelWinnerName').textContent = winnerName;
     document.getElementById('rafWheelWinner').style.display   = 'block';
+    _rafWinName = winnerName;
+    _rafWinMode = mode;
+    _rafRenderWinnerActions(mode, winnerName);
     raffleAnimating = false;
     saveRaffleHistory(winnerName, mode, entries, itemName);
   }
@@ -8535,10 +10450,15 @@ function copyObsUrl(linkId) {
 
 function initSlotPicker() {
   const chan  = profile?.kickChannel || '';
-  const obsEl = document.getElementById('spObsLink');
-  if (obsEl && chan) obsEl.href = `/overlay-slot-picker.html?channel=${encodeURIComponent(chan)}`;
-  const preEl = document.getElementById('spPreviewLink');
-  if (preEl && chan) preEl.href = `/overlay-slot-picker.html?channel=${encodeURIComponent(chan)}&demo=1`;
+  // Wire the OBS links to the same themed URL Overlay Studio generates, so
+  // whatever color/font/duration the streamer set in OBS Studio is what they
+  // get when they copy from here.
+  osLoadThemesIfNeeded().then(() => {
+    const obsEl = document.getElementById('spObsLink');
+    if (obsEl && chan) obsEl.href = gwOverlayUrl('slotpicker');
+    const preEl = document.getElementById('spPreviewLink');
+    if (preEl && chan) preEl.href = gwOverlayUrl('slotpicker', { demo: true });
+  });
 
   if (!BH_SLOTS.length) {
     // Catalog fetch still in flight — retry every 500ms until ready

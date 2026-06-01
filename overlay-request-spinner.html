@@ -69,15 +69,25 @@
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
+    /* Result reveal — sits BELOW the carousel. Always-present (min-height
+       reserves the space) so the overlay's outer dimensions stay constant
+       for OBS positioning; content fades in only when a winner is drawn. */
     .result-panel {
-      display: none; padding: 12px 16px 14px; text-align: center;
+      min-height: 70px;
+      padding: 12px 16px 14px;
+      text-align: center;
       border-top: 1px solid rgba(var(--ov-accent-rgb),0.12);
-      animation: fadeIn 0.5s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.5s ease;
     }
-    .result-panel.show { display: block; }
-    .result-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold); margin-bottom: 4px; }
-    .result-user { font-family: var(--ov-font-heading); font-size: 22px; font-weight: 900; color: var(--accent); }
-    .result-slot { font-size: 13px; color: var(--ov-text); margin-top: 2px; }
+    .result-panel.show { opacity: 1; }
+    .result-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ov-winner, var(--gold)); margin-bottom: 4px; }
+    .result-user { font-family: var(--ov-font-heading); font-size: 26px; font-weight: 900; color: var(--accent); }
+    .result-slot { font-size: 14px; color: var(--ov-text); margin-top: 4px; }
 
     @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes glow {
@@ -87,6 +97,7 @@
     .picker-wrap.glowing { animation: glow 1.5s ease infinite; }
   </style>
   <script src="/js/overlay-theme.js"></script>
+  <script src="/js/overlay-confetti.js"></script>
 </head>
 <body>
 <div id="widget">
@@ -96,6 +107,7 @@
       <div class="reel-frame"></div>
       <div class="reel-track" id="reelTrack"></div>
     </div>
+    <!-- Result sits BELOW the carousel; min-height reserves space. -->
     <div class="result-panel" id="resultPanel">
       <div class="result-label">🎉 Drawn</div>
       <div class="result-user" id="resultUser"></div>
@@ -110,9 +122,24 @@
   const isDemo  = params.get('demo') === '1';
   const WIN_IDX_FALLBACK = 16;
   const POLL_MS = 1500;
+  const REVEAL_MS = Math.max(0, parseInt(params.get('duration'), 10) || 10) * 1000;
+  let winnerColor = params.get('winner');
+  if (winnerColor && !winnerColor.startsWith('#')) winnerColor = '#' + winnerColor;
+  if (winnerColor && /^#[0-9a-f]{6}$/i.test(winnerColor)) {
+    document.documentElement.style.setProperty('--ov-winner', winnerColor);
+  }
+  let _revealTimer = null;
 
   let lastTrigger = null;
   let spinning    = false;
+  // See note in overlay-giveaway-spinner.html — used to decide whether a
+  // first-sighting trigger is stale (pre-load) or fresh (post-load / race).
+  const _LOADED_AT = Date.now();
+  // Generation counter — each animateSpin captures its own ID so stale rAF/
+  // setTimeout callbacks from a previous spin become no-ops when a rapid
+  // reroll cancel-and-restarts.
+  let _spinGen = 0;
+  let _landingTimer = null;
 
   const SW_PROVIDER = {
     'Hacksaw Gaming':'hacksaw', 'Nolimit City':'nolimitcity', "Play'n GO":'playngo',
@@ -165,6 +192,10 @@
   }
 
   function animateSpin(reel, winIdx, picked) {
+    if (_landingTimer) { clearTimeout(_landingTimer); _landingTimer = null; }
+    if (_revealTimer)  { clearTimeout(_revealTimer);  _revealTimer  = null; }
+    const myGen = ++_spinGen;
+
     const track = document.getElementById('reelTrack');
     const wrap  = document.getElementById('pickerWrap');
     const rp    = document.getElementById('resultPanel');
@@ -176,17 +207,29 @@
     track.style.transform  = 'translateX(0)';
 
     requestAnimationFrame(() => {
+      if (myGen !== _spinGen) return;
       const s = step(track);
       void track.offsetWidth;
       requestAnimationFrame(() => {
+        if (myGen !== _spinGen) return;
         track.style.transition = 'transform 4s cubic-bezier(0.15, 0.85, 0.35, 1)';
         track.style.transform  = `translateX(-${winIdx * s}px)`;
-        setTimeout(() => {
+        _landingTimer = setTimeout(() => {
+          _landingTimer = null;
+          if (myGen !== _spinGen) return;
           wrap.classList.add('landed', 'glowing');
           rp.classList.add('show');
+          if (window.ovConfetti) window.ovConfetti({ count: 60 });
           document.getElementById('resultUser').textContent = '@' + (picked.kickUsername || '');
           document.getElementById('resultSlot').textContent = picked.slotName || '';
           spinning = false;
+          if (REVEAL_MS > 0) {
+            _revealTimer = setTimeout(() => {
+              if (myGen !== _spinGen) return;
+              rp.classList.remove('show');
+              wrap.classList.remove('glowing', 'landed');
+            }, REVEAL_MS);
+          }
         }, 4100);
       });
     });
@@ -194,19 +237,23 @@
 
   function handlePicker(data) {
     if (!data || !data.trigger) return;
+
+    // Mid-spin guard — queue the new trigger so the in-flight animation can
+    // run to completion. lastTrigger stays unchanged, so the next poll after
+    // the spin ends will pick this up and animate.
+    if (spinning) return;
+
     if (data.trigger === lastTrigger) return;
 
-    // First-load handling: only suppress STALE triggers (>60s old). A fresh
-    // draw should still play even if it happened right before the overlay
-    // opened — otherwise opening the OBS source after a draw shows nothing.
+    // First-load handling: suppress triggers that fired BEFORE this iframe
+    // loaded (with a 2s grace). Post-load triggers — including a reroll
+    // clicked during a style switch — always play.
     const isFirstSighting = lastTrigger === null;
     lastTrigger = data.trigger;
     if (isFirstSighting) {
-      const isFresh = data.pickedAt && (Date.now() - data.pickedAt < 60000);
-      if (!isFresh) return;
+      const pickedAt = data.pickedAt || 0;
+      if (pickedAt && pickedAt < _LOADED_AT - 2000) return;
     }
-
-    if (spinning) return;
 
     const picked = data.picked;
     if (!picked) return;

@@ -1,9 +1,10 @@
 // GET /api/leaderboard-live?channel=xxx&casino=xxx
 // Proxies the casino's leaderboard API using the streamer's stored API key
 
-const { getDb }        = require("./_lib/firebase");
-const { res: _res }    = require("./_lib/http");
-const { CASINO_NAMES } = require("./_lib/casinos");
+const { getDb }            = require("./_lib/firebase");
+const { res: _res }        = require("./_lib/http");
+const { CASINO_NAMES }     = require("./_lib/casinos");
+const { normalizeGambulls, applyPeriod } = require("./_lib/leaderboard");
 const res = (s, b) => _res(s, b, "*");
 
 async function fetchGambulls(apiKey) {
@@ -17,12 +18,7 @@ async function fetchGambulls(apiKey) {
   return {
     totalWagered: data.responseObject.totalWagered || 0,
     totalUsers: data.responseObject.totalUsers || 0,
-    rankings: data.responseObject.rankings.map((e, i) => ({
-      rank: i + 1,
-      username: e.user?.isAnonymous ? "Anonymous" : (e.user?.name || "Unknown"),
-      wagered: e.wagerAmount || 0,
-      avatarUrl: e.user?.imageUrl || null,
-    })),
+    rankings: normalizeGambulls(data.responseObject),
   };
 }
 
@@ -43,6 +39,9 @@ exports.handler = async (event) => {
     const streamerDoc = snap.docs[0];
     const streamerData = streamerDoc.data();
 
+    // Period/countdown config for the public page (set from the dashboard).
+    const period = streamerData.leaderboardPeriod || null;
+
     // For public viewers, check leaderboard is enabled; internal=1 bypasses (dashboard)
     const isInternal = event.queryStringParameters?.internal === "1";
     if (!isInternal && !streamerData.leaderboardEnabled) {
@@ -59,11 +58,15 @@ exports.handler = async (event) => {
       const data = await fetchGambulls(apiKey);
       if (!data) return res(502, { error: "Failed to fetch from Gambulls API." });
 
-      return res(200, { success: true, casino: provider, casinoName: CASINO_NAMES[provider], ...data });
+      // raw=1 returns the unbaselined monthly totals (used by the wager raffle,
+      // which applies its own separate baselines).
+      const raw = event.queryStringParameters?.raw === "1";
+      const out = raw ? data : applyPeriod(data, period);
+      return res(200, { success: true, casino: provider, casinoName: CASINO_NAMES[provider], period, ...out });
     }
 
     // Honor-system casinos: return empty leaderboard (no API)
-    return res(200, { success: true, casino: provider, casinoName: CASINO_NAMES[provider], totalWagered: 0, totalUsers: 0, rankings: [] });
+    return res(200, { success: true, casino: provider, casinoName: CASINO_NAMES[provider], period, totalWagered: 0, totalUsers: 0, rankings: [] });
 
   } catch (err) {
     console.error("[leaderboard-live] error:", err.message);

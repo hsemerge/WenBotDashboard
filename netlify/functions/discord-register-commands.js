@@ -38,6 +38,25 @@ exports.handler = async (event) => {
       description: "Check your WenBot points balance",
     },
     {
+      name:        "give",
+      description: "Give some of your points to another linked member",
+      options: [
+        { name: "user",   description: "Who to give points to",   type: 6, required: true },
+        { name: "amount", description: "How many points to give", type: 4, required: true },
+      ],
+    },
+    {
+      name:        "giveall",
+      description: "Drop points to every active chatter (streamer only)",
+      // Hidden from regular members in the UI; only members with Administrator
+      // see it by default. Actual use is locked server-side to the streamer's
+      // configured Discord ID.
+      default_member_permissions: "0",
+      options: [
+        { name: "amount", description: "How many points to drop to each active chatter", type: 4, required: true },
+      ],
+    },
+    {
       name:        "buy",
       description: "Spend your points on a store item",
       options: [{
@@ -58,6 +77,10 @@ exports.handler = async (event) => {
     {
       name:        "register",
       description: "Link your Kick account to WenBot",
+    },
+    {
+      name:        "verify",
+      description: "Verify your casino + Kick account (same as /register)",
     },
   ];
 

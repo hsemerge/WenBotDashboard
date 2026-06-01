@@ -152,6 +152,22 @@
       </button>
     </div>
 
+    <!-- Already-verified short-circuit. Shown after Kick OAuth resolves and
+         /api/verify-status reports the viewer is already verified for the
+         active casino. Lets them confirm the existing record (e.g. to attach
+         a Discord link) without re-typing the casino username. They can still
+         choose "Change casino username" to fall through to the form below. -->
+    <div id="alreadyVerifiedSection" style="display:none;">
+      <div style="background:rgba(83,224,119,0.08); border:1px solid rgba(83,224,119,0.35); border-radius:10px; padding:14px 16px; margin-bottom:16px;">
+        <div style="font-size:12px; color:#53e077; font-weight:700; letter-spacing:.05em; text-transform:uppercase; margin-bottom:6px;">✓ Already verified</div>
+        <div style="font-size:14px; color:var(--bright); line-height:1.5;">
+          You're verified at <strong id="alreadyVerifiedCasino">—</strong> as <strong id="alreadyVerifiedUsername">—</strong>.
+        </div>
+      </div>
+      <button class="btn-verify" id="confirmExistingBtn" onclick="confirmExisting()">Confirm &amp; Link Discord</button>
+      <a href="#" id="changeCasinoLink" onclick="revealCasinoForm(); return false;" style="display:block; text-align:center; font-size:12px; color:var(--text-dim); margin-top:14px; text-decoration:underline;">or change your casino username</a>
+    </div>
+
     <div id="formSection">
       <div class="form-group">
         <label id="affiliateLabel">Casino Username</label>
@@ -167,14 +183,15 @@
       <h3>Verified!</h3>
       <p id="successMsg">Your account has been linked successfully.</p>
       <div id="discordLinkSection" style="margin-top:20px; padding-top:18px; border-top:1px solid rgba(255,255,255,0.08);">
-        <p style="font-size:13px; color:#8b949e; margin-bottom:12px;">Also in the Discord server? Link your Discord to use <strong style="color:#c9d1d9;">/points</strong> and <strong style="color:#c9d1d9;">/buy</strong>.</p>
+        <div id="dvServerHeader" style="display:none; align-items:center; gap:12px; background:rgba(88,101,242,0.08); border:1px solid rgba(88,101,242,0.3); border-radius:10px; padding:10px 12px; margin-bottom:12px; text-align:left;"></div>
+        <p id="discordLinkPrompt" style="font-size:13px; color:#8b949e; margin-bottom:12px;">Connect your Discord to finish verifying and join the server.</p>
         <button onclick="linkDiscord()" style="
           background: #5865F2; border: none; border-radius: 8px; cursor: pointer;
           font-family: 'Exo 2', sans-serif; font-size: 14px; font-weight: 800;
           color: #fff; padding: 10px 20px; display: inline-flex; align-items: center; gap: 8px;
         ">
           <svg width="18" height="14" viewBox="0 0 71 55" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M60.1 4.9A58.6 58.6 0 0 0 45.5.4a40 40 0 0 0-1.8 3.7 54.2 54.2 0 0 0-16.3 0A38 38 0 0 0 25.6.4 58.8 58.8 0 0 0 11 4.9C1.6 19 -1 32.7.3 46.3a59.1 59.1 0 0 0 18 9.1 43.5 43.5 0 0 0 3.8-6.2 38.4 38.4 0 0 1-6-2.9l1.4-1.1a42 42 0 0 0 36 0l1.5 1.1a38.2 38.2 0 0 1-6 2.9 43.2 43.2 0 0 0 3.8 6.2 58.8 58.8 0 0 0 18-9.1C72.3 30.6 68.4 17 60.1 4.9ZM23.8 38.2c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.2 6.4 7.2c0 4-2.9 7.2-6.4 7.2Zm23.7 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.2 6.4 7.2c0 4-2.8 7.2-6.4 7.2Z"/></svg>
-          Connect Discord
+          <span id="discordLinkBtnText">Connect Discord &amp; Join</span>
         </button>
         <p id="discordLinked" style="display:none; color:#00ff88; font-size:13px; margin-top:10px; font-weight:600;">✅ Discord linked!</p>
       </div>
@@ -205,6 +222,10 @@
   const casinoName = CASINO_NAMES[casino]  || casino;
   const discordMode   = !!dtoken;
   const kickConnected = params.get('kick') === 'connected';
+  // Came from the Discord verify gate → they're already in the server, so the
+  // Discord step is just "link" (no "join the server?" question), and linking
+  // is what assigns their role.
+  const fromDiscord   = params.get('src') === 'discord';
 
   let resolvedKickUsername = null;
   let kickAccessToken      = null;
@@ -274,6 +295,53 @@
     document.getElementById('kickUsernameDisplay').textContent = resolvedKickUsername;
     document.getElementById('identityIcon').textContent = '✅';
     document.getElementById('switchAccountLink').style.display = 'block';
+
+    // Check whether they're already verified for this streamer + active casino.
+    // If so, swap the casino-entry form for a 1-click "confirm" card — avoids
+    // re-typing the same casino username just to attach Discord.
+    try {
+      const sResp = await fetch('/api/verify-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel, kickAccessToken }),
+      });
+      if (sResp.ok) {
+        const sData = await sResp.json();
+        if (sData.verified && sData.providerUsername) {
+          document.getElementById('formSection').style.display = 'none';
+          document.getElementById('alreadyVerifiedCasino').textContent = casinoName;
+          document.getElementById('alreadyVerifiedUsername').textContent = sData.providerUsername;
+          // In Discord-initiated flow there's a dtoken — confirming will attach
+          // Discord. Reflect that in the button label.
+          const btn = document.getElementById('confirmExistingBtn');
+          if (dtoken) btn.textContent = 'Confirm & Link Discord';
+          else if (sData.discordLinkedAny) btn.textContent = 'Looks good';
+          else btn.textContent = 'Confirm verification';
+          document.getElementById('alreadyVerifiedSection').style.display = 'block';
+          // Pre-fill the form input too so "change casino username" reveals
+          // it with the existing value already typed in.
+          document.getElementById('affiliateInput').value = sData.providerUsername;
+        }
+      }
+    } catch { /* silent — fall through to normal form */ }
+  }
+
+  // Reveal the casino-entry form when the streamer clicks "change casino username"
+  // on the already-verified short-circuit card.
+  function revealCasinoForm() {
+    document.getElementById('alreadyVerifiedSection').style.display = 'none';
+    document.getElementById('formSection').style.display = 'block';
+    document.getElementById('affiliateInput').focus();
+    document.getElementById('affiliateInput').select();
+  }
+
+  // Confirm the existing verification (re-submit the same casino username) so
+  // verify-affiliate.js can attach the Discord dtoken to the existing record
+  // without forcing the user to retype anything.
+  async function confirmExisting() {
+    const existing = document.getElementById('affiliateInput').value.trim();
+    if (!existing) { revealCasinoForm(); return; }
+    submitVerify();
   }
 
   function connectKick() {
@@ -367,16 +435,40 @@
     if (e.key === 'Enter') submitVerify();
   });
 
+  // Show which server they're about to join (name + icon) so it's clear before
+  // they connect. The atomic join + role assignment happens server-side after
+  // they approve Discord's OAuth.
+  let guildInfo = null;
+  async function loadGuildInfo() {
+    if (!channel) return;
+    try {
+      const r = await fetch(`/api/discord-guild-info?channel=${encodeURIComponent(channel)}`);
+      const d = await r.json();
+      if (!d || !d.name) return;
+      guildInfo = d;
+      const header = document.getElementById('dvServerHeader');
+      if (header) {
+        header.innerHTML =
+          `${d.iconUrl ? `<img src="${d.iconUrl}" alt="" style="width:40px;height:40px;border-radius:50%;flex-shrink:0;">` : '<div style="width:40px;height:40px;border-radius:50%;background:#5865F2;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;flex-shrink:0;">' + escHtml((d.name[0]||'?').toUpperCase()) + '</div>'}
+           <div><div style="font-weight:700;color:#c9d1d9;font-size:14px;">${escHtml(d.name)}</div>
+           <div style="font-size:11px;color:#8b949e;">You'll be added to this Discord server.</div></div>`;
+        header.style.display = 'flex';
+      }
+      const prompt = document.getElementById('discordLinkPrompt');
+      if (prompt) prompt.textContent = 'Connect your Discord to finish verifying and join the server below.';
+    } catch {}
+  }
+  loadGuildInfo();
+
+  // Connect Discord → links the account AND joins the server (guilds.join, which
+  // they approve on Discord's OAuth screen). The verified role is assigned in the
+  // same server-side step, so it lands the instant they're added.
   function linkDiscord() {
     if (!resolvedKickUsername || !channel) return;
     const state = btoa(JSON.stringify({ k: resolvedKickUsername, c: channel }));
     const params = new URLSearchParams({
       client_id:     '1505048778770481173',
       response_type: 'code',
-      // identify       — read their Discord user id/name
-      // guilds         — read their server list (membership check)
-      // guilds.join    — let WenBot add them to the streamer's server if they
-      //                  aren't already in it (one-click join + link)
       scope:         'identify guilds guilds.join',
       redirect_uri:  'https://wenbot.gg/discord-verify-callback.html',
       state,

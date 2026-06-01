@@ -235,7 +235,7 @@
     </div>
     <div class="stat-box">
       <div class="stat-value" id="statReset">Monthly</div>
-      <div class="stat-label">Resets</div>
+      <div class="stat-label" id="statResetLabel">Resets</div>
     </div>
   </div>
 </div>
@@ -423,6 +423,8 @@
       if (data.totalWagered) document.getElementById('statWagered').textContent = fmt(data.totalWagered);
       if (data.totalUsers) document.getElementById('statPlayers').textContent = data.totalUsers;
 
+      applyPeriod(data.period || null);
+
       if (data.rankings && data.rankings.length > 0) {
         renderPodium(data.rankings.slice(0, 3));
         renderTable(data.rankings, data.prizeStructure);
@@ -449,10 +451,55 @@
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  // ── PERIOD COUNTDOWN ──
+  // The streamer sets a cadence (weekly / bi-weekly / monthly) in their
+  // dashboard; we count down to the period end. When the bot finalizes a
+  // period, the next live refresh returns the rolled (or stopped) period.
+  let lbPeriod = null;
+  let _lbExpiryRefreshScheduled = false;
+  const _lbDurLabel = (d) => d === 'weekly' ? 'Weekly' : d === 'biweekly' ? 'Bi-weekly' : 'Monthly';
+
+  function applyPeriod(period) {
+    lbPeriod = (period && period.active && period.endAt) ? period : null;
+    if (lbPeriod) {
+      document.getElementById('heroSub').textContent =
+        `${_lbDurLabel(lbPeriod.duration)} wager rankings for ${channel}'s ${casinoName} affiliate`;
+    }
+    tickCountdown();
+  }
+
+  function tickCountdown() {
+    const valEl = document.getElementById('statReset');
+    const lblEl = document.getElementById('statResetLabel');
+    if (!lbPeriod) { valEl.textContent = 'Monthly'; lblEl.textContent = 'Resets'; return; }
+
+    const ms = lbPeriod.endAt - Date.now();
+    if (ms <= 0) {
+      valEl.textContent = 'Soon';
+      lblEl.textContent = 'Finalizing…';
+      // Period just ended — the bot snapshots + rolls within minutes. Re-pull a
+      // few times to pick up the new (or stopped) period without a manual reload.
+      if (!_lbExpiryRefreshScheduled) {
+        _lbExpiryRefreshScheduled = true;
+        setTimeout(() => { _lbExpiryRefreshScheduled = false; loadLeaderboard(); loadPastWinners(); }, 30000);
+      }
+      return;
+    }
+
+    const days = Math.floor(ms / 86400000);
+    const hrs  = Math.floor((ms % 86400000) / 3600000);
+    const mins = Math.floor((ms % 3600000) / 60000);
+    const secs = Math.floor((ms % 60000) / 1000);
+    valEl.textContent = days >= 1 ? `${days}d ${hrs}h` : hrs >= 1 ? `${hrs}h ${mins}m` : `${mins}m ${secs}s`;
+    const ends = new Date(lbPeriod.endAt).toLocaleDateString([], { month: 'short', day: 'numeric' });
+    lblEl.textContent = `${_lbDurLabel(lbPeriod.duration)} · ends ${ends}`;
+  }
+
   loadLeaderboard();
   loadPastWinners();
 
-  // Refresh live data every 5 minutes
+  // Tick the countdown every second; refresh live data every 5 minutes.
+  setInterval(tickCountdown, 1000);
   setInterval(loadLeaderboard, 5 * 60 * 1000);
 </script>
 </body>

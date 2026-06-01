@@ -117,6 +117,10 @@
       gap: 8px;
       padding: 7px 16px;
       border-bottom: 1px solid rgba(48,54,61,0.4);
+    }
+    /* Only genuinely new rows slide in — existing rows re-render without
+       re-animating, so the list never flickers on a routine poll. */
+    .entry-row.is-new {
       animation: slideIn 0.3s ease both;
     }
     @keyframes slideIn {
@@ -233,47 +237,77 @@ async function fetchData() {
   } catch { return null; }
 }
 
+// Track which parts we last drew so a routine poll with no changes does
+// zero DOM writes (and therefore can't flicker). Light fields like the count
+// and timestamp are plain text updates — they never flicker — so we always
+// refresh those, but only rebuild the criteria/entries markup when it changes.
+let _lastCritSig    = null;
+let _lastEntriesSig = null;
+let _shownKeys      = new Set();
+
 function render(data) {
   if (!data) return;
 
-  // Criteria chips
-  const chips = [];
-  chips.push(`<span class="chip keyword">⌨ ${data.keyword}</span>`);
-  const typeLabel = data.type === 'code' ? '🔗 Code Users' : data.type === 'verified' ? '✅ Verified' : '🌐 Everyone';
-  chips.push(`<span class="chip type">${typeLabel}</span>`);
-  if (data.minWager > 0) chips.push(`<span class="chip wager">💰 Min $${data.minWager.toLocaleString()}</span>`);
-  if (data.subOnly)      chips.push(`<span class="chip sub">⭐ Subs Only</span>`);
-  document.getElementById('criteriaRow').innerHTML = chips.join('');
-
-  // Count + status
-  document.getElementById('entryCount').textContent = data.count || 0;
-  document.getElementById('liveDot').style.display    = data.active ? '' : 'none';
+  // Count + status + timestamp — cheap text/style updates, no flicker.
+  document.getElementById('entryCount').textContent    = data.count || 0;
+  document.getElementById('liveDot').style.display     = data.active ? '' : 'none';
   document.getElementById('closedBadge').style.display = data.active ? 'none' : 'block';
-
   if (data.updatedAt) {
     const d = new Date(data.updatedAt);
     document.getElementById('updatedAt').textContent = `Updated ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
   }
 
-  // Entries list — most recent last in array, show up to 8 newest
+  // Criteria chips — only rebuild when they actually change.
+  const critSig = JSON.stringify([data.keyword, data.type, data.minWager, data.subOnly]);
+  if (critSig !== _lastCritSig) {
+    _lastCritSig = critSig;
+    const chips = [];
+    chips.push(`<span class="chip keyword">⌨ ${data.keyword}</span>`);
+    const typeLabel = data.type === 'code' ? '🔗 Code Users' : data.type === 'verified' ? '✅ Verified' : '🌐 Everyone';
+    chips.push(`<span class="chip type">${typeLabel}</span>`);
+    if (data.minWager > 0) chips.push(`<span class="chip wager">💰 Min $${data.minWager.toLocaleString()}</span>`);
+    if (data.subOnly)      chips.push(`<span class="chip sub">⭐ Subs Only</span>`);
+    document.getElementById('criteriaRow').innerHTML = chips.join('');
+  }
+
+  // Entries list — most recent last in array, show up to 8 newest.
   const entries = data.entries || [];
   const inner   = document.getElementById('entriesInner');
+
   if (!entries.length) {
-    inner.innerHTML = '<div class="empty-state">Waiting for entries…</div>';
+    const emptySig = 'empty';
+    if (emptySig !== _lastEntriesSig) {
+      _lastEntriesSig = emptySig;
+      _shownKeys = new Set();
+      inner.innerHTML = '<div class="empty-state">Waiting for entries…</div>';
+    }
     return;
   }
+
   const show = entries.slice(-8).reverse();
+  // Signature of exactly what's drawn (identity, ticket/wager, and rank, which
+  // shifts with the total). Unchanged signature ⇒ skip the rebuild entirely.
+  const entriesSig = JSON.stringify(show.map((e, i) => [e.kickKey || e.kickName, e.tickets || 0, e.wager || 0, entries.length - i]));
+  if (entriesSig === _lastEntriesSig) return;
+  _lastEntriesSig = entriesSig;
+
   inner.innerHTML = show.map((e, i) => {
+    const key     = (e.kickKey || e.kickName || '?').toString();
     const name    = e.kickName || e.kickKey || '?';
     const wager   = e.wager   > 0 ? `$${Number(e.wager).toLocaleString()}` : '';
     const tickets = e.tickets > 1 ? `${e.tickets}x` : '';
-    return `<div class="entry-row">
+    // Only rows we haven't shown before get the slide-in animation, so
+    // existing entries don't re-animate (and flash) when a new one joins.
+    const isNew   = !_shownKeys.has(key);
+    return `<div class="entry-row${isNew ? ' is-new' : ''}">
       <span class="entry-rank">${entries.length - i}</span>
       <span class="entry-name">${name}</span>
       ${tickets ? `<span class="entry-tickets">${tickets}</span>` : ''}
       ${wager   ? `<span class="entry-wager">${wager}</span>` : ''}
     </div>`;
   }).join('');
+
+  _shownKeys = new Set(show.map(e => (e.kickKey || e.kickName || '?').toString()));
 }
 
 async function poll() {

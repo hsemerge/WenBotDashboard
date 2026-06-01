@@ -221,7 +221,34 @@
             setTimeout(() => window.location.href = `/verify.html?${vp}`, 1200);
           } else {
             const channel = statePayload.channel || "";
-            setTimeout(() => window.location.href = `/bonus-battle.html?channel=${encodeURIComponent(channel)}`, 1200);
+            // Cross-domain handoff: if this login originated on a white-label
+            // custom domain, mint a one-time code holding the session and send
+            // the viewer back there (?s=code) to claim it — wenbot.gg's
+            // localStorage isn't readable on their domain.
+            if (statePayload.returnOrigin) {
+              try {
+                const sess = JSON.parse(localStorage.getItem("kick_viewer_session"));
+                const mintResp = await fetch("/api/kick-session-mint", {
+                  method:  "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body:    JSON.stringify({ session: sess, returnOrigin: statePayload.returnOrigin }),
+                });
+                const mint = await mintResp.json();
+                if (!mintResp.ok || !mint.code) throw new Error(mint.error || "Handoff failed");
+                const back = new URL(statePayload.returnOrigin);
+                back.searchParams.set("s", mint.code);
+                setTimeout(() => window.location.href = back.toString(), 1000);
+              } catch (e) {
+                setStatus("Sign-in handoff failed", "error");
+                setDetail(e.message || "Please try again.");
+              }
+              return;
+            }
+            // Same-origin (wenbot.gg) viewer login — return to where they started.
+            let dest = `/bonus-battle.html?channel=${encodeURIComponent(channel)}`;
+            const ru = statePayload.returnUrl;
+            if (typeof ru === "string" && ru.startsWith("/") && !ru.startsWith("//")) dest = ru;
+            setTimeout(() => window.location.href = dest, 1200);
           }
 
         } else if (isWenBot) {

@@ -18,7 +18,7 @@
       --bg: #0d1117; --bg-panel: #161b22; --bg-card: #1a2030;
       --border: #30363d; --text: #c9d1d9; --text-dim: #8b949e;
       --bright: #f0f6fc;
-      --accent: #00e5ff; --accent-glow: rgba(0,229,255,0.2);
+      --accent: #00e5ff; --accent-glow: rgba(0,229,255,0.2); --accent-2: #00e5ff;
       --green: #00ff88; --gold: #ffd700; --silver: #c0c0c0; --bronze: #cd7f32;
       --red: #ff4757;
     }
@@ -280,6 +280,11 @@
       transition: border-color 0.15s, transform 0.15s;
     }
     .store-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .store-card.raffle { border-color: var(--gold); background: linear-gradient(180deg, rgba(255,215,0,0.06), var(--bg-card)); }
+    .store-img { width:100%; aspect-ratio:16/10; border-radius:8px; overflow:hidden; background:rgba(255,255,255,0.03); border:1px solid var(--border); margin-bottom:12px; }
+    .store-img img { width:100%; height:100%; object-fit:cover; display:block; }
+    .buy-cmd { display:inline-flex; align-items:center; gap:6px; margin-top:12px; padding:7px 10px; border-radius:8px; background:rgba(255,255,255,0.03); border:1px solid var(--border); font-size:12px; color:var(--text); cursor:pointer; font-family:monospace; transition:.15s; }
+    .buy-cmd:hover { border-color: var(--accent); color: var(--bright); }
     .store-name { font-family: 'Exo 2', sans-serif; font-weight: 800; font-size: 15px; color: var(--bright); margin-bottom: 4px; }
     .store-desc { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.45; min-height: 32px; }
     .store-footer { display: flex; justify-content: space-between; align-items: center; }
@@ -419,6 +424,10 @@
 
 <footer>
   <p>Powered by <a href="/">WenBot</a> — Streamer tools for Kick</p>
+  <p style="margin-top:6px;font-size:11px;">
+    <a href="/privacy.html" style="color:var(--text-dim);">Privacy</a> ·
+    <a href="/terms.html" style="color:var(--text-dim);">Terms</a>
+  </p>
 </footer>
 
 <script>
@@ -428,20 +437,49 @@
   //   2. ?channel=foo query param (direct /portal.html?channel=foo access — useful for testing/sharing)
   // We prefer the path because Netlify's :streamer substitution in the rewrite's
   // query string isn't reliable; deriving from location.pathname always works.
+  // Custom-domain map — mirrors HOST_TO_SLUG in netlify/edge-functions/custom-domain.js.
+  // On a custom domain the edge function rewrites the SERVER path to /<slug>, but
+  // the browser address bar stays at the domain root, so the client must resolve
+  // the channel from the host instead of the path. (Long-term: back this with a
+  // Firestore customDomain field so it's self-serve.)
+  const HOST_TO_SLUG = {
+    'skslots.co.uk':     'skslots',
+    'www.skslots.co.uk': 'skslots',
+  };
+  const customSlug = HOST_TO_SLUG[window.location.host.toLowerCase()] || null;
+
   function getChannelFromUrl() {
     const q = (new URLSearchParams(window.location.search)).get('channel');
     if (q) return q.toLowerCase().trim();
+    // On a custom domain the channel comes from the host (the path is the tab).
+    if (customSlug) return customSlug;
     const path = window.location.pathname
       .replace(/^\/+/, '')      // strip leading slashes
       .replace(/\/+$/, '')      // strip trailing slashes
       .replace(/\.html$/i, ''); // /portal.html → portal (so direct visits to portal.html stay an error)
     if (!path || path === 'portal') return '';
-    // Only accept simple usernames — reject anything with extra path segments,
-    // dots, or weird chars so we don't fetch with garbage.
-    if (!/^[a-z0-9_-]{1,30}$/i.test(path)) return '';
-    return path.toLowerCase();
+    // First path segment is the streamer slug. Anything after is the tab
+    // selector (handled by getTabFromUrl). Only accept simple usernames.
+    const slug = path.split('/')[0];
+    if (!/^[a-z0-9_-]{1,30}$/i.test(slug)) return '';
+    return slug.toLowerCase();
+  }
+
+  // Optional tab override taken from the SECOND URL path segment.
+  // e.g. /skslots/leaderboard → 'leaderboard'. Used by custom-domain setups
+  // where the streamer's vanity URL points at a specific tab.
+  function getTabFromUrl() {
+    const path = window.location.pathname.replace(/^\/+|\/+$/g, '');
+    const parts = path.split('/').filter(Boolean);
+    // On a custom domain the FIRST segment is the tab (channel comes from the
+    // host); on wenbot.gg the SECOND segment is the tab (first is the channel).
+    const tabIndex = customSlug ? 0 : 1;
+    if (parts.length <= tabIndex) return null;
+    const t = parts[tabIndex].toLowerCase();
+    return /^[a-z0-9_-]{1,30}$/i.test(t) ? t : null;
   }
   const channel = getChannelFromUrl();
+  const urlTab  = getTabFromUrl();
 
   let state = null; // populated after /api/portal-data
   let currentTab = null;
@@ -483,13 +521,42 @@
   const DEFAULT_ACCENT_GLOW = 'rgba(0,229,255,0.2)';
 
   function applyTheme(s) {
+    const root  = document.documentElement.style;
+    const theme = (s && s.portal && s.portal.theme) ? s.portal.theme : null;
+
+    if (theme) {
+      // White-label: apply the full brand palette over the CSS variables.
+      const map = {
+        accent: '--accent', accent2: '--accent-2', gold: '--gold',
+        bg: '--bg', bgCard: '--bg-card', border: '--border',
+        text: '--text', textDim: '--text-dim', bright: '--bright',
+      };
+      Object.keys(map).forEach(k => { if (theme[k]) root.setProperty(map[k], theme[k]); });
+      root.setProperty('--accent-glow', theme.accentGlow || (theme.accent ? hexToGlow(theme.accent) : DEFAULT_ACCENT_GLOW));
+
+      // Optional background image — tinted with the brand bg color so text stays
+      // readable. Must be hosted somewhere img-src allows (Firebase Storage).
+      if (s.portal.bgImage) {
+        const tint = theme.bg || '#0d1117';
+        document.body.style.background =
+          `linear-gradient(${hexToRgba(tint, 0.86)}, ${hexToRgba(tint, 0.94)}), url("${s.portal.bgImage}") center / cover fixed no-repeat`;
+      }
+      return;
+    }
+    // Standard streamers: just the single elite themeColor (or default).
     const color = s.streamer.themeColor || null;
-    document.documentElement.style.setProperty('--accent',      color ? color                : DEFAULT_ACCENT);
-    document.documentElement.style.setProperty('--accent-glow', color ? hexToGlow(color)    : DEFAULT_ACCENT_GLOW);
+    root.setProperty('--accent',      color ? color             : DEFAULT_ACCENT);
+    root.setProperty('--accent-glow', color ? hexToGlow(color)  : DEFAULT_ACCENT_GLOW);
   }
 
   // -------- Render: header / hero ----------
   function renderHero(s) {
+    // White-label brand overrides: a custom logo and a hero tagline (shown where
+    // the bio renders when the streamer hasn't set one).
+    if (s.portal) {
+      if (s.portal.logoUrl) s.streamer.logoUrl = s.portal.logoUrl;
+      if (s.portal.hero && s.portal.hero.tagline && !s.streamer.bio) s.streamer.bio = s.portal.hero.tagline;
+    }
     document.title = `${s.streamer.displayName} — WenBot Portal`;
     document.getElementById('metaDesc').setAttribute('content',
       s.streamer.bio || `${s.streamer.displayName}'s portal — leaderboard, store, and giveaways on Kick.`);
@@ -521,6 +588,14 @@
 
     // Name + Kick link
     document.getElementById('heroName').textContent = s.streamer.displayName;
+    // White-label: render the name as a blue→purple (accent → accent-2) gradient.
+    if (s.portal && s.portal.theme && s.portal.theme.accent2) {
+      const hn = document.getElementById('heroName');
+      hn.style.background = 'linear-gradient(90deg, var(--accent), var(--accent-2))';
+      hn.style.webkitBackgroundClip = 'text';
+      hn.style.backgroundClip = 'text';
+      hn.style.webkitTextFillColor = 'transparent';
+    }
     const kickAnchor = document.getElementById('heroKickLink');
     kickAnchor.href = s.streamer.socials.kick;
     kickAnchor.textContent = 'kick.com/' + s.streamer.kickChannel;
@@ -550,6 +625,13 @@
     if (!m) return 'rgba(0,229,255,0.2)';
     const n = parseInt(m[1], 16);
     return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},0.2)`;
+  }
+
+  function hexToRgba(hex, alpha) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+    if (!m) return `rgba(13,17,23,${alpha})`;
+    const n = parseInt(m[1], 16);
+    return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;
   }
 
   // -------- Render: active strip ----------
@@ -628,8 +710,12 @@
       btn.addEventListener('click', () => selectTab(btn.dataset.tab));
     });
 
-    // Default tab: first available
-    selectTab(tabs[0].id);
+    // If the URL specified a tab (e.g. /skslots/leaderboard from a custom-
+    // domain rewrite), honor it as long as it's available; otherwise fall
+    // back to the first tab in the list.
+    const want = (typeof urlTab !== 'undefined' && urlTab) || null;
+    const target = want && tabs.some(t => t.id === want) ? want : tabs[0].id;
+    selectTab(target);
   }
 
   function selectTab(id) {
@@ -719,7 +805,28 @@
       </div>`;
   }
 
+  // Live countdown for the leaderboard period (weekly / bi-weekly / monthly),
+  // configured from the streamer's dashboard. Ticks while the Leaderboard tab
+  // is visible; no-ops otherwise.
+  let _portalLbPeriod = null;
+  const _portalLbLabel = (d) => d === 'weekly' ? 'Weekly' : d === 'biweekly' ? 'Bi-weekly' : 'Monthly';
+  function tickPortalLbCountdown() {
+    const val = document.getElementById('portalLbCountdown');
+    if (!val) return;
+    const lbl = document.getElementById('portalLbCountdownLabel');
+    const p = _portalLbPeriod;
+    if (!p || !p.active || !p.endAt) { val.textContent = 'Monthly'; if (lbl) lbl.textContent = 'Resets'; return; }
+    const ms = p.endAt - Date.now();
+    if (ms <= 0) { val.textContent = 'Soon'; if (lbl) lbl.textContent = 'Finalizing…'; return; }
+    const days = Math.floor(ms / 86400000), hrs = Math.floor((ms % 86400000) / 3600000), mins = Math.floor((ms % 3600000) / 60000), secs = Math.floor((ms % 60000) / 1000);
+    val.textContent = days >= 1 ? `${days}d ${hrs}h` : hrs >= 1 ? `${hrs}h ${mins}m` : `${mins}m ${secs}s`;
+    if (lbl) { const ends = new Date(p.endAt).toLocaleDateString([], { month: 'short', day: 'numeric' }); lbl.textContent = `${_portalLbLabel(p.duration)} · ends ${ends}`; }
+  }
+  setInterval(tickPortalLbCountdown, 1000);
+
   function renderLeaderboard(s) {
+    _portalLbPeriod = s.leaderboardTimer || null;
+    setTimeout(tickPortalLbCountdown, 0); // update once the tab HTML is in the DOM
     if (!s.features.leaderboard) {
       return lockedState('Leaderboard', 'This streamer is on a plan that doesn’t include the public leaderboard.');
     }
@@ -777,6 +884,10 @@
             <div class="stat-value">${esc(s.streamer.providerName)}</div>
             <div class="stat-label">Casino</div>
           </div>
+          <div class="stat-box">
+            <div class="stat-value" id="portalLbCountdown">—</div>
+            <div class="stat-label" id="portalLbCountdownLabel">Resets</div>
+          </div>
         </div>
         ${podiumHtml}
         ${tableHtml}
@@ -799,29 +910,35 @@
         else if (it.stock <= 3) stockHtml = `<span class="store-stock low">${it.stock} left</span>`;
         else stockHtml = `<span class="store-stock">${it.stock} in stock</span>`;
       }
+      const buyCmd = `!buy ${it.name}`;
       const raffleBadge = it.isRaffleItem
-        ? `<span style="font-size:10px;font-weight:700;color:var(--accent);background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);border-radius:10px;padding:2px 8px;letter-spacing:0.04em;margin-left:6px;">🎟 RAFFLE</span>`
+        ? `<span style="display:inline-flex;align-items:center;gap:4px;font-family:'Exo 2',sans-serif;font-size:10px;font-weight:900;letter-spacing:0.06em;color:#06121a;background:linear-gradient(90deg,var(--gold),#ffe27a);border-radius:20px;padding:3px 9px;margin-left:6px;vertical-align:middle;">🎟 RAFFLE ENTRY</span>`
+        : '';
+      const img = it.imageUrl
+        ? `<div class="store-img"><img src="${esc(it.imageUrl)}" alt="" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
         : '';
       return `
-        <div class="store-card">
+        <div class="store-card${it.isRaffleItem ? ' raffle' : ''}">
+          ${img}
           <div class="store-name">${esc(it.name)}${raffleBadge}</div>
           <div class="store-desc">${esc(it.description || '')}</div>
           <div class="store-footer">
             <div class="store-price">${fmtNum(it.price)}<small>${esc(s.streamer.currency)}</small></div>
             ${stockHtml}
           </div>
+          <div class="buy-cmd" title="Copy command" onclick="navigator.clipboard&&navigator.clipboard.writeText('${buyCmd.replace(/'/g,"\\'")}');this.textContent='✓ Copied — paste in chat';">📋 ${esc(buyCmd)}</div>
         </div>`;
     }).join('');
     const hasRaffleItem = items.some(it => it.isRaffleItem);
     const raffleNote = hasRaffleItem
-      ? `<div class="redeem-note" style="margin-top:10px;background:rgba(0,229,255,0.06);">🎟 Items marked <strong>RAFFLE</strong> = redeeming enters you into that item's raffle. The streamer draws a winner.</div>`
+      ? `<div class="redeem-note" style="margin-top:10px;background:rgba(255,215,0,0.06);border-color:rgba(255,215,0,0.25);">🎟 Items marked <strong style="color:var(--gold);">RAFFLE ENTRY</strong> = buying enters you into that item's raffle. The streamer draws a winner.</div>`
       : '';
     return `
       <div class="panel">
         <div class="section-title">Store · ${esc(s.streamer.currency)}</div>
         <div class="store-grid">${cards}</div>
         <div class="redeem-note">
-          💬 Redeem from Kick chat: <code>!redeem &lt;item name&gt;</code>
+          💬 Buy from Kick chat or Discord: <code>!buy &lt;item name&gt;</code>
         </div>
         ${raffleNote}
       </div>`;

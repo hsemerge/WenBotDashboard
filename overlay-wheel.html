@@ -121,6 +121,9 @@
 const params   = new URLSearchParams(location.search);
 const channel  = params.get('channel') || '';
 const demoMode = params.get('demo') === '1';
+// Embed mode is used by the dashboard preview iframe. Skips polling and
+// listens for postMessage triggers from the parent window instead.
+const isEmbed  = params.get('embed') === '1';
 
 const COLORS = [
   '#00e5ff','#a78bfa','#ffd700','#00ff88','#ff4757',
@@ -140,6 +143,20 @@ let lastTriggerAt      = 0;
 let lastRafTriggerAt   = 0;
 let initialized        = false;
 let bannerHideTimer    = null;
+// When this iframe loaded — used to decide whether a "first sighting" of a
+// trigger should play (recent / arrived after load) or be silently absorbed
+// (stale — fired before this iframe existed). The 2s grace covers the race
+// where a streamer clicks reroll during a style switch and the new trigger
+// is written to Firestore before this iframe finishes loading.
+const _LOADED_AT       = Date.now();
+// Generation counter — each spinToWinner captures its own ID so stale tick
+// frames from a previous spin become no-ops when a rapid reroll
+// cancel-and-restarts the animation.
+let _spinGen           = 0;
+// Latest spin message queued during an in-flight animation (embed mode).
+// Cascades into the current spin once it lands. Always holds the MOST
+// RECENT click — earlier rapid clicks are discarded.
+let _embedPending      = null;
 
 // ── Draw ──────────────────────────────────────────────────────────────────────
 
@@ -231,11 +248,14 @@ function drawWheel(angle) {
 // ── Spin animation ────────────────────────────────────────────────────────────
 
 function spinToWinner(winnerName) {
-  if (animating) return;
+  // Cancel any in-flight banner-hide from a previous spin and bump the gen so
+  // the old tick loop bails on its next frame. This lets a rapid reroll
+  // cancel-and-restart instead of being dropped by `if (animating) return`.
+  if (bannerHideTimer) { clearTimeout(bannerHideTimer); bannerHideTimer = null; }
+  const myGen = ++_spinGen;
   animating = true;
-  // Make sure the wheel is actually on-screen — needed when a reroll fires
-  // after the giveaway has been stopped and visibility was never re-asserted.
   document.getElementById('wheelWrap').classList.add('visible');
+  document.getElementById('winnerBanner').classList.remove('show');
 
   // Find winner's midpoint angle in local wheel coords (unrotated)
   const total = entries.reduce((s, e) => s + (e.tickets || 1), 0);
@@ -269,6 +289,9 @@ function spinToWinner(winnerName) {
   }
 
   function tick(now) {
+    // Older ticks bail when a newer spin has started so two ticks never
+    // fight over wheelAngle.
+    if (myGen !== _spinGen) return;
     const t       = Math.min((now - startTs) / duration, 1);
     const eased   = easeOut(t);
     wheelAngle    = from + (target - from) * eased;
@@ -281,14 +304,33 @@ function spinToWinner(winnerName) {
       drawWheel(wheelAngle);
       animating  = false;
 
+      // If clicks queued up during this spin, skip showing this winner and
+      // cascade straight into the latest queued spin. Streamer wants to see
+      // the final result, not flash through intermediates.
+      if (_embedPending) {
+        const next = _embedPending;
+        _embedPending = null;
+        _runWheelEmbedSpin(next);
+        return;
+      }
+
       // Show winner
       document.getElementById('winnerName').textContent = winnerName;
       document.getElementById('winnerBanner').classList.add('show');
       spawnParticles();
 
+      // Notify parent: this spin landed visually. Dashboard uses this to
+      // commit the winner to its list + fire chat congrats.
+      if (window.parent !== window) {
+        try {
+          window.parent.postMessage({ type: 'spin-landed', winner: winnerName }, '*');
+        } catch {}
+      }
+
       // Auto-hide banner after 12s. Track the handle so a reroll can cancel.
       bannerHideTimer = setTimeout(() => {
         bannerHideTimer = null;
+        if (myGen !== _spinGen) return;
         document.getElementById('winnerBanner').classList.remove('show');
       }, 12000);
     }
@@ -326,17 +368,19 @@ async function poll() {
     // Giveaway spin trigger
     if (data.spinTrigger) {
       const { winner, triggeredAt } = data.spinTrigger;
-      if (!initialized) {
+      const isFirstSighting = !initialized;
+      initialized = true;
+      // First sighting: only treat as stale (absorb without animating) if the
+      // trigger fired clearly BEFORE this iframe loaded. A reroll click during
+      // a style switch can race ahead of iframe-init, so post-load triggers
+      // (or anything within a 2s grace) should still play.
+      if (isFirstSighting && triggeredAt < _LOADED_AT - 10000) {
         lastTriggerAt = triggeredAt;
-        initialized   = true;
-      } else if (winner && triggeredAt !== lastTriggerAt) {
+      } else if (winner && triggeredAt !== lastTriggerAt && !animating) {
+        // Mid-spin guard — queue the new trigger by leaving lastTriggerAt
+        // unchanged. When the current spin's tick loop finishes (animating
+        // flips false), the next poll picks up the new trigger and spins.
         lastTriggerAt = triggeredAt;
-        // Cancel any pending banner-hide from the previous spin, and force-reset
-        // animating so a reroll mid-animation actually restarts (instead of being
-        // dropped by the spinToWinner early-return).
-        if (bannerHideTimer) { clearTimeout(bannerHideTimer); bannerHideTimer = null; }
-        animating = false;
-        document.getElementById('winnerBanner').classList.remove('show');
         spinToWinner(winner);
       }
     } else {
@@ -346,15 +390,12 @@ async function poll() {
     // Raffle spin trigger — uses current entries if available, else shows winner-only wheel
     if (data.raffleTrigger) {
       const { winner, triggeredAt } = data.raffleTrigger;
-      if (!lastRafTriggerAt) {
+      const isFirstRaf = !lastRafTriggerAt;
+      if (isFirstRaf && triggeredAt < _LOADED_AT - 10000) {
         lastRafTriggerAt = triggeredAt;
-      } else if (winner && triggeredAt !== lastRafTriggerAt) {
+      } else if (winner && triggeredAt !== lastRafTriggerAt && !animating) {
         lastRafTriggerAt = triggeredAt;
-        if (bannerHideTimer) { clearTimeout(bannerHideTimer); bannerHideTimer = null; }
-        animating = false;
-        // If no giveaway entries loaded, make a temporary single-segment wheel
         if (!entries.length) entries = [{ username: winner, tickets: 1 }];
-        document.getElementById('winnerBanner').classList.remove('show');
         document.getElementById('wheelWrap').classList.add('visible');
         drawWheel(wheelAngle);
         spinToWinner(winner);
@@ -416,8 +457,36 @@ if (demoMode) {
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 
+function _runWheelEmbedSpin(msgData) {
+  const winner = String(msgData.winner || '');
+  if (!winner) return;
+  const raw = Array.isArray(msgData.entries) ? msgData.entries : [];
+  entries = buildEntries(raw);
+  if (!entries.some(en => en.username === winner)) {
+    entries.push({ username: winner, tickets: 1 });
+  }
+  drawWheel(wheelAngle);
+  spinToWinner(winner);
+}
+
+function initEmbed() {
+  // Don't pre-show the wheel — switching styles before a spin would
+  // otherwise flash an empty placeholder. spinToWinner adds .visible on
+  // the first real spin.
+  drawWheel(0);
+  window.addEventListener('message', (e) => {
+    if (e.data?.type !== 'spin') return;
+    if (animating) { _embedPending = e.data; return; }
+    _runWheelEmbedSpin(e.data);
+  });
+  if (window.parent !== window) {
+    try { window.parent.postMessage({ type: 'spinner-ready' }, '*'); } catch {}
+  }
+}
+
 drawWheel(0);
-poll();
+if (isEmbed) initEmbed();
+else if (!demoMode) poll();
 </script>
 </body>
 </html>

@@ -13,7 +13,7 @@
     # - script-src/style-src 'unsafe-inline' is needed because many pages have inline <script>/<style> blocks.
     # - connect-src lists the third parties our pages need to talk to:
     #   *.googleapis.com (Firebase Auth/Firestore), *.kick.com (Kick API/OAuth), discord.com (OAuth)
-    Content-Security-Policy = "default-src 'self'; script-src 'self' https://www.gstatic.com 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https://files.kick.com https://cdn.discordapp.com https://firebasestorage.googleapis.com https://*.firebasestorage.app https://lh3.googleusercontent.com https://cdn.softswiss.net https://cdn.pragmaticplay.net https://cms.pragmaticplay.net https://*.cloudfront.net https://mediumrare.imgix.net data:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://api.kick.com https://id.kick.com https://kick.com https://discord.com; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' https://www.gstatic.com 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https://files.kick.com https://cdn.discordapp.com https://firebasestorage.googleapis.com https://*.firebasestorage.app https://lh3.googleusercontent.com https://cdn.softswiss.net https://cdn.pragmaticplay.net https://cms.pragmaticplay.net https://*.cloudfront.net https://mediumrare.imgix.net https://bucket.gambulls.com data:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://api.kick.com https://id.kick.com https://kick.com https://discord.com; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
 
 [[redirects]]
   from   = "/api/kick-store-wenbot"
@@ -28,6 +28,21 @@
 [[redirects]]
   from   = "/api/store-public"
   to     = "/.netlify/functions/store-public"
+  status = 200
+
+[[redirects]]
+  from   = "/api/store-buy"
+  to     = "/.netlify/functions/store-buy"
+  status = 200
+
+[[redirects]]
+  from   = "/api/kick-session-mint"
+  to     = "/.netlify/functions/kick-session-mint"
+  status = 200
+
+[[redirects]]
+  from   = "/api/kick-session-claim"
+  to     = "/.netlify/functions/kick-session-claim"
   status = 200
 
 [[redirects]]
@@ -78,6 +93,16 @@
 [[redirects]]
   from   = "/api/discord-channels"
   to     = "/.netlify/functions/discord-channels"
+  status = 200
+
+[[redirects]]
+  from   = "/api/discord-post-gate"
+  to     = "/.netlify/functions/discord-post-gate"
+  status = 200
+
+[[redirects]]
+  from   = "/api/discord-guild-info"
+  to     = "/.netlify/functions/discord-guild-info"
   status = 200
 
 [[redirects]]
@@ -190,13 +215,26 @@
   to     = "/.netlify/functions/kick-login"
   status = 200
 
-# Streamer portal — catch-all rewrite. wenbot.gg/<channel> shows that streamer's
-# public hub. Static files take precedence (Netlify serves real files first),
-# so /dashboard.html, /signup.html, etc. continue working unaffected.
-# portal.html derives the channel from window.location.pathname (the address bar
-# stays /:streamer after the 200 rewrite), so we don't need Netlify's :streamer
-# substitution into a query — which proved unreliable in testing.
-# IMPORTANT: must be the LAST redirect block so it doesn't shadow earlier ones.
+[[redirects]]
+  from   = "/api/kick-user"
+  to     = "/.netlify/functions/kick-user"
+  status = 200
+
+# Streamer portal — catch-all rewrites. wenbot.gg/<channel> shows that
+# streamer's public hub. Static files take precedence (Netlify serves real
+# files first), so /dashboard.html, /signup.html, etc. continue working
+# unaffected. portal.html derives the channel + optional tab from
+# window.location.pathname (the address bar stays /:streamer or
+# /:streamer/:tab after the 200 rewrite), so we don't need Netlify's
+# parameter substitution — which proved unreliable in testing.
+# The 2-segment rule must come BEFORE the 1-segment one so it gets matched
+# first; both must be the LAST redirect blocks so they don't shadow earlier
+# specific rewrites.
+[[redirects]]
+  from   = "/:streamer/:tab"
+  to     = "/portal.html"
+  status = 200
+
 [[redirects]]
   from   = "/:streamer"
   to     = "/portal.html"

@@ -18,7 +18,8 @@ exports.handler = async (event) => {
   const { code, state } = body;
   if (!code || !state) return res(400, { error: "Missing code or state" });
 
-  // Decode state
+  // Decode state — just the Kick username + streamer channel. We link the
+  // account but never auto-add anyone to the server.
   let kickUsername, channel;
   try {
     const decoded = JSON.parse(Buffer.from(state, "base64").toString("utf8"));
@@ -35,8 +36,10 @@ exports.handler = async (event) => {
   const snap = await db.collection("streamers").where("kickChannel", "==", channel.toLowerCase()).limit(1).get();
   if (snap.empty) return res(404, { error: "Streamer channel not found" });
 
-  const streamerUid = snap.docs[0].id;
-  const guildId     = snap.docs[0].data()?.discordConfig?.guildId || null;
+  const streamerUid  = snap.docs[0].id;
+  const streamerData = snap.docs[0].data() || {};
+  const guildId      = streamerData.discordConfig?.guildId || null;
+  const verifyCfg    = streamerData.discordConfig?.verify || {};
   if (!guildId) {
     return res(400, { error: "This streamer hasn't connected a Discord server yet." });
   }
@@ -71,6 +74,18 @@ exports.handler = async (event) => {
   const discordUserId  = discordUser.id;
   const discordUsername = discordUser.username;
 
+  // Account-age gate (gatekeeper anti-bot). A Discord snowflake encodes the
+  // account's creation time; reject accounts newer than the streamer's minimum.
+  if (verifyCfg.gatekeeper && verifyCfg.minAccountAgeDays > 0) {
+    try {
+      const createdMs = Number((BigInt(discordUserId) >> 22n) + 1420070400000n);
+      const ageDays   = (Date.now() - createdMs) / 86400000;
+      if (ageDays < verifyCfg.minAccountAgeDays) {
+        return res(403, { error: `Your Discord account is too new to verify here — it must be at least ${verifyCfg.minAccountAgeDays} days old.` });
+      }
+    } catch { /* if parsing fails, don't block */ }
+  }
+
   // Check whether the user is already in the streamer's Discord server.
   // The 'guilds' scope lets us read their guild list.
   let alreadyMember = false;
@@ -84,49 +99,71 @@ exports.handler = async (event) => {
     }
   } catch (err) {
     console.warn("[discord-link-account] guild list read failed:", err.message);
-    // Non-fatal — we'll attempt the join below regardless
   }
 
-  // If they're not already in the server, add them via the 'guilds.join' scope.
-  // PUT /guilds/{guild}/members/{user} with the bot token + the user's OAuth
-  // access token adds them to the server (requires the bot to be in the guild
-  // with the Create Instant Invite permission).
+  // Add them to the server (they consented via the guilds.join scope) and then
+  // assign the verified role — both in this single request, so the role lands the
+  // instant they join. No detection/polling needed. The verify page already
+  // showed them which server they're joining (name + icon).
   let joined = false;
   if (!alreadyMember) {
     try {
       const joinResp = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${discordUserId}`, {
         method:  "PUT",
-        headers: {
-          "Authorization": `Bot ${process.env.DISCORD_BOT_TOKEN}`,
-          "Content-Type":  "application/json",
-        },
-        body: JSON.stringify({ access_token }),
+        headers: { "Authorization": `Bot ${process.env.DISCORD_BOT_TOKEN}`, "Content-Type": "application/json" },
+        body:    JSON.stringify({ access_token }),
       });
       // 201 = added, 204 = already a member. Both are success.
-      if (joinResp.ok) {
-        joined = true;
-      } else {
-        const detail = await joinResp.text().catch(() => "");
-        console.error("[discord-link-account] guild join failed:", joinResp.status, detail.slice(0, 200));
-        return res(502, {
-          error: "Couldn't add you to the streamer's Discord server. They may need to re-invite WenBot with the right permissions. Try joining the server manually, then link again.",
-        });
-      }
+      if (joinResp.ok) joined = true;
+      else console.warn("[discord-link-account] guild join failed:", joinResp.status, (await joinResp.text().catch(() => "")).slice(0, 200));
     } catch (err) {
-      console.error("[discord-link-account] guild join error:", err.message);
-      return res(502, { error: "Couldn't add you to the Discord server. Please try again." });
+      console.warn("[discord-link-account] guild join error:", err.message);
+    }
+  }
+  const isMember = alreadyMember || joined;
+
+  // Fallback invite, only if we somehow couldn't add them (e.g. bot missing the
+  // Create Instant Invite permission) — so the result page still has a way in.
+  let inviteUrl = null;
+  if (!isMember) {
+    inviteUrl = streamerData.socials?.discord || null;
+    const dc = streamerData.discordConfig || {};
+    let inviteChannelId = verifyCfg.gateChannelId || dc.giveawayChannelId || dc.announcementChannelId || null;
+    if (!inviteChannelId) {
+      try { const cr = await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`, { headers: { "Authorization": `Bot ${process.env.DISCORD_BOT_TOKEN}` } }); if (cr.ok) { const chans = await cr.json(); inviteChannelId = (Array.isArray(chans) ? chans.find(c => c.type === 0) : null)?.id || null; } } catch {}
+    }
+    if (inviteChannelId) {
+      try { const irr = await fetch(`https://discord.com/api/v10/channels/${inviteChannelId}/invites`, { method: "POST", headers: { "Authorization": `Bot ${process.env.DISCORD_BOT_TOKEN}`, "Content-Type": "application/json" }, body: JSON.stringify({ max_age: 0, max_uses: 0, unique: false }) }); if (irr.ok) { const inv = await irr.json(); if (inv.code) inviteUrl = `https://discord.gg/${inv.code}`; } } catch {}
     }
   }
 
-  // Save the discord_link (guild-verified — they're now in the server)
+  // Save the discord_link.
   await db.collection("streamers").doc(streamerUid)
     .collection("discord_links").doc(discordUserId).set({
       kickUsername,
       discordUsername,
       guildId,
-      guildVerified: true,
+      guildVerified: isMember,
       linkedAt: Date.now(),
     });
 
-  return res(200, { success: true, discordUsername, kickUsername, joined, alreadyMember });
+  // Assign the verified role now that they're a member (idempotent). Needs the
+  // bot to have Manage Roles + a higher role than the target; non-fatal on fail.
+  let roleAssigned = false;
+  if (verifyCfg.assignRole && verifyCfg.roleId && isMember) {
+    try {
+      const roleResp = await fetch(
+        `https://discord.com/api/v10/guilds/${guildId}/members/${discordUserId}/roles/${verifyCfg.roleId}`,
+        { method: "PUT", headers: { "Authorization": `Bot ${process.env.DISCORD_BOT_TOKEN}` } }
+      );
+      roleAssigned = roleResp.ok;
+      if (!roleResp.ok) console.warn("[discord-link-account] role assign failed:", roleResp.status, (await roleResp.text().catch(() => "")).slice(0, 200));
+    } catch (err) {
+      console.warn("[discord-link-account] role assign error:", err.message);
+    }
+  }
+
+  // alreadyMember (= now a member) drives the "Open Discord" button; inviteUrl is
+  // only set on the rare failure path.
+  return res(200, { success: true, discordUsername, kickUsername, alreadyMember: isMember, joined, roleAssigned, inviteUrl, guildId });
 };

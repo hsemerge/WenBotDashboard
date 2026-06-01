@@ -87,15 +87,24 @@ exports.handler = async (event) => {
       return res(400, { error: `This streamer is currently streaming at ${activeName}. Please verify your ${activeName} username instead.` });
     }
 
-    // Check if this casino username is already claimed by a different Kick account
+    // Check if this casino username is already claimed by a different Kick account.
+    // We compare the EXISTING doc's `kickName` field, not the doc ID — the ID format
+    // is `${kickKey}_${provider}` (eg. `triiton_gambulls`), so comparing it directly
+    // to `kickKey` (`triiton`) always fails and blocks legitimate re-verifies by the
+    // same user. That regression broke the Discord `/register` dtoken path entirely
+    // (re-entering the same casino username threw "already linked to another Kick
+    // account"). The intent is: same Kick = silent overwrite; different Kick = block.
     const claimSnap = await db.collection("streamers").doc(streamerUid)
       .collection("verified_users")
       .where("providerUsername_lower", "==", affiliateKey)
       .where("provider", "==", provider)
       .limit(1).get();
 
-    if (!claimSnap.empty && claimSnap.docs[0].id !== kickKey) {
-      return res(409, { error: `"${affiliateUsername}" is already linked to another Kick account. Contact a mod if this is an error.` });
+    if (!claimSnap.empty) {
+      const existingKickName = String(claimSnap.docs[0].data().kickName || "").toLowerCase();
+      if (existingKickName && existingKickName !== kickKey) {
+        return res(409, { error: `"${affiliateUsername}" is already linked to another Kick account. Contact a mod if this is an error.` });
+      }
     }
 
     let resultUsername  = affiliateUsername;
@@ -127,6 +136,11 @@ exports.handler = async (event) => {
       .collection("verified_users").doc(`${kickKey}_${provider}`);
     batch.set(newDocRef, {
       kickName:               kickUsername,
+      // Denormalized lowercase copy so case-insensitive lookups (tournament,
+      // giveaway-eligibility, etc.) can match without iterating. Kick's API
+      // returns the username in its original case (e.g. "TriitonGM") which
+      // doesn't match the lowercased query keys those endpoints use.
+      kickName_lower:         kickKey,
       providerUsername:       resultUsername,
       providerUsername_lower: affiliateKey,
       provider,

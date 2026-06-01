@@ -504,77 +504,102 @@
   }
 
   // ── AUTO-SCROLL ──
-  // Smoothly scrolls the table down, pauses at the bottom, then jumps back to top
+  // Continuously scrolls the table so long lists stay readable. The list is
+  // cloned below a small gap; once the clone reaches the top it is pixel-for-
+  // pixel identical to the start, so we wrap the offset with no visible jump
+  // and no pause. Renders that don't change the table are skipped, so routine
+  // polling can never yank the scroll position back to the top.
   (function autoScroll() {
-    const SPEED      = 0.3;   // px per frame
-    const PAUSE_MS   = 1500;  // pause at loop point
-    const MIN_ROWS   = 1;     // min extra rows needed before scrolling
+    const SPEED  = 0.3;   // px per frame (~18px/s at 60fps) — slow and smooth
+    const GAP_PX = 40;    // small black gap between the list and its repeat
 
-    let offset  = 0;
-    let paused  = false;
-    let loopH   = 0;
-    let running = false;
+    let offset       = 0;
+    let loopDistance = 0;
+    let running      = false;
+
+    // Stable fingerprint of everything the table renders. Used to skip
+    // re-rendering (and thus re-setting the scroll) when nothing changed.
+    function buildSig(data) {
+      const b = (data && data.bonuses) || [];
+      return JSON.stringify({
+        a: !!(data && data.active),
+        t: data && data.totalCost,
+        r: b.map(x => [x.id, x.name, x.betSize, x.payout, x.multiplier, x.notes]),
+      });
+    }
 
     function setup() {
-      const tbody  = document.getElementById('tableBody');
-      const inner  = document.getElementById('tableScrollInner');
-      const wrap   = document.querySelector('.table-wrap');
+      const tbody = document.getElementById('tableBody');
+      const inner = document.getElementById('tableScrollInner');
+      const wrap  = document.querySelector('.table-wrap');
       if (!tbody || !inner || !wrap) return;
 
-      // Remove old clones
+      // Back to a clean, un-cloned, un-scrolled state.
       tbody.querySelectorAll('tr.scroll-clone').forEach(r => r.remove());
       inner.style.transform = 'translateY(0px)';
-      offset = 0;
+      offset  = 0;
+      running = false;
 
-      const origRows = tbody.querySelectorAll('tr:not(.scroll-clone)');
-      loopH = inner.offsetHeight;
+      const origRows = [...tbody.querySelectorAll('tr:not(.scroll-clone)')];
+      if (!origRows.length) return;
+      let origH = 0;
+      origRows.forEach(r => { origH += r.offsetHeight; });
 
-      // Only scroll if content overflows the wrap
-      if (loopH <= wrap.offsetHeight + 10) { running = false; return; }
+      // Visible row area = wrap minus the sticky header. Don't scroll if the
+      // list already fits.
+      const thead = inner.querySelector('thead');
+      const viewH = wrap.offsetHeight - (thead ? thead.offsetHeight : 0);
+      if (origH <= viewH + 4) return;
 
-      // Spacer row to create a visible break between end and start of loop
+      // Gap row, then a full clone of the list so the wrap point is seamless.
       const spacer = document.createElement('tr');
       spacer.classList.add('scroll-clone');
-      spacer.innerHTML = `<td colspan="4" style="height:40px;border-top:1px solid rgba(var(--ov-accent-rgb),0.1);"></td>`;
+      spacer.innerHTML = `<td colspan="4" style="height:${GAP_PX}px;"></td>`;
       tbody.appendChild(spacer);
 
-      // Clone rows so the loop is seamless
-      origRows.forEach(row => {
+      let firstClone = null;
+      origRows.forEach((row, i) => {
         const clone = row.cloneNode(true);
         clone.classList.add('scroll-clone');
         tbody.appendChild(clone);
+        if (i === 0) firstClone = clone;
       });
 
+      // Measure the exact distance between the original first row and its
+      // clone — scrolling by this lands the clone where the original began,
+      // so the reset is invisible. (Rect math avoids sub-pixel seams.)
+      loopDistance = firstClone.getBoundingClientRect().top - origRows[0].getBoundingClientRect().top;
+      if (loopDistance < 1) { loopDistance = origH + GAP_PX; }
       running = true;
     }
 
     function step() {
       requestAnimationFrame(step);
-      if (!running || paused) return;
-
+      if (!running || loopDistance < 1) return;
       const inner = document.getElementById('tableScrollInner');
-      if (!inner || loopH < 1) return;
-
+      if (!inner) return;
       offset += SPEED;
-
-      if (offset >= loopH) {
-        paused = true;
-        offset = 0;
-        inner.style.transform = 'translateY(0px)';
-        setTimeout(() => { paused = false; }, PAUSE_MS);
-      } else {
-        inner.style.transform = `translateY(-${offset}px)`;
-      }
+      if (offset >= loopDistance) offset -= loopDistance;  // seamless wrap, no pause
+      inner.style.transform = `translateY(-${offset}px)`;
     }
 
-    // Hook into render so setup re-runs after table is rebuilt
+    // Only rebuild the scroll when the table actually changed. Unchanged polls
+    // are dropped entirely, so the scroll keeps gliding uninterrupted.
+    let lastSig = null;
     const origRender = render;
     render = function(data) {
+      const sig = buildSig(data);
+      if (sig === lastSig) return;
+      lastSig = sig;
       origRender(data);
-      setTimeout(setup, 80);
+      // Let layout settle, then (re)build the clones from the new rows.
+      requestAnimationFrame(() => requestAnimationFrame(setup));
     };
 
-    setTimeout(setup, 1500);
+    // Fallback initial setup for paths that render before this wrapper is in
+    // place (e.g. demo mode renders once on load). Guarded so it never resets
+    // a scroll that's already running.
+    setTimeout(() => { if (!running) setup(); }, 1500);
     requestAnimationFrame(step);
   })();
 </script>

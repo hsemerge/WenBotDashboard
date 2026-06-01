@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WenBot — Sign in with Kick</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+    .cb-card { background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius); padding:48px 40px; text-align:center; max-width:400px; width:90%; }
+    .spinner { width:36px; height:36px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 24px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .cb-status { font-size:15px; color:var(--text); font-weight:600; }
+    .cb-detail { font-size:13px; color:var(--text-dim); margin-top:8px; }
+  </style>
+</head>
+<body>
+  <div class="cb-card">
+    <div class="spinner"></div>
+    <div class="cb-status">Redirecting to Kick…</div>
+    <div class="cb-detail" id="detail"></div>
+  </div>
+
+  <!--
+    Cross-domain viewer-login bootstrap. White-label portals on their own domains
+    (e.g. skslots.co.uk) can't run the Kick OAuth callback (single registered
+    redirect URI lives on wenbot.gg). kick-auth.js bounces them HERE with
+    ?channel=&returnOrigin=, this page starts the OAuth on wenbot.gg carrying the
+    returnOrigin, and the callback hands the finished session back via a one-time
+    code (kick-session-mint → kick-session-claim).
+  -->
+  <script src="/js/kick-auth.js"></script>
+  <script>
+    (function () {
+      const p = new URLSearchParams(location.search);
+      const channel      = (p.get("channel") || "").toLowerCase().trim();
+      const returnOrigin = p.get("returnOrigin") || "";
+      if (!channel || !returnOrigin) {
+        document.getElementById("detail").textContent = "Missing channel or origin.";
+        return;
+      }
+      // initiateKickAuth's "viewer" branch accepts an object payload carrying the
+      // returnOrigin, so the callback knows to mint a handoff code.
+      initiateKickAuth("viewer", { channel, returnOrigin });
+    })();
+  </script>
+</body>
+</html>

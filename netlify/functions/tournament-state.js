@@ -1,8 +1,8 @@
 // GET /api/tournament-state?channel=xxx&kick=xxx
 // Returns current tournament state + viewer entry/verification status.
 
-const { getDb }     = require("./_lib/firebase");
-const { res: _res } = require("./_lib/http");
+const { getDb, admin } = require("./_lib/firebase");
+const { res: _res }    = require("./_lib/http");
 const res = (s, b) => _res(s, b, "*");
 
 exports.handler = async (event) => {
@@ -30,12 +30,24 @@ exports.handler = async (event) => {
     let isEntered    = false;
 
     if (userKey) {
-      const [viewerDoc, vSnap] = await Promise.all([
+      const verifiedUsersRef = db.collection("streamers").doc(uid).collection("verified_users");
+      // Look up the new lowercased field first (added Apr 2026 to verify-affiliate.js).
+      // For older docs that don't have kickName_lower yet, fall back to a doc-ID prefix
+      // range query — verified_users doc IDs are `${kickKey}_${provider}` so any doc
+      // starting with `${userKey}_` belongs to this user. Either branch confirms
+      // verification; the kickName field itself stores original case, which is
+      // why a direct `kickName == userKey` query missed users like TriitonGM.
+      const FieldPath = admin.firestore.FieldPath;
+      const [viewerDoc, vSnapNew, vSnapLegacy] = await Promise.all([
         db.collection("streamers").doc(uid).collection("viewers").doc(userKey).get(),
-        db.collection("streamers").doc(uid).collection("verified_users").where("kickName", "==", userKey).limit(1).get(),
+        verifiedUsersRef.where("kickName_lower", "==", userKey).limit(1).get(),
+        verifiedUsersRef
+          .where(FieldPath.documentId(), ">=", `${userKey}_`)
+          .where(FieldPath.documentId(), "<",  `${userKey}_`)
+          .limit(1).get(),
       ]);
       viewerPoints = viewerDoc.exists ? (viewerDoc.data().points || 0) : 0;
-      isVerified   = !vSnap.empty;
+      isVerified   = !vSnapNew.empty || !vSnapLegacy.empty;
 
       if (tournament?.participants) {
         isEntered = tournament.participants.some(p => p && p.kickUsernameKey === userKey);

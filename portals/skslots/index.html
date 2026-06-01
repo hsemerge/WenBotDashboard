@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SKSlots — Wager Race</title>
+<meta name="description" content="SKSlots monthly wager race — live leaderboard, giveaways & rewards.">
+<link rel="icon" href="/img/sklotstransparent.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  BESPOKE white-label portal for SKSlots (Agency tier).
+  Self-contained page that pulls the SAME live data as the standard portal via
+  /api/portal-data?channel=skslots — only the presentation is custom. Reached by
+  skslots.co.uk through the SLUG_TO_PAGE map in netlify/edge-functions/custom-domain.js.
+  This is the STARTER scaffold — iterate the design freely; the data layer is shared.
+-->
+<style>
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --accent:#a855f7; --accent2:#3fbdf5; --gold:#f5c518;
+    --bg:#08070d; --bg-card:#13111c; --border:#2a2440;
+    --text:#d7d2e6; --dim:#8b85a3; --bright:#ffffff;
+  }
+  html,body { height:100%; }
+  body {
+    font-family:'Inter',sans-serif; background:var(--bg); color:var(--text);
+    min-height:100vh; overflow-x:hidden; position:relative;
+  }
+  /* Animated background: starfield canvas + drifting brand-color glows */
+  #starfield { position:fixed; inset:0; z-index:0; }
+  .glow { position:fixed; border-radius:50%; filter:blur(120px); opacity:.22; z-index:0; pointer-events:none; }
+  .glow-1 { width:520px; height:520px; background:var(--accent);  top:-120px; left:-100px; animation:drift1 18s ease-in-out infinite; }
+  .glow-2 { width:460px; height:460px; background:var(--accent2); bottom:-140px; right:-100px; animation:drift2 22s ease-in-out infinite; }
+  @keyframes drift1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(60px,40px)} }
+  @keyframes drift2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-50px,-30px)} }
+  .wrap { position:relative; z-index:1; max-width:1180px; margin:0 auto; padding:0 20px; }
+
+  /* NAV */
+  nav { display:flex; align-items:center; justify-content:space-between; padding:20px 0; }
+  .brand { display:flex; align-items:center; gap:12px; text-decoration:none; }
+  .brand img { width:48px; height:48px; border-radius:50%; box-shadow:0 0 22px var(--accent); }
+  .brand-name { font-family:'Exo 2',sans-serif; font-weight:900; font-size:22px; color:var(--bright); letter-spacing:.04em; }
+  .brand-sub { font-size:11px; color:var(--dim); }
+  .nav-links { display:flex; gap:22px; font-size:13px; }
+  .nav-links a { color:var(--dim); text-decoration:none; font-weight:600; transition:color .15s; }
+  .nav-links a:hover { color:var(--bright); }
+
+  /* LINK BAR (socials + custom links) */
+  .linkbar { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:8px 0 28px;
+    background:rgba(255,255,255,.02); border:1px solid var(--border); border-radius:14px; padding:12px; }
+  .linkbar a { display:inline-flex; align-items:center; gap:7px; padding:8px 16px; border-radius:10px;
+    color:var(--text); text-decoration:none; font-size:13px; font-weight:600; border:1px solid transparent; transition:.15s; }
+  .linkbar a:hover { border-color:var(--accent); background:rgba(168,85,247,.08); color:var(--bright); }
+
+  /* HERO */
+  .hero { text-align:center; padding:36px 0 20px; position:relative; }
+  /* Static, serious logo treatment — no spin. Subtle dual-color glow + a slow
+     breathing pulse so it still feels alive without being playful. */
+  .hero-chip { width:160px; height:160px; margin:0 auto 24px; display:block;
+    filter:drop-shadow(0 0 26px rgba(168,85,247,.55)) drop-shadow(0 0 46px rgba(63,189,245,.25));
+    animation:chipPulse 5s ease-in-out infinite; }
+  @keyframes chipPulse {
+    0%,100% { filter:drop-shadow(0 0 22px rgba(168,85,247,.45)) drop-shadow(0 0 40px rgba(63,189,245,.2)); }
+    50%     { filter:drop-shadow(0 0 32px rgba(168,85,247,.65)) drop-shadow(0 0 54px rgba(63,189,245,.3)); }
+  }
+  .brand img { animation:none; }
+  /* Hero "code + play" CTA */
+  .hero-code { font-size:13px; color:var(--dim); margin:14px 0 6px; }
+  .hero-code b { color:var(--gold); font-family:'Exo 2',sans-serif; letter-spacing:.04em; }
+  .hero h1 { font-family:'Exo 2',sans-serif; font-weight:900; font-size:clamp(30px,5vw,58px); line-height:1.05;
+    background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; background-clip:text;
+    -webkit-text-fill-color:transparent; letter-spacing:.02em; }
+  .hero .prize { font-family:'Exo 2',sans-serif; font-weight:900; font-size:clamp(40px,7vw,76px);
+    color:var(--gold); text-shadow:0 0 30px rgba(245,197,24,.45); margin:10px 0; }
+  .bonus { display:inline-block; margin-top:6px; padding:11px 26px; border-radius:30px; font-weight:800; font-size:14px;
+    color:#06121a; background:linear-gradient(90deg,var(--accent2),#7be4c9); box-shadow:0 0 26px rgba(63,189,245,.4); }
+
+  /* COUNTDOWN */
+  .countdown { display:flex; gap:14px; justify-content:center; margin:30px 0 8px; flex-wrap:wrap; }
+  .cd-cell { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:14px 20px; min-width:84px; text-align:center; }
+  .cd-num { font-family:'Exo 2',sans-serif; font-weight:900; font-size:38px; color:var(--accent2); }
+  .cd-lab { font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.12em; margin-top:4px; }
+
+  /* PODIUM */
+  .podium { display:flex; justify-content:center; align-items:flex-end; gap:16px; margin:46px 0 10px; flex-wrap:wrap; }
+  .pod { width:190px; background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:22px 14px 18px; text-align:center; position:relative; }
+  .pod.first { border-color:var(--gold); box-shadow:0 0 30px rgba(245,197,24,.18); transform:translateY(-18px); }
+  .pod .crown { font-size:26px; }
+  .pod .av { width:62px; height:62px; border-radius:50%; margin:6px auto 10px; background:rgba(168,85,247,.12); border:2px solid var(--accent);
+    display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--accent2); overflow:hidden; }
+  .pod .av img { width:100%; height:100%; object-fit:cover; }
+  .pod.first .av { border-color:var(--gold); width:74px; height:74px; }
+  .pod .nm { font-weight:700; color:var(--bright); font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pod .wg { color:var(--dim); font-weight:600; font-size:13px; margin-top:4px; }
+  .pod .rk { position:absolute; top:10px; left:12px; font-family:'Exo 2',sans-serif; font-weight:900; color:var(--dim); }
+  .pod-prize { margin-top:10px; font-family:'Exo 2',sans-serif; font-weight:900; font-size:20px; color:var(--gold);
+    background:rgba(245,197,24,.1); border:1px solid rgba(245,197,24,.35); border-radius:10px; padding:5px 0; }
+  .pod.first .pod-prize { font-size:24px; }
+  /* Prize pill in the leaderboard table (next to the leader's name) */
+  .lb-prize { font-family:'Exo 2',sans-serif; font-weight:900; font-size:13px; color:var(--gold);
+    background:rgba(245,197,24,.1); border:1px solid rgba(245,197,24,.3); border-radius:20px; padding:3px 12px; flex-shrink:0; }
+
+  /* TABLE */
+  .section-title { font-family:'Exo 2',sans-serif; font-weight:800; font-size:18px; color:var(--bright); margin:36px 0 14px; display:flex; align-items:center; gap:10px; }
+  .lb { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
+  .lb-row { display:flex; align-items:center; gap:14px; padding:13px 18px; border-bottom:1px solid rgba(255,255,255,.04); }
+  .lb-row:last-child { border-bottom:none; }
+  .lb-row .r { width:30px; font-family:'Exo 2',sans-serif; font-weight:900; color:var(--dim); text-align:center; }
+  .lb-av { width:34px; height:34px; border-radius:50%; flex-shrink:0; overflow:hidden; background:rgba(168,85,247,.12); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:var(--accent2); }
+  .lb-av img { width:100%; height:100%; object-fit:cover; }
+  .lb-row .n { flex:1; color:var(--bright); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lb-row .w { color:var(--gold); font-weight:800; font-family:'Exo 2',sans-serif; }
+  .lb-row.top .r { color:var(--gold); }
+
+  /* STORE */
+  .store-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; }
+  .store-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:18px; display:flex; flex-direction:column; gap:8px; transition:.15s; position:relative; }
+  .store-card:hover { border-color:var(--accent); transform:translateY(-2px); }
+  .store-card.raffle { border-color:var(--gold); background:linear-gradient(180deg,rgba(245,197,24,.06),var(--bg-card)); }
+  .store-img { width:100%; aspect-ratio:16/10; border-radius:10px; overflow:hidden; background:rgba(255,255,255,.03); border:1px solid var(--border); }
+  .store-img img { width:100%; height:100%; object-fit:cover; display:block; }
+  .store-name { font-family:'Exo 2',sans-serif; font-weight:800; font-size:16px; color:var(--bright); }
+  .store-desc { font-size:12px; color:var(--dim); line-height:1.45; flex:1; min-height:30px; }
+  .store-foot { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:4px; }
+  .store-price { font-family:'Exo 2',sans-serif; font-weight:800; font-size:16px; color:var(--accent); }
+  .store-price small { font-size:11px; color:var(--dim); font-weight:400; }
+  .store-stock { font-size:11px; color:var(--dim); }
+  .store-stock.low { color:var(--gold); } .store-stock.out { color:#ff6b6b; }
+  .store-buycmd { display:inline-flex; align-items:center; gap:6px; margin-top:6px; padding:7px 10px; border-radius:8px; background:rgba(255,255,255,.03); border:1px solid var(--border); font-size:12px; color:var(--text); cursor:pointer; font-family:monospace; transition:.15s; }
+  .store-buycmd:hover { border-color:var(--accent); color:var(--bright); }
+  .raffle-pill { display:inline-flex; align-items:center; gap:5px; font-family:'Exo 2',sans-serif; font-size:10px; font-weight:900; letter-spacing:.06em; color:#06121a; background:linear-gradient(90deg,var(--gold),#ffe27a); border-radius:20px; padding:3px 10px; }
+  .store-note { margin-top:14px; font-size:12px; color:var(--dim); background:rgba(255,255,255,.02); border:1px solid var(--border); border-radius:10px; padding:12px 14px; line-height:1.5; }
+  .store-note code { color:var(--accent2); background:rgba(0,0,0,.3); padding:1px 6px; border-radius:4px; }
+  /* ABOUT + chips */
+  .about { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:22px; line-height:1.7; color:var(--text); }
+  .chips { display:flex; gap:12px; flex-wrap:wrap; margin:8px 0 4px; }
+  .chip { display:inline-flex; align-items:center; gap:8px; background:var(--bg-card); border:1px solid var(--border); border-radius:24px; padding:8px 16px; font-size:13px; }
+  .chip .dot { width:8px; height:8px; border-radius:50%; background:#ff5b6e; box-shadow:0 0 8px #ff5b6e; }
+  .chip b { color:var(--bright); } .chip .meta { color:var(--dim); font-size:12px; }
+  /* WINNERS */
+  .pw-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,.04); }
+  .pw-row:last-child { border-bottom:none; }
+  .pw-mode { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--accent2); font-weight:700; min-width:64px; }
+  .pw-name { flex:1; color:var(--bright); font-weight:600; }
+  .pw-date { font-size:12px; color:var(--dim); }
+  /* WAGER REWARDS page (section engine) */
+  .rw-sec { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:22px 24px; margin-bottom:18px; }
+  .rw-head { display:flex; align-items:baseline; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+  .rw-head h3 { font-family:'Exo 2',sans-serif; font-weight:900; font-size:20px; color:var(--bright); letter-spacing:.02em; }
+  .rw-head span { font-size:13px; color:var(--accent2); font-weight:700; }
+  .rw-list { list-style:none; display:flex; flex-direction:column; gap:8px; }
+  .rw-list li { position:relative; padding-left:22px; color:var(--text); font-size:14px; line-height:1.5; }
+  .rw-list li::before { content:'▸'; position:absolute; left:4px; color:var(--accent); }
+  .rw-note { margin-top:14px; font-size:12px; color:var(--dim); line-height:1.5; border-top:1px solid var(--border); padding-top:12px; }
+  /* bonus */
+  .rw-bonus { display:flex; align-items:center; gap:22px; flex-wrap:wrap; }
+  .rw-bonus-amt { font-family:'Exo 2',sans-serif; font-weight:900; font-size:44px; color:var(--gold); text-shadow:0 0 26px rgba(245,197,24,.4); flex-shrink:0; }
+  .rw-bonus .rw-list { flex:1; min-width:240px; }
+  /* tier table */
+  .rw-table { border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  .rw-trow { display:flex; justify-content:space-between; padding:13px 18px; border-bottom:1px solid rgba(255,255,255,.04); font-size:15px; }
+  .rw-trow:last-child { border-bottom:none; }
+  .rw-thead { background:rgba(255,255,255,.03); font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); font-weight:800; }
+  .rw-trow .rw-amt, .rw-amt { color:var(--gold); font-family:'Exo 2',sans-serif; font-weight:800; }
+  /* deposit cards */
+  .rw-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
+  .rw-card { background:rgba(255,255,255,.02); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
+  .rw-card-t { font-family:'Exo 2',sans-serif; font-weight:800; font-size:15px; color:var(--accent2); margin-bottom:10px; }
+  /* prize splits */
+  .rw-prizes { display:flex; gap:12px; flex-wrap:wrap; }
+  .rw-prize { flex:1; min-width:90px; text-align:center; background:rgba(255,255,255,.02); border:1px solid var(--border); border-radius:12px; padding:16px 10px; }
+  .rw-prize .rw-place { display:block; font-size:12px; color:var(--dim); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+  .rw-prize .rw-amt { font-size:24px; }
+  .rw-footnote { font-size:12px; color:var(--dim); line-height:1.6; text-align:center; max-width:680px; margin:8px auto 0; font-style:italic; }
+  /* Viewer auth bar (Kick login / balance) */
+  .viewer-bar { display:flex; align-items:center; gap:10px; font-size:13px; }
+  .btn-kick { display:inline-flex; align-items:center; gap:7px; background:#53fc18; color:#0b1402; font-weight:800; border:none; border-radius:9px; padding:9px 16px; cursor:pointer; font-size:13px; }
+  .btn-kick:hover { filter:brightness(1.08); }
+  .viewer-pts { font-family:'Exo 2',sans-serif; font-weight:800; color:var(--gold); }
+  .viewer-name { color:var(--bright); font-weight:600; }
+  .viewer-logout { color:var(--dim); cursor:pointer; text-decoration:underline; font-size:12px; }
+  /* Store buy button + balance-gated states */
+  .store-buy { margin-top:6px; width:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#fff; font-weight:800; border:none; border-radius:9px; padding:10px; cursor:pointer; font-size:13px; transition:.15s; }
+  .store-buy:hover:not(:disabled) { filter:brightness(1.1); }
+  .store-buy:disabled { opacity:.5; cursor:not-allowed; }
+  .store-buy.raffle { background:linear-gradient(90deg,var(--gold),#ffd86b); color:#1a1407; }
+  .link-btn { display:inline-flex; align-items:center; gap:8px; background:var(--bg-card); border:1px solid var(--accent); color:var(--bright); font-weight:700; border-radius:10px; padding:11px 18px; text-decoration:none; font-size:14px; transition:.15s; }
+  .link-btn:hover { background:rgba(168,85,247,.12); }
+  footer { text-align:center; padding:40px 0 30px; color:var(--dim); font-size:12px; }
+  footer a { color:var(--accent2); text-decoration:none; }
+  .loading,.empty { text-align:center; color:var(--dim); padding:30px; font-size:14px; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<canvas id="starfield"></canvas>
+<div class="glow glow-1"></div>
+<div class="glow glow-2"></div>
+
+<div class="wrap">
+  <nav>
+    <a class="brand" href="/" id="brandLink">
+      <img id="brandLogo" src="/img/sklotstransparent.png" alt="SKSlots">
+      <div><div class="brand-name" id="brandName">SKSlots</div><div class="brand-sub" id="brandSub">kick.com/skslots</div></div>
+    </a>
+    <div class="nav-links" id="navLinks"></div>
+    <div class="viewer-bar" id="viewerBar">
+      <button class="btn-kick" id="viewerLoginBtn" onclick="viewerLogin()">🟢 Sign in with Kick</button>
+      <span id="viewerInfo" class="hidden">
+        <span class="viewer-name" id="viewerName"></span> ·
+        <span class="viewer-pts" id="viewerPts">…</span> ·
+        <span class="viewer-logout" onclick="viewerLogout()">Log out</span>
+      </span>
+    </div>
+  </nav>
+
+  <div class="linkbar" id="linkbar"></div>
+
+  <div id="mainView">
+  <div class="hero">
+    <img class="hero-chip" id="heroChip" src="/img/sklotstransparent.png" alt="">
+    <h1 id="heroTitle">SKSLOTS WAGER RACE</h1>
+    <div class="prize" id="heroPrize"></div>
+    <div id="heroCtaWrap"></div>
+    <div class="countdown" id="countdown" style="display:none;">
+      <div class="cd-cell"><div class="cd-num" id="cdD">00</div><div class="cd-lab">Days</div></div>
+      <div class="cd-cell"><div class="cd-num" id="cdH">00</div><div class="cd-lab">Hours</div></div>
+      <div class="cd-cell"><div class="cd-num" id="cdM">00</div><div class="cd-lab">Minutes</div></div>
+      <div class="cd-cell"><div class="cd-num" id="cdS">00</div><div class="cd-lab">Seconds</div></div>
+    </div>
+  </div>
+
+  <!-- Active now (giveaway / bonus hunt / battle / tournament) -->
+  <div class="chips" id="activeChips"></div>
+
+  <div class="podium" id="podium"></div>
+
+  <div id="lbTableWrap">
+    <h2 class="section-title" id="leaderboard">🏆 <span id="lbHeading">Leaderboard</span></h2>
+    <div class="lb" id="lbTable"><div class="loading">Loading leaderboard…</div></div>
+  </div>
+
+  <!-- About -->
+  <div id="aboutSection" class="hidden">
+    <h2 class="section-title" id="about">ℹ️ About</h2>
+    <div class="about" id="aboutBody"></div>
+  </div>
+  </div><!-- /#mainView -->
+
+  <!-- Store — its own routed view (#store) -->
+  <div id="storeView" class="hidden">
+    <div class="hero" style="padding:8px 0 4px;">
+      <h1 id="storeTitle">STORE</h1>
+      <p style="color:var(--dim);max-width:680px;margin:14px auto 0;line-height:1.6;">Spend your <span id="storeCurrencyLabel">points</span> on rewards. Sign in with Kick to buy, or use <code style="color:var(--accent2)">!buy</code> in chat.</p>
+    </div>
+    <div id="storeSection">
+      <div class="store-grid" id="storeGrid"></div>
+      <div class="store-note" id="storeNote"></div>
+    </div>
+  </div>
+
+  <!-- Past Winners — its own routed view (#winners) -->
+  <div id="winnersView" class="hidden">
+    <div class="hero" style="padding:8px 0 4px;"><h1>PAST WINNERS</h1></div>
+    <div id="winnersSection">
+      <div class="lb" id="winnersList"></div>
+    </div>
+  </div>
+
+  <!-- Wager Rewards — separate routed view (#rewards) -->
+  <div id="rewardsView" class="hidden">
+    <div class="hero" style="padding:8px 0 4px;">
+      <h1 id="rewardsTitle">SKSLOTS WAGER REWARDS</h1>
+      <p id="rewardsIntro" style="color:var(--dim);max-width:680px;margin:14px auto 0;line-height:1.6;"></p>
+    </div>
+    <div id="rewardGrid"></div>
+    <div class="rw-footnote" id="rewardFootnote"></div>
+  </div>
+
+  <footer>
+    <div id="footCredit"></div>
+    <div style="margin-top:8px;font-size:11px;">
+      <a href="https://wenbot.gg/privacy.html" target="_blank" rel="noopener" style="color:var(--dim);">Privacy</a> ·
+      <a href="https://wenbot.gg/terms.html" target="_blank" rel="noopener" style="color:var(--dim);">Terms</a>
+    </div>
+  </footer>
+</div>
+
+<script src="/js/kick-auth.js"></script>
+<script>
+(function () {
+  const CHANNEL = 'skslots';
+  let viewer = null; // { kickUsername, kickUserId, accessToken } from kick-auth.js session
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const money = n => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const initials = s => (s || '?').slice(0, 2).toUpperCase();
+
+  // -- Starfield --
+  (function stars() {
+    const c = document.getElementById('starfield'), x = c.getContext('2d');
+    let w, h, pts;
+    function size() { w = c.width = innerWidth; h = c.height = innerHeight;
+      pts = Array.from({ length: Math.min(140, Math.floor(w * h / 12000)) }, () => ({
+        x: Math.random() * w, y: Math.random() * h, r: Math.random() * 1.4 + 0.3,
+        s: Math.random() * 0.3 + 0.05, o: Math.random() * 0.5 + 0.2 })); }
+    size(); addEventListener('resize', size);
+    (function loop() {
+      x.clearRect(0, 0, w, h);
+      for (const p of pts) { p.y -= p.s; if (p.y < 0) { p.y = h; p.x = Math.random() * w; }
+        x.globalAlpha = p.o; x.fillStyle = '#9fb8ff'; x.beginPath(); x.arc(p.x, p.y, p.r, 0, 7); x.fill(); }
+      requestAnimationFrame(loop);
+    })();
+  })();
+
+  function applyTheme(t) {
+    if (!t) return;
+    const map = { accent:'--accent', accent2:'--accent2', gold:'--gold', bg:'--bg', bgCard:'--bg-card', border:'--border', text:'--text' };
+    for (const k in map) if (t[k]) document.documentElement.style.setProperty(map[k], t[k]);
+  }
+
+  let cdTimer = null;
+  function startCountdown(endAt) {
+    const box = document.getElementById('countdown');
+    if (!endAt) { box.style.display = 'none'; return; }
+    box.style.display = 'flex';
+    const tick = () => {
+      let ms = endAt - Date.now(); if (ms < 0) ms = 0;
+      const d = Math.floor(ms / 86400000), h = Math.floor(ms % 86400000 / 3600000),
+            m = Math.floor(ms % 3600000 / 60000), s = Math.floor(ms % 60000 / 1000);
+      const p = n => String(n).padStart(2, '0');
+      cdD.textContent = p(d); cdH.textContent = p(h); cdM.textContent = p(m); cdS.textContent = p(s);
+    };
+    tick(); clearInterval(cdTimer); cdTimer = setInterval(tick, 1000);
+  }
+
+  function renderLinks(s) {
+    // Top nav: in-page routes. Only include sections that actually have content,
+    // so a link never points at a hidden (unscrollable) target.
+    const nav = document.getElementById('navLinks');
+    const navItems = [['#leaderboard', 'Leaderboard']];
+    if (s.features && s.features.store && (s.store?.items || []).length) navItems.push(['#store', 'Store']);
+    (s.portal?.pages || []).forEach(p => navItems.push(['#' + p.id, p.label]));
+    if (s.pastWinners && s.pastWinners.length) navItems.push(['#winners', 'Winners']);
+    navItems.push(['#about', 'About']);
+    if (s.streamer.socials?.kick) navItems.push([s.streamer.socials.kick, 'Stream', true]);
+    nav.innerHTML = navItems.map(([href, label, ext]) =>
+      `<a href="${esc(href)}" ${ext ? 'target="_blank" rel="noopener"' : `onclick="return goTo('${href}')"`}>${esc(label)}</a>`).join('');
+
+    // Link bar: socials + the streamer's custom links (e.g. Gambulls referral).
+    const bar = document.getElementById('linkbar');
+    const items = [];
+    const soc = s.streamer.socials || {};
+    if (soc.kick)    items.push(['🟢 Kick', soc.kick]);
+    (s.portal?.links || []).forEach(l => items.push([`${l.icon || '🔗'} ${l.label}`, l.href]));
+    (s.portal?.pages || []).forEach(p => items.push([`🎁 ${p.label}`, '#' + p.id]));
+    if (soc.youtube) items.push(['▶ YouTube', soc.youtube]);
+    if (soc.twitter) items.push(['𝕏 Twitter', soc.twitter]);
+    if (soc.discord) items.push(['💬 Discord', soc.discord]);
+    bar.innerHTML = items.map(([label, href]) =>
+      href.startsWith('#')
+        ? `<a href="${esc(href)}" onclick="return goTo('${esc(href)}')">${esc(label)}</a>`
+        : `<a href="${esc(href)}" target="_blank" rel="noopener">${esc(label)}</a>`).join('');
+  }
+
+  // Hash router. Each id in PAGE_VIEWS is a standalone full-page view (its own
+  // <div id="<id>View">); 'main' is the leaderboard home. Anything else is an
+  // in-page anchor on the main view that we smooth-scroll to. This is what makes
+  // Store / Past Winners / Wager Rewards their OWN sections (like the wager page)
+  // instead of stacking under the leaderboard.
+  const PAGE_VIEWS = { rewards: 'rewardsView', store: 'storeView', winners: 'winnersView' };
+  const PAGE_IDS = new Set(Object.keys(PAGE_VIEWS));
+  function goTo(hash) {
+    const id = hash.replace(/^#/, '');
+    if (PAGE_IDS.has(id)) { showView(id); history.replaceState(null, '', hash); return false; }
+    showView('main');
+    history.replaceState(null, '', hash);
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return false;
+  }
+  function showView(name) {
+    const main = document.getElementById('mainView');
+    // Hide every standalone view first.
+    Object.values(PAGE_VIEWS).forEach(vid => document.getElementById(vid)?.classList.add('hidden'));
+    if (PAGE_VIEWS[name]) {
+      main.classList.add('hidden');
+      document.getElementById(PAGE_VIEWS[name]).classList.remove('hidden');
+      window.scrollTo(0, 0);
+    } else {
+      main.classList.remove('hidden');
+    }
+  }
+  window.goTo = goTo;
+
+  // Wager Rewards page — a small section engine driven by portal.rewards so the
+  // streamer's whole rewards doc renders without per-item code.
+  function renderRewards(s) {
+    const r = s.portal?.rewards;
+    const host = document.getElementById('rewardGrid');
+    document.getElementById('rewardsIntro').textContent = r?.intro || '';
+    if (!r || !Array.isArray(r.sections) || !r.sections.length) {
+      host.innerHTML = `<div class="empty">Wager rewards coming soon.</div>`;
+      document.getElementById('rewardFootnote').textContent = '';
+      return;
+    }
+    host.innerHTML = r.sections.map(renderRewardSection).join('');
+    document.getElementById('rewardFootnote').textContent = r.footnote || '';
+  }
+
+  function renderRewardSection(sec) {
+    const head = `<div class="rw-head"><h3>${esc(sec.title || '')}</h3>${sec.subtitle ? `<span>${esc(sec.subtitle)}</span>` : ''}</div>`;
+    const note = sec.note ? `<div class="rw-note">${esc(sec.note)}</div>` : '';
+    let body = '';
+    if (sec.type === 'bonus') {
+      body = `<div class="rw-bonus">
+        <div class="rw-bonus-amt">${esc(sec.reward || '')}</div>
+        <ul class="rw-list">${(sec.bullets||[]).map(b=>`<li>${esc(b)}</li>`).join('')}</ul>
+      </div>`;
+    } else if (sec.type === 'tiers') {
+      const cols = sec.columns || ['Wager','Reward'];
+      body = `<div class="rw-table">
+        <div class="rw-trow rw-thead"><span>${esc(cols[0])}</span><span>${esc(cols[1])}</span></div>
+        ${(sec.tiers||[]).map(t=>`<div class="rw-trow"><span>${esc(t.wager||t.requirement||'')}</span><span class="rw-amt">${esc(t.reward||'')}</span></div>`).join('')}
+      </div>`;
+    } else if (sec.type === 'list') {
+      body = `<ul class="rw-list">${(sec.bullets||[]).map(b=>`<li>${esc(b)}</li>`).join('')}</ul>`;
+    } else if (sec.type === 'cards') {
+      body = `<div class="rw-cards">${(sec.cards||[]).map(c=>`
+        <div class="rw-card"><div class="rw-card-t">${esc(c.title||'')}</div>
+          <ul class="rw-list">${(c.bullets||[]).map(b=>`<li>${esc(b)}</li>`).join('')}</ul>
+        </div>`).join('')}</div>`;
+    } else if (sec.type === 'prizes') {
+      body = `<div class="rw-prizes">${(sec.places||[]).map(p=>`
+        <div class="rw-prize"><span class="rw-place">${esc(p.place||'')}</span><span class="rw-amt">${esc(p.amount||'')}</span></div>`).join('')}</div>`;
+    }
+    return `<section class="rw-sec">${head}${body}${note}</section>`;
+  }
+
+  // Prize for a given rank (1-based) from the prizes array, or '' if none.
+  function prizeFor(rank, prizes) { return (prizes && prizes[rank - 1]) || ''; }
+
+  function renderPodium(ranks, prizes) {
+    const top = ranks.slice(0, 3);
+    if (top.length < 3) { document.getElementById('podium').style.display = 'none'; return; }
+    const order = [top[1], top[0], top[2]]; // 2nd, 1st, 3rd visually
+    document.getElementById('podium').innerHTML = order.map(e => {
+      const first = e.rank === 1;
+      const av = e.avatarUrl ? `<img src="${esc(e.avatarUrl)}" alt="">` : esc(initials(e.username));
+      const prize = prizeFor(e.rank, prizes);
+      return `<div class="pod ${first ? 'first' : ''}">
+        <div class="rk">#${e.rank}</div>
+        <div class="crown">${first ? '👑' : '🏅'}</div>
+        <div class="av">${av}</div>
+        <div class="nm">${esc(e.username)}</div>
+        <div class="wg">${money(e.wagered)}</div>
+        ${prize ? `<div class="pod-prize">${esc(prize)}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  function renderTable(ranks, prizes, belowPodium) {
+    const t = document.getElementById('lbTable');
+    const sec = document.getElementById('lbTableWrap');
+    if (!ranks.length) {
+      // Empty because everyone's on the podium → hide the whole section.
+      // Empty with no podium → genuinely no data, show a message.
+      if (belowPodium) { if (sec) sec.classList.add('hidden'); t.innerHTML = ''; }
+      else { if (sec) sec.classList.remove('hidden'); t.innerHTML = '<div class="empty">No wager data yet.</div>'; }
+      return;
+    }
+    if (sec) sec.classList.remove('hidden');
+    t.innerHTML = ranks.map(e => {
+      const av = e.avatarUrl
+        ? `<span class="lb-av"><img src="${esc(e.avatarUrl)}" alt="" loading="lazy" onerror="this.parentElement.textContent='${esc(initials(e.username))}'"></span>`
+        : `<span class="lb-av">${esc(initials(e.username))}</span>`;
+      const prize = prizeFor(e.rank, prizes);
+      return `<div class="lb-row ${e.rank <= 3 ? 'top' : ''}">
+        <div class="r">${e.rank}</div>
+        ${av}
+        <div class="n">${esc(e.username)}</div>
+        ${prize ? `<div class="lb-prize">${esc(prize)}</div>` : ''}
+        <div class="w">${money(e.wagered)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Active-now status chips. Bonus Battle & Tournament link out to their existing
+  // interactive pages (which already have Kick login + point betting/entry).
+  function renderActive(s) {
+    const wrap = document.getElementById('activeChips');
+    const a = s.active || {};
+    const ch = (s.streamer.kickChannel);
+    const chips = [];
+    if (a.giveaway)  chips.push(`<div class="chip"><span class="dot"></span> <b>Giveaway live</b> <span class="meta">— type ${esc(a.giveaway.keyword || '!join')}</span></div>`);
+    if (a.bonusHunt) chips.push(`<div class="chip"><span class="dot"></span> <b>Bonus Hunt</b> <span class="meta">— ${a.bonusHunt.slotCount} slots · ${money(a.bonusHunt.totalCost)} buy-in</span></div>`);
+    if (a.battle)    chips.push(`<a class="link-btn" href="/bonus-battle.html?channel=${encodeURIComponent(ch)}"><span class="dot"></span> ⚔️ Bonus Battle live — ${a.battle.matchCount} matches →</a>`);
+    if (a.tournament)chips.push(`<a class="link-btn" href="/tournament.html?channel=${encodeURIComponent(ch)}"><span class="dot"></span> 🏆 Tournament — ${a.tournament.participants} entered →</a>`);
+    wrap.innerHTML = chips.join('');
+  }
+
+  let _storeItems = [], _currency = 'points';
+  function renderStore(s) {
+    if (!s.features || !s.features.store) return;
+    const items = (s.store && s.store.items) || [];
+    _storeItems = items; _currency = s.streamer.currency;
+    // Visibility is handled by the router (#store view). Here we just populate.
+    const labelEl = document.getElementById('storeCurrencyLabel');
+    if (labelEl) labelEl.textContent = s.streamer.currency;
+    document.getElementById('storeGrid').innerHTML = items.map(it => {
+      let stock = '';
+      if (it.stock !== null && it.stock !== undefined) {
+        if (it.stock === 0)      stock = `<span class="store-stock out">Out of stock</span>`;
+        else if (it.stock <= 3)  stock = `<span class="store-stock low">${it.stock} left</span>`;
+        else                     stock = `<span class="store-stock">${it.stock} in stock</span>`;
+      }
+      const out = it.stock === 0;
+      const label = it.isRaffleItem ? 'Enter raffle' : 'Buy';
+      const buyBtn = `<button class="store-buy ${it.isRaffleItem ? 'raffle' : ''}" data-id="${esc(it.id)}" ${out ? 'disabled' : ''} onclick="buyItem('${esc(it.id)}')">${out ? 'Out of stock' : (viewer ? label : '🟢 Sign in to ' + label.toLowerCase())}</button>`;
+      const cmd = `!buy ${it.name}`;
+      const img = it.imageUrl
+        ? `<div class="store-img"><img src="${esc(it.imageUrl)}" alt="" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
+        : '';
+      return `<div class="store-card ${it.isRaffleItem ? 'raffle' : ''}">
+        ${it.isRaffleItem ? `<span class="raffle-pill">🎟 RAFFLE ENTRY</span>` : ''}
+        ${img}
+        <div class="store-name">${esc(it.name)}</div>
+        <div class="store-desc">${esc(it.description || '')}</div>
+        <div class="store-foot">
+          <div class="store-price">${Number(it.price).toLocaleString()} <small>${esc(s.streamer.currency)}</small></div>
+          ${stock}
+        </div>
+        ${buyBtn}
+        <div class="store-buycmd" title="Copy command" onclick="navigator.clipboard&&navigator.clipboard.writeText('${cmd.replace(/'/g,"\\'")}');this.textContent='✓ Copied — paste in chat';">📋 ${esc(cmd)}</div>
+      </div>`;
+    }).join('');
+    const hasRaffle = items.some(it => it.isRaffleItem);
+    document.getElementById('storeNote').innerHTML =
+      `🛒 Click <strong>Buy</strong> to spend your ${esc(_currency)} (sign in with Kick), or use <code>!buy &lt;item&gt;</code> in Kick chat / Discord.` +
+      (hasRaffle ? ` &nbsp; 🎟 <strong style="color:var(--gold)">Raffle</strong> items enter you into a draw — the streamer picks the winner.` : '');
+  }
+
+  // ── VIEWER AUTH (Kick) + STORE PURCHASE ──────────────────────────────────────
+  function refreshViewerUI() {
+    const loginBtn = document.getElementById('viewerLoginBtn');
+    const info     = document.getElementById('viewerInfo');
+    if (viewer) {
+      loginBtn.classList.add('hidden'); info.classList.remove('hidden');
+      document.getElementById('viewerName').textContent = '@' + viewer.kickUsername;
+    } else {
+      loginBtn.classList.remove('hidden'); info.classList.add('hidden');
+    }
+  }
+  async function fetchBalance() {
+    if (!viewer) return;
+    try {
+      // Reuse bb-state's viewerPoints (no active battle needed — it just returns points).
+      const r = await fetch(`/api/bb-state?channel=${encodeURIComponent(CHANNEL)}&kick=${encodeURIComponent(viewer.kickUsername)}`);
+      const d = await r.json();
+      const pts = d && d.viewerPoints != null ? d.viewerPoints : 0;
+      document.getElementById('viewerPts').textContent = Number(pts).toLocaleString() + ' ' + _currency;
+    } catch { document.getElementById('viewerPts').textContent = '—'; }
+  }
+  window.viewerLogin  = function () { initiateKickAuth('viewer', CHANNEL); };
+  window.viewerLogout = function () { clearKickViewerSession(); viewer = null; refreshViewerUI(); renderStore(window.__S || {}); };
+
+  window.buyItem = async function (itemId) {
+    if (!viewer) { initiateKickAuth('viewer', CHANNEL); return; }
+    const item = _storeItems.find(i => i.id === itemId);
+    if (!item) return;
+    const verb = item.isRaffleItem ? 'enter the ' + item.name + ' raffle' : 'buy ' + item.name;
+    if (!confirm(`Spend ${Number(item.price).toLocaleString()} ${_currency} to ${verb}?`)) return;
+    const btn = document.querySelector(`.store-buy[data-id="${CSS.escape(itemId)}"]`);
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    try {
+      const r = await fetch('/api/store-buy', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: CHANNEL, kickUsername: viewer.kickUsername, accessToken: viewer.accessToken, itemId }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        if (r.status === 401) { clearKickViewerSession(); viewer = null; refreshViewerUI(); }
+        alert(d.error || 'Purchase failed.');
+        if (btn) { btn.disabled = false; btn.textContent = item.isRaffleItem ? 'Enter raffle' : 'Buy'; }
+        return;
+      }
+      if (d.newBalance != null) document.getElementById('viewerPts').textContent = Number(d.newBalance).toLocaleString() + ' ' + _currency;
+      if (btn) { btn.textContent = '✓ Done'; }
+      alert(d.message || 'Success!');
+      load(); // refresh stock
+    } catch (e) {
+      alert('Purchase failed: ' + e.message);
+      if (btn) { btn.disabled = false; btn.textContent = item.isRaffleItem ? 'Enter raffle' : 'Buy'; }
+    }
+  };
+
+  function renderWinners(s) {
+    // Visibility handled by the router (#winners view) + nav (only shown when
+    // there are winners). Here we just populate.
+    const winners = s.pastWinners || [];
+    if (!winners.length) { document.getElementById('winnersList').innerHTML = '<div class="empty">No winners yet.</div>'; return; }
+    document.getElementById('winnersList').innerHTML = winners.map(w => {
+      const d = w.drawnAt ? new Date(w.drawnAt._seconds ? w.drawnAt._seconds * 1000 : w.drawnAt) : null;
+      const ds = d ? d.toLocaleDateString('en-US', { month:'short', day:'numeric' }) : '';
+      return `<div class="pw-row"><span class="pw-mode">${esc(w.mode || 'raffle')}</span><span class="pw-name">${esc(w.winner || '—')}</span><span class="pw-date">${ds}</span></div>`;
+    }).join('');
+  }
+
+  function renderAbout(s) {
+    const sec = document.getElementById('aboutSection');
+    const bio = s.streamer.bio;
+    const soc = s.streamer.socials || {};
+    const links = [];
+    if (soc.discord) links.push(`<a href="${esc(soc.discord)}" target="_blank" rel="noopener" style="color:var(--accent2)">Discord</a>`);
+    if (soc.youtube) links.push(`<a href="${esc(soc.youtube)}" target="_blank" rel="noopener" style="color:var(--accent2)">YouTube</a>`);
+    if (soc.twitter) links.push(`<a href="${esc(soc.twitter)}" target="_blank" rel="noopener" style="color:var(--accent2)">Twitter</a>`);
+    if (!bio && !links.length) { sec.classList.add('hidden'); return; }
+    sec.classList.remove('hidden');
+    document.getElementById('aboutBody').innerHTML =
+      (bio ? `<p>${esc(bio)}</p>` : '') +
+      `<p style="margin-top:12px;color:var(--dim)">Affiliated with <strong style="color:var(--accent)">${esc(s.streamer.providerName)}</strong>. Type <code style="color:var(--accent2)">!verify</code> in chat to link your casino account.</p>` +
+      (links.length ? `<p style="margin-top:10px">${links.join(' · ')}</p>` : '');
+  }
+
+  async function load() {
+    let s;
+    try { s = await (await fetch(`/api/portal-data?channel=${CHANNEL}`)).json(); }
+    catch { document.getElementById('lbTable').innerHTML = '<div class="empty">Couldn’t load data.</div>'; return; }
+    if (!s || s.error) { document.getElementById('lbTable').innerHTML = '<div class="empty">Portal unavailable.</div>'; return; }
+    window.__S = s;
+
+    const portal = s.portal || {};
+    applyTheme(portal.theme);
+
+    document.title = `${s.streamer.displayName} — Wager Race`;
+    const logo = portal.logoUrl || s.streamer.logoUrl || '/img/sklotstransparent.png';
+    document.getElementById('brandLogo').src = logo;
+    document.getElementById('heroChip').src = logo;
+    document.getElementById('brandName').textContent = s.streamer.displayName;
+    document.getElementById('brandSub').textContent = 'kick.com/' + s.streamer.kickChannel;
+    document.getElementById('brandLink').href = s.streamer.socials?.kick || '/';
+
+    const hero = portal.hero || {};
+    if (hero.title) document.getElementById('heroTitle').textContent = hero.title;
+    document.getElementById('heroPrize').textContent = hero.prize || '';
+    // Code + "Play on Gambulls" CTA (replaces the old deposit-bonus line).
+    const codeLine = hero.code ? `<div class="hero-code">Code <b>${esc(hero.code)}</b></div>` : '';
+    const cta = hero.ctaHref ? `<a class="bonus" href="${esc(hero.ctaHref)}" target="_blank" rel="noopener">${esc(hero.ctaLabel || 'Play now')}</a>` : '';
+    document.getElementById('heroCtaWrap').innerHTML = codeLine + cta;
+
+    if (portal.bgImage) {
+      document.body.style.background = `linear-gradient(rgba(8,7,13,.88),rgba(8,7,13,.95)), url("${portal.bgImage}") center/cover fixed no-repeat`;
+    }
+
+    startCountdown(s.leaderboardTimer && s.leaderboardTimer.active ? s.leaderboardTimer.endAt : null);
+
+    const lb = s.leaderboard || {};
+    const cadence = hero.cadence ? hero.cadence + ' ' : '';
+    document.getElementById('lbHeading').textContent =
+      cadence + (lb.casinoName || s.streamer.providerName || 'Wager') + ' Leaderboard';
+    // portal-data returns rows as { rank, name, wagerAmount } — normalize to the
+    // { rank, username, wagered } shape the podium/table renderers expect.
+    const ranks = (lb.rankings || []).map(r => ({
+      rank: r.rank, username: r.name || r.username, wagered: r.wagerAmount != null ? r.wagerAmount : r.wagered, avatarUrl: r.avatarUrl || null,
+    }));
+    const prizes = (portal.prizes) || [];
+    renderLinks(s);
+    // The podium shows the top 3 — so when it's displayed, the table starts at
+    // rank 4 to avoid repeating them. With fewer than 3 entries there's no
+    // podium, so the table shows everyone.
+    const hasPodium = ranks.length >= 3;
+    renderPodium(ranks, prizes);
+    // Below-podium rows: ranks 4+ when a podium shows; everyone otherwise.
+    // `belowPodium` flag tells the table whether an empty list means "all on the
+    // podium" (hide) vs. "genuinely no data" (show a message).
+    renderTable(hasPodium ? ranks.slice(3) : ranks, prizes, hasPodium);
+    renderActive(s);
+    renderStore(s);
+    renderWinners(s);
+    renderAbout(s);
+    renderRewards(s);
+
+    // Honor an initial #store/#winners/#rewards deep-link ONCE, on first load —
+    // not on the 60s refresh (which would yank the viewer out of their current view).
+    if (!window.__routedOnce) {
+      window.__routedOnce = true;
+      const initial = location.hash.replace(/^#/, '');
+      if (PAGE_IDS.has(initial)) showView(initial);
+    }
+
+    document.getElementById('footCredit').innerHTML = portal.brandCredit === false
+      ? `&copy; ${new Date().getFullYear()} ${esc(s.streamer.displayName)}`
+      : `Powered by <a href="https://wenbot.gg" target="_blank" rel="noopener">WenBot</a>`;
+  }
+
+  // Restore any existing Kick viewer session (shared with verify/battle/etc.) so
+  // the balance + Buy buttons are ready on load (eager — points are visible).
+  // On a custom domain, first claim a handoff code (?s=) minted on wenbot.gg.
+  async function initViewer() {
+    const params = new URLSearchParams(location.search);
+    const code = params.get('s');
+    if (code) {
+      try {
+        const r = await fetch('/api/kick-session-claim', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code }),
+        });
+        const d = await r.json();
+        if (r.ok && d.session) {
+          localStorage.setItem('kick_viewer_session', JSON.stringify(d.session));
+        }
+      } catch {}
+      // Strip ?s= from the URL regardless, so it can't be re-claimed / shared.
+      params.delete('s');
+      history.replaceState(null, '', location.pathname + (params.toString() ? '?' + params : '') + location.hash);
+    }
+    try { viewer = (typeof getKickViewerSession === 'function') ? getKickViewerSession() : null; } catch { viewer = null; }
+    refreshViewerUI();
+    if (viewer) fetchBalance();
+  }
+
+  initViewer();
+  load();
+  setInterval(load, 60000); // refresh live data each minute
+})();
+</script>
+</body>
+</html>

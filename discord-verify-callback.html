@@ -49,16 +49,27 @@
   const code   = params.get('code');
   const state  = params.get('state');
 
-  function showSuccess(discordUsername, kickUsername, joined) {
-    const joinedLine = joined
-      ? `<div class="sub">You've been added to the streamer's Discord server. </div>`
+  function showSuccess(data) {
+    const { discordUsername, kickUsername, alreadyMember, inviteUrl, roleAssigned, guildId } = data;
+    const roleLine = roleAssigned
+      ? `<div class="pill" style="background:rgba(0,255,136,0.08);border-color:rgba(0,255,136,0.25);color:#00ff88;">✅ Verified role granted</div>`
+      : '';
+    // Members → deep-link straight into the server. Non-members → a real invite
+    // (the channels deep-link does nothing for non-members, so never use it for them).
+    const ctaUrl   = alreadyMember
+      ? (guildId ? `https://discord.com/channels/${guildId}` : '')
+      : (inviteUrl || '');
+    const ctaLabel = alreadyMember ? 'Open Discord →' : 'Join the server →';
+    const ctaBtn   = ctaUrl
+      ? `<a href="${ctaUrl}" target="_blank" rel="noopener" style="display:inline-block;margin-top:16px;padding:10px 24px;background:#5865F2;border-radius:8px;color:#fff;font-weight:700;font-size:14px;text-decoration:none;">${ctaLabel}</a>`
       : '';
     document.getElementById('card').innerHTML = `
       <div class="icon">🎉</div>
-      <div class="title">${joined ? 'Welcome to the Server!' : 'Discord Linked!'}</div>
-      ${joinedLine}
-      <div class="sub">Your accounts are now connected. You can use <strong>/points</strong>, <strong>/buy</strong>, and <strong>/join</strong> in the Discord server.</div>
-      <div class="pill">💬 ${kickUsername} → 🎮 ${discordUsername}</div>`;
+      <div class="title">Discord Linked!</div>
+      <div class="sub">Your accounts are now connected. You can use <strong>/points</strong>, <strong>/give</strong>, and <strong>/buy</strong> in the Discord server.</div>
+      ${roleLine}
+      <div class="pill">💬 ${kickUsername} → 🎮 ${discordUsername}</div>
+      ${ctaBtn}`;
   }
 
   function showError(msg) {
@@ -81,7 +92,7 @@
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || 'Unknown error');
-      showSuccess(data.discordUsername, data.kickUsername, data.joined);
+      showSuccess(data);
     } catch (e) {
       showError('Failed to link: ' + e.message);
     }

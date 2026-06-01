@@ -183,11 +183,23 @@
 const params      = new URLSearchParams(location.search);
 const channel     = params.get('channel') || '';
 const demoMode    = params.get('demo') === '1';
+// Embed mode is used by the dashboard preview iframe. Skips polling and
+// listens for postMessage triggers from the parent window instead.
+const isEmbed     = params.get('embed') === '1';
 let lastTriggerAt   = 0;
 let animating       = false;
 let initialized     = false;
 let hideMachineTimer = null;
 let bannerHideTimer  = null;
+// When this iframe loaded — used to decide whether a "first sighting" of a
+// trigger is stale (pre-load) or fresh (post-load / mid-style-switch race).
+const _LOADED_AT    = Date.now();
+// Generation counter — each runSpin captures its own ID so stale callbacks
+// from a previous spin become no-ops when a rapid reroll cancel-and-restarts.
+let _spinGen        = 0;
+let _landingTimer   = null;
+// Latest spin message queued during an in-flight animation (embed mode).
+let _embedPending   = null;
 
 // Demo mode — show a test spin immediately
 if (demoMode) {
@@ -202,20 +214,18 @@ async function poll() {
     const data = await r.json();
     if (data.spinTrigger) {
       const { winner, wager, triggeredAt } = data.spinTrigger;
-      if (!initialized) {
-        // On first load, mark existing trigger as seen so we don't replay old spins
+      const isFirstSighting = !initialized;
+      initialized = true;
+      // First sighting: absorb-without-playing ONLY if the trigger fired
+      // clearly before this iframe loaded (2s grace covers the style-switch
+      // race where reroll lands during iframe load).
+      if (isFirstSighting && triggeredAt < _LOADED_AT - 10000) {
         lastTriggerAt = triggeredAt;
-        initialized   = true;
-      } else if (winner && triggeredAt !== lastTriggerAt) {
+      } else if (winner && triggeredAt !== lastTriggerAt && !animating) {
+        // Mid-spin guard — queue the new trigger by leaving lastTriggerAt
+        // unchanged. The next poll after the spin ends picks it up.
         lastTriggerAt = triggeredAt;
-        // Cancel any pending hide / banner-hide from a previous spin —
-        // otherwise a reroll mid-banner gets stomped by the old timers.
-        if (hideMachineTimer) { clearTimeout(hideMachineTimer); hideMachineTimer = null; }
-        if (bannerHideTimer)  { clearTimeout(bannerHideTimer);  bannerHideTimer  = null; }
-        // Hide the previous winner banner immediately so the new spin reads cleanly
         document.getElementById('winnerBanner').style.display = 'none';
-        // Force-reset animating: a reroll mid-animation should restart, not no-op
-        animating = false;
         showMachine();
         runSpin(winner, wager || 0);
       }
@@ -231,7 +241,13 @@ function showMachine() {
 }
 
 function runSpin(winnerName, wager) {
-  if (animating) return;
+  // Cancel any in-flight callbacks from a previous spin and bump the gen so
+  // older rAF / setTimeout callbacks bail. Lets a rapid reroll cancel-and-
+  // restart instead of being dropped by `if (animating) return`.
+  if (_landingTimer)   { clearTimeout(_landingTimer);   _landingTimer = null; }
+  if (hideMachineTimer){ clearTimeout(hideMachineTimer); hideMachineTimer = null; }
+  if (bannerHideTimer) { clearTimeout(bannerHideTimer);  bannerHideTimer  = null; }
+  const myGen = ++_spinGen;
   animating = true;
 
   const ITEM_H   = 40;
@@ -250,28 +266,46 @@ function runSpin(winnerName, wager) {
   for (let i = 0; i < 38; i++) spinList.push(fakePool[i % fakePool.length]);
   spinList.push(winnerName);
 
-  const drumList = document.getElementById('drumList');
-  drumList.style.transition = 'none';
-  drumList.style.transform  = 'translateY(0)';
+  // Rebuild the drum as a FRESH element so a rapid cancel-and-restart never
+  // has to fight with an in-flight CSS transition from the previous spin.
+  const oldDrum = document.getElementById('drumList');
+  const drumList = document.createElement('div');
+  drumList.id = 'drumList';
+  drumList.className = oldDrum.className;
   drumList.innerHTML = spinList.map((name, i) =>
     `<div class="drum-item${i === winnerIdx ? ' drum-winner-slot' : ''}">${name}</div>`
   ).join('');
+  oldDrum.parentNode.replaceChild(drumList, oldDrum);
 
   const startY = PAD * ITEM_H;
   const endY   = -(winnerIdx * ITEM_H) + PAD * ITEM_H;
 
   drumList.style.transform = `translateY(${startY}px)`;
 
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    drumList.style.transition = 'transform 3.8s cubic-bezier(0.15, 0.85, 0.35, 1.0)';
-    drumList.style.transform  = `translateY(${endY}px)`;
-  }));
+  requestAnimationFrame(() => {
+    if (myGen !== _spinGen) return;
+    requestAnimationFrame(() => {
+      if (myGen !== _spinGen) return;
+      drumList.style.transition = 'transform 3.8s cubic-bezier(0.15, 0.85, 0.35, 1.0)';
+      drumList.style.transform  = `translateY(${endY}px)`;
+    });
+  });
 
-  setTimeout(() => {
+  _landingTimer = setTimeout(() => {
+    _landingTimer = null;
+    if (myGen !== _spinGen) return;
+    // If clicks queued during this spin, cascade into the latest queued
+    // one — skip showing this winner so streamer only sees the final.
+    if (_embedPending) {
+      animating = false;
+      const next = _embedPending;
+      _embedPending = null;
+      _runWinnerEmbedSpin(next);
+      return;
+    }
     const items = drumList.querySelectorAll('.drum-item');
     if (items[winnerIdx]) items[winnerIdx].classList.add('landed');
 
-    // Show banner
     document.getElementById('winnerName').textContent = winnerName;
     document.getElementById('winnerSub').textContent  = wager ? `$${Number(wager).toLocaleString()} wagered` : '';
     document.getElementById('winnerBanner').style.display = 'block';
@@ -279,8 +313,17 @@ function runSpin(winnerName, wager) {
     spawnParticles();
     animating = false;
 
-    // Auto-hide after 12 seconds. Track the handle so a fresh reroll can cancel it.
-    hideMachineTimer = setTimeout(() => { hideMachineTimer = null; hideMachine(); }, 12000);
+    if (window.parent !== window) {
+      try {
+        window.parent.postMessage({ type: 'spin-landed', winner: winnerName, wager }, '*');
+      } catch {}
+    }
+
+    hideMachineTimer = setTimeout(() => {
+      hideMachineTimer = null;
+      if (myGen !== _spinGen) return;
+      hideMachine();
+    }, 12000);
   }, 4000);
 }
 
@@ -312,7 +355,30 @@ function spawnParticles() {
   }
 }
 
-poll();
+function _runWinnerEmbedSpin(msgData) {
+  const winner = String(msgData.winner || '');
+  if (!winner) return;
+  const wager = Number(msgData.wager) || 0;
+  showMachine();
+  runSpin(winner, wager);
+}
+
+function initEmbed() {
+  // Don't pre-show the drum machine — switching styles before a spin would
+  // otherwise flash an empty machine. runSpin's showMachine() handles it on
+  // the first real spin.
+  window.addEventListener('message', (e) => {
+    if (e.data?.type !== 'spin') return;
+    if (animating) { _embedPending = e.data; return; }
+    _runWinnerEmbedSpin(e.data);
+  });
+  if (window.parent !== window) {
+    try { window.parent.postMessage({ type: 'spinner-ready' }, '*'); } catch {}
+  }
+}
+
+if (isEmbed) initEmbed();
+else if (!demoMode) poll();
 </script>
 </body>
 </html>

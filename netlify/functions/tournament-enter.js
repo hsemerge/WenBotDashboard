@@ -58,10 +58,23 @@ exports.handler = async (event) => {
       return res(400, { error: "Tournament is full" });
     }
 
-    // 6. Verified check
-    const vSnap = await db.collection("streamers").doc(uid)
-      .collection("verified_users").where("kickName", "==", userKey).limit(1).get();
-    if (vSnap.empty) return res(403, { error: "You must be verified to enter. Please verify your account first." });
+    // 6. Verified check — case-insensitive. New docs use kickName_lower (added
+    // Apr 2026); older docs are caught by a doc-ID prefix scan since IDs are
+    // `${kickKey}_${provider}` and kickKey is already lowercased. The original
+    // `kickName == userKey` query missed mixed-case usernames like TriitonGM
+    // because kickName stores Kick's original case.
+    const verifiedUsersRef = db.collection("streamers").doc(uid).collection("verified_users");
+    const FieldPath = admin.firestore.FieldPath;
+    const [vSnapNew, vSnapLegacy] = await Promise.all([
+      verifiedUsersRef.where("kickName_lower", "==", userKey).limit(1).get(),
+      verifiedUsersRef
+        .where(FieldPath.documentId(), ">=", `${userKey}_`)
+        .where(FieldPath.documentId(), "<",  `${userKey}_`)
+        .limit(1).get(),
+    ]);
+    if (vSnapNew.empty && vSnapLegacy.empty) {
+      return res(403, { error: "You must be verified to enter. Please verify your account first." });
+    }
 
     // 7. Points check
     const entryCost = t.entryCost || 0;

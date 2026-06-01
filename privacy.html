@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/png" href="/img/favicon.png" sizes="32x32">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — WenBot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --bg-panel: #161b22; --border: #30363d;
+      --text: #c9d1d9; --text-dim: #8b949e; --bright: #f0f6fc;
+      --accent: #00e5ff;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.7; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    nav {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 48px; height: 60px;
+      background: rgba(13,17,23,0.9); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { font-family: 'Exo 2', sans-serif; font-size: 20px; font-weight: 900; color: var(--accent); }
+    .nav-back { font-size: 13px; color: var(--text-dim); }
+    .container { max-width: 780px; margin: 0 auto; padding: 56px 24px 80px; }
+    h1 { font-family: 'Exo 2', sans-serif; font-size: 36px; font-weight: 900; color: var(--bright); margin-bottom: 8px; }
+    .meta { font-size: 13px; color: var(--text-dim); margin-bottom: 48px; }
+    h2 { font-family: 'Exo 2', sans-serif; font-size: 18px; font-weight: 800; color: var(--bright); margin: 36px 0 12px; }
+    p { margin-bottom: 14px; color: var(--text); }
+    ul { padding-left: 20px; margin-bottom: 14px; }
+    ul li { margin-bottom: 6px; color: var(--text); }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 14px; }
+    th, td { text-align: left; padding: 8px 10px; border: 1px solid var(--border); vertical-align: top; }
+    th { background: var(--bg-panel); color: var(--bright); font-weight: 600; }
+    .divider { height: 1px; background: var(--border); margin: 40px 0; }
+    footer { border-top: 1px solid var(--border); padding: 24px 48px; text-align: center; font-size: 12px; color: var(--text-dim); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">WenBot</a>
+  <a href="index.html" class="nav-back">← Back to home</a>
+</nav>
+
+<div class="container">
+  <h1>Privacy Policy</h1>
+  <p class="meta">Effective date: June 1, 2026 &nbsp;·&nbsp; Last updated: June 1, 2026</p>
+
+  <p>This Privacy Policy explains how WenBot ("the Service," "we," "us," or "our"), operated by LogicPlay Studios, collects, uses, stores, shares, and retains information when you use WenBot — including streamer dashboards, public streamer portals (such as <strong>wenbot.gg/&lt;channel&gt;</strong> and white-label custom domains), and any feature that involves signing in with Kick or Discord.</p>
+
+  <h2>1. Who This Applies To</h2>
+  <p>WenBot serves two kinds of users:</p>
+  <ul>
+    <li><strong>Streamers</strong> — content creators who create a WenBot account to run bots, giveaways, points, leaderboards, and store features for their community.</li>
+    <li><strong>Viewers</strong> — members of a streamer's audience who interact with a streamer's WenBot portal, for example by signing in with Kick to verify their account, view their points balance, spend points in a streamer's store, enter a giveaway, or take part in a bonus battle or tournament.</li>
+  </ul>
+
+  <h2>2. Information We Collect</h2>
+  <p>We collect only the information needed to provide the features you use.</p>
+
+  <table>
+    <tr><th>Data</th><th>When collected</th><th>Why</th></tr>
+    <tr><td>Email address &amp; password (streamers)</td><td>Account signup</td><td>Authentication and account management.</td></tr>
+    <tr><td>Kick username and Kick user ID</td><td>When you "Sign in with Kick"</td><td>To confirm your identity, link your account, and attribute your points, entries, and purchases to you.</td></tr>
+    <tr><td>Kick OAuth access token</td><td>When you "Sign in with Kick"</td><td>A short-lived credential used only to verify that the sign-in genuinely belongs to you. We request the minimum scope (read-only profile access). We never receive your Kick password.</td></tr>
+    <tr><td>Discord username and ID</td><td>If you link Discord</td><td>To grant verified roles and let you use Discord commands such as points and store purchases.</td></tr>
+    <tr><td>Casino/affiliate username</td><td>If you verify with a casino code</td><td>To match your wagering on a streamer's affiliate leaderboard. We do not process or store payment or gambling-account credentials.</td></tr>
+    <tr><td>Activity data</td><td>While using a streamer's community</td><td>Points balances, giveaway entries, store redemptions, bonus-battle bets, and tournament entries.</td></tr>
+  </table>
+
+  <h2>3. How We Store and Protect Your Information</h2>
+  <p>We take the security of your information seriously and apply industry-standard safeguards:</p>
+  <ul>
+    <li><strong>Server-side data</strong> (account info, points, redemptions, links) is stored in Google Firebase (Firestore), protected by access rules and served over encrypted (HTTPS) connections.</li>
+    <li><strong>Kick access tokens</strong> are handled with care. When you sign in, your token is held in your own browser's local storage for your active session and is sent only to our servers to verify your identity. Where a sign-in must pass between our main site and a white-label custom domain, we use a single-use code that expires within 60 seconds — your token is never exposed in a shareable link.</li>
+    <li><strong>Sensitive credentials</strong> — such as our own API keys and OAuth client secrets — are kept server-side only and are never exposed to your browser.</li>
+    <li>We never sell your personal data, and we do not transfer your profile or activity data to advertising networks, data brokers, or other monetization services.</li>
+  </ul>
+  <p>No method of transmission or storage is perfectly secure. If we become aware of a security incident affecting your information, we will take prompt action and provide any notifications required by law.</p>
+
+  <h2>4. How We Use Your Information</h2>
+  <ul>
+    <li>To authenticate you and operate the features you choose to use.</li>
+    <li>To attribute points, giveaway entries, store purchases, and competition entries to the correct viewer.</li>
+    <li>To display public leaderboards, store items, and winners on streamer portals.</li>
+    <li>To maintain the security and integrity of the Service and prevent fraud or abuse.</li>
+  </ul>
+
+  <h2>5. How We Share Information</h2>
+  <p>We share information only as needed to run the Service:</p>
+  <ul>
+    <li><strong>With the streamer</strong> whose community you interact with — for example, your Kick username, points balance, and redemptions appear in that streamer's dashboard so they can fulfill rewards.</li>
+    <li><strong>With service providers</strong> that operate parts of the Service on our behalf, such as Google Firebase (hosting/database), Stripe (streamer payments), and Netlify (hosting). These providers process data under their own terms and only as needed to provide their service.</li>
+    <li><strong>With Kick and Discord</strong> to the extent you authorize a connection through their official login systems.</li>
+    <li><strong>When required by law</strong>, or to protect the rights, safety, or property of WenBot, our users, or the public.</li>
+  </ul>
+  <p>We do not use data obtained through the Kick API to target you with marketing or commercial offers outside of Kick, and we do not sell or license your data to third parties.</p>
+
+  <h2>6. Data Retention</h2>
+  <ul>
+    <li><strong>Kick access tokens</strong> are short-lived and expire automatically; the temporary single-use sign-in codes described above expire within 60 seconds.</li>
+    <li><strong>Account and activity data</strong> is retained while your (or the relevant streamer's) account is active and as needed to provide the Service.</li>
+    <li>You may request deletion of your data as described below. Streamers can also export their data from the dashboard.</li>
+  </ul>
+
+  <h2>7. Your Choices and Rights</h2>
+  <ul>
+    <li><strong>Log out</strong> at any time to clear your session from your browser.</li>
+    <li><strong>Disconnect Kick or Discord</strong> by revoking WenBot's access in your Kick or Discord account settings.</li>
+    <li><strong>Request access or deletion</strong> of your personal data by emailing <a href="mailto:support@logicplaystudios.com">support@logicplaystudios.com</a>. Depending on your location, you may have additional rights under applicable data-protection laws.</li>
+  </ul>
+
+  <h2>8. Cookies and Local Storage</h2>
+  <p>WenBot uses your browser's local storage to keep you signed in during a session and to remember preferences. We use only the minimum needed to operate the Service and do not use third-party advertising or behavioral-tracking cookies. Any session data is kept only as long as needed for your active session.</p>
+
+  <h2>9. Children</h2>
+  <p>WenBot is intended for users 18 years of age or older and is not directed to children. We do not knowingly collect personal information from anyone under 18.</p>
+
+  <h2>10. Third-Party Platforms</h2>
+  <p>When you sign in with Kick or Discord, or interact with a casino affiliate program, your use of those platforms is governed by their own privacy policies. We encourage you to review them. WenBot is an independent service and is not endorsed by or affiliated with Kick beyond our use of Kick's official developer program.</p>
+
+  <h2>11. Changes to This Policy</h2>
+  <p>We may update this Privacy Policy from time to time. We will post the updated version here with a revised "Last updated" date, and where appropriate notify users of material changes. Your continued use of the Service after changes take effect constitutes acceptance of the revised policy.</p>
+
+  <h2>12. Contact</h2>
+  <p>If you have any questions about this Privacy Policy or your data, contact us at <a href="mailto:support@logicplaystudios.com">support@logicplaystudios.com</a>.</p>
+
+  <div class="divider"></div>
+  <p style="font-size:13px;color:var(--text-dim);">By using WenBot or signing in with Kick or Discord through a WenBot portal, you acknowledge that you have read and understood this Privacy Policy.</p>
+</div>
+
+<footer>
+  WenBot — Powered by <a href="https://www.logicplaystudios.com" target="_blank" rel="noopener" style="color:var(--accent);">LogicPlay Studios</a>
+  &nbsp;·&nbsp; © 2026 All rights reserved.
+  &nbsp;·&nbsp; <a href="/terms.html" style="color:var(--text-dim);">Terms</a>
+  &nbsp;·&nbsp; <a href="mailto:support@logicplaystudios.com" style="color:var(--text-dim);">support@logicplaystudios.com</a>
+</footer>
+
+</body>
+</html>

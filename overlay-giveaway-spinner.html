@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Giveaway Spinner — WenBot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{--ov-accent:#00e5ff;--ov-accent-rgb:0,229,255;--ov-panel:rgba(13,17,23,0.93);--ov-text:#ffffff;--ov-font:'Inter',sans-serif;--ov-font-heading:'Exo 2',sans-serif;}
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --accent: var(--ov-accent);
+      --gold:   #ffd700;
+      --ov-card: 104px;
+      --ov-gap:  12px;
+    }
+    body { background: transparent; font-family: var(--ov-font); overflow: hidden; width: 560px; }
+    #widget { display: none; }
+    #widget.visible { display: block; }
+
+    .picker-wrap {
+      position: relative; width: 560px;
+      background: var(--ov-panel);
+      border: 1px solid rgba(var(--ov-accent-rgb),0.3);
+      border-radius: 14px; overflow: hidden;
+      box-shadow: 0 0 30px rgba(var(--ov-accent-rgb),0.15);
+    }
+    .picker-header {
+      text-align: center; padding: 12px 16px 10px;
+      font-family: var(--ov-font-heading);
+      font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--accent);
+      border-bottom: 1px solid rgba(var(--ov-accent-rgb),0.12);
+    }
+    .reel-viewport { position: relative; overflow: hidden; padding: 22px 0 16px; }
+    .reel-viewport::before, .reel-viewport::after {
+      content: ''; position: absolute; top: 0; bottom: 0; width: 110px; z-index: 2; pointer-events: none;
+    }
+    .reel-viewport::before { left: 0;  background: linear-gradient(to right, var(--ov-panel) 0%, transparent 100%); }
+    .reel-viewport::after  { right: 0; background: linear-gradient(to left,  var(--ov-panel) 0%, transparent 100%); }
+    .reel-frame {
+      position: absolute; top: 22px; left: 50%; transform: translateX(-50%);
+      width: var(--ov-card); height: var(--ov-card);
+      border: 2px solid var(--accent); border-radius: 50%;
+      box-shadow: 0 0 22px rgba(var(--ov-accent-rgb),0.35), inset 0 0 12px rgba(var(--ov-accent-rgb),0.12);
+      z-index: 3; pointer-events: none; transition: box-shadow 0.3s, border-color 0.3s;
+    }
+    .picker-wrap.landed .reel-frame {
+      border-color: var(--ov-winner, var(--gold));
+      box-shadow: 0 0 30px color-mix(in srgb, var(--ov-winner, #ffd700) 50%, transparent), inset 0 0 14px color-mix(in srgb, var(--ov-winner, #ffd700) 18%, transparent);
+    }
+    .reel-track {
+      display: flex; gap: var(--ov-gap);
+      padding: 0 calc(50% - (var(--ov-card) / 2));
+      will-change: transform;
+    }
+    .reel-item { width: var(--ov-card); flex-shrink: 0; }
+    .reel-img {
+      position: relative; width: var(--ov-card); height: var(--ov-card);
+      border-radius: 50%; overflow: hidden; background: #0d1117;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .reel-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .reel-img .placeholder {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 36px; font-weight: 900;
+      background: rgba(var(--ov-accent-rgb),0.08); color: var(--accent);
+    }
+    .reel-user {
+      font-size: 12px; font-weight: 700; color: var(--ov-text); text-align: center;
+      margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* Result reveal — sits BELOW the carousel (like the slot picker design).
+       Always-present (min-height reserves the space) so the overlay's outer
+       dimensions stay constant for OBS positioning; content fades in only
+       when a winner is drawn. */
+    .result-panel {
+      min-height: 80px;
+      padding: 12px 16px 16px;
+      text-align: center;
+      border-top: 1px solid rgba(var(--ov-accent-rgb),0.12);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    .result-panel.show { opacity: 1; }
+    .result-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--ov-winner, var(--gold)); margin-bottom: 4px;
+    }
+    .result-name {
+      font-family: var(--ov-font-heading);
+      font-size: 30px; font-weight: 900;
+      color: var(--ov-winner, var(--gold));
+      text-shadow: 0 0 24px color-mix(in srgb, var(--ov-winner, #ffd700) 40%, transparent);
+    }
+    .result-sub { font-size: 13px; color: #8b949e; margin-top: 4px; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 30px rgba(var(--ov-accent-rgb),0.15); }
+      50%      { box-shadow: 0 0 50px rgba(var(--ov-accent-rgb),0.35), 0 0 20px color-mix(in srgb, var(--ov-winner, #ffd700) 35%, transparent); }
+    }
+    .picker-wrap.glowing { animation: glow 1.5s ease infinite; }
+  </style>
+  <script src="/js/overlay-theme.js"></script>
+  <script src="/js/overlay-confetti.js"></script>
+</head>
+<body>
+<div id="widget">
+  <div class="picker-wrap" id="pickerWrap">
+    <div class="picker-header" data-ov-header>🎁 Giveaway Winner</div>
+    <div class="reel-viewport">
+      <div class="reel-frame"></div>
+      <div class="reel-track" id="reelTrack"></div>
+    </div>
+    <!-- Result sits BELOW the carousel; min-height reserves space. -->
+    <div class="result-panel" id="resultPanel">
+      <div class="result-label">🏆 Winner</div>
+      <div class="result-name" id="resultName"></div>
+      <div class="result-sub" id="resultSub"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const params  = new URLSearchParams(location.search);
+  const channel = (params.get('channel') || '').toLowerCase();
+  const isDemo  = params.get('demo') === '1';
+  // Embed mode is used by the dashboard preview iframe. It skips Firestore
+  // polling entirely and instead waits for postMessage from the parent
+  // window — this avoids the 1.5s poll latency and the staleness/race
+  // bugs that plagued the preview when triggers were carried via Firestore.
+  const isEmbed = params.get('embed') === '1';
+  const POLL_MS = 1500;
+  const REVEAL_MS = Math.max(0, parseInt(params.get('duration'), 10) || 10) * 1000;
+  let winnerColor = params.get('winner');
+  if (winnerColor && !winnerColor.startsWith('#')) winnerColor = '#' + winnerColor;
+  if (winnerColor && /^#[0-9a-f]{6}$/i.test(winnerColor)) {
+    document.documentElement.style.setProperty('--ov-winner', winnerColor);
+  }
+
+  let lastTrigger = null;
+  let spinning    = false;
+  let _revealTimer = null;
+  // Generation counter — each animateSpin call captures its own ID. Older
+  // callbacks (rAFs, setTimeouts) bail out when a newer spin has started,
+  // so rapid rerolls can cancel-and-restart without state corruption.
+  let _spinGen = 0;
+  let _landingTimer = null;
+  // When this iframe loaded — used to decide whether a "first sighting" of a
+  // trigger should play (recent / arrived after load) or be silently absorbed
+  // (stale — fired before this iframe existed). The 2s grace covers the race
+  // where a streamer clicks reroll during a style switch and the new trigger
+  // is written to Firestore before this iframe finishes loading.
+  const _LOADED_AT = Date.now();
+
+  function clean(s) { return (s || '').replace(/[<>]/g, ''); }
+  function initialOf(name) { return ((name || '?')[0] || '?').toUpperCase(); }
+
+  function avatarHtml(entry) {
+    const initial = clean(initialOf(entry.kickName || entry.kickKey || entry.username || ''));
+    if (entry.avatarUrl) {
+      return `<img src="${entry.avatarUrl}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="placeholder" style="display:none;">${initial}</div>`;
+    }
+    return `<div class="placeholder">${initial}</div>`;
+  }
+
+  // Rebuild the reel as a FRESH DOM element so a rapid cancel-and-restart
+  // never has to fight with an in-flight CSS transition from the previous
+  // spin. The browser can't carry transition state across element identity,
+  // so the new track always starts cleanly.
+  function buildReel(items) {
+    const old    = document.getElementById('reelTrack');
+    const parent = old.parentNode;
+    const fresh  = document.createElement('div');
+    fresh.className = 'reel-track';
+    fresh.id = 'reelTrack';
+    fresh.innerHTML = items.map(e => `
+      <div class="reel-item">
+        <div class="reel-img">${avatarHtml(e)}</div>
+        <div class="reel-user">@${clean(e.kickName || e.kickKey || e.username || '')}</div>
+      </div>`).join('');
+    fresh.style.transform = 'translateX(0)';
+    parent.replaceChild(fresh, old);
+    return fresh;
+  }
+
+  function step(track) {
+    if (!track || track.children.length < 2) return 116;
+    return track.children[1].offsetLeft - track.children[0].offsetLeft;
+  }
+
+  // Animate the spin and land on the winner.
+  function animateSpin(reel, winIdx, picked) {
+    // Cancel any in-flight callbacks from a previous spin so a rapid reroll
+    // doesn't leave a stale landing-timer running that would stomp on this
+    // spin's state.
+    if (_landingTimer) { clearTimeout(_landingTimer); _landingTimer = null; }
+    if (_revealTimer)  { clearTimeout(_revealTimer);  _revealTimer  = null; }
+    const myGen = ++_spinGen;
+
+    const wrap  = document.getElementById('pickerWrap');
+    const rp    = document.getElementById('resultPanel');
+    rp.classList.remove('show');
+    wrap.classList.remove('glowing', 'landed');
+
+    // buildReel returns a brand-new track element each call. No need to
+    // explicitly reset transition/transform — the element has neither.
+    const track = buildReel(reel);
+
+    requestAnimationFrame(() => {
+      if (myGen !== _spinGen) return;
+      const s = step(track);
+      void track.offsetWidth;
+      requestAnimationFrame(() => {
+        if (myGen !== _spinGen) return;
+        track.style.transition = 'transform 4s cubic-bezier(0.15, 0.85, 0.35, 1)';
+        track.style.transform  = `translateX(-${winIdx * s}px)`;
+        _landingTimer = setTimeout(() => {
+          _landingTimer = null;
+          if (myGen !== _spinGen) return;
+          // If clicks queued up during this spin, skip showing this winner
+          // and cascade straight into the latest one. The streamer rapid-
+          // clicked through this pick — they only want to see the final.
+          if (_embedPending) {
+            spinning = false;
+            const next = _embedPending;
+            _embedPending = null;
+            _runEmbedSpin(next);
+            return;
+          }
+          wrap.classList.add('landed', 'glowing');
+          rp.classList.add('show');
+          if (window.ovConfetti) window.ovConfetti({ count: 60 });
+          document.getElementById('resultName').textContent = '@' + (picked.kickName || picked.kickKey || picked.username || '');
+          const sub = picked.wager ? `$${Number(picked.wager).toLocaleString()} wagered` : '';
+          document.getElementById('resultSub').textContent = sub;
+          spinning = false;
+          // Notify parent that this spin actually landed — dashboard uses
+          // this to commit the winner to its list + fire chat congrats.
+          // Only sent for the FINAL spin in a rapid-click cascade.
+          if (window.parent !== window) {
+            try {
+              window.parent.postMessage({
+                type:      'spin-landed',
+                winner:    picked.kickName || picked.kickKey || picked.username || '',
+                wager:     picked.wager || 0,
+                avatarUrl: picked.avatarUrl || null,
+              }, '*');
+            } catch {}
+          }
+          if (REVEAL_MS > 0) {
+            _revealTimer = setTimeout(() => {
+              if (myGen !== _spinGen) return;
+              rp.classList.remove('show');
+              wrap.classList.remove('glowing', 'landed');
+            }, REVEAL_MS);
+          }
+        }, 4100);
+      });
+    });
+  }
+
+  // Build a 20-card reel with the winner at the landing index, decoys from
+  // current entries so the carousel feels real.
+  function buildReelFor(picked, entries) {
+    const WIN_IDX = 16, REEL_LEN = 20;
+    const pool = (entries && entries.length) ? entries : [picked];
+    const reel = [];
+    for (let i = 0; i < REEL_LEN; i++) {
+      reel.push(i === WIN_IDX ? picked : pool[Math.floor(Math.random() * pool.length)]);
+    }
+    return { reel, winIdx: WIN_IDX };
+  }
+
+  function handleTrigger(state) {
+    const trig = state?.spinTrigger;
+    if (!trig || !trig.winner || !trig.triggeredAt) return;
+
+    // Mid-spin guard — queue the new trigger instead of consuming it. When
+    // the current spin finishes (spinning flips false), the next poll sees
+    // this trigger as "new" because lastTrigger was not updated, and replays.
+    if (spinning) return;
+
+    const triggerId = String(trig.triggeredAt);
+    if (triggerId === lastTrigger) return;
+
+    // First-load handling: suppress triggers that fired BEFORE this iframe
+    // loaded (with a generous 10s grace) so a reroll clicked during a style
+    // switch — where the new trigger may race ahead of iframe init — still
+    // plays. A wider grace also protects against slow iframe loads.
+    const isFirstSighting = lastTrigger === null;
+    lastTrigger = triggerId;
+    if (isFirstSighting && trig.triggeredAt < _LOADED_AT - 10000) return;
+
+    spinning = true;
+
+    // Find the winner's entry in the snapshot to get avatar
+    const entries = Array.isArray(state.entries) ? state.entries : [];
+    const winnerName = trig.winner;
+    const picked = entries.find(e =>
+      (e.kickName && e.kickName.toLowerCase() === winnerName.toLowerCase()) ||
+      (e.kickKey  && e.kickKey  === winnerName.toLowerCase())
+    ) || { kickName: winnerName, kickKey: winnerName.toLowerCase(), wager: trig.wager || 0, avatarUrl: null };
+
+    document.getElementById('widget').classList.add('visible');
+    const { reel, winIdx } = buildReelFor(picked, entries);
+    animateSpin(reel, winIdx, picked);
+  }
+
+  async function poll() {
+    try {
+      const r = await fetch(`/api/overlay-data?channel=${encodeURIComponent(channel)}`);
+      if (!r.ok) return;
+      const d = await r.json();
+      handleTrigger(d);
+    } catch {}
+  }
+
+  // Demo: show the chrome with a sample winner already revealed
+  function initDemo() {
+    const sample = [
+      { kickName:'streamer_fan',  kickKey:'streamer_fan',  wager:4200, avatarUrl:null },
+      { kickName:'bigwinner99',   kickKey:'bigwinner99',   wager:2100, avatarUrl:null },
+      { kickName:'slot_hunter',   kickKey:'slot_hunter',   wager:8500, avatarUrl:null },
+      { kickName:'chipsking',     kickKey:'chipsking',     wager:1200, avatarUrl:null },
+      { kickName:'kicker420',     kickKey:'kicker420',     wager:600,  avatarUrl:null },
+      { kickName:'wenfan22',      kickKey:'wenfan22',      wager:3300, avatarUrl:null },
+      { kickName:'rolla_99',      kickKey:'rolla_99',      wager:5000, avatarUrl:null },
+    ];
+    const picked = sample[3];
+    document.getElementById('widget').classList.add('visible');
+    const REEL_LEN = 20, WIN_IDX = 3;
+    const reel = [];
+    for (let i = 0; i < REEL_LEN; i++) {
+      reel.push(i === WIN_IDX ? picked : sample[Math.floor(Math.random() * sample.length)]);
+    }
+    const track = buildReel(reel);
+    requestAnimationFrame(() => {
+      const s = step(track);
+      track.style.transition = 'none';
+      track.style.transform  = `translateX(-${WIN_IDX * s}px)`;
+      document.getElementById('pickerWrap').classList.add('landed');
+      document.getElementById('resultPanel').classList.add('show');
+      document.getElementById('resultName').textContent = '@' + picked.kickName;
+      document.getElementById('resultSub').textContent  = `$${picked.wager.toLocaleString()} wagered`;
+      if (window.ovConfetti) window.ovConfetti({ count: 60 });
+    });
+  }
+
+  // Latest spin message queued during an in-flight animation. When the
+  // current spin lands, we cascade into this one instead of showing the
+  // current winner. Always holds the MOST RECENT click — earlier rapid
+  // clicks are discarded.
+  let _embedPending = null;
+
+  function _runEmbedSpin(msgData) {
+    const winnerName = String(msgData.winner || '');
+    if (!winnerName) return;
+    const wager   = Number(msgData.wager) || 0;
+    const entries = Array.isArray(msgData.entries) ? msgData.entries : [];
+    const picked  = entries.find(en =>
+      (en.kickName && en.kickName.toLowerCase() === winnerName.toLowerCase()) ||
+      (en.kickKey  && en.kickKey  === winnerName.toLowerCase())
+    ) || { kickName: winnerName, kickKey: winnerName.toLowerCase(), wager, avatarUrl: null };
+    spinning = true;
+    document.getElementById('widget').classList.add('visible');
+    const { reel, winIdx } = buildReelFor(picked, entries);
+    animateSpin(reel, winIdx, picked);
+  }
+
+  function initEmbed() {
+    // Don't pre-show the carousel chrome — switching styles before a spin
+    // would otherwise flash an empty winner panel. We'll add .visible the
+    // moment the first spin message arrives.
+    window.addEventListener('message', (e) => {
+      if (e.data?.type !== 'spin') return;
+      // Queue if currently spinning — cancelling animations mid-flight on
+      // rapid clicks was crashing the visual. Latest click wins; the
+      // animation cascades into it once the current one lands.
+      if (spinning) { _embedPending = e.data; return; }
+      _runEmbedSpin(e.data);
+    });
+    if (window.parent !== window) {
+      try { window.parent.postMessage({ type: 'spinner-ready' }, '*'); } catch {}
+    }
+  }
+
+  if (isDemo) initDemo();
+  else if (isEmbed) initEmbed();
+  else if (channel) { poll(); setInterval(poll, POLL_MS); }
+  else document.getElementById('widget').style.display = 'none';
+</script>
+</body>
+</html>

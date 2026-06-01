@@ -6,6 +6,7 @@
 const { getDb }              = require("./_lib/firebase");
 const { CASINO_NAMES }       = require("./_lib/casinos");
 const { lookupAffiliate }    = require("./_lib/affiliate");
+const { normalizeGambulls, applyPeriod } = require("./_lib/leaderboard");
 
 const API_CASINOS = new Set(["gambulls"]);
 
@@ -19,6 +20,136 @@ function tierOf(plan) {
 // Mirrors the OWNER_CHANNELS list in dashboard.html so the dashboard and the
 // public portal agree on what's unlocked. Keep in sync with that list.
 const OWNER_CHANNELS = new Set(["emergeonkick"]);
+
+// White-label streamers — full agency-tier features + portal branding overrides,
+// granted manually (a comp), the same way HOST_TO_SLUG seeds custom domains.
+// A code-seeded preset gets a client live immediately; a Firestore
+// `whiteLabel:true` flag or the agency plan also unlocks it; and `profile.portal`
+// (set later from the dashboard) overrides the preset field-by-field.
+const PORTAL_PRESETS = {
+  skslots: {
+    theme: {
+      accent:     "#a855f7",  // SK chip purple / bull logo
+      accent2:    "#3fbdf5",  // cyan top of the chip
+      accentGlow: "rgba(168,85,247,0.28)",
+      gold:       "#f5c518",  // metallic gold "SK"
+      bg:         "#08070d",
+      bgCard:     "#13111c",
+      border:     "#2a2440",
+    },
+    // Served from the repo (same-origin → allowed by the portal CSP). A logo the
+    // streamer uploads via the dashboard (profile.portal.logoUrl) overrides this.
+    logoUrl: "/img/sklotstransparent.png",
+    hero: {
+      tagline:   "Live leaderboards, giveaways & rewards",
+      title:     "WEEKLY WAGER RACE",
+      prize:     "$200",
+      cadence:   "Weekly",                 // weekly LB, not monthly
+      code:      "SKSlots",                // affiliate code shown in the hero
+      ctaLabel:  "Play on Gambulls — code SKSlots",
+      ctaHref:   "https://gambulls.com/?ref=SKSlots",
+    },
+    // Prize per leaderboard rank — shown next to the leaders currently in line
+    // to win them (index 0 = 1st place). $200 weekly pool.
+    prizes: ["$85", "$50", "$35", "$20", "$10"],
+    // Extra nav links shown on the bespoke portal (beyond the auto socials).
+    links: [
+      { label: "Gambulls", href: "https://gambulls.com/?ref=SKSlots", icon: "🎰" },
+    ],
+    // Extra standalone pages this portal links to (rendered as nav + routed).
+    pages: [
+      { id: "rewards", label: "Wager Rewards" },
+    ],
+    // Wager Rewards page content (rendered by the bespoke page's section engine).
+    rewards: {
+      intro: "Earn rewards as you wager under code SKSlots on Gambulls. The more you play, the more you unlock.",
+      sections: [
+        {
+          type: "bonus", title: "Sign-Up Bonus", reward: "$10",
+          bullets: [
+            "Deposit $20 & wager $250",
+            "Discord account must be older than 6 months",
+            "Must be following the stream",
+            "48 hour confirmation period from the casino",
+          ],
+        },
+        {
+          type: "tiers", title: "Wager Rewards",
+          columns: ["Wager", "Reward"],
+          tiers: [
+            { wager: "$1,000",  reward: "$5"  },
+            { wager: "$2,500",  reward: "$10" },
+            { wager: "$5,000",  reward: "$15" },
+            { wager: "$7,500",  reward: "$20" },
+            { wager: "$10,000", reward: "$25" },
+            { wager: "$15,000", reward: "$30" },
+            { wager: "$20,000", reward: "$50" },
+          ],
+          note: "Not valid on Blackjack or Baccarat. Applies to live & originals. Low-risk originals are recommended. Custom on-site challenges available, with additional bonuses for SKSlots community winners.",
+        },
+        {
+          type: "list", title: "Getting Started",
+          bullets: [
+            "Min deposit: $20",
+            "Wager $200 to unlock rewards, tips & bonus",
+          ],
+        },
+        {
+          type: "cards", title: "Casino Rewards",
+          subtitle: "Provided by Gambulls",
+          cards: [
+            { title: "First Deposit",  bullets: ["10% loss-back (up to $100 on $1,000 deposit)", "1× wager", "Note: withdrawing forfeits the loss-back"] },
+            { title: "Second Deposit", bullets: ["10% bonus (up to $100 on $1,000 deposit)", "1× wager"] },
+            { title: "Third Deposit",  bullets: ["100% rakeback boost for 5 days"] },
+            { title: "VIP Invite",     bullets: ["Invite-only — for players wagering $50,000+/month (case by case) and/or transferring VIP from another casino", "Unlocks VIP status in the community + extra challenges & wager benefits", "Gambulls-run, not SKSlots — open a ticket for a personalised plan. SKSlots can help with VIP transfer"] },
+          ],
+        },
+        {
+          type: "prizes", title: "Weekly Leaderboard", subtitle: "$200 prize pool",
+          places: [
+            { place: "1st", amount: "$85" },
+            { place: "2nd", amount: "$50" },
+            { place: "3rd", amount: "$35" },
+            { place: "4th", amount: "$20" },
+            { place: "5th", amount: "$10" },
+          ],
+        },
+        {
+          type: "list", title: "Extras",
+          bullets: [
+            "Daily stream giveaways",
+            "Social giveaways",
+            "Sunday raffle (based on activity)",
+            "Random Gambulls promotions",
+          ],
+        },
+      ],
+      footnote: "All rewards are subject to owner approval. Anyone seen abusing these will be removed from the community.",
+    },
+    brandCredit: true,
+  },
+};
+
+// Themed-portal branding (palette/logo/hero/bg). Emitted for Elite+ (the full
+// theme is an Elite perk) OR any white-label override (owner/preset/flag). Null
+// otherwise, so Starter/Pro portals keep the default look.
+function buildPortalConfig(channel, profile, canBrand) {
+  if (!canBrand) return null;
+  const preset = PORTAL_PRESETS[channel] || {};
+  const p      = profile.portal || {};
+  return {
+    theme:       { ...(preset.theme || {}), ...(p.theme || {}) },
+    logoUrl:     p.logoUrl   || preset.logoUrl   || null,
+    bannerUrl:   p.bannerUrl || preset.bannerUrl || null,
+    bgImage:     p.bgImage   || preset.bgImage   || null,
+    hero:        { ...(preset.hero || {}), ...(p.hero || {}) },
+    prizes:      p.prizes    || preset.prizes    || [],
+    links:       p.links     || preset.links     || [],
+    pages:       p.pages     || preset.pages     || [],
+    rewards:     p.rewards   || preset.rewards   || null,
+    brandCredit: p.brandCredit ?? preset.brandCredit ?? true,
+  };
+}
 
 // Reserved channel names — these collide with our own routes/pages.
 // The catch-all /:streamer rewrite in netlify.toml means a path like /dashboard
@@ -73,9 +204,20 @@ exports.handler = async (event) => {
       return res(404, { error: "Portal not available" });
     }
 
-    const isOwner = OWNER_CHANNELS.has(channel);
-    const plan = isOwner ? "agency" : (profile.plan || "starter");
+    const isOwner    = OWNER_CHANNELS.has(channel);
+    // White-label override = owner, a seeded preset, a manual Firestore flag, or
+    // the agency plan. These get full agency-tier FEATURES (every section) +
+    // branding, regardless of what they pay — used for comps like SKSlots.
+    const whiteLabel = isOwner
+      || PORTAL_PRESETS[channel] != null
+      || profile.whiteLabel === true
+      || tierOf(profile.plan) >= TIER_RANK.agency;
+    const plan = (isOwner || whiteLabel) ? "agency" : (profile.plan || "starter");
     const tier = tierOf(plan);
+
+    // Themed-portal branding (full palette/logo/hero/bg) is an Elite+ perk, and
+    // also unlocked by any white-label override above.
+    const canBrand = whiteLabel || tier >= TIER_RANK.elite;
 
     // Portal is a Pro+ feature. Starter has no public portal at all.
     // (Pro = basic portal: store + raffle winners + giveaway.
@@ -132,11 +274,13 @@ exports.handler = async (event) => {
         items: itemsSnap.docs.map(d => {
           const item = d.data();
           return {
+            id:           d.id, // needed for web "click to buy" (/api/store-buy)
             name:         item.name,
             description:  item.description || null,
             price:        item.price || 0,
             stock:        (item.stock === undefined || item.stock === null) ? null : item.stock,
             isRaffleItem: item.isRaffleItem === true,
+            imageUrl:     item.imageUrl || null,
           };
         }).sort((a, b) => (a.price || 0) - (b.price || 0)),
       };
@@ -163,16 +307,26 @@ exports.handler = async (event) => {
             if (fetchResp.ok) {
               const data = await fetchResp.json();
               if (data.success && data.responseObject?.rankings) {
+                // Apply the SAME period logic the dashboard/standard portal use
+                // (baselines + carryover + exclusions), so a custom-date snapshot
+                // carries over seamlessly here. Without this the portal showed
+                // raw monthly totals (≈$0 right after a Gambulls month reset).
+                const raw = {
+                  rankings:     normalizeGambulls(data.responseObject),
+                  totalUsers:   data.responseObject.totalUsers || 0,
+                  totalWagered: data.responseObject.totalWagered || 0,
+                };
+                const applied = applyPeriod(raw, profile.leaderboardPeriod || null);
                 leaderboard = {
                   period:       data.responseObject.period,
-                  rankings:     data.responseObject.rankings.map((r, i) => ({
-                    rank:        i + 1,
-                    name:        r.user?.isAnonymous ? "Anonymous" : (r.user?.name || "Unknown"),
-                    wagerAmount: r.wagerAmount || 0,
-                    avatarUrl:   r.user?.imageUrl || null,
+                  rankings:     applied.rankings.map((r) => ({
+                    rank:        r.rank,
+                    name:        r.username,
+                    wagerAmount: r.wagered || 0,
+                    avatarUrl:   r.avatarUrl || null,
                   })),
-                  totalUsers:    data.responseObject.totalUsers || 0,
-                  totalWagered:  data.responseObject.totalWagered || 0,
+                  totalUsers:    applied.totalUsers,
+                  totalWagered:  applied.totalWagered,
                 };
               }
             }
@@ -237,9 +391,15 @@ exports.handler = async (event) => {
 
     return res(200, {
       streamer:    publicProfile,
+      // White-label branding (theme, logo, hero, footer credit). Null for
+      // standard streamers, so the portal keeps its default look.
+      portal:      buildPortalConfig(channel, profile, canBrand),
       active,
       leaderboard,
       leaderboardPeriods,
+      // Countdown config set from the dashboard (weekly / bi-weekly / monthly).
+      // Distinct from leaderboard.period (a string label) to avoid collision.
+      leaderboardTimer: profile.leaderboardPeriod || null,
       store,
       pastWinners,
       // Used by the page to know what to render (and what to lock)
