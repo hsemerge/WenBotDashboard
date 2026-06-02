@@ -39,6 +39,7 @@ exports.handler = async (event) => {
       subscriptionActive: !!s.stripeSubscriptionActive,
       paymentFailed:      !!s.stripePaymentFailed,
       onboarded:          !!s.onboarded,
+      archived:           s.archived === true,
       referredBy:         s.referredBy || null,
       referralCount:      s.referralCount || 0,
       totalPaid:          s.totalPaid || 0,

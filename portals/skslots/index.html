@@ -74,6 +74,10 @@
   .hero h1 { font-family:'Exo 2',sans-serif; font-weight:900; font-size:clamp(30px,5vw,58px); line-height:1.05;
     background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; background-clip:text;
     -webkit-text-fill-color:transparent; letter-spacing:.02em; }
+  /* Gradient headings clip their text to transparent — which also hides emoji
+     glyphs (they'd only show when the text is selected). Exempt emojis so they
+     render in full color. */
+  .hero h1 .h-emoji { -webkit-text-fill-color:initial; background:none; }
   .hero .prize { font-family:'Exo 2',sans-serif; font-weight:900; font-size:clamp(36px,6.5vw,68px);
     color:var(--gold); text-shadow:0 0 30px rgba(245,197,24,.45); margin:6px 0; }
   .bonus { display:inline-block; margin-top:4px; padding:10px 24px; border-radius:30px; font-weight:800; font-size:14px;
@@ -325,7 +329,7 @@
   <!-- Store — its own routed view (#store) -->
   <div id="storeView" class="hidden">
     <div class="hero" style="padding:8px 0 4px;">
-      <h1 id="storeTitle">🛒 STORE</h1>
+      <h1 id="storeTitle"><span class="h-emoji">🛒</span> STORE</h1>
       <p style="color:var(--dim);max-width:680px;margin:14px auto 0;line-height:1.6;">Spend your <span id="storeCurrencyLabel">points</span> on rewards. Sign in with Kick to buy, or use <code style="color:var(--accent2)">!buy</code> in chat.</p>
     </div>
     <div id="storeSection">
@@ -336,7 +340,7 @@
 
   <!-- Past Winners — its own routed view (#winners) -->
   <div id="winnersView" class="hidden">
-    <div class="hero" style="padding:8px 0 4px;"><h1>👑 PAST WINNERS</h1></div>
+    <div class="hero" style="padding:8px 0 4px;"><h1><span class="h-emoji">👑</span> PAST WINNERS</h1></div>
     <div id="winnersSection">
       <div class="lb" id="winnersList"></div>
     </div>
@@ -345,7 +349,7 @@
   <!-- Wager Rewards — separate routed view (#rewards) -->
   <div id="rewardsView" class="hidden">
     <div class="hero" style="padding:8px 0 4px;">
-      <h1 id="rewardsTitle">🎁 SKSLOTS WAGER REWARDS</h1>
+      <h1 id="rewardsTitle"><span class="h-emoji">🎁</span> SKSLOTS WAGER REWARDS</h1>
       <p id="rewardsIntro" style="color:var(--dim);max-width:680px;margin:14px auto 0;line-height:1.6;"></p>
     </div>
     <div id="rewardGrid"></div>

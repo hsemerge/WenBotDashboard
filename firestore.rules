@@ -50,7 +50,10 @@ service cloud.firestore {
           'totalPaid',
           'paymentCount',
           'lastPaymentAt',
-          'planManual'
+          'planManual',
+          'archived',
+          'archivedAt',
+          'archivedPrevOnboarded'
         ]);
 
       // On UPDATE — both owner and mod can update, but the denylist below
@@ -84,7 +87,10 @@ service cloud.firestore {
           'totalPaid',
           'paymentCount',
           'lastPaymentAt',
-          'planManual'
+          'planManual',
+          'archived',
+          'archivedAt',
+          'archivedPrevOnboarded'
         ]);
 
       // referrals — who this streamer invited. Server-only writes (set by

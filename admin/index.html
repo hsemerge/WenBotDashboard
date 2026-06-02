@@ -87,6 +87,9 @@
       <div class="toolbar">
         <input id="search" type="text" placeholder="Search channel / email / plan…" oninput="renderTable()">
         <button class="btn-ghost" onclick="loadUsers()">↻ Refresh</button>
+        <label class="sub" style="display:flex;align-items:center;gap:6px;cursor:pointer;align-self:center;">
+          <input type="checkbox" id="showArchived" onchange="renderTable()"> Show archived
+        </label>
       </div>
       <div class="tablecard">
         <div style="overflow-x:auto;max-height:70vh;overflow-y:auto;">
@@ -202,10 +205,11 @@
 
   window.renderTable = function () {
     const q = ($('search').value || '').toLowerCase().trim();
-    const rows = _users.filter(u => !q ||
+    const showArch = $('showArchived').checked;
+    const rows = _users.filter(u => (showArch || !u.archived) && (!q ||
       String(u.kickChannel||'').toLowerCase().includes(q) ||
       String(u.email||'').toLowerCase().includes(q) ||
-      String(u.plan||'').toLowerCase().includes(q));
+      String(u.plan||'').toLowerCase().includes(q)));
     if (!rows.length) { $('usersTable').innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:24px;">No matches.</td></tr>'; return; }
     $('usersTable').innerHTML = rows.map(u => {
       const sub = u.subscriptionActive
@@ -218,9 +222,10 @@
         ? ` <span class="pill comp" title="Comp — overrides Stripe">comp</span> <a href="#" onclick="clearManual('${esc(u.uid)}');return false;" class="muted" style="font-size:11px;">↺ auto</a>`
         : '';
       const open = _expanded.has(u.uid);
-      const main = `<tr>
+      const archTag = u.archived ? ' <span class="pill" style="background:#3a2a2a;color:#d99;">archived</span>' : '';
+      const main = `<tr${u.archived ? ' style="opacity:.55;"' : ''}>
         <td><span onclick="toggleDetail('${esc(u.uid)}')" style="cursor:pointer;user-select:none;color:var(--accent);">${open ? '▾' : '▸'}</span></td>
-        <td>${esc(u.kickChannel || u.displayName || u.uid)}</td>
+        <td>${esc(u.kickChannel || u.displayName || u.uid)}${archTag}</td>
         <td>${planSel}${compTag}</td>
         <td>${sub}</td>
         <td>${u.onboarded ? '<span class="ok">yes</span>' : '<span class="no">no</span>'}</td>
@@ -246,11 +251,42 @@
         + d.payments.map(p => `<tr><td class="muted">${date(p.paidAt)}</td><td>${esc(p.plan||'—')}</td><td>${esc(p.currency)} ${Number(p.amount||0).toFixed(2)}</td></tr>`).join('')
         + `</tbody></table>`
       : '<span class="muted">no payments</span>';
+    const u = _users.find(x => x.uid === uid) || {};
+    const ch = esc(u.kickChannel || uid);
+    const actions = `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:8px;">`
+      + (u.archived
+          ? `<button class="btn-ghost" onclick="unarchiveStreamer('${esc(uid)}','${ch}')">♻ Unarchive</button>`
+          : `<button class="btn-ghost" onclick="archiveStreamer('${esc(uid)}','${ch}')">📦 Archive</button>`)
+      + `<button class="btn-ghost" style="border-color:var(--red);color:var(--red);" onclick="deleteStreamer('${esc(uid)}','${ch}')">🗑 Delete permanently</button>`
+      + `</div>`;
     return `<div style="padding:10px 4px;font-size:12px;line-height:1.6;">
       <div>${refBy}Invited <b>${d.referralCount||0}</b>: ${refList}</div>
       <div style="margin-top:8px;font-weight:700;color:var(--bright);">Payments (${money(d.totalPaid)} total)</div>${payList}
+      ${actions}
     </div>`;
   }
+
+  async function streamerAction(uid, action, reason) {
+    const r = await authedPost('/api/admin-streamer-action', { uid, action, reason: reason || '' });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Failed');
+    _expanded.delete(uid); delete _detail[uid];
+    await loadUsers();
+  }
+  window.archiveStreamer = async function (uid, channel) {
+    if (!confirm(`Archive "${channel}"? This disconnects their bot and hides them from the list. Reversible.`)) return;
+    try { await streamerAction(uid, 'archive'); } catch (e) { alert('Failed: ' + e.message); }
+  };
+  window.unarchiveStreamer = async function (uid, channel) {
+    if (!confirm(`Unarchive "${channel}"? Restores their previous state.`)) return;
+    try { await streamerAction(uid, 'unarchive'); } catch (e) { alert('Failed: ' + e.message); }
+  };
+  window.deleteStreamer = async function (uid, channel) {
+    const typed = prompt(`PERMANENTLY delete "${channel}" — removes all their data AND their login. This cannot be undone.\n\nType the channel name to confirm:`);
+    if (typed === null) return;
+    if (typed.trim() !== channel) { alert('Name did not match — cancelled.'); return; }
+    try { await streamerAction(uid, 'delete'); alert(`"${channel}" deleted.`); } catch (e) { alert('Failed: ' + e.message); }
+  };
 
   window.toggleDetail = async function (uid) {
     if (_expanded.has(uid)) { _expanded.delete(uid); renderTable(); return; }

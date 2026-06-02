@@ -3166,6 +3166,41 @@ function copyReferralLink() {
   else { input.select(); try { document.execCommand('copy'); } catch {} done(); }
 }
 
+// ── Settings: make each card collapsible (collapsed by default) ──────────────
+// Runs when the Settings page opens. Idempotent (guarded per card). Keeps the
+// card title as a clickable header and tucks the rest of the card into a body
+// that's hidden until clicked — so the page opens compact.
+function initSettingsCollapse() {
+  document.querySelectorAll('#page-settings .card').forEach(card => {
+    if (card.dataset.collapseInit) return;
+    const title = card.querySelector('.card-title');
+    if (!title) return;
+    // The header is the top-level child of the card that contains the title.
+    let header = title;
+    while (header.parentNode && header.parentNode !== card) header = header.parentNode;
+    if (header.parentNode !== card) return;
+    // Move every other top-level child into a collapsible body.
+    const body = document.createElement('div');
+    body.className = 'settings-collapse-body';
+    Array.from(card.children).forEach(ch => { if (ch !== header) body.appendChild(ch); });
+    card.appendChild(body);
+    body.style.display = 'none'; // collapsed by default
+    // Chevron + clickable header.
+    const chev = document.createElement('span');
+    chev.textContent = '▸';
+    chev.style.cssText = 'display:inline-block;margin-right:6px;color:var(--text-dim);font-size:12px;transition:transform .15s;';
+    title.prepend(chev);
+    header.style.cursor = 'pointer';
+    header.addEventListener('click', (e) => {
+      if (e.target.closest('input,button,select,a,label,textarea')) return;
+      const open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : '';
+      chev.textContent = open ? '▸' : '▾';
+    });
+    card.dataset.collapseInit = '1';
+  });
+}
+
 // ── Payment history (streamer's own, in Plan & Billing) ──────────────────────
 async function loadBillingHistory() {
   const totalEl = document.getElementById('billingTotalPaid');
@@ -3232,6 +3267,7 @@ function showPage(id, el) {
   if (id !== 'activity'    && activityUnsub) { activityUnsub(); activityUnsub = null; }
   if (id !== 'gtb' && id !== 'bonushunt' && gtbUnsubscribe) { gtbUnsubscribe(); gtbUnsubscribe = null; }
   if (id === 'verified') loadVerifiedUsers();
+  if (id === 'settings') initSettingsCollapse();
   if (id === 'referrals') loadReferrals();
   if (id === 'points') loadTopViewers();
   if (id === 'gtb') openGTBPage();

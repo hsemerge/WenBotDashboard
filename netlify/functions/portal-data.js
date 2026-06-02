@@ -85,7 +85,7 @@ const PORTAL_PRESETS = {
             { wager: "$15,000", reward: "$30" },
             { wager: "$20,000", reward: "$50" },
           ],
-          note: "Not valid on Blackjack or Baccarat. Applies to live & originals. Low-risk originals are recommended. Custom on-site challenges available, with additional bonuses for SKSlots community winners.",
+          note: "Not valid on Blackjack or Baccarat this applies to live & originals. Low-risk originals are recommended.",
         },
         {
           type: "list", title: "Getting Started",
