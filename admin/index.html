@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>WenBot Admin</title>
+<style>
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  :root { --bg:#0a0a0f; --card:#14141d; --border:#26263a; --text:#cdd0e0; --dim:#7d83a0; --bright:#fff; --accent:#5b8cff; --green:#53e077; --red:#ff5b6e; --gold:#f5c518; }
+  body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+  .wrap { max-width:1280px; margin:0 auto; padding:24px 20px 60px; }
+  h1 { font-size:20px; color:var(--bright); font-weight:800; }
+  .sub { font-size:12px; color:var(--dim); }
+  /* Login */
+  .login { max-width:380px; margin:12vh auto; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:28px; }
+  .login h1 { margin-bottom:6px; } .login p { font-size:13px; color:var(--dim); margin-bottom:18px; }
+  label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); margin:12px 0 5px; }
+  input { width:100%; background:#0c0c14; border:1px solid var(--border); border-radius:8px; padding:11px 12px; color:var(--bright); font-size:14px; }
+  input:focus { outline:none; border-color:var(--accent); }
+  button { background:var(--accent); color:#04122e; font-weight:800; border:none; border-radius:8px; padding:11px 16px; cursor:pointer; font-size:14px; }
+  button:hover { filter:brightness(1.08); } button:disabled { opacity:.5; cursor:not-allowed; }
+  .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--dim); font-weight:600; }
+  .err { color:var(--red); font-size:13px; margin-top:12px; min-height:18px; }
+  .hidden { display:none; }
+  /* Topbar */
+  .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:10px; }
+  .who { font-size:12px; color:var(--dim); }
+  /* Stat cards */
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:20px; }
+  .stat { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+  .stat .n { font-size:24px; font-weight:900; color:var(--bright); }
+  .stat .l { font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.05em; margin-top:2px; }
+  .stat .l small { text-transform:none; letter-spacing:0; }
+  /* Table */
+  .toolbar { display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+  .toolbar input { max-width:280px; }
+  .tablecard { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,.04); white-space:nowrap; }
+  th { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); position:sticky; top:0; background:var(--card); }
+  tr:hover td { background:rgba(255,255,255,.02); }
+  .pill { display:inline-block; font-size:11px; font-weight:700; padding:2px 9px; border-radius:20px; }
+  .pill.starter { background:#2a2a3a; color:#aab; } .pill.pro { background:rgba(91,140,255,.15); color:#9bb8ff; }
+  .pill.elite { background:rgba(245,197,24,.15); color:var(--gold); } .pill.agency { background:rgba(83,224,119,.15); color:var(--green); }
+  .pill.comp { background:rgba(255,91,110,.15); color:#ff9bb0; margin-left:4px; }
+  .ok { color:var(--green); } .no { color:var(--dim); } .warn { color:var(--red); }
+  .num { font-variant-numeric:tabular-nums; }
+  .muted { color:var(--dim); }
+</style>
+</head>
+<body>
+  <!-- LOGIN -->
+  <div id="loginView" class="login">
+    <h1>WenBot Admin</h1>
+    <p>Restricted. Authorized accounts only.</p>
+    <form id="loginForm">
+      <label>Email</label>
+      <input id="email" type="email" autocomplete="username" required>
+      <label>Password</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <label>Admin secret <span style="text-transform:none;color:#5a5f78;">(if required)</span></label>
+      <input id="secret" type="password" autocomplete="off" placeholder="optional">
+      <div style="margin-top:18px;"><button id="loginBtn" type="submit">Sign in</button></div>
+      <div class="err" id="loginErr"></div>
+    </form>
+  </div>
+
+  <!-- PANEL -->
+  <div id="panelView" class="wrap hidden">
+    <div class="topbar">
+      <div><h1>WenBot Admin</h1><div class="sub">All streamers</div></div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="who" id="whoami"></span>
+        <button class="btn-ghost" onclick="adminSignOut()">Sign out</button>
+      </div>
+    </div>
+
+    <div class="tabs" style="display:flex;gap:8px;margin-bottom:16px;">
+      <button id="tabStreamers" onclick="switchTab('streamers')">Streamers</button>
+      <button id="tabSlots" class="btn-ghost" onclick="switchTab('slots')">Slots</button>
+    </div>
+
+    <!-- STREAMERS -->
+    <div id="usersView">
+      <div class="stats" id="statCards"></div>
+      <div class="toolbar">
+        <input id="search" type="text" placeholder="Search channel / email / plan…" oninput="renderTable()">
+        <button class="btn-ghost" onclick="loadUsers()">↻ Refresh</button>
+      </div>
+      <div class="tablecard">
+        <div style="overflow-x:auto;max-height:70vh;overflow-y:auto;">
+          <table>
+            <thead><tr>
+              <th></th><th>Channel</th><th>Plan</th><th>Sub</th><th>Onboarded</th>
+              <th>Referrals</th><th class="num">Total paid</th><th>Last payment</th><th>Email</th>
+            </tr></thead>
+            <tbody id="usersTable"><tr><td colspan="9" class="muted" style="text-align:center;padding:24px;">…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="sub" id="footNote" style="margin-top:14px;"></div>
+    </div>
+
+    <!-- SLOTS -->
+    <div id="slotsView" class="hidden">
+      <div class="stats" id="slotStatCards"></div>
+      <div class="toolbar">
+        <button class="btn-ghost" onclick="loadSlots()">↻ Reload</button>
+        <button id="slotRefreshBtn" onclick="refreshSlots()">⟳ Try live re-fetch</button>
+        <span class="sub" id="slotSourceNote" style="align-self:center;"></span>
+      </div>
+      <div class="tablecard">
+        <div style="overflow-x:auto;max-height:70vh;overflow-y:auto;">
+          <table>
+            <thead><tr><th>Slot (missing thumbnail)</th><th>Provider</th><th class="muted">ID</th></tr></thead>
+            <tbody id="slotsTable"><tr><td colspan="3" class="muted" style="text-align:center;padding:24px;">…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script>
+(function () {
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  let _users = [], _adminSecret = '';
+  let _expanded = new Set(), _detail = {}, _slotsLoaded = false;
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const money = n => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const date = ms => ms ? new Date(ms).toLocaleDateString() : '—';
+  const planPill = p => `<span class="pill ${esc(p)}">${esc(p)}</span>`;
+
+  $('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('loginErr').textContent = '';
+    $('loginBtn').disabled = true; $('loginBtn').textContent = 'Signing in…';
+    _adminSecret = $('secret').value || '';
+    try {
+      await auth.signInWithEmailAndPassword($('email').value.trim(), $('password').value);
+      // onAuthStateChanged handles the rest
+    } catch (err) {
+      $('loginErr').textContent = 'Sign-in failed: ' + (err.code || err.message);
+      $('loginBtn').disabled = false; $('loginBtn').textContent = 'Sign in';
+    }
+  });
+
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) { show('login'); return; }
+    await loadUsers();
+  });
+
+  async function authedFetch(url) {
+    const token = await auth.currentUser.getIdToken();
+    const headers = { 'Authorization': 'Bearer ' + token };
+    if (_adminSecret) headers['x-admin-secret'] = _adminSecret;
+    return fetch(url, { headers });
+  }
+
+  window.loadUsers = async function () {
+    try {
+      const r = await authedFetch('/api/admin-users');
+      if (r.status === 403) { denied(); return; }
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      _users = d.users || [];
+      $('whoami').textContent = d.admin || (auth.currentUser && auth.currentUser.email) || '';
+      renderStats(d.stats || {});
+      renderTable();
+      $('footNote').textContent = `${_users.length} streamers · loaded ${new Date().toLocaleTimeString()}`;
+      show('panel');
+    } catch (e) {
+      $('loginErr').textContent = 'Error: ' + e.message;
+      show('login');
+    }
+  };
+
+  function denied() {
+    $('loginErr').textContent = 'This account is not authorized for the admin panel.';
+    show('login');
+    auth.signOut();
+    $('loginBtn').disabled = false; $('loginBtn').textContent = 'Sign in';
+  }
+
+  function renderStats(s) {
+    const byPlan = s.byPlan || {};
+    const planLine = ['starter','pro','elite','agency'].filter(p => byPlan[p]).map(p => `${byPlan[p]} ${p}`).join(' · ') || '—';
+    $('statCards').innerHTML = [
+      ['Streamers', s.total || 0, ''],
+      ['Onboarded', s.onboarded || 0, ''],
+      ['Active subs', s.activeSubs || 0, ''],
+      ['Total revenue', money(s.totalRevenue), ''],
+      ['By plan', '', planLine],
+    ].map(([l, n, sub]) => `<div class="stat"><div class="n">${typeof n === 'number' ? n : esc(n)}</div><div class="l">${esc(l)}${sub ? ' · <small>'+esc(sub)+'</small>' : ''}</div></div>`).join('');
+  }
+
+  window.renderTable = function () {
+    const q = ($('search').value || '').toLowerCase().trim();
+    const rows = _users.filter(u => !q ||
+      String(u.kickChannel||'').toLowerCase().includes(q) ||
+      String(u.email||'').toLowerCase().includes(q) ||
+      String(u.plan||'').toLowerCase().includes(q));
+    if (!rows.length) { $('usersTable').innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:24px;">No matches.</td></tr>'; return; }
+    $('usersTable').innerHTML = rows.map(u => {
+      const sub = u.subscriptionActive
+        ? '<span class="ok">active</span>' + (u.paymentFailed ? ' <span class="warn">(failed)</span>' : '')
+        : '<span class="no">—</span>';
+      const planSel = `<select onchange="setPlan('${esc(u.uid)}', this.value)" style="background:#0c0c14;border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:12px;padding:3px 6px;">`
+        + ['starter','pro','elite','agency'].map(p => `<option value="${p}" ${p === u.plan ? 'selected' : ''}>${p}</option>`).join('')
+        + `</select>`;
+      const compTag = u.planManual
+        ? ` <span class="pill comp" title="Comp — overrides Stripe">comp</span> <a href="#" onclick="clearManual('${esc(u.uid)}');return false;" class="muted" style="font-size:11px;">↺ auto</a>`
+        : '';
+      const open = _expanded.has(u.uid);
+      const main = `<tr>
+        <td><span onclick="toggleDetail('${esc(u.uid)}')" style="cursor:pointer;user-select:none;color:var(--accent);">${open ? '▾' : '▸'}</span></td>
+        <td>${esc(u.kickChannel || u.displayName || u.uid)}</td>
+        <td>${planSel}${compTag}</td>
+        <td>${sub}</td>
+        <td>${u.onboarded ? '<span class="ok">yes</span>' : '<span class="no">no</span>'}</td>
+        <td class="num">${u.referralCount || 0}</td>
+        <td class="num">${money(u.totalPaid)}</td>
+        <td class="muted">${date(u.lastPaymentAt)}</td>
+        <td class="muted">${esc(u.email || '—')}</td>
+      </tr>`;
+      return main + (open ? `<tr><td colspan="9" style="background:#0c0c14;">${detailHtml(u.uid)}</td></tr>` : '');
+    }).join('');
+  };
+
+  function detailHtml(uid) {
+    const d = _detail[uid];
+    if (!d || d === 'loading') return '<div class="muted" style="padding:8px 4px;">Loading…</div>';
+    if (d.error) return `<div class="warn" style="padding:8px 4px;">${esc(d.error)}</div>`;
+    const refBy = d.referredByChannel ? `Referred by <b>${esc(d.referredByChannel)}</b> · ` : '';
+    const refList = (d.referrals && d.referrals.length)
+      ? d.referrals.map(r => `${esc(r.kickChannel||'—')} <span class="muted">(${esc(r.plan)}, ${esc(r.status)})</span>`).join(' · ')
+      : '<span class="muted">none</span>';
+    const payList = (d.payments && d.payments.length)
+      ? `<table style="margin-top:6px;"><thead><tr><th>Date</th><th>Plan</th><th>Amount</th></tr></thead><tbody>`
+        + d.payments.map(p => `<tr><td class="muted">${date(p.paidAt)}</td><td>${esc(p.plan||'—')}</td><td>${esc(p.currency)} ${Number(p.amount||0).toFixed(2)}</td></tr>`).join('')
+        + `</tbody></table>`
+      : '<span class="muted">no payments</span>';
+    return `<div style="padding:10px 4px;font-size:12px;line-height:1.6;">
+      <div>${refBy}Invited <b>${d.referralCount||0}</b>: ${refList}</div>
+      <div style="margin-top:8px;font-weight:700;color:var(--bright);">Payments (${money(d.totalPaid)} total)</div>${payList}
+    </div>`;
+  }
+
+  window.toggleDetail = async function (uid) {
+    if (_expanded.has(uid)) { _expanded.delete(uid); renderTable(); return; }
+    _expanded.add(uid);
+    if (!_detail[uid]) {
+      _detail[uid] = 'loading'; renderTable();
+      try {
+        const r = await authedFetch('/api/admin-user-detail?uid=' + encodeURIComponent(uid));
+        const d = await r.json();
+        _detail[uid] = r.ok ? d : { error: d.error || 'Failed to load' };
+      } catch (e) { _detail[uid] = { error: e.message }; }
+    }
+    renderTable();
+  };
+
+  // ── Tabs + Slots ──────────────────────────────────────────────────────────
+  window.switchTab = function (tab) {
+    const slots = tab === 'slots';
+    $('usersView').classList.toggle('hidden', slots);
+    $('slotsView').classList.toggle('hidden', !slots);
+    $('tabStreamers').className = slots ? 'btn-ghost' : '';
+    $('tabSlots').className     = slots ? '' : 'btn-ghost';
+    if (slots && !_slotsLoaded) loadSlots();
+  };
+
+  window.loadSlots = async function () {
+    try {
+      const r = await authedFetch('/api/admin-slots');
+      const d = await r.json();
+      if (r.status === 403) { denied(); return; }
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      _slotsLoaded = true;
+      renderSlots(d);
+    } catch (e) { $('slotsTable').innerHTML = `<tr><td colspan="3" class="warn" style="text-align:center;padding:24px;">${esc(e.message)}</td></tr>`; }
+  };
+
+  window.refreshSlots = async function () {
+    const btn = $('slotRefreshBtn'); btn.disabled = true; const o = btn.textContent; btn.textContent = 'Re-fetching…';
+    try {
+      const r = await authedFetch('/api/admin-slots?refresh=1');
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      renderSlots(d);
+    } catch (e) { alert('Refresh failed: ' + e.message); }
+    btn.disabled = false; btn.textContent = o;
+  };
+
+  function renderSlots(d) {
+    const age = d.cachedAt ? new Date(d.cachedAt).toLocaleString() : '—';
+    $('slotStatCards').innerHTML = [
+      ['Total slots', d.total || 0, ''],
+      ['With thumbnail', d.withThumbnail || 0, ''],
+      ['Missing thumbnail', d.missingThumbnail || 0, ''],
+      ['Providers', d.providers || 0, ''],
+    ].map(([l, n]) => `<div class="stat"><div class="n">${n}</div><div class="l">${esc(l)}</div></div>`).join('');
+    $('slotSourceNote').textContent = `Source: ${d.source || '—'} · updated ${age}`;
+    const rows = d.missing || [];
+    $('slotsTable').innerHTML = rows.length
+      ? rows.map(s => `<tr><td>${esc(s.name||s.id)}</td><td class="muted">${esc(s.provider||'—')}</td><td class="muted">${esc(s.id)}</td></tr>`).join('')
+      : '<tr><td colspan="3" class="ok" style="text-align:center;padding:24px;">All slots have thumbnails 🎉</td></tr>';
+  }
+
+  async function authedPost(url, bodyObj) {
+    const token = await auth.currentUser.getIdToken();
+    const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+    if (_adminSecret) headers['x-admin-secret'] = _adminSecret;
+    return fetch(url, { method: 'POST', headers, body: JSON.stringify(bodyObj) });
+  }
+
+  window.setPlan = async function (uid, plan) {
+    const reason = prompt(`Set this streamer to "${plan}" (comp — overrides Stripe). Optional audit note:`, '');
+    if (reason === null) { renderTable(); return; } // cancelled → reset the select
+    try {
+      const r = await authedPost('/api/admin-set-plan', { uid, plan, manual: true, reason });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      await loadUsers();
+    } catch (e) { alert('Failed: ' + e.message); renderTable(); }
+  };
+
+  window.clearManual = async function (uid) {
+    if (!confirm('Release this plan back to Stripe control?')) return;
+    try {
+      const r = await authedPost('/api/admin-set-plan', { uid, manual: false });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      await loadUsers();
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  window.adminSignOut = function () { auth.signOut(); _users = []; _adminSecret = ''; };
+
+  function show(which) {
+    $('loginView').classList.toggle('hidden', which !== 'login');
+    $('panelView').classList.toggle('hidden', which !== 'panel');
+  }
+})();
+</script>
+</body>
+</html>

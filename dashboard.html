@@ -3021,6 +3021,20 @@
           <div style="color:#53e077;font-size:15px;font-weight:700;margin-bottom:4px;">✅ Subscription activated!</div>
           <div style="font-size:13px;color:var(--text-dim);">Your plan has been upgraded. Refresh if features haven't unlocked yet.</div>
         </div>
+
+        <!-- Payment history -->
+        <div class="card" style="margin-top:16px;">
+          <div class="card-title" style="justify-content:space-between;">
+            <span>🧾 Payment History</span>
+            <span style="font-size:12px;color:var(--text-dim);font-weight:400;">Total paid: <b id="billingTotalPaid" style="color:var(--bright);">—</b></span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Plan</th><th>Amount</th><th></th></tr></thead>
+              <tbody id="billingHistoryTable"><tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:18px;">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -3152,6 +3166,40 @@ function copyReferralLink() {
   else { input.select(); try { document.execCommand('copy'); } catch {} done(); }
 }
 
+// ── Payment history (streamer's own, in Plan & Billing) ──────────────────────
+async function loadBillingHistory() {
+  const totalEl = document.getElementById('billingTotalPaid');
+  const tbody   = document.getElementById('billingHistoryTable');
+  if (!tbody) return;
+  try {
+    const idToken = await fb.currentUser.getIdToken();
+    const r = await fetch('/api/billing-history', { headers: { 'Authorization': 'Bearer ' + idToken } });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Failed to load');
+    const cur = (d.currency || 'USD');
+    const fmt = n => cur + ' ' + Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (totalEl) totalEl.textContent = fmt(d.totalPaid);
+    const rows = d.payments || [];
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:18px;">No payments yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(p => {
+      const when = p.paidAt ? new Date(p.paidAt).toLocaleDateString() : '—';
+      const link = p.hostedInvoiceUrl
+        ? `<a href="${escapeHtml(p.hostedInvoiceUrl)}" target="_blank" rel="noopener" style="color:var(--accent);font-size:12px;">Invoice ↗</a>`
+        : '';
+      return `<tr><td>${escapeHtml(when)}</td>`
+           + `<td style="text-transform:capitalize;">${escapeHtml(p.plan || '—')}</td>`
+           + `<td>${escapeHtml((p.currency || 'USD') + ' ' + Number(p.amount || 0).toFixed(2))}</td>`
+           + `<td>${link}</td></tr>`;
+    }).join('');
+  } catch (e) {
+    if (totalEl) totalEl.textContent = '—';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:18px;">Couldn’t load payment history.</td></tr>';
+  }
+}
+
 function showPage(id, el) {
   // Close mobile sidebar on navigation
   document.querySelector('.sidebar')?.classList.remove('open');
@@ -3196,7 +3244,7 @@ function showPage(id, el) {
   if (id === 'bonusbattle') loadBonusBattle();
   if (id === 'tournament')  loadTournament();
   if (id === 'overlays')    loadOverlayStudio();
-  if (id === 'billing')     renderBillingPage();
+  if (id === 'billing')     { renderBillingPage(); loadBillingHistory(); }
   if (id === 'raffle')      loadRafflePage();
   if (id === 'activity')    loadActivityLog();
 }

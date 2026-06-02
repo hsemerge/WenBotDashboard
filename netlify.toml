@@ -181,6 +181,31 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/billing-history"
+  to     = "/.netlify/functions/billing-history"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin-users"
+  to     = "/.netlify/functions/admin-users"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin-set-plan"
+  to     = "/.netlify/functions/admin-set-plan"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin-user-detail"
+  to     = "/.netlify/functions/admin-user-detail"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin-slots"
+  to     = "/.netlify/functions/admin-slots"
+  status = 200
+
+[[redirects]]
   from   = "/api/referral-attribute"
   to     = "/.netlify/functions/referral-attribute"
   status = 200

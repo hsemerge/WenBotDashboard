@@ -46,7 +46,11 @@ service cloud.firestore {
           'referralCode',
           'referredBy',
           'referredAt',
-          'referralCount'
+          'referralCount',
+          'totalPaid',
+          'paymentCount',
+          'lastPaymentAt',
+          'planManual'
         ]);
 
       // On UPDATE — both owner and mod can update, but the denylist below
@@ -76,12 +80,23 @@ service cloud.firestore {
           'referralCode',
           'referredBy',
           'referredAt',
-          'referralCount'
+          'referralCount',
+          'totalPaid',
+          'paymentCount',
+          'lastPaymentAt',
+          'planManual'
         ]);
 
       // referrals — who this streamer invited. Server-only writes (set by
       // /api/referral-attribute); owner + mods can read for the invite list.
       match /referrals/{doc} {
+        allow read: if isOwnerOrMod(uid);
+        allow create, update, delete: if false;
+      }
+
+      // payments — Stripe invoice history (written by the webhook via admin SDK).
+      // Owner + mods can read their own; never client-writable.
+      match /payments/{doc} {
         allow read: if isOwnerOrMod(uid);
         allow create, update, delete: if false;
       }
@@ -153,9 +168,19 @@ service cloud.firestore {
         allow write: if false;
       }
 
-      // Everything else under the streamer doc — full owner+mod control
+      // Everything else under the streamer doc — full owner+mod control.
+      // IMPORTANT: Firestore OR-combines all matching rules, so this catch-all
+      // would otherwise override the `allow create/update: if false` on the
+      // server-only subcollections above (letting a client forge verified_users,
+      // referrals, redemptions, etc.). Exclude those names here so their explicit
+      // rules are the ONLY ones that apply. (gtb_sessions is intentionally NOT
+      // excluded — its top-level session docs are written by the client.)
       match /{subcollection}/{doc} {
-        allow read, write: if isOwnerOrMod(uid);
+        allow read, write: if isOwnerOrMod(uid)
+          && !(subcollection in [
+            'referrals', 'payments', 'verified_users', 'discord_links', 'audit_logs',
+            'bot_status', 'bb_votes', 'store_redemptions', 'bot_locks'
+          ]);
       }
     }
 
@@ -163,6 +188,9 @@ service cloud.firestore {
     match /system/{doc} {
       allow read, write: if false;
     }
+
+    // Admin panel audit trail — admin SDK only (read via server functions).
+    match /admin_audit_logs/{doc} { allow read, write: if false; }
 
     // Discord verify tokens, rate limits, etc — admin SDK only
     match /discord_verify_tokens/{doc} { allow read, write: if false; }
