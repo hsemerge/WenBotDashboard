@@ -503,6 +503,7 @@
       <div class="sidebar-section" style="margin-top:8px;">
         <div class="sidebar-label">Account</div>
         <div class="nav-item owner-only" onclick="showPage('billing',this)"><span class="icon">💳</span> Plan &amp; Billing <span id="planBadge" class="nav-lock-pill pro-pill" style="margin-left:auto;">Starter</span></div>
+        <div class="nav-item" onclick="showPage('referrals',this)"><span class="icon">🤝</span> Invite &amp; Earn</div>
         <div class="nav-item" onclick="showPage('settings',this)"><span class="icon">⚙️</span> Settings</div>
         <div class="nav-item" onclick="showPage('activity',this)"><span class="icon">📜</span> Activity Log</div>
         <div class="nav-item" onclick="showPage('help',this)"><span class="icon">❓</span> Help</div>
@@ -1314,6 +1315,38 @@
           <table>
             <thead><tr><th>Kick Username</th><th>Casino Username</th><th>Casino</th><th>Status</th><th>Discord</th><th>Wager</th><th>Verified At</th><th></th></tr></thead>
             <tbody id="verifiedTable"><tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:20px;">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── INVITE & EARN (referrals) ── -->
+    <div class="page" id="page-referrals">
+      <div class="card">
+        <div class="card-title">🤝 Invite Streamers</div>
+        <p style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:16px;">
+          Share your personal link with other streamers. When they sign up and onboard,
+          they're tracked as your invite below. Rewards for inviters are coming soon —
+          your invites are being counted from today.
+        </p>
+        <label style="font-size:11px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:var(--text-dim);">Your referral link</label>
+        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
+          <input id="referralLinkInput" type="text" readonly value="Loading…"
+                 onclick="this.select()"
+                 style="flex:1;min-width:240px;background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--bright);font-size:13px;font-family:monospace;">
+          <button class="btn btn-accent" id="referralCopyBtn" onclick="copyReferralLink()">Copy link</button>
+        </div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:8px;">Your code: <b id="referralCodeLabel" style="color:var(--accent);font-family:monospace;">—</b></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="justify-content:space-between;">
+          <span>📈 Your Invites (<span id="referralCountLabel">0</span>)</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Streamer</th><th>Plan</th><th>Status</th><th>Joined</th></tr></thead>
+            <tbody id="referralsTable"><tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">Loading…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -3075,6 +3108,50 @@ async function discordNotify(type, data) {
 }
 
 // ── NAV ──
+// ── Referrals (Invite & Earn) ───────────────────────────────────────────────
+let _referralLink = '';
+async function loadReferrals() {
+  const linkInput  = document.getElementById('referralLinkInput');
+  const codeLabel  = document.getElementById('referralCodeLabel');
+  const countLabel = document.getElementById('referralCountLabel');
+  const tbody      = document.getElementById('referralsTable');
+  try {
+    const idToken = await fb.currentUser.getIdToken();
+    const r = await fetch('/api/referral-me', { headers: { 'Authorization': 'Bearer ' + idToken } });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Failed to load');
+    _referralLink = d.referralLink || '';
+    linkInput.value = _referralLink;
+    codeLabel.textContent  = d.referralCode || '—';
+    countLabel.textContent = d.referralCount || 0;
+    const rows = d.referrals || [];
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">No invites yet — share your link above!</td></tr>';
+    } else {
+      tbody.innerHTML = rows.map(x => {
+        const when   = x.joinedAt ? new Date(x.joinedAt).toLocaleDateString() : '—';
+        const status = x.status === 'converted' ? '✅ Converted' : 'Onboarded';
+        return `<tr><td>${escapeHtml(x.kickChannel || '—')}</td>`
+             + `<td style="text-transform:capitalize;">${escapeHtml(x.plan || 'starter')}</td>`
+             + `<td>${escapeHtml(status)}</td><td>${escapeHtml(when)}</td></tr>`;
+      }).join('');
+    }
+  } catch (e) {
+    linkInput.value = 'Could not load referral link';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">Couldn’t load invites. Try again later.</td></tr>';
+  }
+}
+
+function copyReferralLink() {
+  const input = document.getElementById('referralLinkInput');
+  const btn   = document.getElementById('referralCopyBtn');
+  const text  = _referralLink || input.value;
+  if (!text || text.startsWith('Could not')) return;
+  const done = () => { const o = btn.textContent; btn.textContent = '✓ Copied'; setTimeout(() => btn.textContent = o, 1500); };
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(done).catch(() => { input.select(); done(); });
+  else { input.select(); try { document.execCommand('copy'); } catch {} done(); }
+}
+
 function showPage(id, el) {
   // Close mobile sidebar on navigation
   document.querySelector('.sidebar')?.classList.remove('open');
@@ -3094,7 +3171,7 @@ function showPage(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotpicker:'Slot Picker', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', settings:'Settings', activity:'Activity Log', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade' };
+  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotpicker:'Slot Picker', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', settings:'Settings', activity:'Activity Log', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade', referrals:'Invite & Earn' };
   document.getElementById('topbarTitle').textContent = titles[id] || id;
   // Tear down SR listeners when leaving their pages
   if (id !== 'slotrequest' && srUnsub)        { srUnsub(); srUnsub = null; }
@@ -3107,6 +3184,7 @@ function showPage(id, el) {
   if (id !== 'activity'    && activityUnsub) { activityUnsub(); activityUnsub = null; }
   if (id !== 'gtb' && id !== 'bonushunt' && gtbUnsubscribe) { gtbUnsubscribe(); gtbUnsubscribe = null; }
   if (id === 'verified') loadVerifiedUsers();
+  if (id === 'referrals') loadReferrals();
   if (id === 'points') loadTopViewers();
   if (id === 'gtb') openGTBPage();
   if (id === 'leaderboard') loadLeaderboards();

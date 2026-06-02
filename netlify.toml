@@ -176,6 +176,16 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/referral-me"
+  to     = "/.netlify/functions/referral-me"
+  status = 200
+
+[[redirects]]
+  from   = "/api/referral-attribute"
+  to     = "/.netlify/functions/referral-attribute"
+  status = 200
+
+[[redirects]]
   from   = "/api/stripe-webhook"
   to     = "/.netlify/functions/stripe-webhook"
   status = 200

@@ -472,6 +472,21 @@
           await saveProviderConfig(provider, { apiKey, enabled: true });
         }
 
+        // Referral attribution — if they arrived via someone's invite link, record
+        // it now (server-side, immutable). Best-effort: never block onboarding.
+        try {
+          const refCode = localStorage.getItem('wenbot_ref');
+          if (refCode) {
+            const idToken = await fb.currentUser.getIdToken();
+            await fetch('/api/referral-attribute', {
+              method: 'POST',
+              headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refCode }),
+            });
+            localStorage.removeItem('wenbot_ref');
+          }
+        } catch {}
+
         // Paid plan that hasn't subscribed yet — redirect to Stripe
         if (pendingPlan !== 'starter' && !hasPaid && !isTest) {
           btn.textContent = "Redirecting to payment...";

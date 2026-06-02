@@ -42,7 +42,11 @@ service cloud.firestore {
           'kickChannel',
           'modUids',
           'modAddedAt',
-          'firstVerifyBonusAt'
+          'firstVerifyBonusAt',
+          'referralCode',
+          'referredBy',
+          'referredAt',
+          'referralCount'
         ]);
 
       // On UPDATE — both owner and mod can update, but the denylist below
@@ -68,8 +72,19 @@ service cloud.firestore {
           'modUids',
           'modAddedAt',
           'email',
-          'firstVerifyBonusAt'
+          'firstVerifyBonusAt',
+          'referralCode',
+          'referredBy',
+          'referredAt',
+          'referralCount'
         ]);
+
+      // referrals — who this streamer invited. Server-only writes (set by
+      // /api/referral-attribute); owner + mods can read for the invite list.
+      match /referrals/{doc} {
+        allow read: if isOwnerOrMod(uid);
+        allow create, update, delete: if false;
+      }
 
       // verified_users — only the admin SDK (server functions) may write.
       // This prevents a streamer (or mod) from forging verified entries with

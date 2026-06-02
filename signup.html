@@ -348,6 +348,15 @@
 
   initFirebase();
 
+  // Capture a referral code (?ref=CODE) and stash it so it survives the Kick
+  // OAuth bounce during onboarding. Attribution itself happens server-side at
+  // the end of setup (see setup.html → /api/referral-attribute). Don't clobber
+  // an existing pending ref if this page is revisited without one.
+  try {
+    const _ref = new URLSearchParams(location.search).get('ref');
+    if (_ref) localStorage.setItem('wenbot_ref', _ref.trim().toUpperCase());
+  } catch {}
+
   function showError(msg) {
     const el = document.getElementById('errorBox');
     el.textContent = msg; el.style.display = 'block';
