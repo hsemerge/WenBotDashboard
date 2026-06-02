@@ -11,7 +11,11 @@ function normalizeGambulls(responseObject) {
   return (responseObject.rankings || []).map((e, i) => ({
     rank: i + 1,
     uid: e.user?.id != null ? String(e.user.id) : null,
-    username: e.user?.isAnonymous ? "Anonymous" : (e.user?.name || "Unknown"),
+    // Gambulls already masks anonymous users' names server-side (e.g. "Bo***o"),
+    // so show that instead of collapsing everyone to a single "Anonymous". This is
+    // the same public masked name Gambulls' own leaderboard displays — no extra
+    // info is revealed. Fall back to "Anonymous" only when no name is provided.
+    username: e.user?.name || (e.user?.isAnonymous ? "Anonymous" : "Unknown"),
     wagered: e.wagerAmount || 0,
     avatarUrl: e.user?.imageUrl || null,
   }));
