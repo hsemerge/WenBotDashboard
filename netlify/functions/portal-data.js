@@ -55,6 +55,8 @@ const PORTAL_PRESETS = {
     // Extra nav links shown on the bespoke portal (beyond the auto socials).
     links: [
       { label: "Gambulls", href: "https://gambulls.com/?ref=SKSlots", icon: "🎰" },
+      { label: "Discord",  href: "https://discord.gg/SKSlots", icon: "💬" },
+      { label: "Socials",  href: "https://linktr.ee/skslots", icon: "🌐" },
     ],
     // Extra standalone pages this portal links to (rendered as nav + routed).
     pages: [

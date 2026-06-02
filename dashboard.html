@@ -1402,9 +1402,12 @@
         </div>
       </div>
 
-      <!-- Discord Integration -->
+      <!-- Discord & Verification (merged) — Connection is Elite-gated; Verification is not. -->
       <div style="margin-top:16px;" id="discordSection">
-        <div class="card" style="position:relative;overflow:hidden;">
+        <div class="card">
+          <div class="card-title">🔗 Discord &amp; Verification</div>
+          <!-- Sub-section A: Connection & Channels (Elite-gated) -->
+          <div style="position:relative;overflow:hidden;border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;">
           <!-- Elite lock overlay — shown when plan < elite -->
           <div id="discordLockOverlay" style="display:none;position:absolute;inset:0;background:rgba(13,17,23,0.88);backdrop-filter:blur(4px);border-radius:inherit;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center;">
             <div style="font-size:32px;">⭐</div>
@@ -1413,7 +1416,7 @@
             <button onclick="upgradeTarget='elite';upgradeNow(this)" class="btn btn-accent" style="padding:10px 24px;margin-top:4px;">Upgrade to Elite</button>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-            <div class="card-title" style="margin-bottom:0;">🔗 Discord Integration</div>
+            <div class="card-title" style="margin-bottom:0;font-size:15px;">📡 Connection &amp; Channels</div>
             <div id="discordStatusBadge" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(255,255,255,0.06);color:var(--text-dim);">Not connected</div>
           </div>
           <p style="font-size:12px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">Add WenBot to your Discord server, then paste your Server ID below to link it. Viewers can then join giveaways, check points, and use the store from Discord.</p>
@@ -1456,12 +1459,11 @@
             <button class="btn" onclick="populateDiscordChannels()" style="font-size:13px;padding:8px 16px;">↺ Refresh Channels</button>
           </div>
         </div>
-      </div>
+          <!-- /Connection & Channels (closed above) -->
 
-      <!-- Discord Verification & Roles -->
-      <div style="margin-top:16px;">
-        <div class="card">
-          <div class="card-title">🛡️ Verification &amp; Roles</div>
+          <!-- Sub-section B: Verification & Roles (NOT Elite-gated — the captcha/age gate runs on the verify page and works without Discord) -->
+          <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div class="card-title" style="font-size:15px;">🛡️ Verification &amp; Roles</div>
           <p style="font-size:12px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">Have WenBot assign a role when someone verifies, and optionally act as your server's verification gate. Both default off — works <strong>alongside</strong> other bots like Double Counter (leave the gate off and just use the role), or as your whole front door.</p>
 
           <!-- Toggle 1: role on verify -->
@@ -1515,8 +1517,9 @@
             <button class="btn btn-accent" onclick="saveVerifySettings()">Save Verification Settings</button>
             <button class="btn" onclick="populateDiscordChannels()" style="font-size:13px;padding:8px 16px;">↺ Refresh roles &amp; channels</button>
           </div>
-        </div>
-      </div>
+        </div><!-- /Verification & Roles -->
+      </div><!-- /Discord & Verification card -->
+      </div><!-- /discordSection -->
 
       <!-- Streamer Portal (below Discord — viewers visit this hub at wenbot.gg/<channel>) -->
       <div style="margin-top:16px;">
@@ -3175,6 +3178,9 @@ function initSettingsCollapse() {
     if (card.dataset.collapseInit) return;
     const title = card.querySelector('.card-title');
     if (!title) return;
+    // These two start expanded (the essentials); everything else starts collapsed.
+    const titleText = (title.textContent || '').toLowerCase();
+    const startOpen = titleText.includes('active platform') || titleText.includes('kick channel');
     // The header is the top-level child of the card that contains the title.
     let header = title;
     while (header.parentNode && header.parentNode !== card) header = header.parentNode;
@@ -3184,10 +3190,10 @@ function initSettingsCollapse() {
     body.className = 'settings-collapse-body';
     Array.from(card.children).forEach(ch => { if (ch !== header) body.appendChild(ch); });
     card.appendChild(body);
-    body.style.display = 'none'; // collapsed by default
+    body.style.display = startOpen ? '' : 'none';
     // Chevron + clickable header.
     const chev = document.createElement('span');
-    chev.textContent = '▸';
+    chev.textContent = startOpen ? '▾' : '▸';
     chev.style.cssText = 'display:inline-block;margin-right:6px;color:var(--text-dim);font-size:12px;transition:transform .15s;';
     title.prepend(chev);
     header.style.cursor = 'pointer';
