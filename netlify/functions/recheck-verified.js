@@ -69,7 +69,10 @@ exports.handler = async (event) => {
     const { apiKey } = providerDoc.data();
 
     const diagnostics = [];
-    const result = await lookupAffiliate(provider, apiKey, affiliateUsername, diagnostics);
+    // If we already know this user's provider UID (captured at verify or via a
+    // manual link), match on it — reliable and immune to Gambulls' name masking.
+    const knownUid = v.providerUid || null;
+    const result = await lookupAffiliate(provider, apiKey, affiliateUsername, diagnostics, { uid: knownUid });
     const wasUnderAffiliate = !!v.underAffiliate;
     const foundOnLeaderboard = !!result;
 
@@ -88,6 +91,9 @@ exports.handler = async (event) => {
       update.underAffiliate    = true;
       update.wagerAmount       = result.wagerAmount || 0;
       update.wagerLastSyncedAt = Date.now();
+      // Lock in the UID the first time we resolve it — every future recheck is
+      // then UID-based and immune to masking.
+      if (result.uid && !v.providerUid) update.providerUid = result.uid;
     }
     await docRef.update(update);
 

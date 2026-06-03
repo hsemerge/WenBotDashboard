@@ -110,6 +110,7 @@ exports.handler = async (event) => {
     let resultUsername  = affiliateUsername;
     let underAffiliate  = false;
     let wagerAmount     = 0;
+    let providerUid     = null; // stable Gambulls user id — the durable, masking-proof key
 
     if (API_CASINOS.has(provider)) {
       // Full API verification against streamer's leaderboard
@@ -121,9 +122,13 @@ exports.handler = async (event) => {
       const { apiKey } = providerDoc.data();
       const result = await lookupAffiliate(provider, apiKey, affiliateUsername);
       if (result) {
-        resultUsername = result.username;
+        // For an exact match, prefer the board's canonical casing. For a MASKED
+        // match the board name is anonymized ("Be***x"), so keep the user's
+        // claimed name instead of storing the mask.
+        resultUsername = result.matchedViaMask ? affiliateUsername : (result.username || affiliateUsername);
         underAffiliate = true;
         wagerAmount    = result.wagerAmount || 0;
+        providerUid    = result.uid || null; // capture UID so future checks are UID-based
       }
       // Not found on leaderboard = not under affiliate code, but still save as verified
     } else {
@@ -144,6 +149,7 @@ exports.handler = async (event) => {
       providerUsername:       resultUsername,
       providerUsername_lower: affiliateKey,
       provider,
+      providerUid,            // stable Gambulls user id (null until matched) — durable key
       apiVerified:            API_CASINOS.has(provider) && underAffiliate,
       underAffiliate,
       wagerAmount,
