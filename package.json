@@ -1,8 +1,13 @@
 {
   "name": "wenbot-dashboard",
   "private": true,
+  "scripts": {
+    "build": "node scripts/strip-comments.js"
+  },
   "dependencies": {
     "firebase-admin": "^12.0.0",
-    "tweetnacl": "^1.0.3"
+    "tweetnacl": "^1.0.3",
+    "html-minifier-terser": "^7.2.0",
+    "terser": "^5.31.6"
   }
 }

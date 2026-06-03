@@ -1,3 +1,10 @@
+# Build: strip developer comments from the front-end into a curated dist/ (see
+# scripts/strip-comments.js). Functions + edge functions are read from netlify/
+# (untouched). publish=dist keeps node_modules / config / docs out of the deploy.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
 [[headers]]
   for = "/*"
   [headers.values]
@@ -281,6 +288,7 @@
   status = 200
 
 [functions]
+  directory = "netlify/functions"
   included_files = ["data/**"]
 
 [[edge_functions]]

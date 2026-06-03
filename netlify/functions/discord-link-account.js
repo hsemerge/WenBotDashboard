@@ -15,7 +15,7 @@ exports.handler = async (event) => {
   let body;
   try { body = JSON.parse(event.body || "{}"); } catch { return res(400, { error: "Bad JSON" }); }
 
-  const { code, state } = body;
+  const { code, state, kickAccessToken } = body;
   if (!code || !state) return res(400, { error: "Missing code or state" });
 
   // Decode state — just the Kick username + streamer channel. We link the
@@ -30,6 +30,28 @@ exports.handler = async (event) => {
   }
 
   if (!kickUsername || !channel) return res(400, { error: "Incomplete state" });
+
+  // SECURITY: the kickUsername above comes from the client-supplied `state`, so it
+  // must be proven — otherwise someone could link THEIR Discord to a VICTIM's Kick
+  // account and spend the victim's points via /buy. Require a Kick access token
+  // that actually resolves to the claimed username (the verify page already has the
+  // viewer's Kick session). Use the token-verified name as the source of truth.
+  if (!kickAccessToken) {
+    return res(401, { error: "Kick session required — please sign in with Kick again." });
+  }
+  try {
+    const kr = await fetch("https://api.kick.com/public/v1/users", {
+      headers: { Authorization: `Bearer ${kickAccessToken}` },
+    });
+    if (!kr.ok) return res(401, { error: "Could not verify your Kick identity — please sign in with Kick again." });
+    const ku = (await kr.json()).data?.[0];
+    if (!ku || !ku.name || ku.name.toLowerCase() !== String(kickUsername).toLowerCase()) {
+      return res(401, { error: "Kick identity mismatch — please sign in with Kick again." });
+    }
+    kickUsername = ku.name; // canonical, token-verified
+  } catch (e) {
+    return res(401, { error: "Could not verify your Kick identity — please sign in with Kick again." });
+  }
 
   // Look up streamer by channel name first — we need their Discord guild ID
   // to verify membership.

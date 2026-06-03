@@ -42,14 +42,17 @@ export default async (request, context) => {
     return;
   }
 
-  // Bespoke portal: serve the client's own page for the root request. Deeper
-  // paths (if any) still fall through so the page's own assets/links work.
+  // Bespoke portal: a single self-contained page (hash-routed — #store, #winners,
+  // etc.), so there are NO server-side sub-paths. Serve the bespoke page for every
+  // page request, including arbitrary paths like /admin123 or /yazo — otherwise
+  // they'd fall through to the standard portal.html below and leak the old portal
+  // + leaderboard. (Assets, /api/*, /.netlify/* already returned above.)
   const bespoke = SLUG_TO_PAGE[slug];
-  if (bespoke && (path === "/" || path === "")) {
+  if (bespoke) {
+    if (path.startsWith("/portals/")) return; // already the page itself
     url.pathname = bespoke;
     return context.rewrite(url.toString());
   }
-  if (bespoke && path.startsWith("/portals/")) return; // already pointing at the page
 
   // Standard portal: prepend the slug so portal.html resolves the channel.
   // Already prefixed (shouldn't happen, but be idempotent).

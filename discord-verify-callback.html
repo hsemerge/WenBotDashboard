@@ -85,10 +85,15 @@
       return;
     }
     try {
+      // Include the viewer's Kick access token so the server can PROVE the Kick
+      // username in `state` belongs to this person (the verify page signed them in
+      // with Kick moments ago). Without this the server can't trust state.k.
+      let kickAccessToken = null;
+      try { kickAccessToken = (JSON.parse(localStorage.getItem('kick_viewer_session') || 'null') || {}).accessToken || null; } catch {}
       const resp = await fetch('/api/discord-link-account', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ code, state }),
+        body:    JSON.stringify({ code, state, kickAccessToken }),
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || 'Unknown error');
