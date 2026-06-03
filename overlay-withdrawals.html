@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Withdrawals — WenBot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{--ov-accent:#00e5ff;--ov-accent-rgb:0,229,255;--ov-panel:rgba(13,17,23,0.93);--ov-text:#ffffff;--ov-font:'Inter',sans-serif;--ov-font-heading:'Exo 2',sans-serif;}
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: transparent; font-family: var(--ov-font); width: 320px; padding: 12px; }
+    .panel {
+      background: var(--ov-panel);
+      border: 1px solid rgba(var(--ov-accent-rgb),0.3);
+      border-radius: 14px; padding: 16px 18px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(var(--ov-accent-rgb),0.05);
+      backdrop-filter: blur(12px);
+    }
+    .label {
+      font-family: var(--ov-font-heading);
+      font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--ov-accent); margin-bottom: 6px;
+    }
+    .amount {
+      font-family: var(--ov-font-heading);
+      font-size: 40px; font-weight: 900; color: var(--ov-text); line-height: 1;
+    }
+    .sub { font-size: 12px; color: rgba(255,255,255,0.55); margin-top: 6px; }
+  </style>
+  <script src="/js/overlay-theme.js"></script>
+</head>
+<body>
+<div class="panel">
+  <div class="label" data-ov-header>💸 Withdrawn</div>
+  <div class="amount" id="amt">$0</div>
+  <div class="sub" id="sub">this session</div>
+</div>
+<script>
+  const params  = new URLSearchParams(location.search);
+  const CHANNEL = (params.get('channel') || '').toLowerCase();
+  const DEMO    = params.get('demo') === '1';
+
+  function fmt(n) { return '$' + Math.round(Number(n) || 0).toLocaleString(); }
+
+  function paint(d) {
+    document.getElementById('amt').textContent = fmt(d.withdrawn || 0);
+    const c = d.withdrawalCount || 0;
+    document.getElementById('sub').textContent = c ? `${c} withdrawal${c !== 1 ? 's' : ''} this session` : 'this session';
+  }
+
+  async function poll() {
+    if (DEMO) { paint({ withdrawn: 2100, withdrawalCount: 2 }); return; }
+    if (!CHANNEL) return;
+    try {
+      const r = await fetch(`/api/bankroll-data?channel=${encodeURIComponent(CHANNEL)}`);
+      if (!r.ok) return;
+      paint(await r.json());
+    } catch {}
+  }
+
+  poll();
+  if (!DEMO) setInterval(poll, 4000);
+</script>
+</body>
+</html>

@@ -46,6 +46,9 @@
     'overlay-giveaway':         'entries',
     'overlay-bonus-battle':     'bonusbattle',
     'overlay-tournament':       'tournament',
+    'overlay-bankroll':         'bankroll',
+    'overlay-deposits':         'deposits',
+    'overlay-withdrawals':      'withdrawals',
   };
 
   function hexToRgb(hex) {

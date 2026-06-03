@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Session P/L — WenBot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{--ov-accent:#00e5ff;--ov-accent-rgb:0,229,255;--ov-panel:rgba(13,17,23,0.93);--ov-text:#ffffff;--ov-font:'Inter',sans-serif;--ov-font-heading:'Exo 2',sans-serif;}
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: transparent; font-family: var(--ov-font); width: 380px; padding: 12px; }
+    .panel {
+      background: var(--ov-panel);
+      border: 1px solid rgba(var(--ov-accent-rgb),0.3);
+      border-radius: 14px; overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(var(--ov-accent-rgb),0.05);
+      backdrop-filter: blur(12px);
+    }
+    .hdr {
+      font-family: var(--ov-font-heading);
+      font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--ov-accent); padding: 12px 16px 10px;
+      border-bottom: 1px solid rgba(var(--ov-accent-rgb),0.12);
+    }
+    .row { display: flex; align-items: stretch; }
+    .col { flex: 1; padding: 14px 12px; text-align: center; }
+    .col + .col { border-left: 1px solid rgba(255,255,255,0.07); }
+    .k {
+      font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+      color: rgba(255,255,255,0.5); margin-bottom: 6px;
+    }
+    .v { font-family: var(--ov-font-heading); font-size: 24px; font-weight: 900; line-height: 1; }
+    .v.dep { color: #ff6b6b; }
+    .v.wd  { color: #4ade80; }
+    .v.net { color: var(--ov-text); }
+  </style>
+  <script src="/js/overlay-theme.js"></script>
+</head>
+<body>
+<div class="panel">
+  <div class="hdr" data-ov-header>💵 Session P/L</div>
+  <div class="row">
+    <div class="col"><div class="k">Deposited</div><div class="v dep" id="dep">$0</div></div>
+    <div class="col"><div class="k">Withdrawn</div><div class="v wd" id="wd">$0</div></div>
+    <div class="col"><div class="k">Net</div><div class="v net" id="net">$0</div></div>
+  </div>
+</div>
+<script>
+  const params  = new URLSearchParams(location.search);
+  const CHANNEL = (params.get('channel') || '').toLowerCase();
+  const DEMO    = params.get('demo') === '1';
+
+  function fmt(n) { return '$' + Math.round(Math.abs(Number(n) || 0)).toLocaleString(); }
+
+  function paint(d) {
+    const dep = Number(d.deposited) || 0;
+    const wd  = Number(d.withdrawn) || 0;
+    const net = (d.net != null) ? Number(d.net) : (wd - dep);
+    document.getElementById('dep').textContent = fmt(dep);
+    document.getElementById('wd').textContent  = fmt(wd);
+    const netEl = document.getElementById('net');
+    netEl.textContent = (net >= 0 ? '+' : '−') + fmt(net);
+    netEl.style.color = net >= 0 ? '#4ade80' : '#ff6b6b';
+  }
+
+  async function poll() {
+    if (DEMO) { paint({ deposited: 1250, withdrawn: 2100, net: 850 }); return; }
+    if (!CHANNEL) return;
+    try {
+      const r = await fetch(`/api/bankroll-data?channel=${encodeURIComponent(CHANNEL)}`);
+      if (!r.ok) return;
+      paint(await r.json());
+    } catch {}
+  }
+
+  poll();
+  if (!DEMO) setInterval(poll, 4000);
+</script>
+</body>
+</html>

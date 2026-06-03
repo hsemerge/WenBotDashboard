@@ -88,6 +88,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/bankroll-data"
+  to     = "/.netlify/functions/bankroll-data"
+  status = 200
+
+[[redirects]]
   from   = "/api/bonus-hunt-data"
   to     = "/.netlify/functions/bonus-hunt-data"
   status = 200

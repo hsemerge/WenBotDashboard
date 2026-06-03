@@ -635,6 +635,63 @@
           </div>
         </div>
       </div>
+
+      <!-- ── PERFORMANCE (Phase 1) — all computed from existing data ── -->
+      <div style="margin-top:18px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <h3 style="font-family:'Exo 2',sans-serif;font-size:14px;font-weight:800;color:var(--bright);letter-spacing:.04em;text-transform:uppercase;margin:0;">📊 Performance</h3>
+        <span id="ovPerfPeriod" style="font-size:11px;color:var(--text-dim);"></span>
+      </div>
+      <div class="grid-4" style="margin-top:12px;">
+        <div class="stat-card">
+          <div class="stat-label">🎰 Bonus Hunt P/L</div>
+          <div class="stat-value" id="ovBhPnl" style="font-size:22px;color:var(--text-dim);">—</div>
+          <div class="stat-sub" id="ovBhSub">All hunts</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">💰 Wagered (period)</div>
+          <div class="stat-value" id="ovWagered" style="font-size:22px;">—</div>
+          <div class="stat-sub" id="ovWageredSub">Live leaderboard</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">🪙 Points Outstanding</div>
+          <div class="stat-value" id="ovPointsOut" style="font-size:22px;">—</div>
+          <div class="stat-sub" id="ovPointsSub">In circulation</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">🎁 Store Sales</div>
+          <div class="stat-value" id="ovActivity" style="font-size:22px;">—</div>
+          <div class="stat-sub" id="ovActivitySub">Redemptions</div>
+        </div>
+      </div>
+
+      <!-- ── SESSION P/L (bankroll — manual deposits/withdrawals) ── -->
+      <div class="card" style="margin-top:18px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+          <div class="card-title" style="margin:0;">💵 Session P/L <span style="font-size:11px;color:var(--text-dim);font-weight:500;">— deposits &amp; withdrawals you log</span></div>
+          <button class="btn btn-ghost btn-sm" onclick="bankReset()">↺ New Session</button>
+        </div>
+
+        <div class="grid-3" style="margin-bottom:14px;">
+          <div class="stat-card"><div class="stat-label">Deposited</div><div class="stat-value" id="bankDep" style="font-size:22px;color:var(--red);">$0</div></div>
+          <div class="stat-card"><div class="stat-label">Withdrawn</div><div class="stat-value" id="bankWd" style="font-size:22px;color:var(--green);">$0</div></div>
+          <div class="stat-card"><div class="stat-label">Net P/L</div><div class="stat-value" id="bankNet" style="font-size:22px;">$0</div></div>
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;">
+          <div style="flex:1;min-width:140px;">
+            <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">Amount</label>
+            <input type="number" id="bankAmount" class="form-input" placeholder="$ amount" min="0.01" step="0.01" onkeydown="if(event.key==='Enter'){event.preventDefault();bankAdd('deposit');}">
+          </div>
+          <div style="flex:2;min-width:160px;">
+            <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">Note (optional)</label>
+            <input type="text" id="bankNote" class="form-input" placeholder="e.g. reload, cashout" maxlength="60" onkeydown="if(event.key==='Enter'){event.preventDefault();bankAdd('deposit');}">
+          </div>
+          <button class="btn" style="background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.4);color:var(--red);font-weight:700;" onclick="bankAdd('deposit')">+ Deposit</button>
+          <button class="btn btn-green" onclick="bankAdd('withdrawal')">+ Withdrawal</button>
+        </div>
+
+        <div id="bankLog" style="display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto;"></div>
+      </div>
     </div>
 
     <!-- ── GIVEAWAY ── -->
@@ -1398,6 +1455,18 @@
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button class="btn btn-accent" onclick="saveChannelSettings()" style="flex:1;min-width:140px;">Save Display Name</button>
             <button class="btn btn-ghost owner-only" onclick="reconnectKick()" title="Re-authenticate with Kick. Use this if you changed your Kick channel name or WenBot was kicked from mod." style="flex:1;min-width:140px;">🟢 Reconnect Kick</button>
+          </div>
+        </div>
+
+        <div class="card owner-only" id="botControlCard">
+          <div class="card-title">🤖 Bot in Kick Chat</div>
+          <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+            Connect or disconnect WenBot from your Kick channel. When <strong>OFF</strong>, the bot leaves your chat and stops
+            responding to commands — all your settings are kept. Turn it back <strong>ON</strong> anytime (it reconnects within a minute).
+          </p>
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+            <button id="botEnabledBtn" onclick="toggleBotEnabled()" class="btn">—</button>
+            <span id="botEnabledState" style="font-size:13px;font-weight:600;color:var(--text-dim);">—</span>
           </div>
         </div>
       </div>
@@ -3283,6 +3352,7 @@ function showPage(id, el) {
   if (id !== 'store'       && redemptionsUnsub) { redemptionsUnsub(); redemptionsUnsub = null; }
   if (id !== 'raffle'      && raffleHistoryUnsub) { raffleHistoryUnsub(); raffleHistoryUnsub = null; }
   if (id !== 'activity'    && activityUnsub) { activityUnsub(); activityUnsub = null; }
+  if (id !== 'overview'    && _bankUnsub)   { _bankUnsub(); _bankUnsub = null; }
   if (id !== 'gtb' && id !== 'bonushunt' && gtbUnsubscribe) { gtbUnsubscribe(); gtbUnsubscribe = null; }
   if (id === 'verified') loadVerifiedUsers();
   if (id === 'settings') initSettingsCollapse();
@@ -3301,6 +3371,7 @@ function showPage(id, el) {
   if (id === 'billing')     { renderBillingPage(); loadBillingHistory(); }
   if (id === 'raffle')      loadRafflePage();
   if (id === 'activity')    loadActivityLog();
+  if (id === 'overview')    loadOverviewStats();
 }
 
 // ── FLASH ──
@@ -3695,6 +3766,7 @@ function onAuthReady(user) {
   loadVerifiedCount();
   loadProviderSettings();
   loadDiscordSettings();
+  renderBotEnabled();
   loadPortalSettings();
   // Moderator list — only the owner can view/manage. Skip the fetch entirely
   // for mods (the Team card is hidden via owner-only class anyway).
@@ -3702,6 +3774,7 @@ function onAuthReady(user) {
   // Start the pending-redemptions listener at boot so the Store nav badge updates
   // even before the streamer opens the Store page.
   loadRedemptions();
+  loadOverviewStats(); // Overview is the default page — load its stats at boot
   updatePlatformDisplays();
 
   // Portal Settings — live UI updates (counter + color preview)
@@ -5685,6 +5758,47 @@ async function saveChannelSettings() {
   flash('Saved!');
 }
 
+// ── BOT ON/OFF (Kick chat) ─────────────────────────────────────────────────
+// botEnabled flips whether WenBotServer keeps a bot connected to this channel.
+// The bot-manager watches this field: false -> disconnect, true -> reconnect.
+// Default (undefined) is ON, so existing streamers are unaffected.
+function renderBotEnabled() {
+  const btn   = document.getElementById('botEnabledBtn');
+  const state = document.getElementById('botEnabledState');
+  if (!btn || !state) return;
+  const on = profile?.botEnabled !== false; // default ON
+  if (on) {
+    btn.textContent = 'Turn Bot OFF';
+    btn.className = 'btn';
+    btn.style.cssText = 'background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.4);color:var(--red);font-weight:700;';
+    state.innerHTML = '<span style="color:var(--green);">● Online</span> — WenBot is in your Kick chat';
+  } else {
+    btn.textContent = 'Turn Bot ON';
+    btn.className = 'btn';
+    btn.style.cssText = 'background:rgba(0,255,136,0.12);border:1px solid rgba(0,255,136,0.4);color:var(--green);font-weight:700;';
+    state.innerHTML = '<span style="color:var(--text-dim);">○ Offline</span> — WenBot is disconnected from your chat';
+  }
+}
+
+async function toggleBotEnabled() {
+  const uid = fb.activeUid;
+  if (!uid) return;
+  const turningOff = (profile?.botEnabled !== false); // currently ON → we're turning OFF
+  if (turningOff && !confirm('Turn WenBot OFF in your Kick chat?\n\nIt will disconnect and stop responding to commands until you turn it back on. Your settings are kept.')) return;
+  const btn = document.getElementById('botEnabledBtn');
+  if (btn) btn.disabled = true;
+  try {
+    await fb.db.collection('streamers').doc(uid).update({ botEnabled: !turningOff });
+    if (profile) profile.botEnabled = !turningOff;
+    renderBotEnabled();
+    flash(turningOff ? 'WenBot turned OFF — disconnecting from chat…' : 'WenBot turned ON — reconnecting to chat…');
+  } catch (e) {
+    flash('Failed to update: ' + e.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 // ── PORTAL SETTINGS ──
 // The portal (public hub at wenbot.gg/<channel>) reads bio, socials, themeColor,
 // and portalEnabled from the streamer profile. Theme color is honored server-side
@@ -6657,6 +6771,9 @@ const OS_OVERLAYS = [
   { id:'entries',     name:'Entries Feed',   icon:'📝', tag:'giveaway',   desc:'Live scrolling list of entries as viewers join.',           path:'/overlay-giveaway.html',      obsW:440,  obsH:740,  demo:true,  header:'🎁 Giveaway Live',       note:'Width: 440, height: 740. The list scrolls inside the OBS source if entries overflow.' },
   { id:'bonusbattle', name:'Bonus Battle',   icon:'⚔️', tag:'battles',    desc:'Match display with live viewer vote counts and results.',   path:'/overlay-bonus-battle.html',  obsW:1920, obsH:1080, demo:true,  header:null,                     note:'Header comes from the battle title. Width: 1920, height: 1080.' },
   { id:'tournament',  name:'Tournament',     icon:'🏅', tag:'tournament', desc:'Live bracket — matchups and winners as they progress.',     path:'/overlay-tournament.html',    obsW:1920, obsH:1080, demo:true,  header:null,                     note:'Header comes from the tournament title. Width: 1920, height: 1080.' },
+  { id:'bankroll',    name:'Session P/L',    icon:'💵', tag:'bankroll',   desc:'Combined deposits, withdrawals, and net profit/loss for the session.', path:'/overlay-bankroll.html',      obsW:380,  obsH:170,  demo:true,  header:'💵 Session P/L',          note:'Width: 380, height: 170. Updates live as you log deposits/withdrawals on the Overview.' },
+  { id:'deposits',    name:'Deposits',       icon:'💰', tag:'bankroll',   desc:'Total you have deposited this session.',                    path:'/overlay-deposits.html',      obsW:320,  obsH:130,  demo:true,  header:'💰 Deposited',            note:'Width: 320, height: 130.' },
+  { id:'withdrawals', name:'Withdrawals',    icon:'💸', tag:'bankroll',   desc:'Total you have withdrawn this session.',                    path:'/overlay-withdrawals.html',   obsW:320,  obsH:130,  demo:true,  header:'💸 Withdrawn',            note:'Width: 320, height: 130.' },
 ];
 
 let osSelectedId = null;
@@ -6785,7 +6902,7 @@ function loadOverlayStudio() {
     let divider = '';
     if (o.tag !== lastTag) {
       lastTag = o.tag;
-      const tagLabels = { hunting:'Hunting', giveaway:'Giveaway', battles:'Battles', tournament:'Tournament' };
+      const tagLabels = { hunting:'Hunting', giveaway:'Giveaway', battles:'Battles', tournament:'Tournament', bankroll:'Bankroll' };
       divider = `<div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);padding:8px 10px 4px;margin-top:4px;">${tagLabels[o.tag]||o.tag}</div>`;
     }
     return divider + `
@@ -6892,7 +7009,7 @@ function osSelectOverlay(id) {
   document.getElementById('osSelIcon').textContent = o.icon;
   document.getElementById('osSelName').textContent = o.name;
   document.getElementById('osSelDesc').textContent = o.desc;
-  const tagLabels = { hunting:'Hunting', giveaway:'Giveaway', battles:'Battles', tournament:'Tournament' };
+  const tagLabels = { hunting:'Hunting', giveaway:'Giveaway', battles:'Battles', tournament:'Tournament', bankroll:'Bankroll' };
   document.getElementById('osSelBadges').innerHTML =
     `<span class="os-tag os-tag-${o.tag}">${tagLabels[o.tag]||o.tag}</span>`;
 
@@ -7736,6 +7853,159 @@ function bhRender() {
 
 function bhFmt(n) {
   return '$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
+
+// ── OVERVIEW STATS (Phase 1) ───────────────────────────────────────────────
+// Everything here is computed client-side from collections the dashboard
+// already has access to — no new backend. Called on init + when the Overview
+// page is shown. Each loader is independent and fails soft.
+let _bankUnsub = null;
+
+function loadOverviewStats() {
+  if (!fb.activeUid) return;
+  loadBankroll();
+  loadBhStats();
+  loadPointsEconomy();
+  loadWagerStat();
+}
+
+// 🎰 Bonus Hunt performance — net P/L, count, ROI, best hunt (bonus_hunt_history)
+async function loadBhStats() {
+  const uid = fb.activeUid;
+  const pnlEl = document.getElementById('ovBhPnl');
+  const subEl = document.getElementById('ovBhSub');
+  if (!pnlEl) return;
+  try {
+    const snap = await fb.db.collection('streamers').doc(uid).collection('bonus_hunt_history').get();
+    let n = 0, totalPnl = 0, totalCost = 0, totalWin = 0, best = null;
+    snap.forEach(doc => {
+      const d = doc.data();
+      n++;
+      const pnl = (d.pnl != null) ? d.pnl : ((d.winnings || 0) - (d.totalCost || 0));
+      totalPnl += pnl; totalCost += (d.totalCost || 0); totalWin += (d.winnings || 0);
+      if (best === null || pnl > best) best = pnl;
+    });
+    if (!n) { pnlEl.textContent = '$0'; pnlEl.style.color = 'var(--text-dim)'; subEl.textContent = 'No hunts yet'; return; }
+    pnlEl.textContent = (totalPnl >= 0 ? '+' : '') + bhFmt(totalPnl);
+    pnlEl.style.color = totalPnl >= 0 ? 'var(--green)' : 'var(--red)';
+    const roi = totalCost > 0 ? Math.round((totalWin / totalCost) * 100) : 0;
+    subEl.textContent = `${n} hunt${n !== 1 ? 's' : ''} · ${roi}% ROI · best ${(best >= 0 ? '+' : '') + bhFmt(best)}`;
+  } catch (e) { console.warn('[overview] bh stats:', e.message); subEl.textContent = 'Unavailable'; }
+}
+
+// 🪙 Points economy + 🎁 store sales (viewers + store_redemptions + winners_log)
+async function loadPointsEconomy() {
+  const uid = fb.activeUid;
+  try {
+    const vSnap = await fb.db.collection('streamers').doc(uid).collection('viewers').get();
+    let outstanding = 0;
+    vSnap.forEach(d => { outstanding += (d.data().points || 0); });
+    const out = Math.round(outstanding).toLocaleString();
+    const outEl = document.getElementById('ovPointsOut'); if (outEl) outEl.textContent = out;
+    const statP = document.getElementById('statPoints'); if (statP) statP.textContent = out; // wire the long-blank top card too
+
+    const rSnap = await fb.db.collection('streamers').doc(uid).collection('store_redemptions').get();
+    let redeemed = 0, pending = 0, sales = 0;
+    rSnap.forEach(d => { const r = d.data(); redeemed += (r.pointsSpent || 0); sales++; if (r.status === 'pending') pending++; });
+    const subEl = document.getElementById('ovPointsSub');
+    if (subEl) subEl.textContent = `${Math.round(redeemed).toLocaleString()} redeemed · ${pending} pending`;
+    const actEl = document.getElementById('ovActivity'); if (actEl) actEl.textContent = sales.toLocaleString();
+
+    let winners = 0;
+    try { winners = (await fb.db.collection('streamers').doc(uid).collection('winners_log').get()).size; } catch {}
+    const actSub = document.getElementById('ovActivitySub');
+    if (actSub) actSub.textContent = `${winners} winner${winners !== 1 ? 's' : ''} drawn`;
+  } catch (e) { console.warn('[overview] points economy:', e.message); }
+}
+
+// 💰 Wager stats — total wagered, active wagerers, top (live leaderboard)
+async function loadWagerStat() {
+  const channel = profile?.kickChannel;
+  const casino  = profile?.activeProvider || 'gambulls';
+  const el  = document.getElementById('ovWagered');
+  const sub = document.getElementById('ovWageredSub');
+  if (!el) return;
+  if (!channel) { el.textContent = '—'; sub.textContent = 'Set your channel'; return; }
+  try {
+    const resp = await fetch(`/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1&raw=1`);
+    const data = await resp.json();
+    const rankings = data.rankings || [];
+    let total = 0, active = 0, top = null;
+    rankings.forEach(e => { const w = e.wagered || 0; total += w; if (w > 0) active++; if (!top || w > (top.wagered || 0)) top = e; });
+    el.textContent = '$' + Math.round(total).toLocaleString();
+    sub.textContent = top ? `${active} active · top @${top.username}` : `${active} active`;
+    const per = document.getElementById('ovPerfPeriod');
+    if (per) per.textContent = `· ${(typeof CASINO_NAMES !== 'undefined' && CASINO_NAMES[casino]) || casino}`;
+  } catch (e) { el.textContent = '—'; sub.textContent = 'Unavailable'; }
+}
+
+// 💵 Session P/L (bankroll) — manual deposits/withdrawals, live listener
+function loadBankroll() {
+  const uid = fb.activeUid;
+  if (_bankUnsub) { _bankUnsub(); _bankUnsub = null; }
+  _bankUnsub = fb.db.collection('streamers').doc(uid).collection('bankroll').doc('current')
+    .onSnapshot(doc => renderBankroll(doc.exists ? doc.data() : {}),
+                e => console.warn('[bankroll] subscribe:', e.message));
+}
+
+function renderBankroll(d) {
+  const dep = d.deposited || 0, wd = d.withdrawn || 0, net = wd - dep;
+  const depEl = document.getElementById('bankDep'); if (!depEl) return;
+  depEl.textContent = '$' + Math.round(dep).toLocaleString();
+  document.getElementById('bankWd').textContent = '$' + Math.round(wd).toLocaleString();
+  const netEl = document.getElementById('bankNet');
+  netEl.textContent = (net >= 0 ? '+' : '−') + '$' + Math.abs(Math.round(net)).toLocaleString();
+  netEl.style.color = net >= 0 ? 'var(--green)' : 'var(--red)';
+
+  const log = document.getElementById('bankLog');
+  const entries = (d.entries || []).slice().reverse();
+  if (!entries.length) {
+    log.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:10px;">No entries this session — log a deposit or withdrawal above</div>';
+    return;
+  }
+  log.innerHTML = entries.map(e => {
+    const isDep = e.type === 'deposit';
+    const t = e.at ? new Date(e.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+    return `<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:6px 8px;background:var(--bg-card);border-radius:6px;">
+      <span style="color:${isDep ? 'var(--red)' : 'var(--green)'};font-weight:700;white-space:nowrap;">${isDep ? '− Deposit' : '+ Withdraw'}</span>
+      <span style="color:var(--bright);font-weight:700;white-space:nowrap;">$${Math.round(e.amount || 0).toLocaleString()}</span>
+      <span style="color:var(--text-dim);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(e.note || '')}</span>
+      <span style="color:var(--text-dim);white-space:nowrap;">${t}</span>
+    </div>`;
+  }).join('');
+}
+
+async function bankAdd(type) {
+  const uid = fb.activeUid;
+  if (!uid) return;
+  const amtEl  = document.getElementById('bankAmount');
+  const noteEl = document.getElementById('bankNote');
+  const amount = parseFloat(amtEl.value);
+  if (!amount || amount <= 0) { flash('Enter a valid amount', 'error'); return; }
+  const note = (noteEl.value || '').trim().slice(0, 60);
+  const ref  = fb.db.collection('streamers').doc(uid).collection('bankroll').doc('current');
+  try {
+    const snap = await ref.get();
+    const d = snap.exists ? snap.data() : {};
+    const entries = (d.entries || []).slice();
+    entries.push({ type, amount, note, at: Date.now() });
+    const trimmed   = entries.slice(-100); // keep the log bounded
+    const deposited = (d.deposited || 0) + (type === 'deposit'    ? amount : 0);
+    const withdrawn = (d.withdrawn || 0) + (type === 'withdrawal' ? amount : 0);
+    await ref.set({ deposited, withdrawn, entries: trimmed, sessionStart: d.sessionStart || Date.now(), updatedAt: Date.now() }, { merge: true });
+    amtEl.value = ''; noteEl.value = '';
+    flash(`${type === 'deposit' ? 'Deposit' : 'Withdrawal'} logged: $${Math.round(amount).toLocaleString()}`);
+  } catch (e) { flash('Failed to log: ' + e.message, 'error'); }
+}
+
+async function bankReset() {
+  if (!confirm('Start a new session? This clears the deposit/withdrawal log and resets totals to $0.')) return;
+  const uid = fb.activeUid;
+  try {
+    await fb.db.collection('streamers').doc(uid).collection('bankroll').doc('current')
+      .set({ deposited: 0, withdrawn: 0, entries: [], sessionStart: Date.now(), updatedAt: Date.now() });
+    flash('New session started.');
+  } catch (e) { flash('Failed to reset: ' + e.message, 'error'); }
 }
 
 async function startBonusHunt() {
