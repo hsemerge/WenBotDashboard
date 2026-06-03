@@ -170,9 +170,14 @@
 
   // 1) URL params first (legacy + immediate paint).
   applyTheme(themeFromParams());
-  // 2) Saved theme on top, then poll for live updates.
-  pollServerTheme();
-  setInterval(pollServerTheme, 20000);
+  // 2) Saved theme on top + poll for live updates — but ONLY when loaded
+  //    standalone (OBS). Inside the dashboard's preview iframe the live-edited
+  //    theme arrives via URL params, and polling the SAVED theme here would
+  //    override the user's unsaved edits (the preview would never show changes).
+  if (window.self === window.top) {
+    pollServerTheme();
+    setInterval(pollServerTheme, 20000);
+  }
 
   window.OV_FONTS = OV_FONTS;
 })();

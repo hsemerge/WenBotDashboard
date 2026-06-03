@@ -177,13 +177,10 @@
   ];
 
   // ── SCROLL ──
-  const SPEED    = 0.4;   // px per frame
-  const PAUSE_MS = 1500;  // pause at top before looping
+  const SPEED    = 0.2;   // px per frame — slow, steady glide
   const ROW_H    = 40;    // approximate row height (matches padding)
 
   let offset   = 0;
-  let paused   = false;
-  let pauseEnd = 0;
   let totalH   = 0;       // height of original rows (half of cloned content)
   let rafId    = null;
 
