@@ -4,7 +4,8 @@
 // Optionally (4) supply the ADMIN_PANEL_SECRET as a second factor if that env is
 // set. With no ADMIN_UIDS configured, nobody is an admin (secure by default).
 
-const { admin } = require("./firebase");
+const { admin }        = require("./firebase");
+const { timingSafeEq } = require("./http");
 
 function adminUids() {
   return (process.env.ADMIN_UIDS || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -31,7 +32,7 @@ async function requireAdmin(event) {
   const secret = process.env.ADMIN_PANEL_SECRET;
   if (secret) {
     const provided = (event.headers["x-admin-secret"] || "").trim();
-    if (provided !== secret) return null;
+    if (!timingSafeEq(provided, secret)) return null;
   }
 
   return { uid: decoded.uid, email: decoded.email || null };

@@ -2,13 +2,15 @@
 // One-time call to register slash commands with Discord globally
 // Protected by x-admin-key header
 
+const { timingSafeEq } = require("./_lib/http");
+
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method not allowed" };
   }
 
   const key = event.headers["x-admin-key"];
-  if (!key || key !== process.env.WENBOT_ADMIN_KEY) {
+  if (!timingSafeEq(key, process.env.WENBOT_ADMIN_KEY)) {
     return { statusCode: 401, body: "Unauthorized" };
   }
 

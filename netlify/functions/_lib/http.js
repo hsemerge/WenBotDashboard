@@ -2,6 +2,18 @@
 // res(status, body, origin?) builds a Lambda-style JSON response with CORS.
 // Default origin is "https://wenbot.gg" — pass "*" or another value for the exceptions.
 
+const crypto = require("crypto");
+
+// Constant-time string comparison for secrets/keys — avoids leaking match info
+// via response timing. Returns false on missing values or length mismatch
+// (timingSafeEqual throws if the buffers differ in length).
+function timingSafeEq(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length === 0 || b.length === 0) return false;
+  const ba = Buffer.from(a), bb = Buffer.from(b);
+  if (ba.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ba, bb);
+}
+
 function res(statusCode, body, origin = "https://wenbot.gg") {
   return {
     statusCode,
@@ -35,4 +47,4 @@ async function checkRateLimit(db, ip, bucket, maxReqs = 20, windowSecs = 60) {
   }
 }
 
-module.exports = { res, checkRateLimit };
+module.exports = { res, checkRateLimit, timingSafeEq };

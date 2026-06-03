@@ -272,8 +272,9 @@ function runSpin(winnerName, wager) {
   const drumList = document.createElement('div');
   drumList.id = 'drumList';
   drumList.className = oldDrum.className;
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   drumList.innerHTML = spinList.map((name, i) =>
-    `<div class="drum-item${i === winnerIdx ? ' drum-winner-slot' : ''}">${name}</div>`
+    `<div class="drum-item${i === winnerIdx ? ' drum-winner-slot' : ''}">${esc(name)}</div>`
   ).join('');
   oldDrum.parentNode.replaceChild(drumList, oldDrum);
 

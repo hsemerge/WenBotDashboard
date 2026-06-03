@@ -202,8 +202,11 @@
     }
 
     /* ── TABLE ── */
+    /* FIXED height (≈10 rows) so the overlay's footprint never changes as slots
+       are added — OBS positioning stays stable. Fewer slots leave reserved empty
+       space below; more than ~10 auto-scroll (see the scroll logic). */
     .table-wrap {
-      max-height: 280px;
+      height: 280px;
       overflow: hidden;
       position: relative;
     }

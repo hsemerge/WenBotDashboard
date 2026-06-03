@@ -291,9 +291,10 @@ function render(data) {
   if (entriesSig === _lastEntriesSig) return;
   _lastEntriesSig = entriesSig;
 
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   inner.innerHTML = show.map((e, i) => {
     const key     = (e.kickKey || e.kickName || '?').toString();
-    const name    = e.kickName || e.kickKey || '?';
+    const name    = esc(e.kickName || e.kickKey || '?');
     const wager   = e.wager   > 0 ? `$${Number(e.wager).toLocaleString()}` : '';
     const tickets = e.tickets > 1 ? `${e.tickets}x` : '';
     // Only rows we haven't shown before get the slide-in animation, so

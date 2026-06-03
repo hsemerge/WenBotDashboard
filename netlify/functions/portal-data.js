@@ -338,17 +338,20 @@ exports.handler = async (event) => {
         }
       }
 
-      // Past leaderboard periods (same data /api/leaderboard-winners exposes)
+      // Past leaderboard periods (same data /api/leaderboard-winners exposes).
+      // Filter by casino only (single-field, auto-indexed) and sort/slice in JS —
+      // `where(casino==).orderBy(endDate)` needs a composite index that isn't
+      // deployed, which would otherwise throw and silently empty Past Winners.
       try {
         const periodsSnap = await db.collection("streamers").doc(uid)
           .collection("leaderboard_periods")
           .where("casino", "==", provider)
-          .orderBy("endDate", "desc")
-          .limit(12)
           .get();
-        leaderboardPeriods = periodsSnap.docs.map(d => {
-          const p = d.data();
-          return {
+        leaderboardPeriods = periodsSnap.docs
+          .map(d => d.data())
+          .sort((a, b) => (b.endDate || 0) - (a.endDate || 0))
+          .slice(0, 12)
+          .map(p => ({
             period:     p.period || null,
             casinoName: p.casinoName || CASINO_NAMES[provider] || provider,
             winners:    Array.isArray(p.winners) ? p.winners.map(w => ({
@@ -358,8 +361,7 @@ exports.handler = async (event) => {
               prize:     w.prize || 0,
               avatarUrl: w.avatarUrl || null,
             })) : [],
-          };
-        });
+          }));
       } catch (err) {
         console.warn("[portal-data] leaderboard_periods fetch failed:", err.message);
       }

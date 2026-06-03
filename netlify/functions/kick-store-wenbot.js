@@ -2,13 +2,14 @@
 // Requires x-admin-key header matching WENBOT_ADMIN_KEY env var
 // POST body: { access_token, refresh_token, expires_in }
 
-const { getDb } = require("./_lib/firebase");
+const { getDb }        = require("./_lib/firebase");
+const { timingSafeEq } = require("./_lib/http");
 
 exports.handler = async (event) => {
   const adminKey    = event.headers["x-admin-key"];
   const expectedKey = process.env.WENBOT_ADMIN_KEY;
 
-  if (!adminKey || !expectedKey || adminKey !== expectedKey) {
+  if (!timingSafeEq(adminKey, expectedKey)) {
     return res(401, { error: "Unauthorized" });
   }
 

@@ -29,10 +29,13 @@ exports.handler = async (event) => {
 
     const uid = snap.docs[0].id;
 
+    // Filter by status only (single-field, auto-indexed) and sort in JS — same
+    // pattern the dashboard uses. Adding `.orderBy("requestedAt")` on top of the
+    // `where(status==)` needs a composite index that isn't deployed, which made
+    // this throw → 500 → the overlay rendered empty even when requests existed.
     const qSnap = await db.collection("streamers").doc(uid)
       .collection("slot_requests")
       .where("status", "==", "pending")
-      .orderBy("requestedAt", "asc")
       .limit(50)
       .get();
 
@@ -41,7 +44,7 @@ exports.handler = async (event) => {
       kickUsername: d.data().kickUsername,
       slotName:    d.data().slotName,
       requestedAt: d.data().requestedAt,
-    }));
+    })).sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
 
     return res(200, { requests });
   } catch (err) {

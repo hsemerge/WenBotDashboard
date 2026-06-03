@@ -11,9 +11,9 @@
 // The point deduction + stock + redemption happen in ONE Firestore transaction so
 // a viewer can't overspend by racing concurrent buys.
 
-const { getDb, admin } = require("./_lib/firebase");
-const { res }          = require("./_lib/http");
-const { logAudit }     = require("./_lib/audit");
+const { getDb, admin }        = require("./_lib/firebase");
+const { res, checkRateLimit } = require("./_lib/http");
+const { logAudit }            = require("./_lib/audit");
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
@@ -44,6 +44,13 @@ exports.handler = async (event) => {
     }
 
     const db = getDb();
+
+    // Per-user rate limit (keyed on the verified Kick identity, not IP — so
+    // viewers sharing an IP never block each other). Anti-spam only; the atomic
+    // transaction below already prevents overspend.
+    if (!(await checkRateLimit(db, userKey, "store_buy", 30, 60))) {
+      return res(429, { error: "Too many requests — please slow down a moment." });
+    }
 
     // 2. Find streamer.
     const streamerSnap = await db.collection("streamers").where("kickChannel", "==", channelKey).limit(1).get();

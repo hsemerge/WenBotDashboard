@@ -20,14 +20,18 @@ exports.handler = async (event) => {
 
     const uid = snap.docs[0].id;
 
+    // Filter by casino only (single-field, auto-indexed) and sort/slice in JS.
+    // `where(casino==).orderBy(endDate)` needs a composite index that isn't
+    // deployed — without it the query throws and Past Winners silently empties.
     const periodsSnap = await db.collection("streamers").doc(uid)
       .collection("leaderboard_periods")
       .where("casino", "==", provider)
-      .orderBy("endDate", "desc")
-      .limit(24)
       .get();
 
-    const periods = periodsSnap.docs.map(d => d.data());
+    const periods = periodsSnap.docs
+      .map(d => d.data())
+      .sort((a, b) => (b.endDate || 0) - (a.endDate || 0))
+      .slice(0, 24);
     return res(200, { success: true, periods });
 
   } catch (err) {

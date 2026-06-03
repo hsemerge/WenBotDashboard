@@ -2,9 +2,9 @@
 // Body: { channel, kickUsername, accessToken, matchId, choice (1|2), points }
 // Verifies viewer identity via Kick API, then records vote and deducts points.
 
-const { getDb, admin } = require("./_lib/firebase");
-const { res }          = require("./_lib/http");
-const { logAudit }     = require("./_lib/audit");
+const { getDb, admin }        = require("./_lib/firebase");
+const { res, checkRateLimit } = require("./_lib/http");
+const { logAudit }            = require("./_lib/audit");
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
@@ -40,6 +40,11 @@ exports.handler = async (event) => {
     }
 
     const db = getDb();
+
+    // Per-user rate limit (verified Kick identity, not IP). Anti-spam.
+    if (!(await checkRateLimit(db, userKey, "bb_vote", 30, 60))) {
+      return res(429, { error: "Too many requests — please slow down a moment." });
+    }
 
     // 2. Find streamer
     const streamerSnap = await db.collection("streamers").where("kickChannel", "==", channelKey).limit(1).get();
