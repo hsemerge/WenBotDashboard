@@ -256,17 +256,13 @@
 
   function animate() {
     rafId = requestAnimationFrame(animate);
-    const now = Date.now();
-    if (paused) {
-      if (now >= pauseEnd) paused = false;
-      return;
-    }
+    if (!totalH) return;
+    // Continuous, seamless loop (no pause). The spacer row provides the small
+    // open gap before the list repeats; subtracting totalH (instead of resetting
+    // to 0) keeps it glitch-free even if a frame overshoots. Matches the
+    // bonus-hunt overlay's smooth scroll — fixes the stop/stutter at the loop.
     offset += SPEED;
-    if (offset >= totalH) {
-      offset = 0;
-      paused = true;
-      pauseEnd = now + PAUSE_MS;
-    }
+    if (offset >= totalH) offset -= totalH;
     scrollInner.style.transform = `translateY(-${offset}px)`;
   }
 

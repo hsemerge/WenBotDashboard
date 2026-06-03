@@ -1,30 +1,22 @@
 /* ─────────────────────────────────────────────────────────────────────────────
    WenBot Overlay Theme Engine
-   Shared by every /overlay-*.html page. Reads appearance settings from the URL
-   query string and applies them as CSS custom properties on :root, loads the
-   chosen Google Font, and (optionally) overrides header text.
+   Shared by every /overlay-*.html page. Applies appearance settings as CSS custom
+   properties on :root, loads the chosen Google Font, and (optionally) overrides
+   header text.
 
-   URL params (all optional):
-     accent  — accent color hex, with or without # (e.g. 00e5ff)
-     bg      — "transparent" | panel background color hex (e.g. 0d1117)
-     bgo     — panel background opacity 0–100 (only used when bg is a color)
-     text    — main text color hex
-     font    — font key (see OV_FONTS below; e.g. Poppins, Montserrat)
-     header  — custom header text (URL-encoded). Replaces any element marked
-               with [data-ov-header].
+   Two sources, applied in order (later wins):
+     1. URL query params (legacy + override) — accent, bg, bgo, text, font, header.
+     2. The streamer's SAVED theme from /api/overlay-theme (Overlay Studio) —
+        polled, so changes made in the dashboard propagate to OBS within seconds
+        WITHOUT re-copying the URL. Only applied when a saved theme exists for this
+        overlay; otherwise the URL params stand (fully backwards-compatible).
 
-   Overlays consume these variables:
-     --ov-accent        accent color           (default #00e5ff)
-     --ov-accent-rgb    accent as "r,g,b"      (default 0,229,255)
-     --ov-panel         panel/card background  (default rgba(13,17,23,0.92))
-     --ov-text          primary text color     (default #ffffff)
-     --ov-font          body font stack        (default 'Inter', sans-serif)
-     --ov-font-heading  heading font stack     (default 'Exo 2', sans-serif)
+   Overlays consume:
+     --ov-accent / --ov-accent-rgb / --ov-panel / --ov-text / --ov-font / --ov-font-heading
    ──────────────────────────────────────────────────────────────────────────── */
 (function () {
   'use strict';
 
-  // Google Font key → { family, weights, fallback }
   var OV_FONTS = {
     Inter:     { family: 'Inter',      weights: '400;500;600;700;800;900', fallback: 'sans-serif' },
     Poppins:   { family: 'Poppins',    weights: '400;500;600;700;800',     fallback: 'sans-serif' },
@@ -42,6 +34,20 @@
     Teko:      { family: 'Teko',       weights: '500;600;700',             fallback: 'sans-serif' },
   };
 
+  // Overlay page filename → Overlay Studio theme id (matches OS_OVERLAYS).
+  var PATH_TO_ID = {
+    'overlay-bonus-hunt':       'bonushunt',
+    'overlay-slot-requests':    'slotreqs',
+    'overlay-slot-picker':      'slotpicker',
+    'overlay-request-spinner':  'reqspinner',
+    'overlay-giveaway-spinner': 'gwspinner',
+    'overlay-wheel':            'wheel',
+    'overlay-winner':           'winner',
+    'overlay-giveaway':         'entries',
+    'overlay-bonus-battle':     'bonusbattle',
+    'overlay-tournament':       'tournament',
+  };
+
   function hexToRgb(hex) {
     hex = String(hex || '').replace('#', '').trim();
     if (hex.length === 3) hex = hex.split('').map(function (c) { return c + c; }).join('');
@@ -56,7 +62,6 @@
     var href = 'https://fonts.googleapis.com/css2?family=' +
       encodeURIComponent(def.family).replace(/%20/g, '+') +
       ':wght@' + def.weights + '&display=swap';
-    // Avoid duplicate <link>s
     if (!document.querySelector('link[data-ov-font="' + key + '"]')) {
       var link = document.createElement('link');
       link.rel = 'stylesheet';
@@ -67,66 +72,107 @@
     return "'" + def.family + "', " + def.fallback;
   }
 
-  function apply() {
-    var params = new URLSearchParams(window.location.search);
+  function setHeader(text) {
+    var run = function () {
+      var els = document.querySelectorAll('[data-ov-header]');
+      for (var i = 0; i < els.length; i++) els[i].textContent = text;
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+    else run();
+  }
+
+  // Apply a normalized theme. Each field is optional — only provided fields change,
+  // so this is safe to call repeatedly (polling) and to layer sources.
+  //   { accent, bg ('transparent'|hex), bgo (0-100), text, font, header }
+  function applyTheme(t) {
+    if (!t) return;
     var root = document.documentElement;
 
-    // Accent
-    var accent = params.get('accent');
-    if (accent) {
-      var rgb = hexToRgb(accent);
+    if (t.accent) {
+      var rgb = hexToRgb(t.accent);
       if (rgb) {
-        root.style.setProperty('--ov-accent', '#' + accent.replace('#', ''));
+        root.style.setProperty('--ov-accent', '#' + String(t.accent).replace('#', ''));
         root.style.setProperty('--ov-accent-rgb', rgb);
       }
     }
 
-    // Background (panel)
-    var bg = params.get('bg');
-    if (bg === 'transparent') {
+    if (t.bg === 'transparent') {
       root.style.setProperty('--ov-panel', 'transparent');
-    } else if (bg) {
-      var bgRgb = hexToRgb(bg);
+    } else if (t.bg) {
+      var bgRgb = hexToRgb(t.bg);
       if (bgRgb) {
-        var op = parseInt(params.get('bgo'), 10);
+        var op = parseInt(t.bgo, 10);
         if (isNaN(op)) op = 100;
         root.style.setProperty('--ov-panel', 'rgba(' + bgRgb + ',' + (op / 100) + ')');
       }
     }
 
-    // Text color
-    var text = params.get('text');
-    if (text && hexToRgb(text)) {
-      root.style.setProperty('--ov-text', '#' + text.replace('#', ''));
+    if (t.text && hexToRgb(t.text)) {
+      root.style.setProperty('--ov-text', '#' + String(t.text).replace('#', ''));
     }
 
-    // Font (applies to both body + headings)
-    var font = params.get('font');
-    if (font) {
-      var stack = loadFont(font);
+    if (t.font) {
+      var stack = loadFont(t.font);
       if (stack) {
         root.style.setProperty('--ov-font', stack);
         root.style.setProperty('--ov-font-heading', stack);
       }
     }
 
-    // Custom header text
-    var header = params.get('header');
-    if (header) {
-      var run = function () {
-        var els = document.querySelectorAll('[data-ov-header]');
-        for (var i = 0; i < els.length; i++) els[i].textContent = header;
-      };
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', run);
-      } else {
-        run();
-      }
-    }
+    if (t.header != null && t.header !== '') setHeader(t.header);
   }
 
-  apply();
+  function themeFromParams() {
+    var p = new URLSearchParams(window.location.search);
+    return {
+      accent: p.get('accent'),
+      bg:     p.get('bg'),
+      bgo:    p.get('bgo'),
+      text:   p.get('text'),
+      font:   p.get('font'),
+      header: p.get('header'),
+    };
+  }
 
-  // Expose for the dashboard preview, which may want the font list.
+  // Convert the dashboard's saved theme object → the normalized shape above.
+  function fromSaved(s) {
+    if (!s) return null;
+    return {
+      accent: s.accent,
+      bg:     (s.bgMode === 'transparent') ? 'transparent' : s.bgColor,
+      bgo:    s.bgOpacity,
+      text:   s.text,
+      font:   s.font,
+      header: s.header,
+    };
+  }
+
+  function overlayId() {
+    var m = window.location.pathname.match(/([^\/]+?)\.html$/i);
+    return m ? (PATH_TO_ID[m[1]] || null) : null;
+  }
+
+  // Poll the streamer's saved theme so OBS picks up dashboard changes live.
+  // Only overrides when a saved theme exists for THIS overlay (otherwise the URL
+  // params stand). Failures are silent — the overlay keeps its current look.
+  function pollServerTheme() {
+    var channel = new URLSearchParams(window.location.search).get('channel');
+    var id = overlayId();
+    if (!channel || !id) return;
+    fetch('/api/overlay-theme?channel=' + encodeURIComponent(channel))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        var saved = d && d.overlays && d.overlays[id];
+        if (saved) applyTheme(fromSaved(saved));
+      })
+      .catch(function () {});
+  }
+
+  // 1) URL params first (legacy + immediate paint).
+  applyTheme(themeFromParams());
+  // 2) Saved theme on top, then poll for live updates.
+  pollServerTheme();
+  setInterval(pollServerTheme, 20000);
+
   window.OV_FONTS = OV_FONTS;
 })();
