@@ -43,6 +43,7 @@ exports.handler = async (event) => {
       entries:         snapshot.entries || [],
       updatedAt:       snapshot.updatedAt || null,
       spinTrigger:     snapshot.spinTrigger   || null,
+      clearSpin:       snapshot.clearSpin     || null,
       raffleTrigger:   snapshot.raffleTrigger || null,
       keyword:         profile.giveawayKeyword  || "!join",
       type:            profile.giveawayType     || "code",

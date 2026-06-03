@@ -2120,6 +2120,18 @@
             <div id="osSelBadges" style="display:flex;gap:6px;flex-shrink:0;"></div>
           </div>
 
+          <!-- Preview backdrop selector — lets you preview the overlay over a
+               background like your real OBS scene, so semi-transparent panels show
+               the exact blend you'll get (WYSIWYG). Applies to every overlay. -->
+          <div id="osBackdropBar" style="display:none;align-items:center;gap:6px;padding:8px 20px;border-bottom:1px solid var(--border);flex-shrink:0;">
+            <span style="font-size:11px;color:var(--text-dim);font-weight:600;">Preview backdrop</span>
+            <button id="osBd_checker" onclick="osSetBackdrop('checker')" style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-dim);cursor:pointer;">Transparent</button>
+            <button id="osBd_black"   onclick="osSetBackdrop('black')"   style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-dim);cursor:pointer;">Black</button>
+            <button id="osBd_gray"    onclick="osSetBackdrop('gray')"    style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-dim);cursor:pointer;">Gray</button>
+            <button id="osBd_white"   onclick="osSetBackdrop('white')"   style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-dim);cursor:pointer;">White</button>
+            <span style="font-size:10px;color:var(--text-dim);margin-left:auto;">match what's behind it in OBS</span>
+          </div>
+
           <!-- Preview viewport -->
           <div style="flex:1;overflow:hidden;position:relative;display:flex;align-items:flex-start;justify-content:center;padding:20px;">
             <!-- Empty state -->
@@ -2562,13 +2574,13 @@
           <div class="card-title">➕ Add Slot</div>
           <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;">
             <div style="flex:1;min-width:200px;position:relative;">
-              <input type="text" id="bhSlotSearch" class="form-input" placeholder="Search slots — Pragmatic, Hacksaw, Nolimit..." autocomplete="off" oninput="bhSearchSlots(this.value)" onfocus="bhSearchSlots(this.value)">
+              <input type="text" id="bhSlotSearch" class="form-input" placeholder="Search slots — Pragmatic, Hacksaw, Nolimit..." autocomplete="off" oninput="bhSearchSlots(this.value)" onfocus="bhSearchSlots(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();bhAddSlot();}">
               <div id="bhDropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;z-index:100;max-height:240px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
               <input type="hidden" id="bhSlotName">
               <input type="hidden" id="bhSlotProvider">
             </div>
             <div style="width:120px;">
-              <input type="number" id="bhBetSize" class="form-input" placeholder="Bet $" min="0.01" step="0.01">
+              <input type="number" id="bhBetSize" class="form-input" placeholder="Bet $" min="0.01" step="0.01" onkeydown="if(event.key==='Enter'){event.preventDefault();bhAddSlot();}">
             </div>
             <button onclick="bhAddSlot()" class="btn btn-accent" style="padding:11px 20px;white-space:nowrap;">Add Slot</button>
           </div>
@@ -3350,7 +3362,10 @@ function isPageLocked(pageId) {
 
 function applyTierLocks() {
   document.querySelectorAll('.nav-item[onclick]').forEach(el => {
-    const m = (el.getAttribute('onclick') || '').match(/showPage\('([^']+)'/);
+    // Quote-agnostic: the build (html-minifier-terser minifyJS) rewrites inline
+    // onclick handlers from single to double quotes, so match either — otherwise
+    // the page id never extracts in prod and the tier pills/locks silently vanish.
+    const m = (el.getAttribute('onclick') || '').match(/showPage\(\s*['"]([^'"]+)['"]/);
     if (!m) return;
     const pageId = m[1];
     if (!isPageLocked(pageId)) { el.classList.remove('nav-locked'); return; }
@@ -4990,7 +5005,26 @@ window.addEventListener('scroll', _positionWinnerPopup, true);
 function closeWinnerPopup() {
   clearTimeout(_gwWinnerPopupTimer);
   const popup = document.getElementById('gwWinnerPopup');
+  const wasOpen = popup && popup.style.display === 'block';
   if (popup) popup.style.display = 'none';
+  // Dismissing the winner card (Keep, Remove, or the 15s auto-close) is the
+  // streamer's "I'm done with this draw" signal — clear the giveaway spin
+  // overlay so the OBS browser source disappears instead of lingering until
+  // they toggle the source. Only when the card was actually open.
+  if (wasOpen) gwClearOverlay();
+}
+
+// Tell every giveaway spin overlay (OBS poll mode) to disappear, and hide the
+// in-dashboard preview immediately. The overlays watch giveaway_state/snapshot
+// and hide when they see a clearSpin newer than the spin they last played.
+function gwClearOverlay() {
+  if (_gwOverlayHideTimer) { clearTimeout(_gwOverlayHideTimer); _gwOverlayHideTimer = null; }
+  document.getElementById('gwSpinnerOverlay')?.classList.remove('active');
+  const uid = fb.activeUid;
+  if (!uid) return;
+  fb.db.collection('streamers').doc(uid).collection('giveaway_state').doc('snapshot')
+    .set({ clearSpin: Date.now() }, { merge: true })
+    .catch(() => {});
 }
 
 async function gwPopupRemoveFromPool() {
@@ -6921,10 +6955,39 @@ function osScalePreview() {
   frame.style.transform = `scale(${scale})`;
   container.style.width  = Math.round(o.obsW * scale) + 'px';
   container.style.height = Math.round(o.obsH * scale) + 'px';
-  document.getElementById('osCheckerBg').style.display = (osCur().bgMode === 'transparent') ? 'block' : 'none';
+  document.getElementById('osBackdropBar').style.display = 'flex';
+  osApplyBackdrop();
 }
 
 // Reload the preview iframe with the current overlay + theme (debounced)
+// Preview backdrop — the surface the overlay is composited over in the preview.
+// Lets the streamer match their real OBS scene so semi-transparent panels show the
+// exact blended color they'll get on stream (WYSIWYG). Shared across all overlays.
+let osBackdrop = 'checker';
+function osApplyBackdrop() {
+  const el = document.getElementById('osCheckerBg');
+  if (!el) return;
+  el.style.display = 'block'; // always visible now, so <100% opacity panels blend
+  if (osBackdrop === 'checker') {
+    el.style.backgroundColor = '#141414';
+    el.style.backgroundImage = 'linear-gradient(45deg,#1c1c1e 25%,transparent 25%,transparent 75%,#1c1c1e 75%),linear-gradient(45deg,#1c1c1e 25%,transparent 25%,transparent 75%,#1c1c1e 75%)';
+    el.style.backgroundSize = '16px 16px';
+    el.style.backgroundPosition = '0 0,8px 8px';
+  } else {
+    el.style.backgroundImage = 'none';
+    el.style.backgroundColor = osBackdrop === 'black' ? '#000000' : (osBackdrop === 'white' ? '#ffffff' : '#808080');
+  }
+  ['checker', 'black', 'gray', 'white'].forEach(function (m) {
+    const b = document.getElementById('osBd_' + m);
+    if (!b) return;
+    const on = (m === osBackdrop);
+    b.style.borderColor = on ? 'var(--accent)' : 'var(--border)';
+    b.style.color       = on ? 'var(--bright)' : 'var(--text-dim)';
+    b.style.background  = on ? 'rgba(0,229,255,0.10)' : 'var(--bg-card)';
+  });
+}
+function osSetBackdrop(mode) { osBackdrop = mode; osApplyBackdrop(); }
+
 function osReloadFrame() {
   clearTimeout(_osReloadTimer);
   _osReloadTimer = setTimeout(() => {
@@ -6943,7 +7006,7 @@ function osReloadFrame() {
 function osRefresh() {
   if (!osSelectedId) return;
   osUpdateUrl();
-  document.getElementById('osCheckerBg').style.display = (osCur().bgMode === 'transparent') ? 'block' : 'none';
+  osApplyBackdrop();
   osReloadFrame();
 }
 

@@ -187,6 +187,7 @@ const demoMode    = params.get('demo') === '1';
 // listens for postMessage triggers from the parent window instead.
 const isEmbed     = params.get('embed') === '1';
 let lastTriggerAt   = 0;
+let lastClear       = null;
 let animating       = false;
 let initialized     = false;
 let hideMachineTimer = null;
@@ -212,6 +213,14 @@ async function poll() {
     const r    = await fetch(`/api/overlay-data?channel=${encodeURIComponent(channel)}`);
     if (!r.ok) { setTimeout(poll, 3000); return; }
     const data = await r.json();
+    // Streamer dismissed the winner card → hide early (auto-hides at 12s anyway).
+    if (data.clearSpin && String(data.clearSpin) !== lastClear) {
+      lastClear = String(data.clearSpin);
+      if (!animating && !(lastTriggerAt && Number(data.clearSpin) < Number(lastTriggerAt))) {
+        if (hideMachineTimer) { clearTimeout(hideMachineTimer); hideMachineTimer = null; }
+        hideMachine();
+      }
+    }
     if (data.spinTrigger) {
       const { winner, wager, triggeredAt } = data.spinTrigger;
       const isFirstSighting = !initialized;

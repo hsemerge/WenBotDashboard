@@ -145,6 +145,7 @@
   }
 
   let lastTrigger = null;
+  let lastClear   = null;
   let spinning    = false;
   let _revealTimer = null;
   // Generation counter — each animateSpin call captures its own ID. Older
@@ -259,6 +260,10 @@
               if (myGen !== _spinGen) return;
               rp.classList.remove('show');
               wrap.classList.remove('glowing', 'landed');
+              // Fully hide the overlay (not just the result text) so the OBS
+              // browser source disappears on its own — previously only the text
+              // faded and the carousel box lingered until the source was toggled.
+              document.getElementById('widget').classList.remove('visible');
             }, REVEAL_MS);
           }
         }, 4100);
@@ -313,11 +318,31 @@
     animateSpin(reel, winIdx, picked);
   }
 
+  // The dashboard writes clearSpin when the streamer dismisses the winner card
+  // (Keep / Remove / auto-close). Hide the overlay on a clearSpin we haven't
+  // seen — unless we're mid-spin or it predates the spin currently showing (a
+  // fresh spin always supersedes a stale clear).
+  function handleClear(state) {
+    const c = state && state.clearSpin;
+    if (!c) return;
+    const id = String(c);
+    if (id === lastClear) return;
+    lastClear = id;
+    if (spinning) return;
+    if (lastTrigger && Number(c) < Number(lastTrigger)) return;
+    if (_revealTimer) { clearTimeout(_revealTimer); _revealTimer = null; }
+    const wrap = document.getElementById('pickerWrap');
+    document.getElementById('resultPanel').classList.remove('show');
+    if (wrap) wrap.classList.remove('glowing', 'landed');
+    document.getElementById('widget').classList.remove('visible');
+  }
+
   async function poll() {
     try {
       const r = await fetch(`/api/overlay-data?channel=${encodeURIComponent(channel)}`);
       if (!r.ok) return;
       const d = await r.json();
+      handleClear(d);
       handleTrigger(d);
     } catch {}
   }
