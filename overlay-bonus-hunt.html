@@ -367,7 +367,12 @@
   let seenPayouts = new Set(); // track which bonus ids have already been revealed
 
   function fmt(n) {
-    return '$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+    // Show cents only when present — don't round a win up to the next dollar.
+    const v = Number(n) || 0;
+    return '$' + v.toLocaleString(undefined, {
+      minimumFractionDigits: Number.isInteger(v) ? 0 : 2,
+      maximumFractionDigits: 2,
+    });
   }
 
   function fmtX(x) { return x.toFixed(1) + 'x'; }

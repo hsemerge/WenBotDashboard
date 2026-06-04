@@ -49,6 +49,7 @@
     'overlay-bankroll':         'bankroll',
     'overlay-deposits':         'deposits',
     'overlay-withdrawals':      'withdrawals',
+    'overlay-chat':             'chat',
   };
 
   function hexToRgb(hex) {

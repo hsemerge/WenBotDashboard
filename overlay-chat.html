@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Chat Overlay — WenBot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--ov-accent:#00e5ff;--ov-accent-rgb:0,229,255;--ov-panel:rgba(13,17,23,0.85);--ov-text:#ffffff;--ov-font:'Inter',sans-serif;--ov-font-heading:'Inter',sans-serif;}
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; }
+    body {
+      background: transparent;
+      font-family: var(--ov-font);
+      color: var(--ov-text);
+      overflow: hidden;
+      padding: 10px;
+    }
+
+    /* Bottom-anchored column: newest message sits at the bottom, older ones
+       scroll up and out. Mirrors how a chat box reads on stream. */
+    #chat {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 6px;
+      padding: 10px;
+      max-height: 100%;
+    }
+
+    .msg {
+      background: var(--ov-panel);
+      border: 1px solid rgba(var(--ov-accent-rgb), 0.18);
+      border-radius: 10px;
+      padding: 7px 11px;
+      font-size: 15px;
+      line-height: 1.4;
+      word-wrap: break-word;
+      overflow-wrap: anywhere;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.85);
+      backdrop-filter: blur(4px);
+      animation: slideIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+    }
+    .msg.leaving { animation: fadeOut 0.4s ease forwards; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; transform: translateY(0); }
+      to   { opacity: 0; transform: translateY(-6px); }
+    }
+
+    .badges { display: inline-flex; gap: 3px; margin-right: 4px; vertical-align: middle; }
+    .badge  { font-size: 12px; line-height: 1; }
+
+    .user {
+      font-weight: 700;
+      margin-right: 2px;
+    }
+    .sep { color: var(--ov-text); opacity: 0.5; margin-right: 5px; }
+    .body { color: var(--ov-text); opacity: 0.96; }
+
+    .emote {
+      height: 22px;
+      vertical-align: middle;
+      margin: 0 1px;
+    }
+
+    /* "Connecting…" / status pill, hidden once chat flows. */
+    #status {
+      position: absolute;
+      left: 50%; bottom: 12px;
+      transform: translateX(-50%);
+      background: var(--ov-panel);
+      border: 1px solid rgba(var(--ov-accent-rgb), 0.25);
+      color: var(--ov-text);
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      opacity: 0.85;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+    }
+    #status.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div id="chat"></div>
+  <div id="status">Connecting to chat…</div>
+
+  <script src="/js/overlay-theme.js"></script>
+  <script>
+  (function () {
+    'use strict';
+
+    var params   = new URLSearchParams(window.location.search);
+    var channel  = (params.get('channel') || '').trim();
+    var isDemo    = params.get('demo') === '1' || window.self !== window.top;
+    var MAX_MSGS  = parseInt(params.get('max'), 10) || 30;
+    // Optional: seconds before a message fades away (0/absent = keep until pushed out).
+    var TTL_SECS  = parseInt(params.get('ttl'), 10) || 0;
+
+    var chatEl   = document.getElementById('chat');
+    var statusEl = document.getElementById('status');
+
+    // ── Badge glyphs (Kick identity.badges.type → emoji). Unknown types skip. ──
+    var BADGE = {
+      broadcaster: '🎥', moderator: '🗡️', vip: '💎', og: '🦄',
+      founder: '🥇', subscriber: '⭐', sub_gifter: '🎁', verified: '✅',
+      staff: '🛠️', global_moderator: '🛡️', trainwreckstv: '🚂',
+    };
+
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // Kick puts emotes inline as [emote:ID:name]. Swap them for <img>, escaping
+    // every non-emote chunk so chat text can never inject markup.
+    function renderContent(raw) {
+      var out = '';
+      var re = /\[emote:(\d+):([^\]]*)\]/g;
+      var last = 0, m;
+      while ((m = re.exec(raw)) !== null) {
+        out += esc(raw.slice(last, m.index));
+        var id = m[1], name = esc(m[2] || 'emote');
+        out += '<img class="emote" src="https://files.kick.com/emotes/' + id +
+               '/fullsize" alt="' + name + '" title="' + name + '" loading="lazy">';
+        last = re.lastIndex;
+      }
+      out += esc(raw.slice(last));
+      return out;
+    }
+
+    function renderBadges(badges) {
+      if (!badges || !badges.length) return '';
+      var html = '';
+      for (var i = 0; i < badges.length; i++) {
+        var g = BADGE[badges[i] && badges[i].type];
+        if (g) html += '<span class="badge" title="' + esc(badges[i].text || badges[i].type) + '">' + g + '</span>';
+      }
+      return html ? '<span class="badges">' + html + '</span>' : '';
+    }
+
+    function addMessage(user, color, badges, content) {
+      var row = document.createElement('div');
+      row.className = 'msg';
+      var safeColor = /^#[0-9a-fA-F]{6}$/.test(color || '') ? color : 'var(--ov-accent)';
+      row.innerHTML =
+        renderBadges(badges) +
+        '<span class="user" style="color:' + safeColor + ';">' + esc(user) + '</span>' +
+        '<span class="sep">:</span>' +
+        '<span class="body">' + renderContent(content) + '</span>';
+      chatEl.appendChild(row);
+
+      // Trim oldest beyond the cap.
+      while (chatEl.children.length > MAX_MSGS) chatEl.removeChild(chatEl.firstChild);
+
+      if (TTL_SECS > 0) {
+        setTimeout(function () {
+          row.classList.add('leaving');
+          setTimeout(function () { if (row.parentNode) row.parentNode.removeChild(row); }, 400);
+        }, TTL_SECS * 1000);
+      }
+    }
+
+    function setStatus(text) {
+      if (!text) { statusEl.classList.add('hidden'); return; }
+      statusEl.classList.remove('hidden');
+      statusEl.textContent = text;
+    }
+
+    // ── DEMO MODE — cycle sample messages so the streamer can theme it. ──
+    if (isDemo || !channel) {
+      setStatus('');
+      var demo = [
+        { u: 'SlotKing88',   c: '#ff5e5e', b: [{ type: 'subscriber' }],                 m: 'lets gooo big win incoming 🔥' },
+        { u: 'WenBot',       c: '#00e5ff', b: [{ type: 'broadcaster' }],                m: 'Type !giveaway to enter 🎁' },
+        { u: 'LuckyLuna',    c: '#b388ff', b: [{ type: 'vip' }],                         m: 'that bonus was insane' },
+        { u: 'ModSquad',     c: '#7CFC00', b: [{ type: 'moderator' }, { type: 'og' }],  m: 'keep it clean in chat 🗡️' },
+        { u: 'BonusHunter',  c: '#ffd166', b: [],                                        m: 'req Sweet Bonanza pls' },
+        { u: 'HighRoller',   c: '#4dd0e1', b: [{ type: 'founder' }],                     m: 'gl everyone 🍀' },
+      ];
+      var di = 0;
+      addMessage('System', '#8b949e', [], 'Chat preview — your live Kick chat appears here on stream.');
+      setInterval(function () { var d = demo[di % demo.length]; di++; addMessage(d.u, d.c, d.b, d.m); }, 2200);
+      return;
+    }
+
+    // ── LIVE MODE — resolve chatroom id, then stream chat over Kick's Pusher. ──
+    var PUSHER_KEY = '32cbd69e4b950bf97679';   // Kick's public web client key
+    var PUSHER_URL = 'wss://ws-us2.pusher.com/app/' + PUSHER_KEY +
+                     '?protocol=7&client=js&version=8.4.0&flash=false';
+    var ws = null, chatroomId = null, reconnectDelay = 1000, pingTimer = null;
+
+    function resolveChatroom() {
+      return fetch('/api/kick-channel?username=' + encodeURIComponent(channel))
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) { return (d && d.chatroom_id) ? d.chatroom_id : null; });
+    }
+
+    function connect() {
+      ws = new WebSocket(PUSHER_URL);
+
+      ws.onopen = function () { reconnectDelay = 1000; };
+
+      ws.onmessage = function (evt) {
+        var pkt;
+        try { pkt = JSON.parse(evt.data); } catch (e) { return; }
+        var ev = pkt.event || '';
+
+        if (ev === 'pusher:connection_established') {
+          ws.send(JSON.stringify({ event: 'pusher:subscribe', data: { auth: '', channel: 'chatrooms.' + chatroomId + '.v2' } }));
+          // Keep-alive ping every 2 min (Pusher idles out otherwise).
+          clearInterval(pingTimer);
+          pingTimer = setInterval(function () {
+            if (ws && ws.readyState === 1) ws.send(JSON.stringify({ event: 'pusher:ping', data: {} }));
+          }, 120000);
+          return;
+        }
+        if (ev === 'pusher:ping') { ws.send(JSON.stringify({ event: 'pusher:pong', data: {} })); return; }
+        if (ev === 'pusher:subscription_succeeded') { setStatus(''); return; }
+
+        if (ev.indexOf('ChatMessageEvent') !== -1) {
+          var data;
+          try { data = typeof pkt.data === 'string' ? JSON.parse(pkt.data) : pkt.data; } catch (e) { return; }
+          if (!data || !data.sender) return;
+          var ident = data.sender.identity || {};
+          addMessage(data.sender.username, ident.color, ident.badges, data.content || '');
+          setStatus('');
+        }
+      };
+
+      ws.onclose = function () {
+        clearInterval(pingTimer);
+        setStatus('Reconnecting…');
+        setTimeout(connect, reconnectDelay);
+        reconnectDelay = Math.min(reconnectDelay * 2, 15000);   // capped backoff
+      };
+
+      ws.onerror = function () { try { ws.close(); } catch (e) {} };
+    }
+
+    resolveChatroom().then(function (id) {
+      if (!id) { setStatus('Couldn’t find that Kick channel.'); return; }
+      chatroomId = id;
+      connect();
+    }).catch(function () { setStatus('Chat unavailable — retrying…'); setTimeout(function () { location.reload(); }, 8000); });
+  })();
+  </script>
+</body>
+</html>

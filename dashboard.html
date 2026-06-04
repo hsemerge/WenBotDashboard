@@ -132,6 +132,7 @@
     .os-tag-giveaway   { background:rgba(0,255,136,0.1);color:var(--green); }
     .os-tag-battles    { background:rgba(255,71,87,0.1);color:var(--red); }
     .os-tag-tournament { background:rgba(255,167,38,0.1);color:var(--orange); }
+    .os-tag-chat       { background:rgba(179,136,255,0.12);color:#b388ff; }
 
     /* ── CARDS & GRID ── */
     .card {
@@ -2682,8 +2683,18 @@
 
         <!-- Bonus table -->
         <div class="card" style="margin-bottom:16px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px;flex-wrap:wrap;">
             <div class="card-title" style="margin-bottom:0;">Bonus List <span style="color:var(--text-dim);font-weight:500;" id="bhBonusCount"></span></div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;">Sort</span>
+              <select id="bhSortSelect" onchange="bhSortBy(this.value)" class="form-input"
+                style="padding:5px 8px;font-size:12px;width:auto;min-width:140px;cursor:pointer;">
+                <option value="">Manual order</option>
+                <option value="provider">Provider (A–Z)</option>
+                <option value="bet-desc">Bet (high → low)</option>
+                <option value="multi-desc">Multiplier (high → low)</option>
+              </select>
+            </div>
           </div>
           <div style="overflow-x:auto;">
             <table style="width:100%;border-collapse:collapse;" id="bhTable">
@@ -2696,7 +2707,7 @@
                   <th style="text-align:left;padding:6px 10px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);width:90px;">Viewer</th>
                   <th style="text-align:left;padding:6px 10px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);">Notes</th>
                   <th style="text-align:right;padding:6px 10px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);width:140px;">Result</th>
-                  <th style="width:56px;"></th>
+                  <th style="width:96px;"></th>
                 </tr>
               </thead>
               <tbody id="bhTableBody"></tbody>
@@ -6982,6 +6993,7 @@ const OS_OVERLAYS = [
   { id:'bankroll',    name:'Session P/L',    icon:'💵', tag:'bankroll',   desc:'Combined deposits, withdrawals, and net profit/loss for the session.', path:'/overlay-bankroll.html',      obsW:380,  obsH:170,  demo:true,  header:'💵 Session P/L',          note:'Width: 380, height: 170. Updates live as you log deposits/withdrawals on the Overview.' },
   { id:'deposits',    name:'Deposits',       icon:'💰', tag:'bankroll',   desc:'Total you have deposited this session.',                    path:'/overlay-deposits.html',      obsW:320,  obsH:130,  demo:true,  header:'💰 Deposited',            note:'Width: 320, height: 130.' },
   { id:'withdrawals', name:'Withdrawals',    icon:'💸', tag:'bankroll',   desc:'Total you have withdrawn this session.',                    path:'/overlay-withdrawals.html',   obsW:320,  obsH:130,  demo:true,  header:'💸 Withdrawn',            note:'Width: 320, height: 130.' },
+  { id:'chat',        name:'Live Chat',      icon:'💬', tag:'chat',       desc:'Your Kick chat on stream — themed, with badges and emotes.', path:'/overlay-chat.html',          obsW:380,  obsH:600,  demo:true,  header:null,                     note:'Width: 380, height: 600. Pulls your Kick chat live — no setup needed. Use ?ttl=60 to fade messages after 60s.' },
 ];
 
 let osSelectedId = null;
@@ -7110,7 +7122,7 @@ function loadOverlayStudio() {
     let divider = '';
     if (o.tag !== lastTag) {
       lastTag = o.tag;
-      const tagLabels = { hunting:'Hunting', giveaway:'Giveaway', battles:'Battles', tournament:'Tournament', bankroll:'Bankroll' };
+      const tagLabels = { hunting:'Hunting', giveaway:'Giveaway', battles:'Battles', tournament:'Tournament', bankroll:'Bankroll', chat:'Chat' };
       divider = `<div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);padding:8px 10px 4px;margin-top:4px;">${tagLabels[o.tag]||o.tag}</div>`;
     }
     return divider + `
@@ -7217,7 +7229,7 @@ function osSelectOverlay(id) {
   document.getElementById('osSelIcon').textContent = o.icon;
   document.getElementById('osSelName').textContent = o.name;
   document.getElementById('osSelDesc').textContent = o.desc;
-  const tagLabels = { hunting:'Hunting', giveaway:'Giveaway', battles:'Battles', tournament:'Tournament', bankroll:'Bankroll' };
+  const tagLabels = { hunting:'Hunting', giveaway:'Giveaway', battles:'Battles', tournament:'Tournament', bankroll:'Bankroll', chat:'Chat' };
   document.getElementById('osSelBadges').innerHTML =
     `<span class="os-tag os-tag-${o.tag}">${tagLabels[o.tag]||o.tag}</span>`;
 
@@ -8052,15 +8064,25 @@ function bhRender() {
       <td style="padding:8px 10px;">${viewerCell}</td>
       <td style="padding:6px 10px;">${notesCell}</td>
       <td style="padding:8px 10px;text-align:right;">${resultCell}</td>
-      <td style="padding:8px 6px;text-align:right;">
-        <button onclick="bhRemoveSlot('${b.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:14px;opacity:0.5;line-height:1;" title="Remove">✕</button>
+      <td style="padding:8px 6px;text-align:right;white-space:nowrap;">
+        <button onclick="bhMoveSlot('${b.id}',-1)" ${i === 0 ? 'disabled' : ''} title="Move up"
+          style="background:none;border:none;cursor:${i === 0 ? 'default' : 'pointer'};color:var(--text-dim);font-size:12px;opacity:${i === 0 ? '0.2' : '0.6'};line-height:1;padding:2px 3px;">▲</button>
+        <button onclick="bhMoveSlot('${b.id}',1)" ${i === total - 1 ? 'disabled' : ''} title="Move down"
+          style="background:none;border:none;cursor:${i === total - 1 ? 'default' : 'pointer'};color:var(--text-dim);font-size:12px;opacity:${i === total - 1 ? '0.2' : '0.6'};line-height:1;padding:2px 3px;">▼</button>
+        <button onclick="bhRemoveSlot('${b.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:14px;opacity:0.5;line-height:1;padding:2px 3px;" title="Remove">✕</button>
       </td>
     </tr>`;
   }).join('');
 }
 
 function bhFmt(n) {
-  return '$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  // Show cents only when the amount actually has them — never round a win UP to
+  // the next whole dollar (a $123.45 payout must read $123.45, not $123).
+  const v = Number(n) || 0;
+  return '$' + v.toLocaleString(undefined, {
+    minimumFractionDigits: Number.isInteger(v) ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 // ── OVERVIEW STATS (Phase 1) ───────────────────────────────────────────────
@@ -8375,6 +8397,42 @@ async function bhRemoveSlot(id) {
   } catch (e) {
     flash('Failed to remove slot: ' + e.message, 'error');
   }
+}
+
+// Reorder a slot one position up (dir=-1) or down (dir=+1). Order is cosmetic —
+// stats compute from the array regardless — and the same order drives the overlay.
+async function bhMoveSlot(id, dir) {
+  const arr = [...(bhHunt.bonuses || [])];
+  const i   = arr.findIndex(b => b.id === id);
+  const j   = i + dir;
+  if (i < 0 || j < 0 || j >= arr.length) return;
+  [arr[i], arr[j]] = [arr[j], arr[i]];
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid)
+      .collection('bonus_hunt').doc('current').update({ bonuses: arr, updatedAt: Date.now() });
+    bhHunt.bonuses = arr;
+    bhRender();
+  } catch (e) { flash('Failed to reorder: ' + e.message, 'error'); }
+}
+
+// One-shot sort that re-persists the slot order (manual reordering still works
+// afterwards). Resets the picker back to "Manual" so it reads as an action.
+async function bhSortBy(mode) {
+  const sel = document.getElementById('bhSortSelect');
+  if (sel) sel.value = '';
+  if (!bhHunt || !mode) return;
+  const arr = [...(bhHunt.bonuses || [])];
+  if (mode === 'provider')        arr.sort((a, b) => (a.provider || '').localeCompare(b.provider || '') || (a.name || '').localeCompare(b.name || ''));
+  else if (mode === 'bet-desc')   arr.sort((a, b) => (b.betSize || 0) - (a.betSize || 0));
+  else if (mode === 'multi-desc') arr.sort((a, b) => (b.multiplier || 0) - (a.multiplier || 0));
+  else return;
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid)
+      .collection('bonus_hunt').doc('current').update({ bonuses: arr, updatedAt: Date.now() });
+    bhHunt.bonuses = arr;
+    bhRender();
+    flash('Slots sorted.');
+  } catch (e) { flash('Failed to sort: ' + e.message, 'error'); }
 }
 
 // Notes — auto-save on blur
