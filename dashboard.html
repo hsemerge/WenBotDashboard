@@ -2808,12 +2808,36 @@
         <div class="card" style="text-align:center;padding:52px 36px;max-width:560px;margin:0 auto 24px;">
           <div style="font-size:52px;margin-bottom:16px;">🏆</div>
           <h2 style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--bright);margin-bottom:8px;">No Active Tournament</h2>
-          <p style="color:var(--text-dim);font-size:13px;margin-bottom:28px;line-height:1.6;">Run a single-elimination bracket where viewers spend points to enter and compete. Prize pool is split among top finishers.</p>
-          <div style="text-align:left;max-width:380px;margin:0 auto;">
-            <div class="field" style="margin-bottom:14px;">
+          <p style="color:var(--text-dim);font-size:13px;margin-bottom:28px;line-height:1.6;">Run a single-elimination slot bracket. Pick a format, then play each matchup — the higher multiplier (X) advances.</p>
+          <style>
+            .tn-mode-card { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:14px 10px; text-align:center; cursor:pointer; transition:all .15s; }
+            .tn-mode-card:hover { border-color:rgba(255,167,38,0.4); }
+            .tn-mode-card.active { border-color:var(--orange); background:rgba(255,167,38,0.08); }
+            .tn-mode-name { font-family:'Exo 2',sans-serif; font-weight:800; font-size:13px; color:var(--bright); margin:6px 0 4px; }
+            .tn-mode-desc { font-size:10px; color:var(--text-dim); line-height:1.4; }
+          </style>
+          <div style="text-align:left;max-width:540px;margin:0 auto;">
+            <div class="field" style="margin-bottom:16px;">
               <label class="label">Tournament Title</label>
-              <input type="text" id="tnTitle" class="form-input" placeholder="e.g. Friday Showdown" maxlength="60">
+              <input type="text" id="tnTitle" class="form-input" placeholder="e.g. Friday Slot Showdown" maxlength="60">
             </div>
+
+            <label class="label" style="display:block;margin-bottom:8px;">Format</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px;">
+              <div class="tn-mode-card" data-mode="raffle" onclick="tnSetMode('raffle')">
+                <div style="font-size:22px;">🎟️</div><div class="tn-mode-name">Raffle</div>
+                <div class="tn-mode-desc">Viewers buy in with points + pick a slot; you draw the bracket.</div>
+              </div>
+              <div class="tn-mode-card" data-mode="slotrequest" onclick="tnSetMode('slotrequest')">
+                <div style="font-size:22px;">📋</div><div class="tn-mode-name">Slot Requests</div>
+                <div class="tn-mode-desc">Pull entrants from the live !r request queue.</div>
+              </div>
+              <div class="tn-mode-card" data-mode="open" onclick="tnSetMode('open')">
+                <div style="font-size:22px;">✍️</div><div class="tn-mode-name">Open</div>
+                <div class="tn-mode-desc">Fill the bracket manually with any players/slots.</div>
+              </div>
+            </div>
+
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
               <div class="field">
                 <label class="label">Bracket Size</label>
@@ -2822,15 +2846,39 @@
                   <option value="8" selected>8 players</option>
                   <option value="16">16 players</option>
                   <option value="32">32 players</option>
+                  <option value="64">64 players</option>
                 </select>
               </div>
-              <div class="field">
-                <label class="label">Entry Cost (pts)</label>
-                <input type="number" id="tnEntryCost" class="form-input" placeholder="500" min="0" value="500">
+              <div class="field" id="tnDrawStyleField">
+                <label class="label">Draw Style</label>
+                <select id="tnDrawStyle" class="form-input">
+                  <option value="gwspinner" selected>Avatar Carousel</option>
+                  <option value="wheel">Spinning Wheel</option>
+                  <option value="winner">Spinning Names</option>
+                </select>
               </div>
             </div>
-            <div class="field" style="margin-bottom:14px;">
-              <label class="label">Prize Distribution</label>
+
+            <div id="tnRaffleOpts">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+                <div class="field">
+                  <label class="label">Entry Cost (pts)</label>
+                  <input type="number" id="tnEntryCost" class="form-input" placeholder="500" min="0" value="500">
+                </div>
+                <div class="field">
+                  <label class="label">Max Tickets / Viewer</label>
+                  <input type="number" id="tnMaxEntries" class="form-input" min="1" value="1">
+                </div>
+              </div>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:14px;cursor:pointer;">
+                <input type="checkbox" id="tnRequireSlot" checked style="width:16px;height:16px;accent-color:var(--accent);"> Require viewers to pick a slot when entering
+              </label>
+            </div>
+
+            <div id="tnModeHint" style="font-size:12px;color:var(--text-dim);background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:14px;line-height:1.5;"></div>
+
+            <div class="field" id="tnPrizeField" style="margin-bottom:14px;">
+              <label class="label">Prize Distribution <span style="color:var(--text-dim);font-weight:400;font-size:11px;">— splits the points prize pool</span></label>
               <select id="tnPrizePreset" class="form-input" onchange="tnPresetChange()">
                 <option value="winner">Winner Takes All (100%)</option>
                 <option value="top2">Top 2 (65 / 35%)</option>
@@ -2881,6 +2929,7 @@
         </div>
         <div class="card">
           <div class="card-title" style="margin-bottom:14px;">Participants</div>
+          <div id="tnAddPanel" style="margin-bottom:14px;"></div>
           <div id="tnParticipantList" style="display:flex;flex-direction:column;gap:6px;"></div>
           <div id="tnParticipantEmpty" style="color:var(--text-dim);font-size:13px;text-align:center;padding:24px 0;">No one has entered yet.</div>
         </div>
@@ -3358,7 +3407,7 @@ function showPage(id, el) {
   if (id !== 'slotrequest' && srUnsub)        { srUnsub(); srUnsub = null; }
   if (id !== 'bonushunt') { unsubBhSr(); if (bhHistoryUnsub) { bhHistoryUnsub(); bhHistoryUnsub = null; } if (bhUnsub) { bhUnsub(); bhUnsub = null; } }
   if (id !== 'bonusbattle' && bbUnsub)        { bbUnsub(); bbUnsub = null; }
-  if (id !== 'tournament'  && tnUnsub)        { tnUnsub(); tnUnsub = null; }
+  if (id !== 'tournament'  && tnUnsub)        { tnUnsub(); tnUnsub = null; if (tnEntriesUnsub) { tnEntriesUnsub(); tnEntriesUnsub = null; } if (tnSrUnsub) { tnSrUnsub(); tnSrUnsub = null; } }
   if (id !== 'verified'    && verifiedUnsub)  { verifiedUnsub(); verifiedUnsub = null; }
   if (id !== 'store'       && redemptionsUnsub) { redemptionsUnsub(); redemptionsUnsub = null; }
   if (id !== 'raffle'      && raffleHistoryUnsub) { raffleHistoryUnsub(); raffleHistoryUnsub = null; }
@@ -9623,8 +9672,12 @@ document.addEventListener('click', e => {
 
 // ── TOURNAMENTS ───────────────────────────────────────────────────────────────
 
-let tnTournament = null;
-let tnUnsub      = null;
+let tnTournament  = null;
+let tnUnsub       = null;
+let tnEntries     = [];     // raffle ticket pool (tournament_entries)
+let tnEntriesUnsub = null;
+let tnSrRequests  = [];     // pending !r slot requests (for Slot Request mode)
+let tnSrUnsub     = null;
 
 const TN_PRESETS = {
   winner: [{ place: 1, pct: 100 }],
@@ -9632,6 +9685,28 @@ const TN_PRESETS = {
   top3:   [{ place: 1, pct: 50 }, { place: 2, pct: 30 }, { place: 3, pct: 20 }],
   top4:   [{ place: 1, pct: 40 }, { place: 2, pct: 25 }, { place: 3, pct: 20 }, { place: 4, pct: 15 }],
 };
+
+// Tournament v2 format. raffle = points buy-in + slot pick + draw; slotrequest =
+// pull from the !r queue; open = streamer fills the bracket manually. The bracket
+// itself is the same single-elim, scored by multiplier (higher X advances).
+let tnMode = 'raffle';
+function tnSetMode(mode) {
+  tnMode = mode;
+  document.querySelectorAll('#page-tournament .tn-mode-card').forEach(c =>
+    c.classList.toggle('active', c.getAttribute('data-mode') === mode));
+  const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
+  show('tnRaffleOpts',     mode === 'raffle');
+  show('tnDrawStyleField', mode !== 'open');   // open has no draw
+  show('tnPrizeField',     mode === 'raffle');  // only raffle has a points pool
+  const hint = document.getElementById('tnModeHint');
+  if (hint) {
+    hint.innerHTML = mode === 'raffle'
+      ? '🎟️ Viewers open your tournament page, log in with Kick, spend points and pick a slot to enter. When registration closes you draw the bracket with your chosen draw style. Entries aren’t refunded.'
+      : mode === 'slotrequest'
+      ? '📋 Entrants come from your live <code style="color:var(--accent);">!r</code> slot-request queue — pull the ones you want into the bracket. No points entry.'
+      : '✍️ You fill the bracket yourself with any players + slots. No viewer entry, no points pool.';
+  }
+}
 
 function loadTournament() {
   if (!fb.currentUser) return;
@@ -9644,6 +9719,29 @@ function loadTournament() {
       tnTournament = snap.exists ? snap.data() : null;
       tnRender();
     });
+
+  // Raffle ticket pool — drives the entry count + the draw.
+  if (tnEntriesUnsub) { tnEntriesUnsub(); tnEntriesUnsub = null; }
+  tnEntriesUnsub = fb.db.collection('streamers').doc(uid)
+    .collection('tournament_entries')
+    .onSnapshot(s => {
+      tnEntries = s.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (tnTournament && tnTournament.mode === 'raffle' && tnTournament.status === 'registration') {
+        tnRenderRegistration(tnTournament);
+      }
+    }, () => {});
+
+  // Pending !r slot requests — drive the Slot Request mode pull list.
+  if (tnSrUnsub) { tnSrUnsub(); tnSrUnsub = null; }
+  tnSrUnsub = fb.db.collection('streamers').doc(uid)
+    .collection('slot_requests').where('status', '==', 'pending')
+    .onSnapshot(s => {
+      tnSrRequests = s.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
+      if (tnTournament && tnTournament.mode === 'slotrequest' && tnTournament.status === 'registration') {
+        tnRenderRegistration(tnTournament);
+      }
+    }, () => {});
 
   async function setTnLinks() {
     let chan = profile?.kickChannel || '';
@@ -9679,6 +9777,7 @@ function tnRender() {
   if (!t || !t.active) {
     document.getElementById('tnNoTournament').style.display = '';
     badge.style.display = 'none';
+    tnSetMode(tnMode); // reflect the selected format in the setup form
     return;
   }
 
@@ -9698,30 +9797,114 @@ function tnRender() {
 }
 
 function tnRenderRegistration(t) {
-  const participants = t.participants || [];
-  const slots = t.bracketSize - participants.length;
-  document.getElementById('tnTitleDisplay').textContent    = t.title || 'Tournament';
-  document.getElementById('tnEnteredCount').textContent    = participants.length;
-  document.getElementById('tnSlotsLeft').textContent       = Math.max(0, slots);
-  document.getElementById('tnPrizePool').textContent       = (t.prizePool || 0).toLocaleString() + ' pts';
-  document.getElementById('tnStartBtn').disabled           = participants.length < 2;
-  document.getElementById('tnStartBtn').style.opacity      = participants.length < 2 ? '0.4' : '1';
-
-  const list  = document.getElementById('tnParticipantList');
-  const empty = document.getElementById('tnParticipantEmpty');
-  if (!participants.length) {
-    list.innerHTML = '';
-    empty.style.display = '';
-    return;
-  }
-  empty.style.display = 'none';
-  list.innerHTML = participants.map((p, i) => `
+  document.getElementById('tnTitleDisplay').textContent = t.title || 'Tournament';
+  document.getElementById('tnPrizePool').textContent    = (t.prizePool || 0).toLocaleString() + ' pts';
+  const startBtn = document.getElementById('tnStartBtn');
+  const list     = document.getElementById('tnParticipantList');
+  const empty     = document.getElementById('tnParticipantEmpty');
+  const row = (p, i, removable) => `
     <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;">
       <span style="font-size:13px;color:var(--text-dim);min-width:22px;">#${i+1}</span>
-      <span style="flex:1;font-size:13px;font-weight:600;color:var(--bright);">${escHtml(p.kickUsername)}</span>
-      <button onclick="tnRemoveParticipant('${escHtml(p.kickUsernameKey)}')"
-        style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:2px 6px;opacity:0.6;" title="Remove">✕</button>
-    </div>`).join('');
+      ${tnSlotThumb(p)}
+      <span style="flex:1;font-size:13px;font-weight:600;color:var(--bright);">${escHtml(p.kickUsername)}${p.slot && p.slot.name ? ` <span style="color:var(--text-dim);font-weight:400;">— ${escHtml(p.slot.name)}</span>` : ''}</span>
+      ${removable ? `<button onclick="tnRemoveParticipant('${escHtml(p.kickUsernameKey)}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:2px 6px;opacity:0.6;" title="Remove">✕</button>` : ''}
+    </div>`;
+
+  if (t.mode === 'raffle') {
+    document.getElementById('tnAddPanel').innerHTML = '';
+    // Unique entrants from the ticket pool.
+    const seen = new Set(); const entrants = [];
+    for (const e of tnEntries) { if (!seen.has(e.kickUsernameKey)) { seen.add(e.kickUsernameKey); entrants.push(e); } }
+    document.getElementById('tnEnteredCount').textContent = entrants.length;
+    document.getElementById('tnSlotsLeft').textContent    = t.bracketSize;
+    startBtn.textContent   = '🎲 Draw Bracket';
+    startBtn.disabled      = entrants.length < 2;
+    startBtn.style.opacity = entrants.length < 2 ? '0.4' : '1';
+    if (!entrants.length) { list.innerHTML = ''; empty.textContent = 'No entries yet — share your tournament page.'; empty.style.display = ''; return; }
+    empty.style.display = 'none';
+    list.innerHTML = entrants.map((e, i) => row(e, i, false)).join('')
+      + (tnEntries.length > entrants.length
+          ? `<div style="font-size:11px;color:var(--text-dim);text-align:center;padding:6px;">${tnEntries.length} tickets · ${entrants.length} entrants · ${t.bracketSize} drawn into the bracket</div>` : '');
+    return;
+  }
+
+  // slotrequest / open — participants set directly.
+  const participants = t.participants || [];
+  tnRenderAddPanel(t, participants);
+  document.getElementById('tnEnteredCount').textContent = participants.length;
+  document.getElementById('tnSlotsLeft').textContent    = Math.max(0, t.bracketSize - participants.length);
+  startBtn.textContent   = 'Start Bracket';
+  startBtn.disabled      = participants.length < 2;
+  startBtn.style.opacity = participants.length < 2 ? '0.4' : '1';
+  if (!participants.length) { list.innerHTML = ''; empty.textContent = 'No one has entered yet.'; empty.style.display = ''; return; }
+  empty.style.display = 'none';
+  list.innerHTML = participants.map((p, i) => row(p, i, true)).join('');
+}
+
+// Open = manual add form; Slot Request = pull pending !r requests into the bracket.
+function tnRenderAddPanel(t, participants) {
+  const panel = document.getElementById('tnAddPanel');
+  if (!panel) return;
+  const full = participants.length >= t.bracketSize;
+  if (t.mode === 'open') {
+    panel.innerHTML = full
+      ? '<div style="font-size:12px;color:var(--text-dim);">Bracket is full.</div>'
+      : `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input id="tnOpenName" placeholder="Player name" maxlength="40" style="flex:1;min-width:120px;padding:8px 10px;background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;" onkeydown="if(event.key==='Enter'){event.preventDefault();tnAddOpenParticipant();}">
+          <input id="tnOpenSlot" placeholder="Slot (optional)" maxlength="60" style="flex:1;min-width:120px;padding:8px 10px;background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;" onkeydown="if(event.key==='Enter'){event.preventDefault();tnAddOpenParticipant();}">
+          <button onclick="tnAddOpenParticipant()" class="btn btn-accent btn-sm">+ Add</button>
+        </div>`;
+  } else if (t.mode === 'slotrequest') {
+    const used  = new Set(participants.map(p => p.kickUsernameKey));
+    const avail = tnSrRequests.filter(r => !used.has((r.kickUsername || '').toLowerCase()));
+    panel.innerHTML = `<div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">Pending <code style="color:var(--accent);">!r</code> requests — add into the bracket:</div>`
+      + (avail.length
+          ? avail.slice(0, 50).map(r => `
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;margin-bottom:5px;">
+              <span style="flex:1;font-size:12px;color:var(--bright);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(r.kickUsername || '')} <span style="color:var(--text-dim);">— ${escHtml(r.slotName || '')}</span></span>
+              <button onclick="tnAddSrParticipant('${escHtml(r.id)}')" ${full ? 'disabled' : ''} class="btn btn-ghost btn-sm">+ Add</button>
+            </div>`).join('')
+          : '<div style="font-size:12px;color:var(--text-dim);">No pending requests right now.</div>');
+  } else {
+    panel.innerHTML = '';
+  }
+}
+
+async function tnAddOpenParticipant() {
+  if (!tnTournament) return;
+  const t    = tnTournament;
+  const name = (document.getElementById('tnOpenName')?.value || '').trim();
+  if (!name) { flash('Enter a player name', 'error'); return; }
+  const slotName = (document.getElementById('tnOpenSlot')?.value || '').trim();
+  const key = name.toLowerCase();
+  if ((t.participants || []).some(p => p.kickUsernameKey === key)) { flash('Already added', 'error'); return; }
+  if ((t.participants || []).length >= t.bracketSize) { flash('Bracket is full', 'error'); return; }
+  const participant = { kickUsername: name, kickUsernameKey: key, slot: slotName ? { name: slotName, thumbnailUrl: null, gameId: null } : null, eliminated: false, eliminatedRound: null, place: null };
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid).collection('tournaments').doc('current')
+      .update({ participants: firebase.firestore.FieldValue.arrayUnion(participant), updatedAt: Date.now() });
+    const n = document.getElementById('tnOpenName'); const sl = document.getElementById('tnOpenSlot');
+    if (n) n.value = ''; if (sl) sl.value = '';
+  } catch (e) { flash('Error: ' + e.message, 'error'); }
+}
+
+async function tnAddSrParticipant(reqId) {
+  if (!tnTournament) return;
+  const t = tnTournament;
+  const r = tnSrRequests.find(x => x.id === reqId);
+  if (!r) return;
+  const key = (r.kickUsername || '').toLowerCase();
+  if (!key) return;
+  if ((t.participants || []).some(p => p.kickUsernameKey === key)) { flash('Already added', 'error'); return; }
+  if ((t.participants || []).length >= t.bracketSize) { flash('Bracket is full', 'error'); return; }
+  const participant = { kickUsername: r.kickUsername, kickUsernameKey: key, slot: { name: r.slotName || '', thumbnailUrl: r.thumbnailUrl || null, gameId: r.gameId || null }, eliminated: false, eliminatedRound: null, place: null };
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid).collection('tournaments').doc('current')
+      .update({ participants: firebase.firestore.FieldValue.arrayUnion(participant), updatedAt: Date.now() });
+    // Mark the request handled so it leaves the pending queue.
+    fb.db.collection('streamers').doc(fb.activeUid).collection('slot_requests').doc(reqId)
+      .update({ status: 'added_to_tournament' }).catch(() => {});
+  } catch (e) { flash('Error: ' + e.message, 'error'); }
 }
 
 function tnRenderBracket(t) {
@@ -9736,32 +9919,57 @@ function tnRenderBracket(t) {
   container.innerHTML = rounds.map(r => tnRoundCard(r, t.currentRound)).join('');
 }
 
+function tnSlotThumb(p) {
+  if (p && p.slot && p.slot.thumbnailUrl)
+    return `<img src="${escHtml(p.slot.thumbnailUrl)}" alt="" style="width:30px;height:30px;border-radius:5px;object-fit:cover;flex-shrink:0;background:var(--bg-panel);" onerror="this.style.display='none';">`;
+  return '';
+}
+function tnPlayerBlock(p, won, lost, align) {
+  const name = p ? escHtml(p.kickUsername) : '<span style="opacity:0.35;">BYE</span>';
+  const slot = p && p.slot && p.slot.name
+    ? `<div style="font-size:10px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(p.slot.name)}</div>` : '';
+  return `<div style="display:flex;align-items:center;gap:8px;min-width:0;${align==='right'?'flex-direction:row-reverse;text-align:right;':''}">
+    ${tnSlotThumb(p)}
+    <div style="min-width:0;">
+      <div style="font-size:13px;font-weight:${won?'800':'600'};color:${won?'var(--gold)':'var(--bright)'};text-decoration:${lost?'line-through':''};opacity:${lost?'0.4':'1'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${won?'🥇 ':''}${name}</div>
+      ${slot}
+    </div>
+  </div>`;
+}
+
 function tnRoundCard(r, currentRound) {
   const isCurrent = r.round === currentRound;
   const matches = r.matches.map(m => {
-    const p1name = m.p1 ? escHtml(m.p1.kickUsername) : '<span style="opacity:0.35;">BYE</span>';
-    const p2name = m.p2 ? escHtml(m.p2.kickUsername) : '<span style="opacity:0.35;">BYE</span>';
-    const done   = m.status === 'complete';
-    const w1     = done && m.winner === 'p1';
-    const w2     = done && m.winner === 'p2';
+    const done = m.status === 'complete';
+    const w1   = done && m.winner === 'p1';
+    const w2   = done && m.winner === 'p2';
+    const both = m.p1 && m.p2;
+    const sc   = m.score || {};
 
-    const advBtn = (side) => isCurrent && !done && m.p1 && m.p2
-      ? `<button onclick="tnAdvance('${escHtml(r.round)}','${escHtml(m.id)}','${side}')"
-           style="padding:3px 10px;font-size:11px;font-weight:700;background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);border-radius:6px;color:var(--accent);cursor:pointer;">Advance ▶</button>`
-      : '';
+    // Scoring panel — enter each player's bet + win; X = win/bet; higher X advances.
+    let panel = '';
+    if (isCurrent && !done && both) {
+      const fld = (side) => `
+        <input type="number" id="tn_${r.round}_${m.id}_${side}bet" placeholder="Bet" min="0" step="0.01" oninput="tnCalcX('${r.round}','${m.id}')" style="width:74px;padding:5px 7px;font-size:11px;background:var(--bg-panel);border:1px solid var(--border);border-radius:5px;color:var(--bright);">
+        <input type="number" id="tn_${r.round}_${m.id}_${side}win" placeholder="Win" min="0" step="0.01" oninput="tnCalcX('${r.round}','${m.id}')" style="width:74px;padding:5px 7px;font-size:11px;background:var(--bg-panel);border:1px solid var(--border);border-radius:5px;color:var(--bright);">
+        <span id="tn_${r.round}_${m.id}_${side}x" style="font-size:12px;font-weight:800;color:var(--accent);min-width:46px;">—</span>`;
+      panel = `<div style="grid-column:1/-1;display:flex;flex-direction:column;gap:6px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span style="font-size:11px;color:var(--text-dim);min-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(m.p1.kickUsername)}</span>${fld('p1')}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span style="font-size:11px;color:var(--text-dim);min-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(m.p2.kickUsername)}</span>${fld('p2')}</div>
+        <button onclick="tnScoreMatch('${r.round}','${m.id}')" style="align-self:flex-start;padding:5px 14px;font-size:11px;font-weight:700;background:rgba(255,167,38,0.12);border:1px solid rgba(255,167,38,0.4);border-radius:6px;color:var(--orange);cursor:pointer;">Score &amp; Advance ▶</button>
+      </div>`;
+    } else if (done && (sc.p1 || sc.p2)) {
+      const xs = (side) => sc[side] ? (Number(sc[side].x) || 0).toFixed(2) + 'x' : '—';
+      panel = `<div style="grid-column:1/-1;font-size:11px;color:var(--text-dim);margin-top:6px;">
+        ${escHtml(m.p1?.kickUsername || '')}: <strong style="color:${w1?'var(--gold)':'var(--text-dim)'};">${xs('p1')}</strong>
+        · ${escHtml(m.p2?.kickUsername || '')}: <strong style="color:${w2?'var(--gold)':'var(--text-dim)'};">${xs('p2')}</strong></div>`;
+    }
 
-    return `<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid ${isCurrent && !done ? 'rgba(0,229,255,0.2)' : 'var(--border)'};border-radius:10px;margin-bottom:8px;">
-      <div style="display:flex;align-items:center;gap:8px;">
-        ${w1 ? '<span style="font-size:14px;">🥇</span>' : ''}
-        <span style="font-size:13px;font-weight:${w1?'800':'500'};color:${w1?'var(--gold)':'var(--bright)'};text-decoration:${w2?'line-through':''};opacity:${w2?'0.4':'1'};">${p1name}</span>
-        ${advBtn('p1')}
-      </div>
+    return `<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid ${isCurrent && !done ? 'rgba(255,167,38,0.25)' : 'var(--border)'};border-radius:10px;margin-bottom:8px;">
+      ${tnPlayerBlock(m.p1, w1, w2, 'left')}
       <div style="font-size:12px;font-weight:800;color:var(--text-dim);">VS</div>
-      <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-direction:row-reverse;">
-        ${w2 ? '<span style="font-size:14px;">🥇</span>' : ''}
-        <span style="font-size:13px;font-weight:${w2?'800':'500'};color:${w2?'var(--gold)':'var(--bright)'};text-decoration:${w1?'line-through':''};opacity:${w1?'0.4':'1'};">${p2name}</span>
-        ${advBtn('p2')}
-      </div>
+      ${tnPlayerBlock(m.p2, w2, w1, 'right')}
+      ${panel}
     </div>`;
   }).join('');
 
@@ -9839,19 +10047,40 @@ function tnGetPrizeDistribution() {
 async function tnCreate() {
   const title       = document.getElementById('tnTitle').value.trim();
   const bracketSize = parseInt(document.getElementById('tnBracketSize').value);
+  const mode        = tnMode || 'raffle';
+  const drawStyle   = document.getElementById('tnDrawStyle')?.value || 'gwspinner';
   const entryCost   = parseInt(document.getElementById('tnEntryCost').value) || 0;
-  const dist        = tnGetPrizeDistribution();
+  const maxEntries  = Math.max(1, parseInt(document.getElementById('tnMaxEntries')?.value) || 1);
+  const requireSlot = !!document.getElementById('tnRequireSlot')?.checked;
   if (!title)  { flash('Enter a tournament title', 'error'); return; }
-  if (!dist)   return;
+
+  // Prize distribution (points pool) only applies to the raffle format.
+  let dist = [];
+  if (mode === 'raffle') { dist = tnGetPrizeDistribution(); if (!dist) return; }
+
+  // Per-mode config the later phases consume (entry, draw, seeding).
+  const config = (mode === 'raffle')
+    ? { entryCost, maxEntriesPerUser: maxEntries, requireSlot }
+    : {};
 
   try {
     const uid = fb.activeUid;
+    // Clear leftover raffle tickets from a previous tournament so the pool is fresh.
+    try {
+      const old = await fb.db.collection('streamers').doc(uid).collection('tournament_entries').get();
+      for (let i = 0; i < old.docs.length; i += 400) {
+        const b = fb.db.batch(); old.docs.slice(i, i + 400).forEach(d => b.delete(d.ref)); await b.commit();
+      }
+    } catch {}
     await fb.db.collection('streamers').doc(uid).collection('tournaments').doc('current').set({
-      title, bracketSize, entryCost,
+      title, mode, bracketSize, drawStyle,
+      config,
+      entryCost: mode === 'raffle' ? entryCost : 0, // back-compat with current views
       prizeDistribution: dist,
       participants: [],
       rounds: [],
       prizePool: 0,
+      entriesCount: 0,
       currentRound: 0,
       payouts: [],
       status: 'registration',
@@ -9859,7 +10088,7 @@ async function tnCreate() {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
-    flash('Tournament created — registration is open!');
+    flash('Tournament created!');
   } catch (e) { flash('Error: ' + e.message, 'error'); }
 }
 
@@ -9886,43 +10115,56 @@ async function tnRemoveParticipant(kickUsernameKey) {
   } catch (e) { flash('Error: ' + e.message, 'error'); }
 }
 
+// Random unique-entrant draw from the raffle ticket pool (multi-ticket = better
+// odds, but a person only takes one bracket slot). Undrawn tickets aren't refunded.
+function tnDrawParticipantsFromEntries(n) {
+  const tickets = [...tnEntries];
+  for (let i = tickets.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [tickets[i], tickets[j]] = [tickets[j], tickets[i]]; }
+  const seen = new Set(); const out = [];
+  for (const e of tickets) {
+    if (out.length >= n) break;
+    if (seen.has(e.kickUsernameKey)) continue;
+    seen.add(e.kickUsernameKey);
+    out.push({ kickUsername: e.kickUsername, kickUsernameKey: e.kickUsernameKey, slot: e.slot || null, eliminated: false, eliminatedRound: null, place: null });
+  }
+  return out;
+}
+
 async function tnStartBracket() {
   if (!tnTournament) return;
   const t = tnTournament;
-  let participants = [...(t.participants || [])];
-  if (participants.length < 2) { flash('Need at least 2 participants', 'error'); return; }
 
-  // Shuffle
-  for (let i = participants.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [participants[i], participants[j]] = [participants[j], participants[i]];
+  // Resolve the real entrants per mode, capped to the bracket size.
+  let realParticipants;
+  if (t.mode === 'raffle') {
+    realParticipants = tnDrawParticipantsFromEntries(t.bracketSize);
+    if (realParticipants.length < 2) { flash('Need at least 2 entrants to draw', 'error'); return; }
+  } else {
+    realParticipants = [...(t.participants || [])].filter(Boolean).slice(0, t.bracketSize);
+    if (realParticipants.length < 2) { flash('Need at least 2 participants', 'error'); return; }
   }
-  // Pad to bracket size with byes
-  while (participants.length < t.bracketSize) participants.push(null);
 
-  // Build round 1
+  // Seed a shuffled copy padded with byes (real list is kept for standings).
+  const seeded = [...realParticipants];
+  for (let i = seeded.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [seeded[i], seeded[j]] = [seeded[j], seeded[i]]; }
+  while (seeded.length < t.bracketSize) seeded.push(null);
+
   const matches = [];
-  for (let i = 0; i < participants.length; i += 2) {
-    const p1 = participants[i];
-    const p2 = participants[i + 1];
-    const bye = !p2;
-    matches.push({
-      id: `r1m${Math.floor(i/2)+1}`,
-      p1, p2,
-      winner: bye ? 'p1' : null,
-      status: bye ? 'complete' : 'pending',
-    });
+  for (let i = 0; i < seeded.length; i += 2) {
+    const p1 = seeded[i], p2 = seeded[i + 1], bye = !p2;
+    matches.push({ id: `r1m${Math.floor(i/2)+1}`, p1, p2, winner: bye ? 'p1' : null, status: bye ? 'complete' : 'pending' });
   }
 
   try {
     const uid = fb.activeUid;
     await fb.db.collection('streamers').doc(uid).collection('tournaments').doc('current').update({
+      participants: realParticipants,
       rounds: [{ round: 1, label: tnRoundLabel(1, t.bracketSize), matches }],
       currentRound: 1,
       status: 'active',
       updatedAt: Date.now(),
     });
-    flash('Bracket started! Good luck!');
+    flash(t.mode === 'raffle' ? `Drew ${realParticipants.length} entrants — bracket started!` : 'Bracket started! Good luck!');
   } catch (e) { flash('Error: ' + e.message, 'error'); }
 }
 
@@ -9934,7 +10176,32 @@ function tnRoundLabel(round, bracketSize) {
   return '';
 }
 
-async function tnAdvance(roundNum, matchId, winnerSide) {
+// Live X = win / bet, shown as the streamer types.
+function tnCalcX(roundNum, matchId) {
+  ['p1', 'p2'].forEach(side => {
+    const bet = parseFloat(document.getElementById(`tn_${roundNum}_${matchId}_${side}bet`)?.value);
+    const win = parseFloat(document.getElementById(`tn_${roundNum}_${matchId}_${side}win`)?.value);
+    const el  = document.getElementById(`tn_${roundNum}_${matchId}_${side}x`);
+    if (el) el.textContent = (bet > 0 && !isNaN(win)) ? (win / bet).toFixed(2) + 'x' : '—';
+  });
+}
+
+// Score a match by multiplier — higher X advances.
+async function tnScoreMatch(roundNum, matchId) {
+  const get = (side, f) => parseFloat(document.getElementById(`tn_${roundNum}_${matchId}_${side}${f}`)?.value);
+  const p1bet = get('p1', 'bet'), p1win = get('p1', 'win');
+  const p2bet = get('p2', 'bet'), p2win = get('p2', 'win');
+  if (!(p1bet > 0) || !(p2bet > 0) || isNaN(p1win) || isNaN(p2win)) {
+    flash('Enter a bet and a win amount for both players.', 'error'); return;
+  }
+  const x1 = p1win / p1bet, x2 = p2win / p2bet;
+  if (x1 === x2) { flash('Tie on multiplier — adjust the numbers to break the tie.', 'error'); return; }
+  const winnerSide = x1 > x2 ? 'p1' : 'p2';
+  const score = { p1: { bet: p1bet, win: p1win, x: x1 }, p2: { bet: p2bet, win: p2win, x: x2 } };
+  await tnFinalizeMatch(roundNum, matchId, winnerSide, score);
+}
+
+async function tnFinalizeMatch(roundNum, matchId, winnerSide, score) {
   if (!tnTournament) return;
   const t      = tnTournament;
   const rounds = JSON.parse(JSON.stringify(t.rounds)); // deep clone
@@ -9947,6 +10214,7 @@ async function tnAdvance(roundNum, matchId, winnerSide) {
   const loser  = winnerSide === 'p1' ? match.p2 : match.p1;
   match.winner = winnerSide;
   match.status = 'complete';
+  if (score) match.score = score;
 
   // Mark loser eliminated
   const participants = JSON.parse(JSON.stringify(t.participants || []));

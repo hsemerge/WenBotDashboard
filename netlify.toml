@@ -193,6 +193,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/tournament-raffle-enter"
+  to     = "/.netlify/functions/tournament-raffle-enter"
+  status = 200
+
+[[redirects]]
   from   = "/api/create-portal-session"
   to     = "/.netlify/functions/create-portal-session"
   status = 200

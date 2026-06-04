@@ -119,6 +119,9 @@
 
           <!-- Enter / already entered -->
           <div id="tnEnterBlock">
+            <div id="tnSlotPickWrap" style="display:none;margin-bottom:10px;">
+              <input type="text" id="tnSlotPick" placeholder="Your slot pick (e.g. Gates of Olympus)" maxlength="80" style="width:100%;padding:11px 12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:13px;">
+            </div>
             <button class="btn btn-accent" onclick="tnEnter()" id="tnEnterBtn" style="width:100%;padding:13px;">Enter Tournament</button>
             <div id="tnEnterMsg" style="font-size:12px;color:var(--red);margin-top:8px;min-height:16px;text-align:center;"></div>
           </div>
@@ -228,12 +231,15 @@ function renderRegistration(t, s) {
   const participants = t.participants || [];
   const dist = t.prizeDistribution || [];
   document.getElementById('tnViewTitle').textContent   = escHtml(t.title || '');
-  document.getElementById('tnViewEntered').textContent = participants.length;
-  document.getElementById('tnViewSlots').textContent   = Math.max(0, t.bracketSize - participants.length);
+  const isRaffle = t.mode === 'raffle';
+  const cfg = t.config || {};
+  const entered = isRaffle ? (t.entriesCount || 0) : participants.length;
+  document.getElementById('tnViewEntered').textContent = entered;
+  document.getElementById('tnViewSlots').textContent   = isRaffle ? t.bracketSize : Math.max(0, t.bracketSize - participants.length);
   document.getElementById('tnViewPool').textContent    = (t.prizePool || 0).toLocaleString() + ' pts';
   document.getElementById('tnViewCost').textContent    = (t.entryCost || 0).toLocaleString() + ' pts';
   document.getElementById('tnViewBalance').textContent = s?.viewerPoints != null ? s.viewerPoints.toLocaleString() + ' pts' : '—';
-  document.getElementById('tnViewPartCount').textContent = participants.length;
+  document.getElementById('tnViewPartCount').textContent = entered;
 
   // Prize distribution
   const distHtml = dist.map((d, i) => {
@@ -248,14 +254,33 @@ function renderRegistration(t, s) {
   }).join('');
   document.getElementById('tnViewDistBlock').innerHTML = distHtml;
 
+  // Slot pick — only for raffle when the streamer requires it.
+  document.getElementById('tnSlotPickWrap').style.display = (isRaffle && cfg.requireSlot) ? '' : 'none';
+
   // Enter / already entered
-  const isEntered = s?.isEntered;
-  const isFull    = participants.length >= t.bracketSize;
-  document.getElementById('tnEnterBlock').style.display     = isEntered ? 'none' : '';
-  document.getElementById('tnAlreadyEntered').style.display = isEntered ? '' : 'none';
-  const btn = document.getElementById('tnEnterBtn');
-  btn.disabled = isFull || !viewerSession || !s?.isVerified;
-  btn.textContent = isFull ? 'Tournament Full' : `Enter for ${(t.entryCost || 0).toLocaleString()} pts`;
+  const btn        = document.getElementById('tnEnterBtn');
+  const enterBlock = document.getElementById('tnEnterBlock');
+  const already    = document.getElementById('tnAlreadyEntered');
+  if (isRaffle) {
+    const max  = Math.max(1, cfg.maxEntriesPerUser || 1);
+    const used = s?.ticketsUsed || 0;
+    const done = used >= max;
+    enterBlock.style.display = done ? 'none' : '';
+    already.style.display    = done ? '' : 'none';
+    const aspan = already.querySelector('span');
+    if (aspan) aspan.textContent = (max > 1 && used) ? `✅ You're in with ${used} ticket${used>1?'s':''}! Good luck!` : "✅ You're in! Good luck!";
+    btn.disabled = !viewerSession || !s?.isVerified;
+    btn.textContent = !viewerSession ? 'Log in to Enter'
+      : (max > 1 ? `Buy Ticket (${used}/${max}) — ${(t.entryCost||0).toLocaleString()} pts`
+                 : `Enter for ${(t.entryCost||0).toLocaleString()} pts`);
+  } else {
+    const isEntered = s?.isEntered;
+    const isFull    = participants.length >= t.bracketSize;
+    enterBlock.style.display = isEntered ? 'none' : '';
+    already.style.display    = isEntered ? '' : 'none';
+    btn.disabled = isFull || !viewerSession || !s?.isVerified;
+    btn.textContent = isFull ? 'Tournament Full' : `Enter for ${(t.entryCost || 0).toLocaleString()} pts`;
+  }
 
   // Participants list
   document.getElementById('tnViewPartList').innerHTML = participants.map((p, i) =>
@@ -321,19 +346,34 @@ function renderComplete(t) {
 
 async function tnEnter() {
   if (!viewerSession) { tnLogin(); return; }
+  const t = tnState?.tournament;
+  const isRaffle = t?.mode === 'raffle';
+  const cfg = t?.config || {};
   const btn = document.getElementById('tnEnterBtn');
   const msg = document.getElementById('tnEnterMsg');
+  msg.style.color = 'var(--red)';
+
+  let slot = '';
+  if (isRaffle && cfg.requireSlot) {
+    slot = (document.getElementById('tnSlotPick')?.value || '').trim();
+    if (!slot) { msg.textContent = 'Pick a slot to enter.'; return; }
+  }
+
   btn.disabled = true;
   btn.textContent = 'Entering…';
   msg.textContent = '';
   try {
-    const r = await fetch('/api/tournament-enter', {
+    const endpoint = isRaffle ? '/api/tournament-raffle-enter' : '/api/tournament-enter';
+    const body = { channel, kickUsername: viewerSession.kickUsername, accessToken: viewerSession.accessToken };
+    if (isRaffle) body.slot = slot;
+    const r = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ channel, kickUsername: viewerSession.kickUsername, accessToken: viewerSession.accessToken }),
+      body: JSON.stringify(body),
     });
     const data = await r.json();
     if (!r.ok) { msg.textContent = data.error || 'Failed to enter.'; btn.disabled = false; btn.textContent = 'Try Again'; return; }
+    if (data.message) { msg.style.color = 'var(--green)'; msg.textContent = data.message; }
     await fetchState();
   } catch { msg.textContent = 'Network error — try again.'; btn.disabled = false; btn.textContent = 'Enter Tournament'; }
 }

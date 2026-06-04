@@ -28,6 +28,7 @@ exports.handler = async (event) => {
     let viewerPoints = null;
     let isVerified   = false;
     let isEntered    = false;
+    let ticketsUsed  = 0;
 
     if (userKey) {
       const verifiedUsersRef = db.collection("streamers").doc(uid).collection("verified_users");
@@ -52,9 +53,16 @@ exports.handler = async (event) => {
       if (tournament?.participants) {
         isEntered = tournament.participants.some(p => p && p.kickUsernameKey === userKey);
       }
+      // Raffle: "entered" = holds at least one ticket in the pool.
+      if (tournament?.mode === "raffle") {
+        const tk = await db.collection("streamers").doc(uid).collection("tournament_entries")
+          .where("kickUsernameKey", "==", userKey).get();
+        ticketsUsed = tk.size;
+        if (ticketsUsed > 0) isEntered = true;
+      }
     }
 
-    return res(200, { tournament, viewerPoints, isVerified, isEntered });
+    return res(200, { tournament, viewerPoints, isVerified, isEntered, ticketsUsed });
   } catch (err) {
     console.error("[tournament-state] error:", err.message);
     return res(500, { error: "Internal server error" });
