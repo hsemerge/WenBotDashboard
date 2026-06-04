@@ -131,20 +131,35 @@ function render(t) {
   const currentRound = rounds.find(r => r.round === t.currentRound);
   if (!currentRound) { card.className = 'hidden'; return; }
 
+  const thumb = (p) => (p && p.slot && p.slot.thumbnailUrl)
+    ? `<img src="${escHtml(p.slot.thumbnailUrl)}" alt="" style="width:26px;height:26px;border-radius:4px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none';">` : '';
+  const slotName = (p) => (p && p.slot && p.slot.name)
+    ? `<div style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;">${escHtml(p.slot.name)}</div>` : '';
+  const xOf = (m, side) => (m.score && m.score[side])
+    ? `<span style="font-size:12px;font-weight:800;color:#ffd700;margin-left:6px;">${(Number(m.score[side].x) || 0).toFixed(2)}x</span>` : '';
+
   document.getElementById('ovMatches').innerHTML = currentRound.matches.slice(0, 5).map(m => {
     const p1done = m.winner === 'p1';
     const p2done = m.winner === 'p2';
     const p1cls  = p1done ? 'winner' : (p2done ? 'loser' : '');
     const p2cls  = p2done ? 'winner' : (p1done ? 'loser' : '');
     return `<div class="match-row">
-      <div>
-        ${p1done ? '<div class="winner-badge">🥇</div>' : ''}
-        <div class="player ${p1cls}">${m.p1 ? escHtml(m.p1.kickUsername) : '<span class="bye">BYE</span>'}</div>
+      <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+        ${thumb(m.p1)}
+        <div style="min-width:0;">
+          ${p1done ? '<div class="winner-badge">🥇</div>' : ''}
+          <div class="player ${p1cls}" style="display:flex;align-items:center;">${m.p1 ? escHtml(m.p1.kickUsername) : '<span class="bye">BYE</span>'}${xOf(m, 'p1')}</div>
+          ${slotName(m.p1)}
+        </div>
       </div>
       <div class="vs-col">VS</div>
-      <div style="text-align:right;">
-        ${p2done ? '<div class="winner-badge" style="text-align:right;">🥇</div>' : ''}
-        <div class="player ${p2cls}" style="text-align:right;">${m.p2 ? escHtml(m.p2.kickUsername) : '<span class="bye">BYE</span>'}</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-direction:row-reverse;min-width:0;">
+        ${thumb(m.p2)}
+        <div style="min-width:0;text-align:right;">
+          ${p2done ? '<div class="winner-badge" style="text-align:right;">🥇</div>' : ''}
+          <div class="player ${p2cls}" style="display:flex;align-items:center;flex-direction:row-reverse;">${m.p2 ? escHtml(m.p2.kickUsername) : '<span class="bye">BYE</span>'}${xOf(m, 'p2')}</div>
+          ${slotName(m.p2)}
+        </div>
       </div>
     </div>`;
   }).join('');

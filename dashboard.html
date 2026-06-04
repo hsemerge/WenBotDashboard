@@ -9916,7 +9916,31 @@ function tnRenderBracket(t) {
 
   const rounds = t.rounds || [];
   const container = document.getElementById('tnBracketView');
-  container.innerHTML = rounds.map(r => tnRoundCard(r, t.currentRound)).join('');
+  container.innerHTML = rounds.map(r => tnRoundCard(r, t.currentRound)).join('') + tnChampionHtml(t);
+}
+
+// Fan-favorite tally — viewers vote !champion <#> in chat (stable bracket number).
+function tnChampionHtml(t) {
+  const all = t.participants || [];
+  if (!all.length) return '';
+  const votes = t.championVotes || {};
+  const total = Object.values(votes).reduce((a, b) => a + (b || 0), 0);
+  const rows = all.map((p, i) => ({ num: i + 1, name: p.kickUsername, alive: !p.eliminated, c: votes[p.kickUsernameKey] || 0 }))
+    .filter(r => r.alive || r.c > 0)
+    .sort((a, b) => b.c - a.c);
+  if (!rows.length) return '';
+  return `<div class="card" style="margin-top:8px;">
+    <div class="card-title" style="margin-bottom:10px;">🗳️ Fan Favorite <span style="font-size:11px;color:var(--text-dim);font-weight:400;">— viewers type <code style="color:var(--accent);">!champion &lt;#&gt;</code> in chat · ${total} vote${total !== 1 ? 's' : ''}</span></div>
+    ${rows.map(r => {
+      const pct = total ? Math.round(r.c / total * 100) : 0;
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;${r.alive ? '' : 'opacity:0.4;'}">
+        <span style="font-size:11px;color:var(--text-dim);min-width:20px;">#${r.num}</span>
+        <span style="font-size:12px;color:var(--bright);min-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(r.name)}${r.alive ? '' : ' ✕'}</span>
+        <div style="flex:1;height:8px;background:var(--bg-panel);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--accent);transition:width .3s;"></div></div>
+        <span style="font-size:11px;color:var(--text-dim);min-width:52px;text-align:right;">${r.c} · ${pct}%</span>
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 function tnSlotThumb(p) {
