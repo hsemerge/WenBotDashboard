@@ -30,8 +30,9 @@ const COPY_SKIP = new Set([
   ".gitignore", ".firebaserc", "firebase.json", "firestore.rules", "netlify.toml",
   "local-proxy.js", "docs",
 ]);
-// Extensions never served publicly.
-const SKIP_EXT = new Set([".md", ".pdf", ".bak"]);
+// Extensions never served publicly (docs + raw data exports / spreadsheets,
+// which may contain PII and must never end up in the public dist).
+const SKIP_EXT = new Set([".md", ".pdf", ".bak", ".xlsx", ".xls", ".csv"]);
 
 const TERSER_OPTS = { compress: false, mangle: false, format: { comments: false } };
 
