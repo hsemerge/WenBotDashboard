@@ -198,6 +198,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/tournament-predictions-payout"
+  to     = "/.netlify/functions/tournament-predictions-payout"
+  status = 200
+
+[[redirects]]
   from   = "/api/create-portal-session"
   to     = "/.netlify/functions/create-portal-session"
   status = 200

@@ -332,26 +332,34 @@ function renderBracket(t, s) {
   }).join('') + tnViewChampionHtml(t);
 }
 
-// Fan-favorite tally for viewers — back a player with !champion <#> in chat.
+// Champion tally for viewers — fan-favorite votes, or wager stakes + live odds.
 function tnViewChampionHtml(t) {
   const all = t.participants || [];
   if (!all.length) return '';
-  const votes = t.championVotes || {};
-  const total = Object.values(votes).reduce((a, b) => a + (b || 0), 0);
-  const rows = all.map((p, i) => ({ num: i + 1, name: p.kickUsername, alive: !p.eliminated, c: votes[p.kickUsernameKey] || 0 }))
-    .filter(r => r.alive || r.c > 0)
-    .sort((a, b) => b.c - a.c);
+  const mode    = t.config?.championMode || 'off';
+  const isWager = mode === 'wager';
+  const data    = isWager ? (t.championStakes || {}) : (t.championVotes || {});
+  const total   = Object.values(data).reduce((a, b) => a + (b || 0), 0);
+  const rows = all.map((p, i) => ({ num: i + 1, name: p.kickUsername, alive: !p.eliminated, v: data[p.kickUsernameKey] || 0 }))
+    .filter(r => r.alive || r.v > 0)
+    .sort((a, b) => b.v - a.v);
   if (!rows.length) return '';
+  const heading = isWager ? '🎯 Champion Bets' : '🗳️ Fan Favorite';
+  const howto = isWager
+    ? `Back a player to win — type <strong style="color:var(--accent);">!champion # &lt;amount&gt;</strong> in chat · pot ${total.toLocaleString()} pts`
+    : `Back a player to win it all — type <strong style="color:var(--accent);">!champion #</strong> in chat (${total} vote${total !== 1 ? 's' : ''})`;
   return `<div class="card">
-    <div style="font-weight:800;font-size:13px;margin-bottom:4px;">🗳️ Fan Favorite</div>
-    <div class="text-dim" style="font-size:11px;margin-bottom:12px;">Back a player to win it all — type <strong style="color:var(--accent);">!champion #</strong> in chat (${total} vote${total !== 1 ? 's' : ''})</div>
+    <div style="font-weight:800;font-size:13px;margin-bottom:4px;">${heading}</div>
+    <div class="text-dim" style="font-size:11px;margin-bottom:12px;">${howto}</div>
     ${rows.map(r => {
-      const pct = total ? Math.round(r.c / total * 100) : 0;
+      const pct   = total ? Math.round(r.v / total * 100) : 0;
+      const odds  = isWager && r.v ? (total / r.v) : 0;
+      const right = isWager ? `${r.v.toLocaleString()} · ${odds ? odds.toFixed(2) + 'x' : '—'}` : `${r.v} · ${pct}%`;
       return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;${r.alive ? '' : 'opacity:.4;'}">
         <span style="font-size:11px;color:var(--dim);min-width:20px;">#${r.num}</span>
         <span style="font-size:12px;min-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(r.name)}</span>
         <div style="flex:1;height:7px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--accent);"></div></div>
-        <span style="font-size:11px;color:var(--dim);min-width:50px;text-align:right;">${r.c} · ${pct}%</span>
+        <span style="font-size:11px;color:var(--dim);min-width:66px;text-align:right;">${right}</span>
       </div>`;
     }).join('')}
   </div>`;

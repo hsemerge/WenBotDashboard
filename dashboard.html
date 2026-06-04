@@ -1604,6 +1604,20 @@
           </div>
         </div><!-- /Verification & Roles -->
       </div><!-- /Discord & Verification card -->
+
+      <div class="card" id="discordCommandsCard" style="margin-top:16px;">
+        <div class="card-title">🤖 Discord Commands</div>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+          Turn each viewer command on/off for your Discord — all on by default. A command also only works when its feature is live (e.g. <code style="color:var(--accent);">/hunt</code> shows nothing if no hunt is running; <code style="color:var(--accent);">/gtb</code> needs an open round). Viewers link Kick with <code style="color:var(--accent);">/verify</code> first. <code style="color:var(--accent);">/points</code>, <code style="color:var(--accent);">/store</code>, <code style="color:var(--accent);">/lb</code> &amp; <code style="color:var(--accent);">/verify</code> are always on.
+        </p>
+        <div id="discordCmdToggles" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;"></div>
+        <div class="field" style="max-width:240px;margin-top:16px;">
+          <label>Daily bonus (<code style="color:var(--accent);">/daily</code>) — points</label>
+          <input type="number" id="discordDailyPoints" min="0" placeholder="0 = off">
+          <div class="hint">Points a viewer can claim once per day. 0 disables <code style="color:var(--accent);">/daily</code>.</div>
+        </div>
+        <button class="btn btn-accent" onclick="saveDiscordCommands()" style="margin-top:12px;">Save Commands</button>
+      </div>
       </div><!-- /discordSection -->
 
       <!-- Streamer Portal (below Discord — viewers visit this hub at wenbot.gg/<channel>) -->
@@ -2892,6 +2906,25 @@
               <div id="tnCustomRows"></div>
               <button onclick="tnAddCustomRow()" style="margin-top:8px;padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:11px;cursor:pointer;">+ Add place</button>
             </div>
+            <div class="field" style="margin-bottom:14px;">
+              <label class="label">🗳️ Champion Prediction</label>
+              <select id="tnChampionMode" class="form-input" onchange="tnChampionModeChange()">
+                <option value="off" selected>Off — fan-favorite tally only</option>
+                <option value="bonus">Bonus split — correct predictors share a points pool</option>
+                <option value="wager">Wager (odds) — viewers stake points, winners split the pot</option>
+              </select>
+            </div>
+            <div id="tnChampionBonusWrap" style="display:none;margin-bottom:14px;">
+              <label class="label">Bonus pool (pts)</label>
+              <input type="number" id="tnChampionPool" class="form-input" min="0" value="5000">
+              <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Free to vote (<code style="color:var(--accent);">!champion #</code>). Split equally among everyone who picked the champion.</div>
+            </div>
+            <div id="tnChampionWagerWrap" style="display:none;margin-bottom:14px;">
+              <label class="label">House rake %</label>
+              <input type="number" id="tnChampionRake" class="form-input" min="0" max="20" value="0">
+              <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Viewers stake points (<code style="color:var(--accent);">!champion # amount</code>). Winners split the pot proportional to their stake; backing an underdog pays bigger odds.</div>
+            </div>
+
             <button onclick="tnCreate()" class="btn btn-accent" style="width:100%;padding:13px;margin-top:4px;">🏆 Create Tournament</button>
           </div>
         </div>
@@ -2919,6 +2952,7 @@
             </div>
             <div style="display:flex;flex-direction:column;gap:6px;">
               <button onclick="tnStartBracket()" id="tnStartBtn" class="btn btn-accent" style="padding:8px 14px;font-size:12px;">Start Bracket</button>
+              <button onclick="tnSkipDraw()" id="tnDrawSkipBtn" class="btn btn-ghost btn-sm" style="display:none;">Skip animation ⏭</button>
               <button onclick="tnCancel()" style="padding:8px 14px;background:none;border:1px solid rgba(255,71,87,0.35);border-radius:8px;color:var(--red);font-size:12px;cursor:pointer;font-weight:600;">Cancel</button>
             </div>
           </div>
@@ -8575,7 +8609,46 @@ async function loadDiscordSettings() {
   document.getElementById('discordGiveallAuthorId').value = cfg.giveallAuthorId || '';
   updateDiscordStatusBadge(cfg.guildId);
   if (cfg.guildId) await populateDiscordChannels(cfg.giveawayChannelId, cfg.announcementChannelId);
+  renderDiscordCmdToggles();
+  document.getElementById('discordDailyPoints').value = cfg.dailyPoints || '';
   loadVerifySettings();
+}
+
+// Per-server Discord command on/off toggles (config.discordConfig.commands).
+const DISCORD_CMDS = [
+  ['top',        '/top — points leaderboard'],
+  ['rank',       '/rank — your rank'],
+  ['hunt',       '/hunt — bonus hunt status'],
+  ['gtb',        '/gtb + /mygtb — guess the balance'],
+  ['request',    '/request — request a slot'],
+  ['daily',      '/daily — daily bonus'],
+  ['profile',    '/profile — viewer profile'],
+  ['champion',   '/champion — back a player'],
+  ['tournament', '/tournament — bracket standings'],
+  ['lookup',     '/lookup — mod user lookup'],
+  ['help',       '/help — command list'],
+];
+function renderDiscordCmdToggles() {
+  const wrap = document.getElementById('discordCmdToggles');
+  if (!wrap) return;
+  const cmds = (profile?.discordConfig?.commands) || {};
+  wrap.innerHTML = DISCORD_CMDS.map(([key, label]) => `
+    <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;color:var(--text);">
+      <input type="checkbox" id="dcmd_${key}" ${cmds[key] !== false ? 'checked' : ''} style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+      <span>${label}</span>
+    </label>`).join('');
+}
+async function saveDiscordCommands() {
+  if (!fb.currentUser) return;
+  const commands = {};
+  DISCORD_CMDS.forEach(([key]) => { commands[key] = !!document.getElementById('dcmd_' + key)?.checked; });
+  const dailyPoints = Math.max(0, parseInt(document.getElementById('discordDailyPoints').value) || 0);
+  try {
+    const discordConfig = { ...(profile?.discordConfig || {}), commands, dailyPoints };
+    await saveStreamerProfile({ discordConfig });
+    if (profile) profile.discordConfig = discordConfig;
+    flash('Discord commands saved!');
+  } catch (e) { flash('Failed to save: ' + e.message, 'error'); }
 }
 
 async function populateDiscordChannels(selectedGiveaway, selectedAnnouncement) {
@@ -9708,6 +9781,14 @@ function tnSetMode(mode) {
   }
 }
 
+function tnChampionModeChange() {
+  const m = document.getElementById('tnChampionMode')?.value || 'off';
+  const b = document.getElementById('tnChampionBonusWrap');
+  const w = document.getElementById('tnChampionWagerWrap');
+  if (b) b.style.display = m === 'bonus' ? '' : 'none';
+  if (w) w.style.display = m === 'wager' ? '' : 'none';
+}
+
 function loadTournament() {
   if (!fb.currentUser) return;
   const uid = fb.activeUid;
@@ -9823,8 +9904,7 @@ function tnRenderRegistration(t) {
     if (!entrants.length) { list.innerHTML = ''; empty.textContent = 'No entries yet — share your tournament page.'; empty.style.display = ''; return; }
     empty.style.display = 'none';
     list.innerHTML = entrants.map((e, i) => row(e, i, false)).join('')
-      + (tnEntries.length > entrants.length
-          ? `<div style="font-size:11px;color:var(--text-dim);text-align:center;padding:6px;">${tnEntries.length} tickets · ${entrants.length} entrants · ${t.bracketSize} drawn into the bracket</div>` : '');
+      + `<div style="font-size:11px;color:var(--text-dim);text-align:center;padding:8px 6px 2px;">🎲 Draw spins your giveaway overlay (Avatar Carousel works best) — keep it in your OBS scene.${tnEntries.length > entrants.length ? ` · ${tnEntries.length} tickets · ${t.bracketSize} drawn` : ''}</div>`;
     return;
   }
 
@@ -9919,25 +9999,32 @@ function tnRenderBracket(t) {
   container.innerHTML = rounds.map(r => tnRoundCard(r, t.currentRound)).join('') + tnChampionHtml(t);
 }
 
-// Fan-favorite tally — viewers vote !champion <#> in chat (stable bracket number).
+// Champion tally — fan-favorite votes, or (wager mode) stakes + live odds.
 function tnChampionHtml(t) {
   const all = t.participants || [];
   if (!all.length) return '';
-  const votes = t.championVotes || {};
-  const total = Object.values(votes).reduce((a, b) => a + (b || 0), 0);
-  const rows = all.map((p, i) => ({ num: i + 1, name: p.kickUsername, alive: !p.eliminated, c: votes[p.kickUsernameKey] || 0 }))
-    .filter(r => r.alive || r.c > 0)
-    .sort((a, b) => b.c - a.c);
+  const mode    = t.config?.championMode || 'off';
+  const isWager = mode === 'wager';
+  const data    = isWager ? (t.championStakes || {}) : (t.championVotes || {});
+  const total   = Object.values(data).reduce((a, b) => a + (b || 0), 0);
+  const rows = all.map((p, i) => ({ num: i + 1, name: p.kickUsername, alive: !p.eliminated, v: data[p.kickUsernameKey] || 0 }))
+    .filter(r => r.alive || r.v > 0)
+    .sort((a, b) => b.v - a.v);
   if (!rows.length) return '';
+  const head = isWager
+    ? `🎯 Champion Bets <span style="font-size:11px;color:var(--text-dim);font-weight:400;">— <code style="color:var(--accent);">!champion # &lt;amount&gt;</code> · pot ${total.toLocaleString()} pts</span>`
+    : `🗳️ Fan Favorite <span style="font-size:11px;color:var(--text-dim);font-weight:400;">— <code style="color:var(--accent);">!champion &lt;#&gt;</code> · ${total} vote${total !== 1 ? 's' : ''}</span>`;
   return `<div class="card" style="margin-top:8px;">
-    <div class="card-title" style="margin-bottom:10px;">🗳️ Fan Favorite <span style="font-size:11px;color:var(--text-dim);font-weight:400;">— viewers type <code style="color:var(--accent);">!champion &lt;#&gt;</code> in chat · ${total} vote${total !== 1 ? 's' : ''}</span></div>
+    <div class="card-title" style="margin-bottom:10px;">${head}</div>
     ${rows.map(r => {
-      const pct = total ? Math.round(r.c / total * 100) : 0;
+      const pct   = total ? Math.round(r.v / total * 100) : 0;
+      const odds  = isWager && r.v ? (total / r.v) : 0;
+      const right = isWager ? `${r.v.toLocaleString()} · ${odds ? odds.toFixed(2) + 'x' : '—'}` : `${r.v} · ${pct}%`;
       return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;${r.alive ? '' : 'opacity:0.4;'}">
         <span style="font-size:11px;color:var(--text-dim);min-width:20px;">#${r.num}</span>
         <span style="font-size:12px;color:var(--bright);min-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(r.name)}${r.alive ? '' : ' ✕'}</span>
         <div style="flex:1;height:8px;background:var(--bg-panel);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--accent);transition:width .3s;"></div></div>
-        <span style="font-size:11px;color:var(--text-dim);min-width:52px;text-align:right;">${r.c} · ${pct}%</span>
+        <span style="font-size:11px;color:var(--text-dim);min-width:72px;text-align:right;">${right}</span>
       </div>`;
     }).join('')}
   </div>`;
@@ -10087,15 +10174,24 @@ async function tnCreate() {
     ? { entryCost, maxEntriesPerUser: maxEntries, requireSlot }
     : {};
 
+  // Champion prediction (applies to every format).
+  const championMode = document.getElementById('tnChampionMode')?.value || 'off';
+  config.championMode = championMode;
+  if (championMode === 'bonus') config.championPool = Math.max(0, parseInt(document.getElementById('tnChampionPool')?.value) || 0);
+  if (championMode === 'wager') config.championRake = Math.min(20, Math.max(0, parseInt(document.getElementById('tnChampionRake')?.value) || 0));
+
   try {
     const uid = fb.activeUid;
-    // Clear leftover raffle tickets from a previous tournament so the pool is fresh.
-    try {
-      const old = await fb.db.collection('streamers').doc(uid).collection('tournament_entries').get();
-      for (let i = 0; i < old.docs.length; i += 400) {
-        const b = fb.db.batch(); old.docs.slice(i, i + 400).forEach(d => b.delete(d.ref)); await b.commit();
-      }
-    } catch {}
+    // Clear leftover raffle tickets + champion predictions/bets from a previous
+    // tournament so the pools (and payout) start fresh.
+    for (const col of ['tournament_entries', 'tournament_predictions', 'tournament_bets']) {
+      try {
+        const old = await fb.db.collection('streamers').doc(uid).collection(col).get();
+        for (let i = 0; i < old.docs.length; i += 400) {
+          const b = fb.db.batch(); old.docs.slice(i, i + 400).forEach(d => b.delete(d.ref)); await b.commit();
+        }
+      } catch {}
+    }
     await fb.db.collection('streamers').doc(uid).collection('tournaments').doc('current').set({
       title, mode, bracketSize, drawStyle,
       config,
@@ -10157,31 +10253,29 @@ function tnDrawParticipantsFromEntries(n) {
 async function tnStartBracket() {
   if (!tnTournament) return;
   const t = tnTournament;
-
-  // Resolve the real entrants per mode, capped to the bracket size.
-  let realParticipants;
   if (t.mode === 'raffle') {
-    realParticipants = tnDrawParticipantsFromEntries(t.bracketSize);
-    if (realParticipants.length < 2) { flash('Need at least 2 entrants to draw', 'error'); return; }
-  } else {
-    realParticipants = [...(t.participants || [])].filter(Boolean).slice(0, t.bracketSize);
-    if (realParticipants.length < 2) { flash('Need at least 2 participants', 'error'); return; }
+    const drawn = tnDrawParticipantsFromEntries(t.bracketSize);
+    if (drawn.length < 2) { flash('Need at least 2 entrants to draw', 'error'); return; }
+    await tnDrawRaffleAnimated(t, drawn); // spin the overlay to reveal each, then seed
+    return;
   }
+  const realParticipants = [...(t.participants || [])].filter(Boolean).slice(0, t.bracketSize);
+  if (realParticipants.length < 2) { flash('Need at least 2 participants', 'error'); return; }
+  await tnSeedBracket(t, realParticipants);
+}
 
-  // Seed a shuffled copy padded with byes (real list is kept for standings).
+// Build round 1 from the drawn/chosen entrants and go live.
+async function tnSeedBracket(t, realParticipants) {
   const seeded = [...realParticipants];
   for (let i = seeded.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [seeded[i], seeded[j]] = [seeded[j], seeded[i]]; }
   while (seeded.length < t.bracketSize) seeded.push(null);
-
   const matches = [];
   for (let i = 0; i < seeded.length; i += 2) {
     const p1 = seeded[i], p2 = seeded[i + 1], bye = !p2;
     matches.push({ id: `r1m${Math.floor(i/2)+1}`, p1, p2, winner: bye ? 'p1' : null, status: bye ? 'complete' : 'pending' });
   }
-
   try {
-    const uid = fb.activeUid;
-    await fb.db.collection('streamers').doc(uid).collection('tournaments').doc('current').update({
+    await fb.db.collection('streamers').doc(fb.activeUid).collection('tournaments').doc('current').update({
       participants: realParticipants,
       rounds: [{ round: 1, label: tnRoundLabel(1, t.bracketSize), matches }],
       currentRound: 1,
@@ -10190,6 +10284,36 @@ async function tnStartBracket() {
     });
     flash(t.mode === 'raffle' ? `Drew ${realParticipants.length} entrants — bracket started!` : 'Bracket started! Good luck!');
   } catch (e) { flash('Error: ' + e.message, 'error'); }
+}
+
+// Animated raffle draw — drives the streamer's giveaway spin overlay (carousel /
+// wheel / spinning names) via the giveaway spinTrigger to reveal each drawn
+// entrant one at a time, then seeds the bracket. "Skip animation" seeds instantly.
+let tnDrawSkip = false;
+function tnSkipDraw() { tnDrawSkip = true; }
+async function tnDrawRaffleAnimated(t, drawn) {
+  tnDrawSkip = false;
+  const gsRef = fb.db.collection('streamers').doc(fb.activeUid).collection('giveaway_state').doc('snapshot');
+  // Unique entrants as the spin reel (decoys).
+  const seen = new Set(); const pool = [];
+  for (const e of tnEntries) { const k = e.kickUsernameKey; if (seen.has(k)) continue; seen.add(k); pool.push({ kickName: e.kickUsername, kickKey: k, avatarUrl: e.avatarUrl || null, tickets: 1 }); }
+  const btn = document.getElementById('tnStartBtn');
+  const skipBtn = document.getElementById('tnDrawSkipBtn');
+  if (btn) btn.disabled = true;
+  if (skipBtn) skipBtn.style.display = '';
+  try {
+    await gsRef.set({ entries: pool }, { merge: true });
+    for (let i = 0; i < drawn.length; i++) {
+      if (tnDrawSkip) break;
+      if (btn) btn.textContent = `🎲 Drawing ${i + 1}/${drawn.length}…`;
+      await gsRef.set({ spinTrigger: { winner: drawn[i].kickUsername, wager: 0, triggeredAt: Date.now() } }, { merge: true });
+      await new Promise(r => setTimeout(r, 5200)); // spin (~4s) + brief reveal
+    }
+    await gsRef.set({ clearSpin: Date.now(), entries: [] }, { merge: true });
+  } catch (e) { flash('Draw error: ' + e.message, 'error'); }
+  if (skipBtn) skipBtn.style.display = 'none';
+  if (btn) { btn.disabled = false; btn.textContent = '🎲 Draw Bracket'; }
+  await tnSeedBracket(t, drawn);
 }
 
 function tnRoundLabel(round, bracketSize) {
@@ -10280,6 +10404,17 @@ async function tnFinalizeMatch(roundNum, matchId, winnerSide, score) {
       batch.update(tRef, { rounds, participants, payouts, status: 'complete', active: false, updatedAt: Date.now() });
       await batch.commit();
       flash('Tournament complete! Prizes distributed.');
+      // Pay out champion predictions (bonus split / wager parimutuel) server-side.
+      if ((t.config?.championMode || 'off') !== 'off') {
+        try {
+          const idToken = await fb.currentUser.getIdToken();
+          const pr = await fetch('/api/tournament-predictions-payout', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken }),
+          });
+          const pd = await pr.json().catch(() => ({}));
+          if (pr.ok && pd.success && !pd.alreadyPaid) flash('🗳️ Champion predictions paid out!');
+        } catch {}
+      }
     } else {
       // Build next round
       const nextNum = parseInt(roundNum) + 1;
