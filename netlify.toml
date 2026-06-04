@@ -98,6 +98,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/giveall"
+  to     = "/.netlify/functions/giveall"
+  status = 200
+
+[[redirects]]
   from   = "/api/bonus-hunt-data"
   to     = "/.netlify/functions/bonus-hunt-data"
   status = 200

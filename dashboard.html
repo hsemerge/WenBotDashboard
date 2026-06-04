@@ -1465,6 +1465,28 @@
         </div>
       </div>
 
+      <!-- Stream Deck — Give All webhook -->
+      <div style="margin-top:16px;">
+        <div class="card" id="streamdeckCard">
+          <div class="card-title">🎛 Stream Deck — Give All</div>
+          <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+            Fire <strong>!giveall</strong> from a Stream Deck button — instantly drop points to every active chatter (great right after a big win). Generate your private link, then add it to a Stream Deck <em>Web Requests</em> (recommended) or <em>Website</em> button. <strong>Anyone with the link can trigger it</strong>, so keep it private — regenerate to revoke. Requires the Points system (Pro+).
+          </p>
+          <div id="sdNoToken">
+            <button class="btn btn-accent" onclick="generateStreamdeckToken()">Generate Stream Deck link</button>
+          </div>
+          <div id="sdHasToken" style="display:none;">
+            <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">Your giveall link — change <code style="color:var(--accent);">amount</code> per button</label>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+              <input type="text" id="sdUrl" readonly style="flex:1;min-width:260px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--accent);font-family:monospace;font-size:12px;padding:8px 10px;">
+              <button class="btn btn-ghost btn-sm" onclick="copyStreamdeckUrl()">Copy</button>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);margin-bottom:12px;">Make one button per amount, e.g. <span id="sdExamples"></span></div>
+            <button class="btn btn-ghost btn-sm" onclick="generateStreamdeckToken()" title="Creates a new link and disables the old one">↻ Regenerate (revokes old link)</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Discord & Verification (merged) — Connection is Elite-gated; Verification is not. -->
       <div style="margin-top:16px;" id="discordSection">
         <div class="card">
@@ -1713,11 +1735,6 @@
                     <code id="wlBgCardVal" style="font-size:12px;color:var(--text-dim);font-family:monospace;">#13111c</code>
                   </div>
                 </div>
-              </div>
-
-              <div id="wlGrantRow" class="owner-only" style="display:flex;align-items:center;gap:10px;margin-top:8px;padding:10px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;">
-                <input type="checkbox" id="wlEnabled" style="width:16px;height:16px;accent-color:#a855f7;cursor:pointer;">
-                <label for="wlEnabled" style="cursor:pointer;flex:1;font-size:12px;color:var(--text);">White-label this streamer — unlocks agency features + branding on their portal</label>
               </div>
             </div>
 
@@ -3742,7 +3759,9 @@ function onAuthReady(user) {
   // Wire My Portal link if the channel is set
   const _portalLink = document.getElementById('topbarPortalLink');
   if (_portalLink && profile?.kickChannel) {
-    _portalLink.href = `/${encodeURIComponent(profile.kickChannel)}`;
+    // ?fresh → the portal bypasses the CDN cache so the streamer sees their own
+    // theme/branding edits instantly (their viewers use the cached, clean URL).
+    _portalLink.href = `/${encodeURIComponent(profile.kickChannel)}?fresh=1`;
     _portalLink.style.display = '';
   }
   { const _sc = document.getElementById('statCurrency'); if (_sc) _sc.textContent = (profile?.currencyName || 'points') + ' total'; }
@@ -3761,6 +3780,7 @@ function onAuthReady(user) {
   loadProviderSettings();
   loadDiscordSettings();
   renderBotEnabled();
+  renderStreamdeck();
   loadPortalSettings();
   // Moderator list — only the owner can view/manage. Skip the fetch entirely
   // for mods (the Team card is hidden via owner-only class anyway).
@@ -5843,6 +5863,48 @@ function renderBotEnabled() {
   }
 }
 
+// ── STREAM DECK — Give All webhook link ────────────────────────────────────
+// Per-streamer token → wenbot.gg/api/giveall?token=...&amount=... which the
+// Netlify proxy forwards to the always-on bot server (it holds the active-chatter
+// list). The token is the auth, so it's treated like a password (regenerate to
+// revoke). streamdeckToken isn't denylisted, so the owner writes it directly.
+function streamdeckUrl(amount) {
+  return `${location.origin}/api/giveall?token=${encodeURIComponent(profile?.streamdeckToken || '')}&amount=${amount}`;
+}
+function renderStreamdeck() {
+  const no  = document.getElementById('sdNoToken');
+  const yes = document.getElementById('sdHasToken');
+  if (!no || !yes) return;
+  const has = !!(profile && profile.streamdeckToken);
+  no.style.display  = has ? 'none' : '';
+  yes.style.display = has ? '' : 'none';
+  if (has) {
+    document.getElementById('sdUrl').value = streamdeckUrl(500);
+    document.getElementById('sdExamples').innerHTML =
+      [250, 500, 1000].map(a => `<code style="color:var(--accent);">…&amount=${a}</code>`).join(' · ');
+  }
+}
+async function generateStreamdeckToken() {
+  if (profile?.streamdeckToken && !confirm('Generate a new link? Your current Stream Deck link will stop working.')) return;
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  const token = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  try {
+    await saveStreamerProfile({ streamdeckToken: token });
+    if (profile) profile.streamdeckToken = token;
+    renderStreamdeck();
+    flash('Stream Deck link generated.');
+  } catch (e) { flash('Failed: ' + e.message, 'error'); }
+}
+function copyStreamdeckUrl() {
+  const el = document.getElementById('sdUrl');
+  if (!el) return;
+  el.select();
+  const done = () => flash('Copied!');
+  if (navigator.clipboard) navigator.clipboard.writeText(el.value).then(done).catch(() => { document.execCommand('copy'); done(); });
+  else { document.execCommand('copy'); done(); }
+}
+
 async function toggleBotEnabled() {
   const uid = fb.activeUid;
   if (!uid) return;
@@ -5873,8 +5935,10 @@ function loadPortalSettings() {
   const url = `https://wenbot.gg/${channel}`;
   const publicLink = document.getElementById('portalPublicLink');
   const previewLink = document.getElementById('portalUrlPreviewLink');
-  publicLink.href  = channel ? url : '#';
-  previewLink.href = channel ? url : '#';
+  // ?fresh on the streamer's own preview links → instant view of their edits
+  // (cache-bust). The displayed URL text stays clean (what they'd share).
+  publicLink.href  = channel ? url + '?fresh=1' : '#';
+  previewLink.href = channel ? url + '?fresh=1' : '#';
   previewLink.textContent = channel ? `wenbot.gg/${channel}` : 'wenbot.gg/—';
 
   document.getElementById('portalEnabled').checked = profile.portalEnabled !== false; // default ON
@@ -5914,8 +5978,11 @@ function loadPortalSettings() {
 let _wlLogoUrl = null;
 let _wlBgImage = null;
 
-// Full theme/branding editor — an Elite+ perk, plus any white-label override
-// (owner / agency / manual whiteLabel flag).
+// Portal branding editor (logo / background / theme palette / hero tagline) is an
+// Elite+ perk, also unlocked by any white-label override (owner / agency plan /
+// manual whiteLabel flag / seeded preset). The agency-only "white-label" piece is
+// bespoke portals (custom domain, custom sections, removed WenBot credit) — NOT
+// these standard-portal branding controls.
 function wlEligible() {
   return isOwnerAcct
     || profile?.whiteLabel === true
@@ -5958,9 +6025,6 @@ function loadWlBranding() {
   const bgClr  = document.getElementById('wlBgClear');
   if (_wlBgImage) { bgPrev.src = _wlBgImage; bgPrev.style.display = ''; bgClr.style.display = ''; }
   else { bgPrev.style.display = 'none'; bgClr.style.display = 'none'; }
-
-  const en = document.getElementById('wlEnabled');
-  if (en) en.checked = profile?.whiteLabel === true;
 }
 
 async function wlUploadLogo(file) {
@@ -6068,13 +6132,11 @@ async function savePortalSettings() {
         tagline: document.getElementById('wlTagline').value.trim() || null,
       },
     };
-    // Owner can grant/revoke white-label for the streamer they're editing.
-    if (isOwnerAcct) payload.whiteLabel = document.getElementById('wlEnabled').checked;
   }
 
   try {
     await saveStreamerProfile(payload);
-    if (profile) { if (payload.portal) profile.portal = payload.portal; if ('whiteLabel' in payload) profile.whiteLabel = payload.whiteLabel; }
+    if (profile && payload.portal) profile.portal = payload.portal;
     flash('Portal settings saved!');
   } catch (e) {
     flash('Save failed: ' + (e.message || e), 'error');

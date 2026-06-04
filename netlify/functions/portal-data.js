@@ -217,8 +217,10 @@ exports.handler = async (event) => {
     const plan = (isOwner || whiteLabel) ? "agency" : (profile.plan || "starter");
     const tier = tierOf(plan);
 
-    // Themed-portal branding (full palette/logo/hero/bg) is an Elite+ perk, and
-    // also unlocked by any white-label override above.
+    // Portal branding (palette/logo/hero/bg) is an Elite+ perk, also unlocked by
+    // any white-label override above (owner / preset / flag / agency). The
+    // agency-only "white-label" piece is bespoke portals (custom domain, custom
+    // sections, removed WenBot credit) — handled separately, not here.
     const canBrand = whiteLabel || tier >= TIER_RANK.elite;
 
     // Portal is a Pro+ feature. Starter has no public portal at all.

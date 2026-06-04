@@ -1103,6 +1103,18 @@
     document.getElementById('errorView').style.display = '';
   }
 
+  // Editor preview cache-bust. /api/portal-data is CDN-cached (~60s) to protect
+  // the Gambulls API key from every viewer's refresh. The dashboard's own portal
+  // links carry ?fresh so the STREAMER (every Elite streamer is their own editor)
+  // sees theme/branding edits instantly instead of waiting out the cache. Organic
+  // viewers (no ?fresh) keep the cached copy — zero extra Gambulls load for them.
+  const FRESH = new URLSearchParams(location.search).has('fresh');
+  function portalDataUrl() {
+    let u = `/api/portal-data?channel=${encodeURIComponent(channel)}`;
+    if (FRESH) u += `&_=${Date.now()}`; // unique URL → bypass CDN + browser cache
+    return u;
+  }
+
   // -------- Load ----------
   async function load() {
     if (!channel) {
@@ -1110,7 +1122,7 @@
       return;
     }
     try {
-      const resp = await fetch(`/api/portal-data?channel=${encodeURIComponent(channel)}`);
+      const resp = await fetch(portalDataUrl(), FRESH ? { cache: 'no-store' } : undefined);
       if (resp.status === 404) {
         showError('Channel not found', `We couldn’t find a WenBot portal for "${channel}".`);
         return;
@@ -1163,7 +1175,7 @@
   setInterval(async () => {
     if (!channel || !state) return;
     try {
-      const resp = await fetch(`/api/portal-data?channel=${encodeURIComponent(channel)}`);
+      const resp = await fetch(portalDataUrl(), FRESH ? { cache: 'no-store' } : undefined);
       if (!resp.ok) return;
       state = await resp.json();
       applyTheme(state);
