@@ -38,7 +38,10 @@ exports.handler = async (event) => {
       if (!id) return;
       if (!entries[id]) entries[id] = { total: 0, mine: 0 };
       entries[id].total += 1;
-      if (kick && (d.kickUsernameKey || "").toLowerCase() === kick) entries[id].mine += 1;
+      // Match the buyer by key, falling back to the raw username — chat (!buy) and
+      // Discord (/buy) purchases historically stored only kickUsername, no key.
+      const who = (d.kickUsernameKey || d.kickUsername || "").toLowerCase();
+      if (kick && who === kick) entries[id].mine += 1;
     });
 
     return res(200, { success: true, entries, signedIn: !!kick });
