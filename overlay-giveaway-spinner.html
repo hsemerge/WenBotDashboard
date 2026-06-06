@@ -171,6 +171,48 @@
     return `<div class="placeholder">${initial}</div>`;
   }
 
+  // ── Kick avatar resolution (poll/OBS mode) ────────────────────────────────
+  // The giveaway snapshot from /api/overlay-data doesn't carry avatars, so we
+  // resolve them via /api/kick-channel (same as the dashboard) and cache in
+  // localStorage. Pre-warming on each poll means the reel + winner have avatars
+  // by spin time. (Embed/dashboard entries already include avatars.)
+  const _avCache = (() => { try { return JSON.parse(localStorage.getItem('wenbot_avatar_cache') || '{}'); } catch { return {}; } })();
+  const _avInflight = new Set();
+  function _avSave() { try { localStorage.setItem('wenbot_avatar_cache', JSON.stringify(_avCache)); } catch {} }
+
+  async function ensureAvatar(key) {
+    key = (key || '').toLowerCase();
+    if (!key) return null;
+    if (key in _avCache) return _avCache[key]?.url || null;
+    if (_avInflight.has(key)) {
+      return new Promise((resolve) => {
+        const t = setInterval(() => { if (key in _avCache) { clearInterval(t); resolve(_avCache[key]?.url || null); } }, 200);
+        setTimeout(() => { clearInterval(t); resolve(_avCache[key]?.url || null); }, 3000);
+      });
+    }
+    _avInflight.add(key);
+    try {
+      const r = await fetch(`/api/kick-channel?username=${encodeURIComponent(key)}`);
+      const url = r.ok ? ((await r.json())?.avatar_url || null) : null;
+      _avCache[key] = { url }; _avSave(); return url;
+    } catch { _avCache[key] = { url: null }; _avSave(); return null; }
+    finally { _avInflight.delete(key); }
+  }
+
+  // Fill missing avatars from cache; fire background fetches for the rest so the
+  // next poll has them ready.
+  function enrichEntries(list) {
+    if (!Array.isArray(list)) return list;
+    for (const e of list) {
+      if (e.avatarUrl) continue;
+      const key = (e.kickKey || e.kickName || e.username || '').toLowerCase();
+      if (!key) continue;
+      if (key in _avCache) e.avatarUrl = _avCache[key]?.url || null;
+      else ensureAvatar(key);
+    }
+    return list;
+  }
+
   // Rebuild the reel as a FRESH DOM element so a rapid cancel-and-restart
   // never has to fight with an in-flight CSS transition from the previous
   // spin. The browser can't carry transition state across element identity,
@@ -241,6 +283,16 @@
           document.getElementById('resultName').textContent = '@' + (picked.kickName || picked.kickKey || picked.username || '');
           const sub = picked.wager ? `$${Number(picked.wager).toLocaleString()} wagered` : '';
           document.getElementById('resultSub').textContent = sub;
+          // Guarantee the winner's avatar shows even if it resolved late — patch
+          // the landed reel tile once the fetch returns.
+          if (!picked.avatarUrl) {
+            ensureAvatar(picked.kickKey || picked.kickName || picked.username).then((url) => {
+              if (!url || myGen !== _spinGen) return;
+              const item = track.children[winIdx];
+              const wrapImg = item && item.querySelector('.reel-img');
+              if (wrapImg) wrapImg.innerHTML = `<img src="${url}" alt="">`;
+            });
+          }
           spinning = false;
           // Notify parent that this spin actually landed — dashboard uses
           // this to commit the winner to its list + fire chat congrats.
@@ -312,6 +364,11 @@
       (e.kickName && e.kickName.toLowerCase() === winnerName.toLowerCase()) ||
       (e.kickKey  && e.kickKey  === winnerName.toLowerCase())
     ) || { kickName: winnerName, kickKey: winnerName.toLowerCase(), wager: trig.wager || 0, avatarUrl: null };
+    // Resolve from cache if the winner's avatar wasn't on the entry.
+    if (!picked.avatarUrl) {
+      const k = (picked.kickKey || picked.kickName || '').toLowerCase();
+      if (k in _avCache) picked.avatarUrl = _avCache[k]?.url || null;
+    }
 
     document.getElementById('widget').classList.add('visible');
     const { reel, winIdx } = buildReelFor(picked, entries);
@@ -342,6 +399,7 @@
       const r = await fetch(`/api/overlay-data?channel=${encodeURIComponent(channel)}`);
       if (!r.ok) return;
       const d = await r.json();
+      enrichEntries(d.entries);   // pre-warm Kick avatars for the reel + winner
       handleClear(d);
       handleTrigger(d);
     } catch {}

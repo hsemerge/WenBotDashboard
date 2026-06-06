@@ -139,13 +139,20 @@ function buildPortalConfig(channel, profile, canBrand) {
   if (!canBrand) return null;
   const preset = PORTAL_PRESETS[channel] || {};
   const p      = profile.portal || {};
+  // Prizes are set once in the dashboard (numeric per rank). When present they
+  // drive the custom board too — formatted as "$N" strings the board renders
+  // directly. Until a streamer sets them, the preset/override stands unchanged.
+  const lbPrizes = Array.isArray(profile.leaderboardPrizes) ? profile.leaderboardPrizes : null;
+  const dashPrizes = (lbPrizes && lbPrizes.length)
+    ? lbPrizes.map((n) => (Number(n) > 0 ? "$" + Number(n).toLocaleString() : ""))
+    : null;
   return {
     theme:       { ...(preset.theme || {}), ...(p.theme || {}) },
     logoUrl:     p.logoUrl   || preset.logoUrl   || null,
     bannerUrl:   p.bannerUrl || preset.bannerUrl || null,
     bgImage:     p.bgImage   || preset.bgImage   || null,
     hero:        { ...(preset.hero || {}), ...(p.hero || {}) },
-    prizes:      p.prizes    || preset.prizes    || [],
+    prizes:      dashPrizes  || p.prizes || preset.prizes || [],
     links:       p.links     || preset.links     || [],
     pages:       p.pages     || preset.pages     || [],
     rewards:     p.rewards   || preset.rewards   || null,
@@ -321,6 +328,7 @@ exports.handler = async (event) => {
                   totalWagered: data.responseObject.totalWagered || 0,
                 };
                 const applied = applyPeriod(raw, profile.leaderboardPeriod || null);
+                const lbPrizes = Array.isArray(profile.leaderboardPrizes) ? profile.leaderboardPrizes : [];
                 leaderboard = {
                   period:       data.responseObject.period,
                   rankings:     applied.rankings.map((r) => ({
@@ -328,6 +336,8 @@ exports.handler = async (event) => {
                     name:        r.username,
                     wagerAmount: r.wagered || 0,
                     avatarUrl:   r.avatarUrl || null,
+                    // Prize for this rank from the streamer's dashboard config (0 = unpaid).
+                    prize:       Number(lbPrizes[r.rank - 1]) > 0 ? Number(lbPrizes[r.rank - 1]) : 0,
                   })),
                   totalUsers:    applied.totalUsers,
                   totalWagered:  applied.totalWagered,

@@ -831,6 +831,7 @@
           <div class="podium-avatar">${avatarMarkup(entry.name, entry.avatarUrl)}</div>
           <div class="podium-name">${esc(entry.name)}</div>
           <div class="podium-wagered">${fmtMoney(entry.wagerAmount)}</div>
+          ${entry.prize > 0 ? `<div style="font-family:'Exo 2',sans-serif;font-weight:800;font-size:13px;color:var(--accent);">🏆 ${fmtMoney(entry.prize)}</div>` : ''}
           <div class="podium-block">
             <div class="podium-rank-num">#${rank}</div>
           </div>
@@ -910,6 +911,7 @@
     const rankings = s.leaderboard.rankings || [];
 
     const podiumHtml = renderPodiumHtml(rankings.slice(0, 3));
+    const hasPrizes  = rankings.some(r => r.prize > 0);
 
     const rowsHtml = rankings.map(r => `
       <tr>
@@ -920,6 +922,7 @@
             <span class="user-name">${esc(r.name)}</span>
           </div>
         </td>
+        ${hasPrizes ? `<td class="prize-cell">${r.prize > 0 ? fmtMoney(r.prize) : ''}</td>` : ''}
         <td class="wagered-cell">${fmtMoney(r.wagerAmount)}</td>
       </tr>
     `).join('');
@@ -929,7 +932,7 @@
         <div class="lb-section-title">Live Rankings</div>
         <table class="lb-table">
           <thead>
-            <tr><th>Rank</th><th>Player</th><th>Wagered</th></tr>
+            <tr><th>Rank</th><th>Player</th>${hasPrizes ? '<th>Prize</th>' : ''}<th>Wagered</th></tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
         </table>`

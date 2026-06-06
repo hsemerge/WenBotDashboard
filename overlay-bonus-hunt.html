@@ -421,8 +421,15 @@
 
     const reqEl = document.getElementById('statReqX');
     if (reqX !== null) {
-      reqEl.textContent  = fmtX(reqX);
-      reqEl.className    = 'stat-val ' + (reqX <= avgX ? 'positive' : 'accent');
+      if (reqX <= 0) {
+        // Target already beaten with slots left — a negative "required" multiplier
+        // is meaningless, so show that profit is locked in.
+        reqEl.textContent = '✅ Profit';
+        reqEl.className    = 'stat-val positive';
+      } else {
+        reqEl.textContent = fmtX(reqX);
+        reqEl.className    = 'stat-val ' + (reqX <= avgX ? 'positive' : 'accent');
+      }
     } else {
       reqEl.textContent = played.length === total ? (winnings >= totalCost ? '🎉' : '🔴') : '—';
       reqEl.className   = 'stat-val';
