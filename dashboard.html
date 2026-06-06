@@ -431,7 +431,7 @@
 
     /* ── MOBILE ── */
     .hamburger {
-      display: none; flex-direction: column; justify-content: center;
+      display: flex; flex-direction: column; justify-content: center;
       gap: 5px; background: none; border: none; cursor: pointer;
       padding: 4px; flex-shrink: 0;
     }
@@ -456,6 +456,15 @@
       .main { overflow: visible; }
       .page { overflow: visible; }
       .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    }
+
+    /* Desktop-only: collapse the sidebar to full-width the content (vertical
+       screens / focus mode). Mobile keeps the slide-in overlay behavior above. */
+    @media (min-width: 769px) {
+      .sidebar { transition: width 0.2s ease, opacity 0.2s ease; }
+      .app.sidebar-collapsed .sidebar {
+        width: 0; min-width: 0; opacity: 0; border-right: none; overflow: hidden; pointer-events: none;
+      }
     }
   </style>
 </head>
@@ -533,7 +542,7 @@
   <!-- MAIN -->
   <div class="main">
     <div class="topbar">
-      <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Toggle menu">
+      <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Toggle menu" title="Collapse / expand the sidebar">
         <span></span><span></span><span></span>
       </button>
       <div class="topbar-title" id="topbarTitle">Overview</div>
@@ -3971,9 +3980,25 @@ function onAuthReady(user) {
 function onAuthNotLoggedIn() { window.location.href = 'login.html'; }
 
 function toggleSidebar() {
-  document.querySelector('.sidebar').classList.toggle('open');
-  document.getElementById('sidebarOverlay').classList.toggle('active');
+  // Mobile (≤768px): slide-in overlay. Desktop: collapse to full-width the
+  // content area (useful on vertical / small screens), persisted across sessions.
+  if (window.matchMedia('(max-width: 768px)').matches) {
+    document.querySelector('.sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('active');
+  } else {
+    const collapsed = document.querySelector('.app').classList.toggle('sidebar-collapsed');
+    try { localStorage.setItem('wenbot_sidebar_collapsed', collapsed ? '1' : '0'); } catch {}
+  }
 }
+// Restore the collapsed preference on load (desktop only).
+(function restoreSidebarState() {
+  try {
+    if (localStorage.getItem('wenbot_sidebar_collapsed') === '1' &&
+        !window.matchMedia('(max-width: 768px)').matches) {
+      document.querySelector('.app')?.classList.add('sidebar-collapsed');
+    }
+  } catch {}
+})();
 initFirebase();
 
 // ── GIVEAWAY ──
