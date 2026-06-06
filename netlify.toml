@@ -39,6 +39,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/raffle-entries"
+  to     = "/.netlify/functions/raffle-entries"
+  status = 200
+
+[[redirects]]
   from   = "/api/store-buy"
   to     = "/.netlify/functions/store-buy"
   status = 200
@@ -176,6 +181,11 @@
 [[redirects]]
   from   = "/api/leaderboard-checkpoints"
   to     = "/.netlify/functions/leaderboard-checkpoints"
+  status = 200
+
+[[redirects]]
+  from   = "/api/finalize-period"
+  to     = "/.netlify/functions/finalize-period"
   status = 200
 
 [[redirects]]

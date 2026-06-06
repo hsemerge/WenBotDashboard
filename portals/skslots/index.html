@@ -604,7 +604,7 @@
     wrap.innerHTML = chips.join('');
   }
 
-  let _storeItems = [], _currency = 'points';
+  let _storeItems = [], _currency = 'points', _raffleCounts = {};
   function renderStore(s) {
     if (!s.features || !s.features.store) return;
     const items = (s.store && s.store.items) || [];
@@ -635,6 +635,7 @@
           <div class="store-price">${Number(it.price).toLocaleString()} <small>${esc(s.streamer.currency)}</small></div>
           ${stock}
         </div>
+        ${it.isRaffleItem ? `<div class="store-raffle-entries" data-id="${esc(it.id)}" style="font-size:12px;color:var(--dim);margin:0 0 8px;min-height:16px;"></div>` : ''}
         ${buyBtn}
         <div class="store-buycmd" title="Copy command" onclick="navigator.clipboard&&navigator.clipboard.writeText('${cmd.replace(/'/g,"\\'")}');this.textContent='✓ Copied — paste in chat';">📋 ${esc(cmd)}</div>
       </div>`;
@@ -643,6 +644,32 @@
     document.getElementById('storeNote').innerHTML =
       `🛒 Click <strong>Buy</strong> to spend your ${esc(_currency)} (sign in with Kick), or use <code>!buy &lt;item&gt;</code> in Kick chat / Discord.` +
       (hasRaffle ? ` &nbsp; 🎟 <strong style="color:var(--gold)">Raffle</strong> items enter you into a draw — the streamer picks the winner.` : '');
+    if (hasRaffle) fetchRaffleCounts();
+  }
+
+  // Per-raffle entry counts (total + the signed-in viewer's own). Filled into the
+  // placeholder line on each raffle card without re-rendering the whole store.
+  async function fetchRaffleCounts() {
+    try {
+      const kick = viewer ? `&kick=${encodeURIComponent(viewer.kickUsername)}` : '';
+      const r = await fetch(`/api/raffle-entries?channel=${encodeURIComponent(CHANNEL)}${kick}`);
+      const d = await r.json();
+      _raffleCounts = (d && d.entries) || {};
+    } catch { /* keep last counts */ }
+    applyRaffleCounts();
+  }
+  function applyRaffleCounts() {
+    document.querySelectorAll('.store-raffle-entries').forEach(el => {
+      const c = _raffleCounts[el.dataset.id] || { total: 0, mine: 0 };
+      const totalTxt = `🎟 ${Number(c.total).toLocaleString()} ${c.total === 1 ? 'entry' : 'entries'}`;
+      if (viewer) {
+        el.innerHTML = `${totalTxt} · <strong style="color:var(--gold)">You: ${Number(c.mine).toLocaleString()}</strong>`;
+        el.title = '';
+      } else {
+        el.innerHTML = totalTxt;
+        el.title = 'Sign in to see your entries';
+      }
+    });
   }
 
   // ── VIEWER AUTH (Kick) + STORE PURCHASE ──────────────────────────────────────

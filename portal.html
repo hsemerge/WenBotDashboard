@@ -553,6 +553,32 @@
     }
   };
 
+  // Per-raffle entry counts (total + the signed-in viewer's own), filled into the
+  // placeholder line on each raffle card after the store HTML is in the DOM.
+  let _raffleCounts = {};
+  async function fetchRaffleEntries() {
+    try {
+      const kick = viewer ? `&kick=${encodeURIComponent(viewer.kickUsername)}` : '';
+      const r = await fetch(`/api/raffle-entries?channel=${encodeURIComponent(channel)}${kick}`);
+      const d = await r.json();
+      _raffleCounts = (d && d.entries) || {};
+    } catch { /* keep last counts */ }
+    applyRaffleEntries();
+  }
+  function applyRaffleEntries() {
+    document.querySelectorAll('.store-raffle-entries').forEach(el => {
+      const c = _raffleCounts[el.dataset.id] || { total: 0, mine: 0 };
+      const totalTxt = `🎟 ${Number(c.total).toLocaleString()} ${c.total === 1 ? 'entry' : 'entries'}`;
+      if (viewer) {
+        el.innerHTML = `${totalTxt} · <strong style="color:var(--gold);">You: ${Number(c.mine).toLocaleString()}</strong>`;
+        el.title = '';
+      } else {
+        el.innerHTML = totalTxt;
+        el.title = 'Sign in to see your entries';
+      }
+    });
+  }
+
   // -------- Helpers ----------
   function esc(s) {
     return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1001,11 +1027,14 @@
             <div class="store-price">${fmtNum(it.price)}<small>${esc(s.streamer.currency)}</small></div>
             ${stockHtml}
           </div>
+          ${it.isRaffleItem ? `<div class="store-raffle-entries" data-id="${esc(it.id)}" style="font-size:12px;color:var(--text-dim);margin:0 0 8px;min-height:16px;"></div>` : ''}
           ${buyBtn}
           <div class="buy-cmd" title="Copy command" onclick="navigator.clipboard&&navigator.clipboard.writeText('${buyCmd.replace(/'/g,"\\'")}');this.textContent='✓ Copied — paste in chat';">📋 ${esc(buyCmd)}</div>
         </div>`;
     }).join('');
     const hasRaffleItem = items.some(it => it.isRaffleItem);
+    // Fill raffle entry counts after this HTML is injected into the DOM.
+    if (hasRaffleItem) setTimeout(fetchRaffleEntries, 0);
     const raffleNote = hasRaffleItem
       ? `<div class="redeem-note" style="margin-top:10px;background:rgba(255,215,0,0.06);border-color:rgba(255,215,0,0.25);">🎟 Items marked <strong style="color:var(--gold);">RAFFLE ENTRY</strong> = buying enters you into that item's raffle. The streamer draws a winner.</div>`
       : '';
