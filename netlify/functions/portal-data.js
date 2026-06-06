@@ -274,12 +274,17 @@ exports.handler = async (event) => {
     // Pro+ features
     let store        = null;
     let pastWinners  = null;
+    let giveawayWinners = null;
     if (tier >= TIER_RANK.pro) {
-      const [itemsSnap, winnersSnap] = await Promise.all([
+      const [itemsSnap, winnersSnap, gwSnap] = await Promise.all([
         db.collection("streamers").doc(uid).collection("store_items")
           .where("enabled", "==", true).get(),
         db.collection("streamers").doc(uid).collection("raffle_history")
           .orderBy("drawnAt", "desc").limit(20).get(),
+        // Giveaway draw winners (separate store). orderBy on the single drawnAt
+        // field is auto-indexed; filter to giveaway type in JS.
+        db.collection("streamers").doc(uid).collection("winners_log")
+          .orderBy("drawnAt", "desc").limit(30).get(),
       ]);
       store = {
         items: itemsSnap.docs.map(d => {
@@ -297,8 +302,13 @@ exports.handler = async (event) => {
       };
       pastWinners = winnersSnap.docs.map(d => {
         const w = d.data();
-        return { winner: w.winner, mode: w.mode, drawnAt: w.drawnAt };
+        return { winner: w.winner, mode: w.mode, itemName: w.itemName || null, drawnAt: w.drawnAt };
       });
+      giveawayWinners = gwSnap.docs
+        .map(d => d.data())
+        .filter(w => (w.type || "giveaway") === "giveaway")
+        .slice(0, 20)
+        .map(w => ({ winner: w.username, drawnAt: w.drawnAt }));
     }
 
     // Elite+ features: live leaderboard, bonus battle / tournament state
@@ -418,6 +428,7 @@ exports.handler = async (event) => {
       leaderboardTimer: profile.leaderboardPeriod || null,
       store,
       pastWinners,
+      giveawayWinners,
       // Used by the page to know what to render (and what to lock)
       features: {
         leaderboard: tier >= TIER_RANK.elite,

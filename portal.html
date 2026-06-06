@@ -326,6 +326,15 @@
       border-radius: 999px;
     }
     .pw-name { flex: 1; font-weight: 600; color: var(--bright); }
+    .pw-mode { white-space: nowrap; flex-shrink: 0; }
+    .pw-chip {
+      font-family: 'Exo 2', sans-serif; font-size: 12px; font-weight: 700;
+      padding: 6px 14px; border-radius: 999px; cursor: pointer;
+      background: var(--bg-card); border: 1px solid var(--border); color: var(--text-dim);
+      transition: all 0.15s;
+    }
+    .pw-chip:hover { color: var(--bright); border-color: var(--accent); }
+    .pw-chip.active { background: var(--accent); color: #06121a; border-color: var(--accent); }
     .pw-date { font-size: 12px; color: var(--text-dim); }
 
     /* EMPTY / LOCKED / LOADING */
@@ -1049,26 +1058,59 @@
       </div>`;
   }
 
+  const WIN_TYPE_META = {
+    point:    { label: 'Point Raffle', icon: '🎟' },
+    wager:    { label: 'Wager Raffle', icon: '🎲' },
+    giveaway: { label: 'Giveaway',     icon: '🎁' },
+  };
+  function winTypeLabel(k) { const m = WIN_TYPE_META[k]; return m ? `${m.icon} ${m.label}` : '🎟 Raffle'; }
+  function _tsOf(d) { return d ? (d._seconds ? d._seconds * 1000 : d) : 0; }
+
+  window.pwFilter = function (t) {
+    document.querySelectorAll('#pwWinList .pw-row').forEach(r => { r.style.display = (t === 'all' || r.dataset.type === t) ? '' : 'none'; });
+    document.querySelectorAll('.pw-chip').forEach(c => c.classList.toggle('active', c.dataset.f === t));
+  };
+
   function renderWinners(s) {
     if (!s.features.raffles) {
       return lockedState('Past Winners', 'This streamer is on a plan that doesn’t include the public winners list.');
     }
-    const winners = s.pastWinners || [];
-    if (winners.length === 0) {
-      return emptyState('🏆', 'No raffle winners yet.');
+    const lbPeriods = s.leaderboardPeriods || [];
+    const wins = []
+      .concat((s.pastWinners || []).map(w => ({ kind: w.mode || 'raffle', winner: w.winner, item: w.itemName, drawnAt: w.drawnAt })))
+      .concat((s.giveawayWinners || []).map(w => ({ kind: 'giveaway', winner: w.winner, item: null, drawnAt: w.drawnAt })))
+      .sort((a, b) => _tsOf(b.drawnAt) - _tsOf(a.drawnAt));
+
+    if (!lbPeriods.length && !wins.length) return emptyState('🏆', 'No winners yet.');
+
+    // 🏆 Leaderboard — latest period open, earlier ones collapsed (accordion).
+    const lbHtml = lbPeriods.length
+      ? `<div class="panel"><div class="section-title">🏆 Leaderboard</div>${renderPastPeriodsHtml(lbPeriods, s.streamer.providerName)}</div>`
+      : '';
+
+    // Recent wins (raffles + giveaways) with type filter chips.
+    let winsHtml = '';
+    if (wins.length) {
+      const present = [...new Set(wins.map(w => w.kind))];
+      const chipDefs = [['all', 'All'], ['point', 'Point Raffle'], ['wager', 'Wager Raffle'], ['giveaway', 'Giveaway']]
+        .filter(([k]) => k === 'all' || present.includes(k));
+      const chips = chipDefs.map(([k, lbl], i) =>
+        `<button class="pw-chip${i === 0 ? ' active' : ''}" data-f="${k}" onclick="pwFilter('${k}')">${lbl}</button>`).join('');
+      const rows = wins.map(w => `
+        <div class="pw-row" data-type="${esc(w.kind)}">
+          <span class="pw-mode">${winTypeLabel(w.kind)}</span>
+          <span class="pw-name">${esc(w.winner || 'Unknown')}${w.item ? ` <span style="color:var(--text-dim);">· won “${esc(w.item)}”</span>` : ''}</span>
+          <span class="pw-date">${esc(fmtDate(w.drawnAt))}</span>
+        </div>`).join('');
+      winsHtml = `
+        <div class="panel">
+          <div class="section-title">Recent Wins</div>
+          <div class="pw-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">${chips}</div>
+          <div class="pw-list" id="pwWinList">${rows}</div>
+        </div>`;
     }
-    const rows = winners.map(w => `
-      <div class="pw-row">
-        <span class="pw-mode">${esc(w.mode || 'raffle')}</span>
-        <span class="pw-name">${esc(w.winner || 'Unknown')}</span>
-        <span class="pw-date">${esc(fmtDate(w.drawnAt))}</span>
-      </div>
-    `).join('');
-    return `
-      <div class="panel">
-        <div class="section-title">Recent Raffle Winners</div>
-        <div class="pw-list">${rows}</div>
-      </div>`;
+
+    return lbHtml + winsHtml;
   }
 
   function renderBattle(s) {
