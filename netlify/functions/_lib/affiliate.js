@@ -66,16 +66,24 @@ async function fetchGambulls(apiKey, type) {
 
 // Pick the matching ranking entry. Returns { match, via } or { ambiguous:[...] }.
 function findMatch(rankings, target, knownUid) {
-  // 1) UID is authoritative when we have it.
+  // 1) UID FAST-PATH — authoritative ONLY while it still matches the live board.
+  //    Gambulls' user.id has proven NOT to be permanently stable for anonymous
+  //    users (it can rotate, and a bulk ID regeneration invalidates every cached
+  //    ID), so a miss must NOT be terminal. On a miss we fall through to name
+  //    matching, and the caller self-heals the stored UID to the one that matched.
   if (knownUid != null && String(knownUid) !== "") {
     const m = rankings.find(e => uidOf(e) === String(knownUid));
-    return { match: m || null, via: m ? "uid" : null };
+    if (m) return { match: m, via: "uid" };
+    // stale/changed/regenerated UID → keep going and try to re-resolve by name.
   }
-  // 2) Exact (case-insensitive) name.
-  const exact = rankings.find(e => String(e.user?.name || "").toLowerCase().trim() === target);
+  // 2) Exact (case-insensitive) name. (Skip when no name to match by — e.g. the
+  //    manual link path passes a UID only; a dead UID there just means "not found".)
+  const t = String(target || "").toLowerCase().trim();
+  if (!t) return { match: null };
+  const exact = rankings.find(e => String(e.user?.name || "").toLowerCase().trim() === t);
   if (exact) return { match: exact, via: "name" };
   // 3) Masked candidates — only auto-accept when exactly one fits.
-  const masked = rankings.filter(e => nameMatches(e.user?.name, target));
+  const masked = rankings.filter(e => nameMatches(e.user?.name, t));
   if (masked.length === 1) return { match: masked[0], via: "mask" };
   if (masked.length > 1) {
     return {

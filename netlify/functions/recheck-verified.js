@@ -91,9 +91,11 @@ exports.handler = async (event) => {
       update.underAffiliate    = true;
       update.wagerAmount       = result.wagerAmount || 0;
       update.wagerLastSyncedAt = Date.now();
-      // Lock in the UID the first time we resolve it — every future recheck is
-      // then UID-based and immune to masking.
-      if (result.uid && !v.providerUid) update.providerUid = result.uid;
+      // SELF-HEAL the UID: Gambulls IDs can rotate/regenerate, so always refresh to
+      // the ID that matched THIS time (whether via the UID fast-path or a name
+      // fallback). This auto-recovers users whose cached UID went stale — without
+      // this they'd silently drop off "Under Code" forever.
+      if (result.uid && result.uid !== v.providerUid) update.providerUid = result.uid;
     }
     await docRef.update(update);
 
