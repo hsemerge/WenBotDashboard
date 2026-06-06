@@ -143,4 +143,4 @@ async function lookupAffiliate(provider, apiKey, affiliateUsername, diagnostics 
   return null;
 }
 
-module.exports = { lookupAffiliate, nameMatches };
+module.exports = { lookupAffiliate, nameMatches, findMatch, fetchGambulls, uidOf };

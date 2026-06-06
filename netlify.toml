@@ -84,6 +84,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/recheck-all-verified"
+  to     = "/.netlify/functions/recheck-all-verified"
+  status = 200
+
+[[redirects]]
   from   = "/api/link-verified"
   to     = "/.netlify/functions/link-verified"
   status = 200

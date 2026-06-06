@@ -1355,7 +1355,8 @@
       <div class="card">
         <div class="card-title" style="justify-content:space-between;">
           <span>✅ Verified Users (<span id="verifiedCountLabel">0</span>)</span>
-          <div style="display:flex;gap:6px;align-items:center;">
+          <div style="display:flex;gap:10px;align-items:center;">
+            <button id="recheckAllBtn" onclick="recheckAllVerified(this)" class="btn btn-ghost btn-sm" title="Re-check every verified user against the current leaderboard and repair anyone whose Gambulls ID changed.">↻ Re-check all</button>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);cursor:pointer;" title="Show only users registered under your affiliate code">
               <input type="checkbox" id="verifiedUnderCodeOnly" onchange="renderVerifiedFromCache()" style="accent-color:var(--green);width:14px;height:14px;">
               Under Code only
@@ -5825,6 +5826,33 @@ async function recheckVerified(docId, btn) {
   } finally {
     btn.disabled = false;
     btn.textContent = origLabel;
+  }
+}
+
+// Bulk recovery: re-check ALL verified users at once (repairs everyone whose
+// Gambulls UID changed in a single board fetch). Upgrade-only — never downgrades.
+async function recheckAllVerified(btn) {
+  if (!fb.currentUser) return;
+  if (!confirm('Re-check every verified user against the current leaderboard? This repairs anyone whose Gambulls ID changed. (Won\'t remove anyone\'s status.)')) return;
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Re-checking…';
+  try {
+    const idToken = await fb.currentUser.getIdToken();
+    const resp = await fetch('/api/recheck-all-verified', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Bulk recheck failed');
+    flash(`✅ Re-checked ${data.rechecked} — ${data.healed} repaired, ${data.upgraded} newly Under Code.`);
+    // verified_users onSnapshot re-renders automatically.
+  } catch (e) {
+    flash('Bulk recheck failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
   }
 }
 
