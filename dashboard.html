@@ -2936,9 +2936,9 @@
             <div class="field" style="margin-bottom:14px;">
               <label class="label">🗳️ Champion Prediction</label>
               <select id="tnChampionMode" class="form-input" onchange="tnChampionModeChange()">
-                <option value="off" selected>Off — fan-favorite tally only</option>
-                <option value="bonus">Bonus split — correct predictors share a points pool</option>
-                <option value="wager">Wager (odds) — viewers stake points, winners split the pot</option>
+                <option value="off" selected>Off — no points involved (fan-favorite tally)</option>
+                <option value="bonus">You provide the points — correct predictors share a pool you fund</option>
+                <option value="wager">Viewers provide the points — they stake, winners split the pot</option>
               </select>
             </div>
             <div id="tnChampionBonusWrap" style="display:none;margin-bottom:14px;">
@@ -10340,8 +10340,11 @@ function tnChampionHtml(t) {
   const head = isWager
     ? `🎯 Champion Bets <span style="font-size:11px;color:var(--text-dim);font-weight:400;">— <code style="color:var(--accent);">!champion # &lt;amount&gt;</code> · pot ${total.toLocaleString()} pts</span>`
     : `🗳️ Fan Favorite <span style="font-size:11px;color:var(--text-dim);font-weight:400;">— <code style="color:var(--accent);">!champion &lt;#&gt;</code> · ${total} vote${total !== 1 ? 's' : ''}</span>`;
+  // Streamer lock — closes the selection period so picks/bets are final.
+  const locked  = !!t.championLocked;
+  const lockBtn = `<button onclick="tnToggleChampionLock(${locked})" class="btn btn-ghost btn-sm" title="${locked ? 'Reopen so viewers can pick/change again' : 'Close picks — viewers can no longer pick or switch their champion'}" style="margin-left:auto;font-size:11px;flex-shrink:0;${locked ? 'color:var(--gold);border-color:rgba(255,215,0,0.4);' : ''}">${locked ? '🔒 Picks locked — Reopen' : '🔓 Lock picks'}</button>`;
   return `<div class="card" style="margin-top:8px;">
-    <div class="card-title" style="margin-bottom:10px;">${head}</div>
+    <div class="card-title" style="margin-bottom:10px;display:flex;align-items:center;gap:8px;">${head}${lockBtn}</div>
     ${rows.map(r => {
       const pct   = total ? Math.round(r.v / total * 100) : 0;
       const odds  = isWager && r.v ? (total / r.v) : 0;
@@ -10354,6 +10357,18 @@ function tnChampionHtml(t) {
       </div>`;
     }).join('')}
   </div>`;
+}
+
+// Lock/unlock the champion-selection period. Once locked, the bot rejects any
+// new pick, switch, or bet — final, in every mode.
+async function tnToggleChampionLock(currentlyLocked) {
+  const newVal = !currentlyLocked;
+  if (newVal && !confirm('Lock champion picks?\n\nViewers will no longer be able to pick or change their champion (final). You can reopen anytime.')) return;
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid).collection('tournaments').doc('current')
+      .update({ championLocked: newVal, updatedAt: Date.now() });
+    flash(newVal ? '🔒 Champion picks locked — final.' : '🔓 Champion picks reopened.');
+  } catch (e) { flash('Error: ' + e.message, 'error'); }
 }
 
 function tnSlotThumb(p) {
