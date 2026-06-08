@@ -838,11 +838,11 @@
             <div class="field" style="margin-bottom:8px;">
               <label>Who can enter</label>
               <select id="wagerWindowSelect" onchange="updateWhoCanEnter()" style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;font-family:'Inter',sans-serif;">
-                <option value="monthly">Wagered this month</option>
-                <option value="weekly">Wagered this week</option>
+                <option value="weekly">Wagered last 7 days</option>
+                <option value="monthly">Wagered last 30 days</option>
                 <option value="daily">Wagered today</option>
               </select>
-              <div class="hint" id="whoCanEnterHint" style="font-size:11px;">Only code users who wagered this month can enter. (Turn off Wager Eligibility to allow all code users.)</div>
+              <div class="hint" id="whoCanEnterHint" style="font-size:11px;">Only code users who wagered in the last 7 days can enter. (Turn off Wager Eligibility to allow all code users.) Rolling window.</div>
             </div>
             <div class="field" id="minWagerField" style="margin-bottom:8px;">
               <label>Minimum wager ($)<span id="minWagerWindowLabel" style="color:var(--text-dim);font-weight:400;"></span></label>
@@ -3977,7 +3977,7 @@ function onAuthReady(user) {
     // The toggle (handled above) is the all-code-users vs restricted switch; the
     // dropdown only carries the window. Default to monthly if unset.
     const _wwSel = document.getElementById('wagerWindowSelect');
-    if (_wwSel) _wwSel.value = ['daily', 'weekly', 'monthly'].includes(profile.giveawayWagerWindow) ? profile.giveawayWagerWindow : 'monthly';
+    if (_wwSel) _wwSel.value = ['daily', 'weekly', 'monthly'].includes(profile.giveawayWagerWindow) ? profile.giveawayWagerWindow : 'weekly';
     if (typeof updateWhoCanEnter === 'function') updateWhoCanEnter();
     if (profile.giveawaySubOnly) document.getElementById('toggleSubOnly').classList.add('on');
     if (profile.giveawayVerifiedCasino || profile.giveawayVerifiedDiscord) {
@@ -4182,11 +4182,11 @@ function toggleWagerReq(el) {
 // dropdown only carries window restrictions now ("all code users" = turn the
 // Wager Eligibility toggle off), so a window is always selected here.
 function updateWhoCanEnter() {
-  const val      = document.getElementById('wagerWindowSelect')?.value || 'monthly';
+  const val      = document.getElementById('wagerWindowSelect')?.value || 'weekly';
   const hint     = document.getElementById('whoCanEnterHint');
   const winLabel = document.getElementById('minWagerWindowLabel');
-  const labels   = { daily: 'today', weekly: 'this week', monthly: 'this month' };
-  if (hint) hint.textContent = `Only code users who wagered ${labels[val]} can enter. (Turn off Wager Eligibility to allow all code users.)`;
+  const labels   = { daily: 'today', weekly: 'in the last 7 days', monthly: 'in the last 30 days' };
+  if (hint) hint.textContent = `Only code users who wagered ${labels[val]} can enter. (Turn off Wager Eligibility to allow all code users.) Rolling window.`;
   if (winLabel) winLabel.textContent = ` — wagered ${labels[val]}`;
 }
 
