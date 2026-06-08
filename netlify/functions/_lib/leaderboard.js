@@ -60,20 +60,31 @@ function applyPeriod(data, period) {
 
   const merged = new Map();
 
+  // Match an exclusion by EITHER the id-key or the name-key. The applied board
+  // used to drop the uid, so the dashboard may have saved a name-based key; a
+  // user's Gambulls uid can also rotate. Checking both makes a removal stick
+  // regardless of which key form was stored.
+  const isExcluded = (uid, username) => {
+    const idKey = (uid != null && uid !== "") ? "id:" + String(uid) : null;
+    const nm    = (username || "").toLowerCase();
+    const nmKey = (nm && nm !== "anonymous") ? "nm:" + nm : null;
+    return (idKey && excluded.has(idKey)) || (nmKey && excluded.has(nmKey));
+  };
+
   // 1) Seed with banked carryover (prior months of this period).
   if (carryover) {
     for (const [key, c] of Object.entries(carryover)) {
-      if (excluded.has(key)) continue;
-      merged.set(key, { wagered: c.wagered || 0, username: c.username || "Unknown", avatarUrl: c.avatarUrl || null });
+      if (excluded.has(key) || isExcluded(null, c.username)) continue;
+      merged.set(key, { wagered: c.wagered || 0, username: c.username || "Unknown", avatarUrl: c.avatarUrl || null, key });
     }
   }
 
   // 2) Add the current month's contribution from the live feed.
   for (const e of (data.rankings || [])) {
     const key = periodKey(e);
-    if (key && excluded.has(key)) continue;
+    if (isExcluded(e.uid, e.username)) continue;
 
-    if (!baselines && !carryover) { merged.set(key || Symbol(), { wagered: e.wagered || 0, username: e.username, avatarUrl: e.avatarUrl }); continue; }
+    if (!baselines && !carryover) { merged.set(key || Symbol(), { wagered: e.wagered || 0, username: e.username, avatarUrl: e.avatarUrl, key: key || null }); continue; }
     if (!key) continue; // untrackable anonymous — can't reconcile across resets
 
     const cur  = e.wagered || 0;
@@ -83,7 +94,7 @@ function applyPeriod(data, period) {
 
     const prev = merged.get(key);
     if (prev) { prev.wagered += contribution; if (e.avatarUrl) prev.avatarUrl = e.avatarUrl; prev.username = e.username; }
-    else merged.set(key, { wagered: contribution, username: e.username, avatarUrl: e.avatarUrl });
+    else merged.set(key, { wagered: contribution, username: e.username, avatarUrl: e.avatarUrl, key });
   }
 
   let rankings = [...merged.values()].filter((e) => e.wagered > 0);
