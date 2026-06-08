@@ -838,14 +838,13 @@
             <div class="field" style="margin-bottom:8px;">
               <label>Who can enter</label>
               <select id="wagerWindowSelect" onchange="updateWhoCanEnter()" style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;font-family:'Inter',sans-serif;">
-                <option value="all">All code users</option>
-                <option value="daily">Wagered today</option>
-                <option value="weekly">Wagered this week</option>
                 <option value="monthly">Wagered this month</option>
+                <option value="weekly">Wagered this week</option>
+                <option value="daily">Wagered today</option>
               </select>
-              <div class="hint" id="whoCanEnterHint" style="font-size:11px;">Everyone under your code can enter — even if they haven't wagered recently.</div>
+              <div class="hint" id="whoCanEnterHint" style="font-size:11px;">Only code users who wagered this month can enter. (Turn off Wager Eligibility to allow all code users.)</div>
             </div>
-            <div class="field" id="minWagerField" style="margin-bottom:8px;display:none;">
+            <div class="field" id="minWagerField" style="margin-bottom:8px;">
               <label>Minimum wager ($)<span id="minWagerWindowLabel" style="color:var(--text-dim);font-weight:400;"></span></label>
               <input type="number" id="minWagerInput" value="0" min="0" step="50">
               <div class="hint" style="font-size:11px;">0 = any wager in the window counts. Code users matched via affiliate API.</div>
@@ -3975,13 +3974,10 @@ function onAuthReady(user) {
       document.getElementById('wagerReqFields').style.display = 'block';
       document.getElementById('minWagerInput').value = profile.giveawayMinWager || 0;
     }
-    // "Who can enter": any wager gate (recent-active OR a minimum) means a window is
-    // in play; with neither it's every code user ("all").
+    // The toggle (handled above) is the all-code-users vs restricted switch; the
+    // dropdown only carries the window. Default to monthly if unset.
     const _wwSel = document.getElementById('wagerWindowSelect');
-    if (_wwSel) {
-      const hasWindowGate = profile.giveawayRequireRecentWager || (profile.giveawayMinWager > 0);
-      _wwSel.value = hasWindowGate ? (profile.giveawayWagerWindow || 'monthly') : 'all';
-    }
+    if (_wwSel) _wwSel.value = ['daily', 'weekly', 'monthly'].includes(profile.giveawayWagerWindow) ? profile.giveawayWagerWindow : 'monthly';
     if (typeof updateWhoCanEnter === 'function') updateWhoCanEnter();
     if (profile.giveawaySubOnly) document.getElementById('toggleSubOnly').classList.add('on');
     if (profile.giveawayVerifiedCasino || profile.giveawayVerifiedDiscord) {
@@ -4182,34 +4178,26 @@ function toggleWagerReq(el) {
   document.getElementById('wagerReqFields').style.display = on ? 'block' : 'none';
 }
 
-// Sync the "Who can enter" helper text + reveal the minimum-wager field only when
-// an actual window is chosen (so it can be labelled "wagered this week" etc.).
+// Sync the "Who can enter" helper text + the minimum-wager window label. The
+// dropdown only carries window restrictions now ("all code users" = turn the
+// Wager Eligibility toggle off), so a window is always selected here.
 function updateWhoCanEnter() {
-  const val      = document.getElementById('wagerWindowSelect')?.value || 'all';
+  const val      = document.getElementById('wagerWindowSelect')?.value || 'monthly';
   const hint     = document.getElementById('whoCanEnterHint');
-  const minField = document.getElementById('minWagerField');
   const winLabel = document.getElementById('minWagerWindowLabel');
   const labels   = { daily: 'today', weekly: 'this week', monthly: 'this month' };
-  if (val === 'all') {
-    if (hint) hint.textContent = "Everyone under your code can enter — even if they haven't wagered recently.";
-    if (minField) minField.style.display = 'none';
-  } else {
-    if (hint) hint.textContent = `Only code users who wagered ${labels[val]} can enter.`;
-    if (minField) minField.style.display = '';
-    if (winLabel) winLabel.textContent = ` — wagered ${labels[val]}`;
-  }
+  if (hint) hint.textContent = `Only code users who wagered ${labels[val]} can enter. (Turn off Wager Eligibility to allow all code users.)`;
+  if (winLabel) winLabel.textContent = ` — wagered ${labels[val]}`;
 }
 
 async function startGiveaway() {
   if (!profile) return;
   const keyword   = (document.getElementById('giveawayKeyword')?.value.trim() || '!join');
   const wagerOn   = document.getElementById('toggleWagerReq')?.classList.contains('on');
-  // "Who can enter": 'all' = every code user (no wager gate); a window value means
-  // the user must be active in it. A minimum only applies once a window is chosen.
-  const whoCanEnter        = wagerOn ? (document.getElementById('wagerWindowSelect')?.value || 'all') : 'all';
-  const requireRecentWager = wagerOn && whoCanEnter !== 'all';
-  const wagerWindow        = requireRecentWager ? whoCanEnter : 'monthly';
-  const minWager           = requireRecentWager ? (parseInt(document.getElementById('minWagerInput')?.value, 10) || 0) : 0;
+  // Wager Eligibility ON = restrict to the chosen window; OFF = all code users.
+  const requireRecentWager = !!wagerOn;
+  const wagerWindow        = wagerOn ? (document.getElementById('wagerWindowSelect')?.value || 'monthly') : 'monthly';
+  const minWager           = wagerOn ? (parseInt(document.getElementById('minWagerInput')?.value, 10) || 0) : 0;
   const wagerLuck       = parseInt(document.getElementById('wagerLuckSlider')?.value, 10) || 1;
   const subOnly         = document.getElementById('toggleSubOnly')?.classList.contains('on') || false;
   const verifiedOn      = document.getElementById('toggleVerified')?.classList.contains('on') || false;
