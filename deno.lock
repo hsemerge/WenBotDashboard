@@ -12,6 +12,8 @@
     "packageJson": {
       "dependencies": [
         "npm:firebase-admin@12",
+        "npm:html-minifier-terser@^7.2.0",
+        "npm:terser@^5.31.6",
         "npm:tweetnacl@^1.0.3"
       ]
     }

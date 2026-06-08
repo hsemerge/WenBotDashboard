@@ -22,6 +22,40 @@ async function fetchGambulls(apiKey) {
   };
 }
 
+// Custom date-range lookup (Gambulls v1.3 /date-range) — the right tool for a
+// streamer's CUSTOM periods (e.g. a 3-day window). Returns everyone who wagered
+// between from/to (YYYY-MM-DD), ranked, computed on demand.
+async function fetchGambullsDateRange(apiKey, from, to) {
+  const url = `https://api.gambulls.com/api/public/streamer/leaderboard/date-range?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&limit=100`;
+  const resp = await fetch(url, { headers: { "x-streamer-api-key": apiKey, "Accept": "application/json" } });
+  if (!resp.ok) return null;
+  const data = await resp.json();
+  if (!data.success || !data.responseObject?.rankings) return null;
+  return {
+    period:       data.responseObject.period,
+    totalWagered: data.responseObject.totalWagered || 0,
+    totalUsers:   data.responseObject.totalUsers || 0,
+    rankings:     normalizeGambulls(data.responseObject),
+  };
+}
+
+// Historical period lookup (Gambulls v1.3 `period=`). Returns that finished
+// period's standings directly — no baselines/carryover (it's a snapshot in time).
+async function fetchGambullsPeriod(apiKey, type, period) {
+  const t = ["daily", "weekly", "monthly"].includes(type) ? type : "monthly";
+  const url = `https://api.gambulls.com/api/public/streamer/leaderboard?type=${t}&period=${encodeURIComponent(period)}&limit=100`;
+  const resp = await fetch(url, { headers: { "x-streamer-api-key": apiKey, "Accept": "application/json" } });
+  if (!resp.ok) return null;
+  const data = await resp.json();
+  if (!data.success || !data.responseObject?.rankings) return null;
+  return {
+    period:       data.responseObject.period,
+    totalWagered: data.responseObject.totalWagered || 0,
+    totalUsers:   data.responseObject.totalUsers || 0,
+    rankings:     normalizeGambulls(data.responseObject),
+  };
+}
+
 // Short-TTL Firestore cache for the RAW (unbaselined) casino standings. Without
 // this, every viewer's 60s portal refresh hits Gambulls with the streamer's API
 // key — which at scale can rate-limit/ban that key and break their board. We cache
@@ -84,6 +118,33 @@ exports.handler = async (event) => {
       if (!providerDoc.exists) return res(400, { error: "Streamer hasn't configured their Gambulls API yet." });
 
       const { apiKey } = providerDoc.data();
+
+      // Custom date-range view — used by the dashboard's "past period" dropdown,
+      // which queries each finished period by its real start/end dates (works for
+      // custom-length periods, e.g. a 3-day one). Uncached, no period math.
+      const fromParam = (event.queryStringParameters?.from || "").trim();
+      const toParam   = (event.queryStringParameters?.to   || "").trim();
+      if (fromParam && toParam) {
+        const dr = await fetchGambullsDateRange(apiKey, fromParam, toParam);
+        if (!dr) return res(502, { error: "Couldn't load that date range from Gambulls." });
+        return res(200, {
+          success: true, casino: provider, casinoName: CASINO_NAMES[provider], historical: true,
+          period: dr.period, rankings: dr.rankings, totalWagered: dr.totalWagered, totalUsers: dr.totalUsers,
+        });
+      }
+
+      // Calendar-period view (Gambulls `period=YYYY-MM` etc.) — kept for completeness.
+      const histPeriod = (event.queryStringParameters?.period || "").trim();
+      if (histPeriod) {
+        const histType = event.queryStringParameters?.ptype || "monthly";
+        const hist = await fetchGambullsPeriod(apiKey, histType, histPeriod);
+        if (!hist) return res(502, { error: "Couldn't load that period from Gambulls." });
+        return res(200, {
+          success: true, casino: provider, casinoName: CASINO_NAMES[provider], historical: true,
+          period: hist.period, rankings: hist.rankings, totalWagered: hist.totalWagered, totalUsers: hist.totalUsers,
+        });
+      }
+
       const data = await getCachedStandings(db, channel.toLowerCase(), provider, apiKey);
       if (!data) return res(502, { error: "Failed to fetch from Gambulls API." });
 

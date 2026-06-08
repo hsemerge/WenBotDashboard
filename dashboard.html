@@ -836,9 +836,22 @@
           </div>
           <div id="wagerReqFields" style="display:none;margin-top:8px;">
             <div class="field" style="margin-bottom:8px;">
+              <label>Wager window</label>
+              <select id="wagerWindowSelect" style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;font-family:'Inter',sans-serif;">
+                <option value="monthly">This month</option>
+                <option value="weekly">This week</option>
+                <option value="daily">Today</option>
+              </select>
+              <div class="hint" style="font-size:11px;">The period wagers are measured over (Gambulls).</div>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);cursor:pointer;margin-bottom:10px;" title="Code users must have wagered in the selected window to enter (any amount).">
+              <input type="checkbox" id="requireRecentWagerCheck" style="width:15px;height:15px;accent-color:var(--accent);flex-shrink:0;">
+              Require a wager in this window (recently active)
+            </label>
+            <div class="field" style="margin-bottom:8px;">
               <label>Minimum Wager ($)</label>
-              <input type="number" id="minWagerInput" value="200" min="0" step="50">
-              <div class="hint" id="wagerReqHint" style="font-size:11px;">Code users: leaderboard API</div>
+              <input type="number" id="minWagerInput" value="0" min="0" step="50">
+              <div class="hint" id="wagerReqHint" style="font-size:11px;">0 = no minimum (just the window/recent rule). Code users matched via affiliate API.</div>
             </div>
             <div class="field" style="margin-bottom:0;">
               <label>Luck Multiplier: <strong id="wagerLuckVal">1x</strong></label>
@@ -1340,9 +1353,13 @@
       <!-- Internal wager + points view -->
       <div class="grid-2">
         <div class="card">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:8px;flex-wrap:wrap;">
             <div class="card-title" style="margin-bottom:0;">🏆 Wager Rankings</div>
-            <div id="lbPlatformNote" style="font-size:11px;color:var(--text-dim);"></div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <select id="lbPeriodSelect" onchange="loadWagerRankings()" title="View a past period (Gambulls)" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:11px;padding:4px 6px;font-family:'Inter',sans-serif;cursor:pointer;"><option value="">Current</option></select>
+              <select id="lbCountSelect" onchange="loadWagerRankings()" title="How many to show" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:11px;padding:4px 6px;font-family:'Inter',sans-serif;cursor:pointer;"><option value="15">Top 15</option><option value="50">Top 50</option><option value="all">All</option></select>
+              <span id="lbPlatformNote" style="font-size:11px;color:var(--text-dim);"></span>
+            </div>
           </div>
           <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Live data from your affiliate platform — visible to you only</div>
           <div id="wagerLeaderboard">
@@ -3028,15 +3045,26 @@
       </div>
 
       <!-- Complete -->
-      <div id="tnComplete" style="display:none;max-width:600px;">
-        <div class="card" style="text-align:center;padding:36px;margin-bottom:16px;">
-          <div style="font-size:40px;margin-bottom:12px;">🏆</div>
-          <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--bright);margin-bottom:4px;" id="tnCompleteTitleDisplay">—</div>
-          <div style="color:var(--text-dim);font-size:13px;margin-bottom:24px;">Tournament Complete</div>
-          <div id="tnFinalStandings" style="text-align:left;margin-bottom:24px;"></div>
-          <button onclick="tnResetUI()" class="btn btn-accent" style="padding:11px 24px;">Start New Tournament</button>
+      <div id="tnComplete" style="display:none;max-width:900px;">
+        <div class="card" style="text-align:center;padding:32px;margin-bottom:16px;">
+          <div style="font-size:44px;margin-bottom:8px;">🏆</div>
+          <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--bright);" id="tnCompleteTitleDisplay">—</div>
+          <div style="color:var(--gold);font-family:'Exo 2',sans-serif;font-size:17px;font-weight:800;margin-top:8px;" id="tnChampionLine"></div>
+          <div style="color:var(--text-dim);font-size:13px;margin-top:4px;">Tournament Complete</div>
+          <div id="tnFinalStandings" style="text-align:left;margin:22px auto 0;max-width:480px;"></div>
+          <div style="display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap;">
+            <button onclick="tnEndTournament()" class="btn btn-accent" style="padding:11px 24px;">🏁 End Tournament</button>
+          </div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:10px;">Ending archives this to Past Tournaments and clears the board for a new one.</div>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title" style="margin-bottom:10px;">Final Bracket</div>
+          <div id="tnCompleteBracket"></div>
         </div>
       </div>
+
+      <!-- Past tournaments — shown below the setup when no tournament is running. -->
+      <div id="tnHistoryWrap" style="display:none;max-width:760px;margin-top:24px;"></div>
 
     </div><!-- end page-tournament -->
 
@@ -3945,11 +3973,15 @@ function onAuthReady(user) {
     currentGiveawayType = profile.giveawayType || 'everyone';
     setType(currentGiveawayType);
     if (profile.giveawayKeyword) document.getElementById('giveawayKeyword').value = profile.giveawayKeyword;
-    if (profile.giveawayMinWager > 0) {
+    if (profile.giveawayMinWager > 0 || profile.giveawayRequireRecentWager) {
       document.getElementById('toggleWagerReq').classList.add('on');
       document.getElementById('wagerReqFields').style.display = 'block';
-      document.getElementById('minWagerInput').value = profile.giveawayMinWager;
+      document.getElementById('minWagerInput').value = profile.giveawayMinWager || 0;
     }
+    const _wwSel = document.getElementById('wagerWindowSelect');
+    if (_wwSel && profile.giveawayWagerWindow) _wwSel.value = profile.giveawayWagerWindow;
+    const _rrwChk = document.getElementById('requireRecentWagerCheck');
+    if (_rrwChk) _rrwChk.checked = !!profile.giveawayRequireRecentWager;
     if (profile.giveawaySubOnly) document.getElementById('toggleSubOnly').classList.add('on');
     if (profile.giveawayVerifiedCasino || profile.giveawayVerifiedDiscord) {
       document.getElementById('toggleVerified').classList.add('on');
@@ -4154,6 +4186,8 @@ async function startGiveaway() {
   const keyword   = (document.getElementById('giveawayKeyword')?.value.trim() || '!join');
   const wagerOn   = document.getElementById('toggleWagerReq')?.classList.contains('on');
   const minWager  = wagerOn ? (parseInt(document.getElementById('minWagerInput')?.value, 10) || 0) : 0;
+  const wagerWindow        = wagerOn ? (document.getElementById('wagerWindowSelect')?.value || 'monthly') : 'monthly';
+  const requireRecentWager = wagerOn && (document.getElementById('requireRecentWagerCheck')?.checked || false);
   const wagerLuck       = parseInt(document.getElementById('wagerLuckSlider')?.value, 10) || 1;
   const subOnly         = document.getElementById('toggleSubOnly')?.classList.contains('on') || false;
   const verifiedOn      = document.getElementById('toggleVerified')?.classList.contains('on') || false;
@@ -4202,6 +4236,8 @@ async function startGiveaway() {
     giveawayType:            currentGiveawayType,
     giveawayKeyword:         keyword,
     giveawayMinWager:        minWager,
+    giveawayWagerWindow:     wagerWindow,
+    giveawayRequireRecentWager: requireRecentWager,
     giveawayWagerLuck:       wagerLuck,
     giveawaySubOnly:         subOnly,
     giveawayVerifiedCasino:  verifiedCasino,
@@ -6430,45 +6466,94 @@ async function loadLeaderboards() {
         <button onclick="removePointsUser('${String(d.id).replace(/'/g,"\\'")}')" title="Reset this viewer's ${currency} to 0" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 2px;line-height:1;opacity:0.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">✕</button>
       </div>`).join('');
 
-  // Wager leaderboard — live from casino API
+  // Wager leaderboard — live from casino API (period + count via the card controls)
   updatePublicLbCard();
+  _populateLbPeriods();
+  loadWagerRankings();
+}
+
+function _lbYmd(ms) {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Fill the Wager Rankings period dropdown with the streamer's OWN finished periods
+// (from leaderboard_periods — including custom-length ones). Each option carries the
+// period's real from:to dates, queried live via Gambulls' date-range endpoint.
+async function _populateLbPeriods() {
+  const sel = document.getElementById('lbPeriodSelect');
+  if (!sel || sel.dataset.filled) return;
+  sel.dataset.filled = '1';
+  const casino = (profile?.activeProvider || 'gambulls').toLowerCase();
+  let html = '<option value="">Current</option>';
+  try {
+    const snap = await fb.db.collection('streamers').doc(fb.activeUid)
+      .collection('leaderboard_periods').where('casino', '==', casino).get();
+    const periods = snap.docs.map(d => d.data())
+      .filter(p => p.startDate && p.endDate)
+      .sort((a, b) => (b.endDate || 0) - (a.endDate || 0))
+      .slice(0, 8);
+    for (const p of periods) {
+      const from  = _lbYmd(p.startDate);
+      const to    = _lbYmd(p.endDate - 1);   // endDate is the exclusive boundary
+      const label = p.period || `${from} – ${to}`;
+      html += `<option value="${from}:${to}">${escHtml(label)}</option>`;
+    }
+  } catch (e) { /* leave just "Current" */ }
+  sel.innerHTML = html;
+}
+
+// Render the Wager Rankings card for the selected period + count.
+async function loadWagerRankings() {
+  const wrap = document.getElementById('wagerLeaderboard');
+  if (!wrap) return;
   const channel = profile?.kickChannel;
   const casino  = profile?.activeProvider || 'gambulls';
-  if (!channel) {
-    document.getElementById('wagerLeaderboard').innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Set your Kick channel in Settings first.</div>';
-    return;
-  }
-  document.getElementById('wagerLeaderboard').innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Loading...</div>';
+  if (!channel) { wrap.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Set your Kick channel in Settings first.</div>'; return; }
+  const periodVal = document.getElementById('lbPeriodSelect')?.value || '';
+  const countSel  = document.getElementById('lbCountSelect')?.value || '15';
+  const isPast    = !!periodVal;
+  wrap.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Loading...</div>';
   try {
-    const resp = await fetch(`/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1`);
-    const data = await resp.json();
-    const excluded = (profile?.leaderboardPeriod?.excluded || []);
-    if (data.rankings && data.rankings.length > 0) {
-      const rows = data.rankings.slice(0, 15).map((e, i) => {
-        const key = _lbPeriodKey(e);
-        const nm  = String(e.username).replace(/'/g, "\\'");
-        const xBtn = key
-          ? `<button onclick="excludeLbUser('${key}','${nm}')" title="Remove from leaderboard permanently" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 2px;line-height:1;opacity:0.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">✕</button>`
-          : `<span title="Anonymous on the casino API — can't be removed individually" style="width:16px;display:inline-block;"></span>`;
-        return `
+    let url = `/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1`;
+    if (isPast) {
+      // Past period option value is "<from>:<to>" (YYYY-MM-DD) → Gambulls date-range.
+      const [from, to] = periodVal.split(':');
+      url += `&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+    }
+    const data = await (await fetch(url)).json();
+    if (!data.rankings || !data.rankings.length) {
+      wrap.innerHTML = `<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">${data.error || 'No wager data for this period.'}</div>`;
+      return;
+    }
+    const total    = data.rankings.length;
+    const limit    = countSel === 'all' ? total : (parseInt(countSel, 10) || 15);
+    const excluded = isPast ? [] : (profile?.leaderboardPeriod?.excluded || []);
+    const rows = data.rankings.slice(0, limit).map((e) => {
+      const key = _lbPeriodKey(e);
+      const nm  = String(e.username).replace(/'/g, "\\'");
+      // Past periods are historical snapshots — no exclude action there.
+      const xBtn = (!isPast && key)
+        ? `<button onclick="excludeLbUser('${key}','${nm}')" title="Remove from leaderboard permanently" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 2px;line-height:1;opacity:0.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">✕</button>`
+        : `<span style="width:16px;display:inline-block;"></span>`;
+      return `
         <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(48,54,61,0.4);">
-          <span style="color:var(--text-dim);font-size:12px;width:20px;text-align:right;font-weight:700;">${e.rank}</span>
-          <span style="flex:1;color:var(--bright);font-weight:500;">${escHtml(e.username)}</span>
+          <span style="color:var(--text-dim);font-size:12px;width:24px;text-align:right;font-weight:700;">${e.rank}</span>
+          <span style="flex:1;color:var(--bright);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(e.username)}</span>
           <span style="color:var(--green);font-weight:600;font-size:12px;">$${Number(e.wagered).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
           ${xBtn}
         </div>`;
-      }).join('');
-      const removedBar = excluded.length
-        ? `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0 2px;font-size:11px;color:var(--text-dim);">
-             <span>${excluded.length} user${excluded.length===1?'':'s'} removed from the leaderboard</span>
-             <button onclick="clearLbExclusions()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;padding:0;">Restore all</button>
-           </div>` : '';
-      document.getElementById('wagerLeaderboard').innerHTML = rows + removedBar;
-    } else {
-      document.getElementById('wagerLeaderboard').innerHTML = `<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">${data.error || 'No wager data yet. Make sure your API key is configured in Settings.'}</div>`;
-    }
+    }).join('');
+    const periodLabel = isPast ? (document.getElementById('lbPeriodSelect')?.selectedOptions[0]?.text || '') : '';
+    const countNote   = `<div style="font-size:11px;color:var(--text-dim);text-align:center;padding:8px 0 2px;">Showing ${Math.min(limit, total)} of ${total}${periodLabel ? ' · ' + escHtml(periodLabel) : ''}</div>`;
+    const removedBar = (!isPast && excluded.length)
+      ? `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0 2px;font-size:11px;color:var(--text-dim);">
+           <span>${excluded.length} user${excluded.length === 1 ? '' : 's'} removed from the leaderboard</span>
+           <button onclick="clearLbExclusions()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;padding:0;">Restore all</button>
+         </div>` : '';
+    wrap.innerHTML = `<div style="max-height:480px;overflow-y:auto;">${rows}</div>${countNote}${removedBar}`;
   } catch (err) {
-    document.getElementById('wagerLeaderboard').innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Failed to load wager data.</div>';
+    wrap.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Failed to load wager data.</div>';
   }
 }
 
@@ -6562,25 +6647,52 @@ async function startLeaderboard() {
   flash('Capturing baselines…');
   // Snapshot the RAW (unbaselined) casino totals as the new baseline.
   let baselines = {};
+  // Backdated custom start: if the chosen start is in the past, the board should
+  // count wager since THAT date — not since this click. We fetch each user's
+  // wager from startAt→now (date-range) and set baseline = raw_now − that, so the
+  // display (raw_now − baseline) equals their wager since the chosen start.
+  // Day-granular; falls back to the click-time baseline if date-range is missing.
+  const isBackdated = duration === 'custom' && startAt < now - 60 * 1000;
   try {
     const resp = await fetch(`/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1&raw=1`);
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'fetch failed');
+
+    let sinceStart = null;
+    if (isBackdated) {
+      try {
+        const dr = await fetch(`/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1&from=${_lbYmd(startAt)}&to=${_lbYmd(now)}`);
+        const drData = await dr.json();
+        if (dr.ok && Array.isArray(drData.rankings)) {
+          sinceStart = {};
+          drData.rankings.forEach(e => { const k = _lbPeriodKey(e); if (k) sinceStart[k] = e.wagered || 0; });
+        }
+      } catch { /* fall back to click-time baseline below */ }
+    }
+
     // Key baselines by the stable per-user id (NOT the display name — anonymous
     // users all share "Anonymous"). Untrackable users are skipped.
-    (data.rankings || []).forEach(e => { const k = _lbPeriodKey(e); if (k) baselines[k] = e.wagered || 0; });
+    (data.rankings || []).forEach(e => {
+      const k = _lbPeriodKey(e); if (!k) return;
+      const raw = e.wagered || 0;
+      baselines[k] = sinceStart ? Math.max(0, raw - (sinceStart[k] || 0)) : raw;
+    });
   } catch (e) {
     flash('Failed to capture baselines: ' + e.message, 'error');
     return;
   }
+  if (isBackdated) flash('Backdated start — board counts wager since ' + new Date(startAt).toLocaleString());
 
   const prev = profile?.leaderboardPeriod || {};
+  const autoEl = document.getElementById('lbAutoRenew');
   const lp = {
     duration,
     startAt,
     endAt,
-    // Custom (fixed-date) periods don't auto-renew; presets default to the prior choice (on).
-    autoRenew: duration !== 'custom' && prev.autoRenew !== false,
+    // Honor the Auto-renew checkbox for ALL durations — custom now rolls into an
+    // identical-length window (the scheduler derives the next end from the period
+    // length). Defaults on for a fresh period.
+    autoRenew: autoEl ? autoEl.checked : (prev.autoRenew !== false),
     active:    true,
     baselines,
     excluded:  [], // a fresh Start clears any prior removals
@@ -6636,7 +6748,7 @@ function renderLeaderboardPeriodUI() {
   if (customWrap) customWrap.style.display = _lbSelectedDuration === 'custom' ? 'flex' : 'none';
 
   const auto = document.getElementById('lbAutoRenew');
-  if (auto) auto.checked = !!(lp && lp.autoRenew);
+  if (auto) auto.checked = lp ? !!lp.autoRenew : true; // default ON for a fresh period (incl. custom)
 
   const stopBtn = document.getElementById('lbStopTimerBtn');
   if (stopBtn) stopBtn.style.display = active ? '' : 'none';
@@ -10180,11 +10292,16 @@ function tnRender() {
   document.getElementById('tnRegistration').style.display  = 'none';
   document.getElementById('tnActive').style.display        = 'none';
   document.getElementById('tnComplete').style.display      = 'none';
+  document.getElementById('tnHistoryWrap').style.display   = 'none';
 
-  if (!t || !t.active) {
+  // A completed tournament (status 'complete', active false) stays VISIBLE until the
+  // streamer hits End Tournament — so the bracket/champion/results don't vanish the
+  // instant the final result is entered.
+  if (!t || (!t.active && t.status !== 'complete')) {
     document.getElementById('tnNoTournament').style.display = '';
     badge.style.display = 'none';
     tnSetMode(tnMode); // reflect the selected format in the setup form
+    tnLoadHistory();    // show past tournaments below the setup
     return;
   }
 
@@ -10333,7 +10450,7 @@ function tnChampionHtml(t) {
   const isWager = mode === 'wager';
   const data    = isWager ? (t.championStakes || {}) : (t.championVotes || {});
   const total   = Object.values(data).reduce((a, b) => a + (b || 0), 0);
-  const rows = all.map((p, i) => ({ num: i + 1, name: p.kickUsername, alive: !p.eliminated, v: data[p.kickUsernameKey] || 0 }))
+  const rows = all.map((p, i) => ({ num: i + 1, name: p.kickUsername, alive: !p.eliminated, v: data[p.kickUsernameKey] || 0, slot: (p.slot && p.slot.name) || null, thumb: (p.slot && p.slot.thumbnailUrl) || null }))
     .filter(r => r.alive || r.v > 0)
     .sort((a, b) => b.v - a.v);
   if (!rows.length) return '';
@@ -10351,7 +10468,11 @@ function tnChampionHtml(t) {
       const right = isWager ? `${r.v.toLocaleString()} · ${odds ? odds.toFixed(2) + 'x' : '—'}` : `${r.v} · ${pct}%`;
       return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;${r.alive ? '' : 'opacity:0.4;'}">
         <span style="font-size:11px;color:var(--text-dim);min-width:20px;">#${r.num}</span>
-        <span style="font-size:12px;color:var(--bright);min-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(r.name)}${r.alive ? '' : ' ✕'}</span>
+        ${r.thumb ? `<img src="${escHtml(r.thumb)}" alt="" style="width:24px;height:24px;border-radius:5px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">` : ''}
+        <div style="min-width:112px;max-width:150px;overflow:hidden;">
+          <div style="font-size:12px;color:var(--bright);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(r.name)}${r.alive ? '' : ' ✕'}</div>
+          ${r.slot ? `<div style="font-size:10px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">🎰 ${escHtml(r.slot)}</div>` : ''}
+        </div>
         <div style="flex:1;height:8px;background:var(--bg-panel);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--accent);transition:width .3s;"></div></div>
         <span style="font-size:11px;color:var(--text-dim);min-width:72px;text-align:right;">${right}</span>
       </div>`;
@@ -10441,6 +10562,13 @@ function tnRoundCard(r, currentRound) {
 
 function tnRenderComplete(t) {
   document.getElementById('tnCompleteTitleDisplay').textContent = t.title || 'Tournament';
+  // Champion = the player never eliminated (fallback to the top payout).
+  const champ = (t.participants || []).find(p => !p.eliminated) || (t.payouts || [])[0] || null;
+  const champSlot = champ && champ.slot && champ.slot.name ? ` — ${escHtml(champ.slot.name)}` : '';
+  document.getElementById('tnChampionLine').innerHTML = champ ? `👑 Champion: ${escHtml(champ.kickUsername)}${champSlot}` : '';
+  // Final bracket for review.
+  const bracketEl = document.getElementById('tnCompleteBracket');
+  if (bracketEl) bracketEl.innerHTML = (t.rounds || []).map(r => tnRoundCard(r, t.currentRound)).join('') || '<p style="color:var(--text-dim);">No bracket.</p>';
   const payouts = t.payouts || [];
   const dist    = t.prizeDistribution || [];
   const html = payouts.map((p, i) => {
@@ -10455,6 +10583,64 @@ function tnRenderComplete(t) {
     </div>`;
   }).join('');
   document.getElementById('tnFinalStandings').innerHTML = html || '<p style="color:var(--text-dim);text-align:center;">No standings recorded.</p>';
+}
+
+// End the tournament: archive a compact record to tournament_history, then clear
+// the current board (so the streamer can start a new one). Until this is pressed,
+// the completed bracket/champion stays on screen.
+async function tnEndTournament() {
+  const t = tnTournament;
+  if (!t) return;
+  if (!confirm('End this tournament?\n\nIt will be archived to Past Tournaments and the board cleared for a new one.')) return;
+  const uid = fb.activeUid;
+  try {
+    const champ = (t.participants || []).find(p => !p.eliminated) || (t.payouts || [])[0] || null;
+    await fb.db.collection('streamers').doc(uid).collection('tournament_history').add({
+      title:            t.title || 'Tournament',
+      mode:             t.mode || null,
+      bracketSize:      t.bracketSize || null,
+      prizePool:        t.prizePool || 0,
+      participantCount: (t.participants || []).length,
+      championMode:     t.config?.championMode || 'off',
+      champion:         champ ? { kickUsername: champ.kickUsername, slot: (champ.slot && champ.slot.name) || null } : null,
+      payouts:          (t.payouts || []).map(p => ({ kickUsername: p.kickUsername, prize: p.prize || 0, pct: p.pct || 0 })),
+      endedAt:          Date.now(),
+    });
+    await fb.db.collection('streamers').doc(uid).collection('tournaments').doc('current')
+      .update({ active: false, status: 'ended', updatedAt: Date.now() });
+    flash('🏁 Tournament ended & archived to Past Tournaments.');
+  } catch (e) { flash('Failed to end tournament: ' + e.message, 'error'); }
+}
+
+// Past Tournaments — collapsible list shown under the setup when nothing's running.
+async function tnLoadHistory() {
+  const wrap = document.getElementById('tnHistoryWrap');
+  if (!wrap || !fb.activeUid) return;
+  wrap.style.display = '';
+  try {
+    const snap = await fb.db.collection('streamers').doc(fb.activeUid).collection('tournament_history')
+      .orderBy('endedAt', 'desc').limit(15).get();
+    if (snap.empty) { wrap.innerHTML = ''; wrap.style.display = 'none'; return; }
+    const rows = snap.docs.map(d => {
+      const h     = d.data();
+      const when  = new Date(h.endedAt || 0).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const champ = h.champion ? `${escHtml(h.champion.kickUsername)}${h.champion.slot ? ' · ' + escHtml(h.champion.slot) : ''}` : '—';
+      const top3  = (h.payouts || []).slice(0, 3).map((p, i) => `${['🥇','🥈','🥉'][i]} ${escHtml(p.kickUsername)}${p.prize ? ` (+${Number(p.prize).toLocaleString()})` : ''}`).join(' · ');
+      return `<div onclick="const b=this.querySelector('.tn-h-body');b.style.display=b.style.display==='none'?'':'none';" style="border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden;cursor:pointer;">
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-card);">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:700;color:var(--bright);">${escHtml(h.title || 'Tournament')}</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">👑 ${champ} · ${h.participantCount || 0} players · ${when}</div>
+          </div>
+          <span style="color:var(--text-dim);font-size:12px;">▾</span>
+        </div>
+        <div class="tn-h-body" style="display:none;padding:8px 14px 12px;font-size:12px;color:var(--text-dim);">${top3 || 'No payouts recorded.'}</div>
+      </div>`;
+    }).join('');
+    wrap.innerHTML = `<div class="card-title" style="margin-bottom:10px;">🏅 Past Tournaments</div>${rows}`;
+  } catch (e) {
+    wrap.innerHTML = `<div style="color:var(--text-dim);font-size:12px;">Couldn't load past tournaments.</div>`;
+  }
 }
 
 // ── Prize preset UI ──
