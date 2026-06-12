@@ -3957,6 +3957,7 @@ function onAuthReady(user) {
   if (_gwStyleSel) _gwStyleSel.value = gwOverlayStyle;
   gwUpdateOverlayLinks();
   gwSyncSpinnerFrame();
+  _applyGiveawayComplianceHold();
 
   // Subscribe to winners_log so the Giveaway right column + Overview Recent
   // Winners card stay populated across page refreshes (and pick up raffle
@@ -4152,7 +4153,27 @@ function updateLeaderboardLink(casino) {
   }
 }
 
+// ── GIVEAWAY COMPLIANCE HOLD ────────────────────────────────────────────────
+// Mirrors GIVEAWAY_COMPLIANCE_HOLD in the bot (WenBotServer giveaway.js). Kick
+// requires giveaways be open to all with an equal chance to win, so this hides
+// every participation gate / weighting control — the "Code Users" type, wager
+// eligibility + Luck multiplier, and Subscribers Only — and forces the open
+// "Everyone" type. Flip to false to restore.
+const GIVEAWAY_COMPLIANCE_HOLD = true;
+function _applyGiveawayComplianceHold() {
+  if (!GIVEAWAY_COMPLIANCE_HOLD) return;
+  document.getElementById('typeCode')?.style.setProperty('display', 'none');
+  // The Wager Eligibility section also contains the min-wager field + Luck slider.
+  document.getElementById('toggleWagerReq')?.closest('.toggle-row')?.style.setProperty('display', 'none');
+  const wf = document.getElementById('wagerReqFields'); if (wf) wf.style.display = 'none';
+  // Subscribers Only restricts participation — not permitted under the policy.
+  document.getElementById('toggleSubOnly')?.closest('.toggle-row')?.style.setProperty('display', 'none');
+  if (currentGiveawayType === 'code') currentGiveawayType = 'everyone';
+}
+
 function setType(type) {
+  // COMPLIANCE HOLD: code giveaways are disabled — always resolve to open.
+  if (GIVEAWAY_COMPLIANCE_HOLD) type = 'everyone';
   // Normalize legacy/unknown values — the UI only has Everyone and Code, and a
   // stale type (e.g. old "wager"/"verified") must resolve to code, never fall
   // through to an open giveaway that lets unverified users in.
