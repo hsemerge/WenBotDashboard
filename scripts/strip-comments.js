@@ -29,6 +29,7 @@ const COPY_SKIP = new Set([
   "package.json", "package-lock.json", "deno.lock",
   ".gitignore", ".firebaserc", "firebase.json", "firestore.rules", "netlify.toml",
   "local-proxy.js", "docs",
+  "MegWebsite", // raw client design assets (the used ones live in portals/.../assets)
 ]);
 // Extensions never served publicly (docs + raw data exports / spreadsheets,
 // which may contain PII and must never end up in the public dist).

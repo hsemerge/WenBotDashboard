@@ -861,6 +861,16 @@
             </div>
             <div class="toggle" id="toggleSubOnly" onclick="toggleOption(this)"></div>
           </div>
+          <div class="field" style="margin-top:14px;margin-bottom:0;">
+            <label>Subscriber Luck: <strong id="subLuckVal">1x</strong> entries</label>
+            <input type="range" id="subLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('subLuckVal').textContent=this.value+'x'">
+            <div class="hint" style="font-size:11px;">Subscribers get this many entries (1x = no bonus).</div>
+          </div>
+          <div class="field" style="margin-top:10px;margin-bottom:0;">
+            <label>Code Luck: <strong id="codeLuckVal">1x</strong> entries</label>
+            <input type="range" id="codeLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('codeLuckVal').textContent=this.value+'x'">
+            <div class="hint" style="font-size:11px;">Viewers verified under your casino code get this many entries (1x = no bonus). Stacks with Subscriber Luck.</div>
+          </div>
           <div class="toggle-row" style="margin-top:10px;">
             <div class="toggle-info">
               <div class="toggle-label">Require Verification</div>
@@ -3958,7 +3968,7 @@ function onAuthReady(user) {
   gwUpdateOverlayLinks();
   gwSyncSpinnerFrame();
   _applyGiveawayComplianceHold();
-  showGiveawayPolicyNoticeIfNeeded();
+  // showGiveawayPolicyNoticeIfNeeded(); // disabled: luck weighting re-enabled, "equal odds" notice no longer accurate
 
   // Subscribe to winners_log so the Giveaway right column + Overview Recent
   // Winners card stay populated across page refreshes (and pick up raffle
@@ -3982,6 +3992,10 @@ function onAuthReady(user) {
     if (_wwSel) _wwSel.value = ['daily', 'weekly', 'monthly'].includes(profile.giveawayWagerWindow) ? profile.giveawayWagerWindow : 'weekly';
     if (typeof updateWhoCanEnter === 'function') updateWhoCanEnter();
     if (profile.giveawaySubOnly) document.getElementById('toggleSubOnly').classList.add('on');
+    const _slSlider = document.getElementById('subLuckSlider');
+    if (_slSlider && profile.giveawaySubLuck > 1) { _slSlider.value = profile.giveawaySubLuck; document.getElementById('subLuckVal').textContent = profile.giveawaySubLuck + 'x'; }
+    const _clSlider = document.getElementById('codeLuckSlider');
+    if (_clSlider && profile.giveawayCodeLuck > 1) { _clSlider.value = profile.giveawayCodeLuck; document.getElementById('codeLuckVal').textContent = profile.giveawayCodeLuck + 'x'; }
     if (profile.giveawayVerifiedCasino || profile.giveawayVerifiedDiscord) {
       document.getElementById('toggleVerified').classList.add('on');
       document.getElementById('verifiedReqFields').style.display = 'block';
@@ -4235,6 +4249,8 @@ async function startGiveaway() {
   const wagerWindow        = wagerOn ? (document.getElementById('wagerWindowSelect')?.value || 'monthly') : 'monthly';
   const minWager           = wagerOn ? (parseInt(document.getElementById('minWagerInput')?.value, 10) || 0) : 0;
   const wagerLuck       = parseInt(document.getElementById('wagerLuckSlider')?.value, 10) || 1;
+  const subLuck         = parseInt(document.getElementById('subLuckSlider')?.value, 10) || 1;
+  const codeLuck        = parseInt(document.getElementById('codeLuckSlider')?.value, 10) || 1;
   const subOnly         = document.getElementById('toggleSubOnly')?.classList.contains('on') || false;
   const verifiedOn      = document.getElementById('toggleVerified')?.classList.contains('on') || false;
   const verifiedCasino  = verifiedOn && (document.getElementById('verifiedCasinoCheck')?.checked || false);
@@ -4285,6 +4301,8 @@ async function startGiveaway() {
     giveawayWagerWindow:     wagerWindow,
     giveawayRequireRecentWager: requireRecentWager,
     giveawayWagerLuck:       wagerLuck,
+    giveawaySubLuck:         subLuck,
+    giveawayCodeLuck:        codeLuck,
     giveawaySubOnly:         subOnly,
     giveawayVerifiedCasino:  verifiedCasino,
     giveawayVerifiedDiscord: verifiedDiscord,

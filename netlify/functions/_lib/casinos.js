@@ -4,6 +4,7 @@
 
 const CASINO_NAMES = {
   gambulls:   "Gambulls",
+  degen:      "Degen",
   stake:      "Stake",
   rainbet:    "Rainbet",
   thrill:     "Thrill",

@@ -5,6 +5,7 @@ const { getDb }            = require("./_lib/firebase");
 const { res: _res }        = require("./_lib/http");
 const { CASINO_NAMES }     = require("./_lib/casinos");
 const { normalizeGambulls, applyPeriod } = require("./_lib/leaderboard");
+const { fetchDegenRace }   = require("./_lib/degen");
 const res = (s, b) => _res(s, b, "*");
 
 async function fetchGambulls(apiKey) {
@@ -109,6 +110,23 @@ exports.handler = async (event) => {
     const isInternal = event.queryStringParameters?.internal === "1";
     if (!isInternal && !streamerData.leaderboardEnabled) {
       return res(403, { error: "This streamer's leaderboard is not publicly enabled." });
+    }
+
+    // Degen: keyless public race API (referral code in the URL). Passthrough —
+    // the race period + per-rank prizes come from Degen, no WenBot baselines.
+    if (provider === "degen") {
+      const provDoc = await db.collection("streamers").doc(streamerDoc.id)
+        .collection("providers").doc("degen").get();
+      const code = provDoc.exists ? (provDoc.data().referralCode || provDoc.data().apiKey) : null;
+      if (!code) return res(400, { error: "Streamer hasn't configured their Degen referral code yet." });
+      const race = await fetchDegenRace(code);
+      if (!race) return res(502, { error: "Failed to fetch from Degen API." });
+      return res(200, {
+        success: true, casino: provider, casinoName: CASINO_NAMES[provider], period,
+        degen: { raceName: race.raceName, startAt: race.startAt, endAt: race.endAt, prizePool: race.prizePool, fiat: race.fiat, active: race.active },
+        rankings: race.rankings.map((r) => ({ rank: r.rank, username: r.username, wagered: r.wagered, avatarUrl: r.avatarUrl, prize: r.prize })),
+        totalWagered: race.totalWagered, totalUsers: race.totalUsers,
+      });
     }
 
     // Only Gambulls has live API support right now

@@ -7,6 +7,7 @@ const { getDb }              = require("./_lib/firebase");
 const { CASINO_NAMES }       = require("./_lib/casinos");
 const { lookupAffiliate }    = require("./_lib/affiliate");
 const { normalizeGambulls, applyPeriod } = require("./_lib/leaderboard");
+const { fetchDegenRace }     = require("./_lib/degen");
 
 const API_CASINOS = new Set(["gambulls"]);
 
@@ -130,6 +131,37 @@ const PORTAL_PRESETS = {
     },
     brandCredit: true,
   },
+
+  // Irish Queen of the Slots — Degen race (keyless, referral code in the URL).
+  // provider + degenReferralCode here mean she needs NO Firestore provider doc.
+  irishqueenoftheslots: {
+    provider:          "degen",
+    degenReferralCode: "meg",
+    theme: {
+      accent:     "#c43bff",
+      accent2:    "#ff4fd8",
+      accentGlow: "rgba(196,59,255,0.30)",
+      gold:       "#ffd84d",
+      bg:         "#0b0613",
+      bgCard:     "#19102e",
+      border:     "#3a2a5c",
+    },
+    logoUrl: "/portals/irishqueenoftheslots/assets/hero-banner.jpg",
+    hero: {
+      tagline:   "Slots. Wins. Vibes. Queen Energy. 💜",
+      title:     "👑 IRISH QUEEN OF THE SLOTS",
+      cadence:   "Monthly",
+      code:      "Meg",
+      ctaLabel:  "Play on Degen — code Meg",
+      ctaHref:   "https://degen.com/?ref=Meg",
+    },
+    links: [
+      { label: "Degen",   href: "https://degen.com/?ref=Meg", icon: "🎰" },
+      { label: "YouTube", href: "https://youtube.com/@irishqueenoftheslots", icon: "▶️" },
+      { label: "Kick",    href: "https://kick.com/irishqueenoftheslots", icon: "💜" },
+    ],
+    brandCredit: true,
+  },
 };
 
 // Themed-portal branding (palette/logo/hero/bg). Emitted for Elite+ (the full
@@ -214,6 +246,7 @@ exports.handler = async (event) => {
     }
 
     const isOwner    = OWNER_CHANNELS.has(channel);
+    const presetMain = PORTAL_PRESETS[channel] || {};
     // White-label override = owner, a seeded preset, a manual Firestore flag, or
     // the agency plan. These get full agency-tier FEATURES (every section) +
     // branding, regardless of what they pay — used for comps like SKSlots.
@@ -237,7 +270,9 @@ exports.handler = async (event) => {
       return res(404, { error: "Portal not available on this plan" });
     }
 
-    const provider = (profile.activeProvider || "gambulls").toLowerCase();
+    // A white-label preset's provider wins (these are comped, code-configured
+    // clients); otherwise the streamer's dashboard choice, else gambulls.
+    const provider = (presetMain.provider || profile.activeProvider || "gambulls").toLowerCase();
 
     // Public-safe streamer info. Anything sensitive is NOT included here.
     const publicProfile = {
@@ -315,8 +350,42 @@ exports.handler = async (event) => {
     let leaderboard = null;
     let leaderboardPeriods = null; // past monthly winners
     if (tier >= TIER_RANK.elite) {
+      // Degen passthrough — the live race (period + per-rank prizes) comes straight
+      // from Degen's keyless public API (referral code in the URL); no WenBot
+      // baselines/periods/prizes apply.
+      if (provider === "degen") {
+        const provDoc = await db.collection("streamers").doc(uid)
+          .collection("providers").doc("degen").get();
+        const code = (provDoc.exists ? (provDoc.data().referralCode || provDoc.data().apiKey) : null) || presetMain.degenReferralCode;
+        if (code) {
+          try {
+            const race = await fetchDegenRace(code);
+            if (race) {
+              leaderboard = {
+                period:       race.raceName || "Degen Race",
+                casinoName:   "Degen",
+                startAt:      race.startAt,
+                endAt:        race.endAt,
+                prizePool:    race.prizePool,
+                fiat:         race.fiat,
+                rankings:     race.rankings.map((r) => ({
+                  rank:        r.rank,
+                  name:        r.username,
+                  wagerAmount: r.wagered,
+                  avatarUrl:   r.avatarUrl,
+                  prize:       r.prize,
+                })),
+                totalUsers:   race.totalUsers,
+                totalWagered: race.totalWagered,
+              };
+            }
+          } catch (err) {
+            console.warn("[portal-data] degen fetch failed:", err.message);
+          }
+        }
+      }
       // Live leaderboard via the streamer's stored casino API key (server-side only)
-      if (API_CASINOS.has(provider)) {
+      else if (API_CASINOS.has(provider)) {
         const provDoc = await db.collection("streamers").doc(uid)
           .collection("providers").doc(provider).get();
         if (provDoc.exists && provDoc.data().apiKey) {

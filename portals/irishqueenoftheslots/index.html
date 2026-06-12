@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Irish Queen of the Slots — Wager Race</title>
+<meta name="description" content="SKSlots monthly wager race — live leaderboard, giveaways & rewards.">
+<link rel="icon" href="/portals/irishqueenoftheslots/assets/hero-banner.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  BESPOKE white-label portal for SKSlots (Agency tier).
+  Self-contained page that pulls the SAME live data as the standard portal via
+  /api/portal-data?channel=skslots — only the presentation is custom. Reached by
+  skslots.co.uk through the SLUG_TO_PAGE map in netlify/edge-functions/custom-domain.js.
+  This is the STARTER scaffold — iterate the design freely; the data layer is shared.
+-->
+<style>
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    /* Irish Queen of the Slots — deep purple + gold + diamond-pink glam */
+    --accent:#c43bff; --accent2:#ff4fd8; --gold:#ffd84d;
+    --bg:#0b0613; --bg-card:#19102e; --border:#3a2a5c;
+    --text:#e8ddff; --dim:#a392c9; --bright:#ffffff;
+  }
+  html,body { height:100%; }
+  body {
+    font-family:'Inter',sans-serif; background:var(--bg); color:var(--text);
+    min-height:100vh; overflow-x:hidden; position:relative;
+  }
+  /* Animated background: starfield canvas + drifting brand-color glows */
+  #starfield { position:fixed; inset:0; z-index:0; }
+  .glow { position:fixed; border-radius:50%; filter:blur(130px); opacity:.28; z-index:0; pointer-events:none; }
+  .glow-1 { width:560px; height:560px; background:var(--accent);  top:-140px; left:-120px; animation:drift1 20s ease-in-out infinite; }
+  .glow-2 { width:500px; height:500px; background:var(--accent2); bottom:-160px; right:-120px; animation:drift2 24s ease-in-out infinite; }
+  .glow-3 { width:440px; height:440px; background:var(--gold); top:38%; left:46%; opacity:.12; animation:drift3 28s ease-in-out infinite; }
+  @keyframes drift1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(70px,50px)} }
+  @keyframes drift2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-60px,-40px)} }
+  @keyframes drift3 { 0%,100%{transform:translate(-30px,0) scale(1)} 50%{transform:translate(40px,-30px) scale(1.15)} }
+  .wrap { position:relative; z-index:1; max-width:1180px; margin:0 auto; padding:0 20px; }
+
+  /* NAV */
+  nav { display:flex; align-items:center; justify-content:space-between; padding:20px 0; }
+  .brand { display:flex; align-items:center; gap:12px; text-decoration:none; }
+  .brand img { width:48px; height:48px; border-radius:50%; box-shadow:0 0 22px var(--accent); }
+  .brand-name { font-family:'Exo 2',sans-serif; font-weight:900; font-size:22px; color:var(--bright); letter-spacing:.04em; }
+  .brand-sub { font-size:11px; color:var(--dim); }
+  .nav-links { display:flex; gap:22px; font-size:13px; }
+  .nav-links a { color:var(--dim); text-decoration:none; font-weight:600; transition:color .15s; }
+  .nav-links a:hover { color:var(--bright); }
+
+  /* LINK BAR (socials + custom links) — items truly centered as a group */
+  .linkbar { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; align-items:center;
+    margin:8px 0 28px; background:rgba(255,255,255,.02); border:1px solid var(--border);
+    border-radius:14px; padding:12px 16px; }
+  .linkbar a { display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:8px 15px; border-radius:10px;
+    color:var(--text); text-decoration:none; font-size:13px; font-weight:600; border:1px solid var(--border); background:rgba(255,255,255,.02); transition:.15s; white-space:nowrap; }
+  .linkbar a:hover { border-color:var(--accent); background:rgba(168,85,247,.1); color:var(--bright); transform:translateY(-1px); }
+  .linkbar .lk-emote { font-size:15px; line-height:1; }
+
+  /* HERO */
+  .hero { text-align:center; padding:18px 0 14px; position:relative; }
+  /* Static, serious logo treatment — no spin. Subtle dual-color glow + a slow
+     breathing pulse so it still feels alive without being playful. */
+  /* Full-width video/image hero banner (replaces the old round chip) */
+  .hero-banner-wrap { max-width:1000px; margin:0 auto 20px; padding:0 4px; }
+  .hero-banner { width:100%; aspect-ratio:1179/480; object-fit:cover; display:block; background:#0b0613;
+    border-radius:20px; border:1px solid rgba(196,59,255,.4);
+    box-shadow:0 0 60px rgba(196,59,255,.32), 0 0 130px rgba(255,79,216,.14); animation:bannerPulse 6s ease-in-out infinite; }
+  @keyframes bannerPulse {
+    0%,100% { box-shadow:0 0 50px rgba(196,59,255,.28), 0 0 110px rgba(255,79,216,.12); }
+    50%     { box-shadow:0 0 82px rgba(196,59,255,.5),  0 0 150px rgba(255,79,216,.24); }
+  }
+  .brand img { animation:none; }
+  /* Hero "code + play" CTA */
+  .hero-code { font-size:13px; color:var(--dim); margin:14px 0 6px; }
+  .hero-code b { color:var(--gold); font-family:'Exo 2',sans-serif; letter-spacing:.04em; }
+  .hero h1 { font-family:'Exo 2',sans-serif; font-weight:900; font-size:clamp(30px,5vw,58px); line-height:1.05;
+    background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; background-clip:text;
+    -webkit-text-fill-color:transparent; letter-spacing:.02em; }
+  /* Gradient headings clip their text to transparent — which also hides emoji
+     glyphs (they'd only show when the text is selected). Exempt emojis so they
+     render in full color. */
+  .hero h1 .h-emoji { -webkit-text-fill-color:initial; background:none; }
+  .hero .prize { font-family:'Exo 2',sans-serif; font-weight:900; font-size:clamp(36px,6.5vw,68px);
+    color:var(--gold); text-shadow:0 0 30px rgba(245,197,24,.45); margin:6px 0; }
+  .bonus { display:inline-block; margin-top:4px; padding:10px 24px; border-radius:30px; font-weight:800; font-size:14px;
+    color:#06121a; background:linear-gradient(90deg,var(--accent2),#7be4c9); box-shadow:0 0 26px rgba(63,189,245,.4); }
+
+  /* COUNTDOWN */
+  .countdown { display:flex; gap:14px; justify-content:center; margin:30px 0 8px; flex-wrap:wrap; }
+  .cd-cell { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:14px 20px; min-width:84px; text-align:center; }
+  .cd-num { font-family:'Exo 2',sans-serif; font-weight:900; font-size:38px; color:var(--accent2); }
+  .cd-lab { font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.12em; margin-top:4px; }
+
+  /* PODIUM — top 3, with the #1 standing out (larger, elevated, gold glow). */
+  .podium { display:flex; justify-content:center; align-items:flex-end; gap:18px; margin:26px 0 14px; flex-wrap:wrap; }
+  .pod { width:210px; background:linear-gradient(180deg,rgba(255,255,255,.04),var(--bg-card)); border:1px solid var(--border);
+    border-radius:18px; padding:28px 16px 18px; text-align:center; position:relative; }
+  /* Rank-tinted top edge + glow so each place reads at a glance. */
+  .pod.rank-1 { border-color:var(--gold);   box-shadow:0 0 38px rgba(245,197,24,.28); transform:translateY(-26px); width:236px; padding-top:34px; }
+  .pod.rank-2 { border-color:#c9d3e6; box-shadow:0 0 22px rgba(201,211,230,.12); }
+  .pod.rank-3 { border-color:#d8995a; box-shadow:0 0 22px rgba(216,153,90,.12); }
+  /* Crown above the avatar, colored by rank. */
+  .pod .crown { font-size:30px; line-height:1; margin-bottom:2px; }
+  .pod.rank-1 .crown { font-size:38px; filter:drop-shadow(0 0 10px rgba(245,197,24,.6)); }
+  /* Avatar with a numbered rank badge. */
+  .pod .av-wrap { position:relative; width:78px; height:78px; margin:6px auto 12px; }
+  .pod.rank-1 .av-wrap { width:96px; height:96px; }
+  .pod .av { width:100%; height:100%; border-radius:50%; background:rgba(168,85,247,.12); border:3px solid var(--accent2);
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:22px; color:var(--accent2); overflow:hidden; }
+  .pod .av img { width:100%; height:100%; object-fit:cover; }
+  .pod.rank-1 .av { border-color:var(--gold); }
+  .pod.rank-2 .av { border-color:#c9d3e6; }
+  .pod.rank-3 .av { border-color:#d8995a; }
+  .pod .badge { position:absolute; bottom:-4px; left:50%; transform:translateX(-50%);
+    min-width:24px; height:24px; padding:0 6px; border-radius:12px; font-family:'Exo 2',sans-serif; font-weight:900; font-size:13px;
+    color:#0b0b12; display:flex; align-items:center; justify-content:center; border:2px solid var(--bg); }
+  .pod.rank-1 .badge { background:var(--gold); } .pod.rank-2 .badge { background:#c9d3e6; } .pod.rank-3 .badge { background:#d8995a; }
+  .pod .nm { font-family:'Exo 2',sans-serif; font-weight:800; color:var(--bright); font-size:17px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:12px; }
+  .pod.rank-1 .nm { font-size:19px; }
+  /* "TOTAL WAGERED" labeled box. */
+  .pod .wg-box { background:rgba(0,0,0,.28); border:1px solid var(--border); border-radius:10px; padding:9px 8px; margin-bottom:8px; }
+  .pod .wg-lab { font-size:9px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); font-weight:700; }
+  .pod .wg { font-family:'Exo 2',sans-serif; color:var(--bright); font-weight:800; font-size:18px; margin-top:2px; }
+  .pod.rank-1 .wg { font-size:22px; }
+  /* Prize bar. */
+  .pod-prize { font-family:'Exo 2',sans-serif; font-weight:900; font-size:17px; color:var(--gold);
+    background:rgba(245,197,24,.1); border:1px solid rgba(245,197,24,.3); border-radius:10px; padding:8px 0; }
+  .pod.rank-1 .pod-prize { font-size:20px; background:rgba(245,197,24,.16); border-color:rgba(245,197,24,.5); }
+  .pod.first .pod-prize { font-size:24px; }
+  /* Prize pill in the leaderboard table (next to the leader's name) */
+  .lb-prize { font-family:'Exo 2',sans-serif; font-weight:900; font-size:13px; color:var(--gold);
+    background:rgba(245,197,24,.1); border:1px solid rgba(245,197,24,.3); border-radius:20px; padding:3px 12px; flex-shrink:0; }
+  .pw-chip:hover { color:var(--bright)!important; border-color:var(--gold)!important; }
+  .pw-chip.active { background:var(--gold)!important; color:#06121a!important; border-color:var(--gold)!important; }
+
+  /* TABLE */
+  .section-title { font-family:'Exo 2',sans-serif; font-weight:800; font-size:18px; color:var(--bright); margin:36px 0 14px; display:flex; align-items:center; gap:10px; }
+  .lb { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
+  .lb-row { display:flex; align-items:center; gap:14px; padding:13px 18px; border-bottom:1px solid rgba(255,255,255,.04); }
+  .lb-row:last-child { border-bottom:none; }
+  .lb-row .r { width:30px; font-family:'Exo 2',sans-serif; font-weight:900; color:var(--dim); text-align:center; }
+  .lb-av { width:34px; height:34px; border-radius:50%; flex-shrink:0; overflow:hidden; background:rgba(168,85,247,.12); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:var(--accent2); }
+  .lb-av img { width:100%; height:100%; object-fit:cover; }
+  .lb-row .n { flex:1; color:var(--bright); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lb-row .w { color:var(--gold); font-weight:800; font-family:'Exo 2',sans-serif; }
+  .lb-row.top .r { color:var(--gold); }
+
+  /* STORE */
+  .store-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; }
+  .store-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:18px; display:flex; flex-direction:column; gap:8px; transition:.15s; position:relative; }
+  .store-card:hover { border-color:var(--accent); transform:translateY(-2px); }
+  .store-card.raffle { border-color:var(--gold); background:linear-gradient(180deg,rgba(245,197,24,.06),var(--bg-card)); }
+  /* contain (not cover) so the full promo graphic shows — these are designed
+     images with text, so cropping would cut off titles. Letterboxes gracefully. */
+  .store-img { width:100%; aspect-ratio:1/1; border-radius:10px; overflow:hidden; background:rgba(0,0,0,.25); border:1px solid var(--border); }
+  .store-img img { width:100%; height:100%; object-fit:contain; display:block; }
+  .store-name { font-family:'Exo 2',sans-serif; font-weight:800; font-size:16px; color:var(--bright); }
+  .store-desc { font-size:12px; color:var(--dim); line-height:1.45; flex:1; min-height:30px; }
+  .store-foot { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:4px; }
+  .store-price { font-family:'Exo 2',sans-serif; font-weight:800; font-size:16px; color:var(--accent); }
+  .store-price small { font-size:11px; color:var(--dim); font-weight:400; }
+  .store-stock { font-size:11px; color:var(--dim); }
+  .store-stock.low { color:var(--gold); } .store-stock.out { color:#ff6b6b; }
+  .store-buycmd { display:inline-flex; align-items:center; gap:6px; margin-top:6px; padding:7px 10px; border-radius:8px; background:rgba(255,255,255,.03); border:1px solid var(--border); font-size:12px; color:var(--text); cursor:pointer; font-family:monospace; transition:.15s; }
+  .store-buycmd:hover { border-color:var(--accent); color:var(--bright); }
+  .raffle-pill { display:inline-flex; align-items:center; gap:5px; font-family:'Exo 2',sans-serif; font-size:10px; font-weight:900; letter-spacing:.06em; color:#06121a; background:linear-gradient(90deg,var(--gold),#ffe27a); border-radius:20px; padding:3px 10px; }
+  .store-note { margin-top:14px; font-size:12px; color:var(--dim); background:rgba(255,255,255,.02); border:1px solid var(--border); border-radius:10px; padding:12px 14px; line-height:1.5; }
+  .store-note code { color:var(--accent2); background:rgba(0,0,0,.3); padding:1px 6px; border-radius:4px; }
+  /* ABOUT + chips */
+  .about { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:22px; line-height:1.7; color:var(--text); }
+  .chips { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin:0 0 20px; }
+  .chips:empty { display:none; margin:0; }   /* no gap when nothing is live */
+  .chip { display:inline-flex; align-items:center; gap:8px; background:var(--bg-card); border:1px solid var(--border); border-radius:24px; padding:8px 16px; font-size:13px; }
+  .chip .dot { width:8px; height:8px; border-radius:50%; background:#ff5b6e; box-shadow:0 0 8px #ff5b6e; }
+  .chip b { color:var(--bright); } .chip .meta { color:var(--dim); font-size:12px; }
+  /* WINNERS */
+  .pw-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,.04); }
+  .pw-row:last-child { border-bottom:none; }
+  .pw-mode { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--accent2); font-weight:700; min-width:64px; }
+  .pw-name { flex:1; color:var(--bright); font-weight:600; }
+  .pw-date { font-size:12px; color:var(--dim); }
+  /* WAGER REWARDS page (section engine) */
+  .rw-sec { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:22px 24px; margin-bottom:18px; }
+  .rw-head { display:flex; align-items:baseline; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+  .rw-head h3 { font-family:'Exo 2',sans-serif; font-weight:900; font-size:20px; color:var(--bright); letter-spacing:.02em; }
+  .rw-head span { font-size:13px; color:var(--accent2); font-weight:700; }
+  .rw-list { list-style:none; display:flex; flex-direction:column; gap:8px; }
+  .rw-list li { position:relative; padding-left:22px; color:var(--text); font-size:14px; line-height:1.5; }
+  .rw-list li::before { content:'▸'; position:absolute; left:4px; color:var(--accent); }
+  .rw-note { margin-top:14px; font-size:12px; color:var(--dim); line-height:1.5; border-top:1px solid var(--border); padding-top:12px; }
+  /* bonus */
+  .rw-bonus { display:flex; align-items:center; gap:22px; flex-wrap:wrap; }
+  .rw-bonus-amt { font-family:'Exo 2',sans-serif; font-weight:900; font-size:44px; color:var(--gold); text-shadow:0 0 26px rgba(245,197,24,.4); flex-shrink:0; }
+  .rw-bonus .rw-list { flex:1; min-width:240px; }
+  /* tier table */
+  .rw-table { border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  .rw-trow { display:flex; justify-content:space-between; padding:13px 18px; border-bottom:1px solid rgba(255,255,255,.04); font-size:15px; }
+  .rw-trow:last-child { border-bottom:none; }
+  .rw-thead { background:rgba(255,255,255,.03); font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); font-weight:800; }
+  .rw-trow .rw-amt, .rw-amt { color:var(--gold); font-family:'Exo 2',sans-serif; font-weight:800; }
+  /* deposit cards */
+  .rw-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
+  .rw-card { background:rgba(255,255,255,.02); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
+  .rw-card-t { font-family:'Exo 2',sans-serif; font-weight:800; font-size:15px; color:var(--accent2); margin-bottom:10px; }
+  /* prize splits */
+  .rw-prizes { display:flex; gap:12px; flex-wrap:wrap; }
+  .rw-prize { flex:1; min-width:90px; text-align:center; background:rgba(255,255,255,.02); border:1px solid var(--border); border-radius:12px; padding:16px 10px; }
+  .rw-prize .rw-place { display:block; font-size:12px; color:var(--dim); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+  .rw-prize .rw-amt { font-size:24px; }
+  .rw-footnote { font-size:12px; color:var(--dim); line-height:1.6; text-align:center; max-width:680px; margin:8px auto 0; font-style:italic; }
+  /* Viewer auth bar (Kick login / balance) */
+  .viewer-bar { display:flex; align-items:center; gap:10px; font-size:13px; }
+  .btn-kick { display:inline-flex; align-items:center; gap:7px; background:#53fc18; color:#0b1402; font-weight:800; border:none; border-radius:9px; padding:9px 16px; cursor:pointer; font-size:13px; }
+  .btn-kick:hover { filter:brightness(1.08); }
+  .viewer-pts { font-family:'Exo 2',sans-serif; font-weight:800; color:var(--gold); }
+  .viewer-name { color:var(--bright); font-weight:600; }
+  .viewer-logout { color:var(--dim); cursor:pointer; text-decoration:underline; font-size:12px; }
+  /* Store buy button + balance-gated states */
+  .store-buy { margin-top:6px; width:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#fff; font-weight:800; border:none; border-radius:9px; padding:10px; cursor:pointer; font-size:13px; transition:.15s; }
+  .store-buy:hover:not(:disabled) { filter:brightness(1.1); }
+  .store-buy:disabled { opacity:.5; cursor:not-allowed; }
+  .store-buy.raffle { background:linear-gradient(90deg,var(--gold),#ffd86b); color:#1a1407; }
+  .link-btn { display:inline-flex; align-items:center; gap:8px; background:var(--bg-card); border:1px solid var(--accent); color:var(--bright); font-weight:700; border-radius:10px; padding:11px 18px; text-decoration:none; font-size:14px; transition:.15s; }
+  .link-btn:hover { background:rgba(168,85,247,.12); }
+  footer { text-align:center; padding:40px 0 30px; color:var(--dim); font-size:12px; }
+  footer a { color:var(--accent2); text-decoration:none; }
+  .loading,.empty { text-align:center; color:var(--dim); padding:30px; font-size:14px; }
+  .hidden { display:none; }
+
+  /* ── MOBILE / RESPONSIVE ─────────────────────────────────────────────────
+     The page was desktop-only; these stack the nav, shrink the podium, and keep
+     rows from overflowing/overlapping on phones. */
+  @media (max-width: 860px) {
+    nav { flex-direction:column; gap:12px; padding:16px 0 8px; text-align:center; }
+    .brand { justify-content:center; }
+    .viewer-bar { justify-content:center; flex-wrap:wrap; }
+    /* Podium stacks vertically; the #1 elevation/translate is removed so cards
+       don't overlap when wrapped. */
+    .podium { gap:12px; }
+    .pod, .pod.rank-1 { width:100%; max-width:340px; transform:none; }
+    /* Stacked: show 1st, then 2nd, then 3rd (override the desktop 2-1-3 order). */
+    .pod.rank-1 { order:1; } .pod.rank-2 { order:2; } .pod.rank-3 { order:3; }
+  }
+  @media (max-width: 560px) {
+    .wrap { padding:0 14px; }
+    .glow { filter:blur(90px); opacity:.16; }       /* lighter so it doesn't wash text */
+    .hero { padding:10px 0 8px; }
+    .hero-chip { width:104px; height:104px; margin-bottom:10px; }
+    .hero h1 { font-size:clamp(24px,8vw,40px); }
+    .hero .prize { font-size:clamp(32px,11vw,52px); }
+    .countdown { gap:8px; }
+    .cd-cell { min-width:64px; padding:10px 12px; }
+    .cd-num { font-size:28px; }
+    .linkbar { padding:10px; gap:8px; }
+    .linkbar a { padding:7px 12px; font-size:12px; }
+    .section-title { font-size:16px; margin:24px 0 12px; }
+    /* Leaderboard rows: tighten and let long names ellipsis instead of pushing
+       the wager/prize off-screen. */
+    .lb-row { gap:9px; padding:11px 12px; font-size:13px; }
+    .lb-av { width:28px; height:28px; }
+    .lb-prize { font-size:11px; padding:2px 8px; }
+    .lb-row .w { font-size:13px; }
+    /* Store: single column. */
+    .store-grid { grid-template-columns:1fr; }
+    /* Rewards tables/cards stack cleanly. */
+    .rw-sec { padding:16px; }
+    .rw-cards { grid-template-columns:1fr; }
+    .rw-bonus-amt { font-size:36px; }
+    .rw-prizes { gap:8px; }
+    .rw-prize { min-width:0; flex:1 1 30%; padding:12px 6px; }
+    .reward-grid { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<canvas id="starfield"></canvas>
+<div class="glow glow-1"></div>
+<div class="glow glow-2"></div>
+<div class="glow glow-3"></div>
+
+<div class="wrap">
+  <nav>
+    <a class="brand" href="/" id="brandLink">
+      <img id="brandLogo" src="/portals/irishqueenoftheslots/assets/hero-banner.jpg" alt="Irish Queen of the Slots">
+      <div><div class="brand-name" id="brandName">SKSlots</div><div class="brand-sub" id="brandSub">kick.com/skslots</div></div>
+    </a>
+    <div class="nav-links" id="navLinks"></div>
+    <div class="viewer-bar" id="viewerBar">
+      <button class="btn-kick" id="viewerLoginBtn" onclick="viewerLogin()">🟢 Sign in with Kick</button>
+      <span id="viewerInfo" class="hidden">
+        <span class="viewer-name" id="viewerName"></span> ·
+        <span class="viewer-pts" id="viewerPts">…</span> ·
+        <span class="viewer-logout" onclick="viewerLogout()">Log out</span>
+      </span>
+    </div>
+  </nav>
+
+  <div class="linkbar" id="linkbar"></div>
+
+  <!-- Live-now status banner (giveaway / bonus hunt / battle / tournament).
+       Sits at the very top, right under the nav, so a live state reads instantly
+       and stays visible across every view. Renders nothing (collapses) when
+       nothing is live. -->
+  <div class="chips" id="activeChips"></div>
+
+  <div id="mainView">
+  <div class="hero">
+    <div class="hero-banner-wrap">
+      <video class="hero-banner" autoplay loop muted playsinline poster="/portals/irishqueenoftheslots/assets/hero-banner.jpg">
+        <source src="/portals/irishqueenoftheslots/assets/video-banner.mp4" type="video/mp4">
+        <source src="/portals/irishqueenoftheslots/assets/video-banner.mov" type="video/quicktime">
+      </video>
+    </div>
+    <h1 id="heroTitle">👑 IRISH QUEEN OF THE SLOTS</h1>
+    <div class="prize" id="heroPrize"></div>
+    <div id="heroCtaWrap"></div>
+    <div class="countdown" id="countdown" style="display:none;">
+      <div class="cd-cell"><div class="cd-num" id="cdD">00</div><div class="cd-lab">Days</div></div>
+      <div class="cd-cell"><div class="cd-num" id="cdH">00</div><div class="cd-lab">Hours</div></div>
+      <div class="cd-cell"><div class="cd-num" id="cdM">00</div><div class="cd-lab">Minutes</div></div>
+      <div class="cd-cell"><div class="cd-num" id="cdS">00</div><div class="cd-lab">Seconds</div></div>
+    </div>
+  </div>
+
+  <div class="podium" id="podium"></div>
+
+  <div id="lbTableWrap">
+    <h2 class="section-title" id="leaderboard">🏆 <span id="lbHeading">Leaderboard</span></h2>
+    <div class="lb" id="lbTable"><div class="loading">Loading leaderboard…</div></div>
+  </div>
+
+  <!-- Latest Videos — auto-pulled from her YouTube channel feed (/api/yt-feed) -->
+  <div id="videosSection">
+    <h2 class="section-title" id="videos">🎥 <span>Latest Videos</span></h2>
+    <div id="ytMain" style="position:relative;width:100%;max-width:900px;margin:0 auto;aspect-ratio:16/9;border-radius:16px;overflow:hidden;border:1px solid var(--border);box-shadow:0 0 44px rgba(196,59,255,.22);background:var(--bg-card);"></div>
+    <div id="ytThumbs" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:900px;margin:14px auto 0;"></div>
+    <div style="text-align:center;margin-top:16px;">
+      <a class="bonus" href="https://youtube.com/@irishqueenoftheslots" target="_blank" rel="noopener">▶ Subscribe on YouTube</a>
+    </div>
+  </div>
+
+  <!-- About -->
+  <div id="aboutSection" class="hidden">
+    <h2 class="section-title" id="about">ℹ️ About</h2>
+    <div class="about" id="aboutBody"></div>
+  </div>
+  </div><!-- /#mainView -->
+
+  <!-- Store — its own routed view (#store) -->
+  <div id="storeView" class="hidden">
+    <div class="hero" style="padding:8px 0 4px;">
+      <h1 id="storeTitle"><span class="h-emoji">🛒</span> STORE</h1>
+      <p style="color:var(--dim);max-width:680px;margin:14px auto 0;line-height:1.6;">Spend your <span id="storeCurrencyLabel">points</span> on rewards. Sign in with Kick to buy, or use <code style="color:var(--accent2)">!buy</code> in chat.</p>
+    </div>
+    <div id="storeSection">
+      <div class="store-grid" id="storeGrid"></div>
+      <div class="store-note" id="storeNote"></div>
+    </div>
+  </div>
+
+  <!-- Past Winners — its own routed view (#winners) -->
+  <div id="winnersView" class="hidden">
+    <div class="hero" style="padding:8px 0 4px;"><h1><span class="h-emoji">👑</span> PAST WINNERS</h1></div>
+    <div id="winnersSection">
+      <div class="lb" id="winnersList"></div>
+    </div>
+  </div>
+
+  <!-- Wager Rewards — separate routed view (#rewards) -->
+  <div id="rewardsView" class="hidden">
+    <div class="hero" style="padding:8px 0 4px;">
+      <h1 id="rewardsTitle"><span class="h-emoji">🎁</span> SKSLOTS WAGER REWARDS</h1>
+      <p id="rewardsIntro" style="color:var(--dim);max-width:680px;margin:14px auto 0;line-height:1.6;"></p>
+    </div>
+    <div id="rewardGrid"></div>
+    <div class="rw-footnote" id="rewardFootnote"></div>
+  </div>
+
+  <footer>
+    <div id="footCredit"></div>
+    <div style="margin-top:8px;font-size:11px;">
+      <a href="https://wenbot.gg/privacy.html" target="_blank" rel="noopener" style="color:var(--dim);">Privacy</a> ·
+      <a href="https://wenbot.gg/terms.html" target="_blank" rel="noopener" style="color:var(--dim);">Terms</a>
+    </div>
+  </footer>
+</div>
+
+<script src="/js/kick-auth.js"></script>
+<script>
+(function () {
+  const CHANNEL = 'irishqueenoftheslots';
+  let viewer = null; // { kickUsername, kickUserId, accessToken } from kick-auth.js session
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const money = n => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const initials = s => (s || '?').slice(0, 2).toUpperCase();
+  // Privacy mask for viewer-facing names: first 2 + asterisks + last 1
+  // (e.g. "Robertc" -> "Ro****c"). "Anonymous" and very short names pass through.
+  function maskName(name) {
+    const s = String(name || '');
+    if (!s || s.toLowerCase() === 'anonymous' || s.length <= 3) return s;
+    const stars = '*'.repeat(Math.max(1, s.length - 3));
+    return s.slice(0, 2) + stars + s.slice(-1);
+  }
+
+  // -- Glam sparkle field: drifting, twinkling diamonds in her brand colors --
+  (function sparkles() {
+    const c = document.getElementById('starfield'), x = c.getContext('2d');
+    const COLORS = ['#c43bff', '#ff4fd8', '#ffd84d', '#e9b8ff', '#ffffff'];
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    let w, h, pts;
+    function size() {
+      w = c.width = innerWidth; h = c.height = innerHeight;
+      pts = Array.from({ length: Math.min(120, Math.floor(w * h / 13000)) }, () => ({
+        x: Math.random() * w, y: Math.random() * h,
+        r: rnd(0.6, 2.7),
+        vx: rnd(-0.16, 0.16), vy: rnd(-0.16, 0.16),
+        col: COLORS[Math.floor(Math.random() * COLORS.length)],
+        tw: rnd(0.0008, 0.0026), ph: Math.random() * Math.PI * 2,
+        base: rnd(0.25, 0.75), glow: Math.random() < 0.4,
+      }));
+    }
+    size(); addEventListener('resize', size);
+    (function loop(t) {
+      x.clearRect(0, 0, w, h);
+      for (const p of pts) {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < -12) p.x = w + 12; else if (p.x > w + 12) p.x = -12;
+        if (p.y < -12) p.y = h + 12; else if (p.y > h + 12) p.y = -12;
+        x.globalAlpha = Math.max(0, p.base * (0.5 + 0.5 * Math.sin(p.ph + t * p.tw)));
+        x.fillStyle = p.col;
+        x.shadowBlur = p.glow ? 14 : 0; x.shadowColor = p.col;
+        x.beginPath(); x.arc(p.x, p.y, p.r, 0, 7); x.fill();
+      }
+      x.shadowBlur = 0; x.globalAlpha = 1;
+      requestAnimationFrame(loop);
+    })(0);
+  })();
+
+  function applyTheme(t) {
+    if (!t) return;
+    const map = { accent:'--accent', accent2:'--accent2', gold:'--gold', bg:'--bg', bgCard:'--bg-card', border:'--border', text:'--text' };
+    for (const k in map) if (t[k]) document.documentElement.style.setProperty(map[k], t[k]);
+  }
+
+  let cdTimer = null;
+  function startCountdown(endAt) {
+    const box = document.getElementById('countdown');
+    if (!endAt) { box.style.display = 'none'; return; }
+    box.style.display = 'flex';
+    const tick = () => {
+      let ms = endAt - Date.now(); if (ms < 0) ms = 0;
+      const d = Math.floor(ms / 86400000), h = Math.floor(ms % 86400000 / 3600000),
+            m = Math.floor(ms % 3600000 / 60000), s = Math.floor(ms % 60000 / 1000);
+      const p = n => String(n).padStart(2, '0');
+      cdD.textContent = p(d); cdH.textContent = p(h); cdM.textContent = p(m); cdS.textContent = p(s);
+    };
+    tick(); clearInterval(cdTimer); cdTimer = setInterval(tick, 1000);
+  }
+
+  function renderLinks(s) {
+    // ONE unified bar: in-page sections (with emotes) + external socials + the
+    // streamer's custom links. Deduped — each destination appears exactly once.
+    // The old top "navLinks" row is no longer used (kept empty).
+    const navEl = document.getElementById('navLinks');
+    if (navEl) navEl.innerHTML = '';
+
+    const soc = s.streamer.socials || {};
+    const items = []; // [emote, label, href, isExternal]
+
+    // In-page section routes (emote + label).
+    items.push(['🏆', 'Leaderboard', '#leaderboard', false]);
+    if (s.features && s.features.store && (s.store?.items || []).length) items.push(['🛒', 'Store', '#store', false]);
+    (s.portal?.pages || []).forEach(p => items.push(['🎁', p.label, '#' + p.id, false]));
+    if (s.pastWinners && s.pastWinners.length) items.push(['👑', 'Winners', '#winners', false]);
+
+    // External: the streamer's custom links (e.g. Gambulls referral) + socials.
+    (s.portal?.links || []).forEach(l => items.push([l.icon || '🔗', l.label, l.href, true]));
+    if (soc.kick)    items.push(['🟢', 'Kick',    soc.kick,    true]);
+    if (soc.discord) items.push(['💬', 'Discord', soc.discord, true]);
+    if (soc.youtube) items.push(['▶',  'YouTube', soc.youtube, true]);
+    if (soc.twitter) items.push(['𝕏',  'Twitter', soc.twitter, true]);
+
+    // Dedupe by href so a page never shows twice (e.g. Wager Rewards).
+    const seen = new Set();
+    const bar = document.getElementById('linkbar');
+    bar.innerHTML = items.filter(([, , href]) => {
+      const key = String(href).toLowerCase();
+      if (seen.has(key)) return false; seen.add(key); return true;
+    }).map(([emote, label, href, ext]) =>
+      ext
+        ? `<a href="${esc(href)}" target="_blank" rel="noopener"><span class="lk-emote">${emote}</span>${esc(label)}</a>`
+        : `<a href="${esc(href)}" onclick="return goTo('${esc(href)}')"><span class="lk-emote">${emote}</span>${esc(label)}</a>`
+    ).join('');
+  }
+
+  // Hash router. Each id in PAGE_VIEWS is a standalone full-page view (its own
+  // <div id="<id>View">); 'main' is the leaderboard home. Anything else is an
+  // in-page anchor on the main view that we smooth-scroll to. This is what makes
+  // Store / Past Winners / Wager Rewards their OWN sections (like the wager page)
+  // instead of stacking under the leaderboard.
+  const PAGE_VIEWS = { rewards: 'rewardsView', store: 'storeView', winners: 'winnersView' };
+  const PAGE_IDS = new Set(Object.keys(PAGE_VIEWS));
+  function goTo(hash) {
+    const id = hash.replace(/^#/, '');
+    if (PAGE_IDS.has(id)) { showView(id); history.replaceState(null, '', hash); return false; }
+    showView('main');
+    history.replaceState(null, '', hash);
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return false;
+  }
+  function showView(name) {
+    const main = document.getElementById('mainView');
+    // Hide every standalone view first.
+    Object.values(PAGE_VIEWS).forEach(vid => document.getElementById(vid)?.classList.add('hidden'));
+    if (PAGE_VIEWS[name]) {
+      main.classList.add('hidden');
+      document.getElementById(PAGE_VIEWS[name]).classList.remove('hidden');
+      window.scrollTo(0, 0);
+    } else {
+      main.classList.remove('hidden');
+    }
+  }
+  window.goTo = goTo;
+
+  // Wager Rewards page — a small section engine driven by portal.rewards so the
+  // streamer's whole rewards doc renders without per-item code.
+  function renderRewards(s) {
+    const r = s.portal?.rewards;
+    const host = document.getElementById('rewardGrid');
+    document.getElementById('rewardsIntro').textContent = r?.intro || '';
+    if (!r || !Array.isArray(r.sections) || !r.sections.length) {
+      host.innerHTML = `<div class="empty">Wager rewards coming soon.</div>`;
+      document.getElementById('rewardFootnote').textContent = '';
+      return;
+    }
+    host.innerHTML = r.sections.map(renderRewardSection).join('');
+    document.getElementById('rewardFootnote').textContent = r.footnote || '';
+  }
+
+  function renderRewardSection(sec) {
+    const head = `<div class="rw-head"><h3>${esc(sec.title || '')}</h3>${sec.subtitle ? `<span>${esc(sec.subtitle)}</span>` : ''}</div>`;
+    const note = sec.note ? `<div class="rw-note">${esc(sec.note)}</div>` : '';
+    let body = '';
+    if (sec.type === 'bonus') {
+      body = `<div class="rw-bonus">
+        <div class="rw-bonus-amt">${esc(sec.reward || '')}</div>
+        <ul class="rw-list">${(sec.bullets||[]).map(b=>`<li>${esc(b)}</li>`).join('')}</ul>
+      </div>`;
+    } else if (sec.type === 'tiers') {
+      const cols = sec.columns || ['Wager','Reward'];
+      body = `<div class="rw-table">
+        <div class="rw-trow rw-thead"><span>${esc(cols[0])}</span><span>${esc(cols[1])}</span></div>
+        ${(sec.tiers||[]).map(t=>`<div class="rw-trow"><span>${esc(t.wager||t.requirement||'')}</span><span class="rw-amt">${esc(t.reward||'')}</span></div>`).join('')}
+      </div>`;
+    } else if (sec.type === 'list') {
+      body = `<ul class="rw-list">${(sec.bullets||[]).map(b=>`<li>${esc(b)}</li>`).join('')}</ul>`;
+    } else if (sec.type === 'cards') {
+      body = `<div class="rw-cards">${(sec.cards||[]).map(c=>`
+        <div class="rw-card"><div class="rw-card-t">${esc(c.title||'')}</div>
+          <ul class="rw-list">${(c.bullets||[]).map(b=>`<li>${esc(b)}</li>`).join('')}</ul>
+        </div>`).join('')}</div>`;
+    } else if (sec.type === 'prizes') {
+      body = `<div class="rw-prizes">${(sec.places||[]).map(p=>`
+        <div class="rw-prize"><span class="rw-place">${esc(p.place||'')}</span><span class="rw-amt">${esc(p.amount||'')}</span></div>`).join('')}</div>`;
+    }
+    return `<section class="rw-sec">${head}${body}${note}</section>`;
+  }
+
+  // Prize for a given rank (1-based) from the prizes array, or '' if none.
+  function prizeFor(rank, prizes) { return (prizes && prizes[rank - 1]) || ''; }
+
+  function renderPodium(ranks, prizes) {
+    const top = ranks.slice(0, 3);
+    if (top.length < 3) { document.getElementById('podium').style.display = 'none'; return; }
+    document.getElementById('podium').style.display = '';
+    const order = [top[1], top[0], top[2]]; // 2nd, 1st, 3rd visually
+    const crowns = { 1: '👑', 2: '🥈', 3: '🥉' };
+    document.getElementById('podium').innerHTML = order.map(e => {
+      const av = e.avatarUrl ? `<img src="${esc(e.avatarUrl)}" alt="" onerror="this.parentElement.textContent='${esc(initials(e.username))}'">` : esc(initials(e.username));
+      const prize = prizeFor(e.rank, prizes);
+      return `<div class="pod rank-${e.rank}">
+        <div class="crown">${crowns[e.rank] || '🏅'}</div>
+        <div class="av-wrap">
+          <div class="av">${av}</div>
+          <div class="badge">${e.rank}</div>
+        </div>
+        <div class="nm">${esc(maskName(e.username))}</div>
+        <div class="wg-box">
+          <div class="wg-lab">Total Wagered</div>
+          <div class="wg">${money(e.wagered)}</div>
+        </div>
+        ${prize ? `<div class="pod-prize">🏆 ${esc(prize)}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  function renderTable(ranks, prizes, belowPodium) {
+    const t = document.getElementById('lbTable');
+    const sec = document.getElementById('lbTableWrap');
+    if (!ranks.length) {
+      // Empty because everyone's on the podium → hide the whole section.
+      // Empty with no podium → genuinely no data, show a message.
+      if (belowPodium) { if (sec) sec.classList.add('hidden'); t.innerHTML = ''; }
+      else { if (sec) sec.classList.remove('hidden'); t.innerHTML = '<div class="empty">No wager data yet.</div>'; }
+      return;
+    }
+    if (sec) sec.classList.remove('hidden');
+    t.innerHTML = ranks.map(e => {
+      const av = e.avatarUrl
+        ? `<span class="lb-av"><img src="${esc(e.avatarUrl)}" alt="" loading="lazy" onerror="this.parentElement.textContent='${esc(initials(e.username))}'"></span>`
+        : `<span class="lb-av">${esc(initials(e.username))}</span>`;
+      const prize = prizeFor(e.rank, prizes);
+      return `<div class="lb-row ${e.rank <= 3 ? 'top' : ''}">
+        <div class="r">${e.rank}</div>
+        ${av}
+        <div class="n">${esc(maskName(e.username))}</div>
+        ${prize ? `<div class="lb-prize">${esc(prize)}</div>` : ''}
+        <div class="w">${money(e.wagered)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Active-now status chips. Bonus Battle & Tournament link out to their existing
+  // interactive pages (which already have Kick login + point betting/entry).
+  // The interactive Bonus Battle / Tournament pages live on the canonical
+  // wenbot.gg origin. On a custom domain (skslots.co.uk) a relative link would be
+  // rewritten by the edge function to /<slug>/bonus-battle.html (which 404s), and
+  // Kick OAuth only runs on wenbot.gg anyway — so link out to the canonical host.
+  // The viewer logs in with Kick there (if not already) and can vote/enter.
+  const APP_ORIGIN = 'https://wenbot.gg';
+  function renderActive(s) {
+    const wrap = document.getElementById('activeChips');
+    const a = s.active || {};
+    const ch = (s.streamer.kickChannel);
+    const chips = [];
+    if (a.giveaway)  chips.push(`<div class="chip"><span class="dot"></span> <b>Giveaway live</b> <span class="meta">— type ${esc(a.giveaway.keyword || '!join')}</span></div>`);
+    if (a.bonusHunt) chips.push(`<div class="chip"><span class="dot"></span> <b>Bonus Hunt</b> <span class="meta">— ${a.bonusHunt.slotCount} slots · ${money(a.bonusHunt.totalCost)} buy-in</span></div>`);
+    if (a.battle)    chips.push(`<a class="link-btn" href="${APP_ORIGIN}/bonus-battle.html?channel=${encodeURIComponent(ch)}"><span class="dot"></span> ⚔️ Bonus Battle live — ${a.battle.matchCount} matches →</a>`);
+    if (a.tournament)chips.push(`<a class="link-btn" href="${APP_ORIGIN}/tournament.html?channel=${encodeURIComponent(ch)}"><span class="dot"></span> 🏆 Tournament — ${a.tournament.participants} entered →</a>`);
+    wrap.innerHTML = chips.join('');
+  }
+
+  let _storeItems = [], _currency = 'points', _raffleCounts = {};
+  function renderStore(s) {
+    if (!s.features || !s.features.store) return;
+    const items = (s.store && s.store.items) || [];
+    _storeItems = items; _currency = s.streamer.currency;
+    // Visibility is handled by the router (#store view). Here we just populate.
+    const labelEl = document.getElementById('storeCurrencyLabel');
+    if (labelEl) labelEl.textContent = s.streamer.currency;
+    document.getElementById('storeGrid').innerHTML = items.map(it => {
+      let stock = '';
+      if (it.stock !== null && it.stock !== undefined) {
+        if (it.stock === 0)      stock = `<span class="store-stock out">Out of stock</span>`;
+        else if (it.stock <= 3)  stock = `<span class="store-stock low">${it.stock} left</span>`;
+        else                     stock = `<span class="store-stock">${it.stock} in stock</span>`;
+      }
+      const out = it.stock === 0;
+      const label = it.isRaffleItem ? 'Enter raffle' : 'Buy';
+      const buyBtn = `<button class="store-buy ${it.isRaffleItem ? 'raffle' : ''}" data-id="${esc(it.id)}" ${out ? 'disabled' : ''} onclick="buyItem('${esc(it.id)}')">${out ? 'Out of stock' : (viewer ? label : '🟢 Sign in to ' + label.toLowerCase())}</button>`;
+      const cmd = `!buy ${it.name}`;
+      const img = it.imageUrl
+        ? `<div class="store-img"><img src="${esc(it.imageUrl)}" alt="" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
+        : '';
+      return `<div class="store-card ${it.isRaffleItem ? 'raffle' : ''}">
+        ${it.isRaffleItem ? `<span class="raffle-pill">🎟 RAFFLE ENTRY</span>` : ''}
+        ${img}
+        <div class="store-name">${esc(it.name)}</div>
+        <div class="store-desc">${esc(it.description || '')}</div>
+        <div class="store-foot">
+          <div class="store-price">${Number(it.price).toLocaleString()} <small>${esc(s.streamer.currency)}</small></div>
+          ${stock}
+        </div>
+        ${it.isRaffleItem ? `<div class="store-raffle-entries" data-id="${esc(it.id)}" style="font-size:12px;color:var(--dim);margin:0 0 8px;min-height:16px;"></div>` : ''}
+        ${buyBtn}
+        <div class="store-buycmd" title="Copy command" onclick="navigator.clipboard&&navigator.clipboard.writeText('${cmd.replace(/'/g,"\\'")}');this.textContent='✓ Copied — paste in chat';">📋 ${esc(cmd)}</div>
+      </div>`;
+    }).join('');
+    const hasRaffle = items.some(it => it.isRaffleItem);
+    document.getElementById('storeNote').innerHTML =
+      `🛒 Click <strong>Buy</strong> to spend your ${esc(_currency)} (sign in with Kick), or use <code>!buy &lt;item&gt;</code> in Kick chat / Discord.` +
+      (hasRaffle ? ` &nbsp; 🎟 <strong style="color:var(--gold)">Raffle</strong> items enter you into a draw — the streamer picks the winner.` : '');
+    if (hasRaffle) fetchRaffleCounts();
+  }
+
+  // Per-raffle entry counts (total + the signed-in viewer's own). Filled into the
+  // placeholder line on each raffle card without re-rendering the whole store.
+  async function fetchRaffleCounts() {
+    try {
+      const kick = viewer ? `&kick=${encodeURIComponent(viewer.kickUsername)}` : '';
+      const r = await fetch(`/api/raffle-entries?channel=${encodeURIComponent(CHANNEL)}${kick}`);
+      const d = await r.json();
+      _raffleCounts = (d && d.entries) || {};
+    } catch { /* keep last counts */ }
+    applyRaffleCounts();
+  }
+  function applyRaffleCounts() {
+    document.querySelectorAll('.store-raffle-entries').forEach(el => {
+      const c = _raffleCounts[el.dataset.id] || { total: 0, mine: 0 };
+      const totalTxt = `🎟 ${Number(c.total).toLocaleString()} ${c.total === 1 ? 'entry' : 'entries'}`;
+      if (viewer) {
+        el.innerHTML = `${totalTxt} · <strong style="color:var(--gold)">You: ${Number(c.mine).toLocaleString()}</strong>`;
+        el.title = '';
+      } else {
+        el.innerHTML = totalTxt;
+        el.title = 'Sign in to see your entries';
+      }
+    });
+  }
+
+  // ── VIEWER AUTH (Kick) + STORE PURCHASE ──────────────────────────────────────
+  function refreshViewerUI() {
+    const loginBtn = document.getElementById('viewerLoginBtn');
+    const info     = document.getElementById('viewerInfo');
+    if (viewer) {
+      loginBtn.classList.add('hidden'); info.classList.remove('hidden');
+      document.getElementById('viewerName').textContent = '@' + viewer.kickUsername;
+    } else {
+      loginBtn.classList.remove('hidden'); info.classList.add('hidden');
+    }
+    // Re-render the store so the buy buttons reflect the current sign-in state
+    // immediately (no manual refresh needed). Only if a state was already loaded.
+    if (window.__S) renderStore(window.__S);
+  }
+  async function fetchBalance() {
+    if (!viewer) return;
+    try {
+      // Reuse bb-state's viewerPoints (no active battle needed — it just returns points).
+      const r = await fetch(`/api/bb-state?channel=${encodeURIComponent(CHANNEL)}&kick=${encodeURIComponent(viewer.kickUsername)}`);
+      const d = await r.json();
+      const pts = d && d.viewerPoints != null ? d.viewerPoints : 0;
+      document.getElementById('viewerPts').textContent = Number(pts).toLocaleString() + ' ' + _currency;
+    } catch { document.getElementById('viewerPts').textContent = '—'; }
+  }
+  window.viewerLogin  = function () { initiateKickAuth('viewer', CHANNEL); };
+  window.viewerLogout = function () { clearKickViewerSession(); viewer = null; refreshViewerUI(); renderStore(window.__S || {}); };
+
+  window.buyItem = async function (itemId) {
+    if (!viewer) { initiateKickAuth('viewer', CHANNEL); return; }
+    const item = _storeItems.find(i => i.id === itemId);
+    if (!item) return;
+    const verb = item.isRaffleItem ? 'enter the ' + item.name + ' raffle' : 'buy ' + item.name;
+    if (!confirm(`Spend ${Number(item.price).toLocaleString()} ${_currency} to ${verb}?`)) return;
+    const btn = document.querySelector(`.store-buy[data-id="${CSS.escape(itemId)}"]`);
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    try {
+      const r = await fetch('/api/store-buy', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: CHANNEL, kickUsername: viewer.kickUsername, accessToken: viewer.accessToken, itemId }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        if (r.status === 401) { clearKickViewerSession(); viewer = null; refreshViewerUI(); }
+        alert(d.error || 'Purchase failed.');
+        if (btn) { btn.disabled = false; btn.textContent = item.isRaffleItem ? 'Enter raffle' : 'Buy'; }
+        return;
+      }
+      if (d.newBalance != null) document.getElementById('viewerPts').textContent = Number(d.newBalance).toLocaleString() + ' ' + _currency;
+      if (btn) { btn.textContent = '✓ Done'; }
+      alert(d.message || 'Success!');
+      load(); // refresh stock
+    } catch (e) {
+      alert('Purchase failed: ' + e.message);
+      if (btn) { btn.disabled = false; btn.textContent = item.isRaffleItem ? 'Enter raffle' : 'Buy'; }
+    }
+  };
+
+  const WIN_TYPE_META = {
+    point:    { label: 'Point Raffle', icon: '🎟' },
+    wager:    { label: 'Wager Raffle', icon: '🎲' },
+    giveaway: { label: 'Giveaway',     icon: '🎁' },
+  };
+  function winTypeLabel(k) { const m = WIN_TYPE_META[k]; return m ? `${m.icon} ${m.label}` : '🎟 Raffle'; }
+  function _tsOf(d) { return d ? (d._seconds ? d._seconds * 1000 : d) : 0; }
+  function _dateShort(d) { const t = _tsOf(d); return t ? new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''; }
+
+  window.pwFilter = function (t) {
+    document.querySelectorAll('#pwWinList .pw-row').forEach(r => { r.style.display = (t === 'all' || r.dataset.type === t) ? '' : 'none'; });
+    document.querySelectorAll('.pw-chip').forEach(c => c.classList.toggle('active', c.dataset.f === t));
+  };
+
+  // 🏆 Leaderboard periods — accordion, latest open + earlier collapsed.
+  function renderLbPeriods(periods) {
+    if (!periods || !periods.length) return '';
+    const cards = periods.map((p, idx) => {
+      const winners = p.winners || [];
+      const rows = winners.map(w => `
+        <div class="pw-row">
+          <span class="pw-mode" style="background:rgba(245,197,24,.14);color:var(--gold);">#${w.rank}</span>
+          <span class="pw-name">${esc(maskName(w.username) || '—')}</span>
+          <span style="color:var(--dim);font-size:12px;white-space:nowrap;">$${Number(w.wagered || 0).toLocaleString()}</span>
+          ${w.prize > 0 ? `<span class="lb-prize" style="margin-left:8px;">$${Number(w.prize).toLocaleString()}</span>` : ''}
+        </div>`).join('');
+      const open = idx === 0;
+      return `<div style="border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden;">
+        <div onclick="const b=this.nextElementSibling;b.style.display=b.style.display==='none'?'':'none';" style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;cursor:pointer;background:var(--bg-card);">
+          <strong style="font-family:'Exo 2',sans-serif;color:var(--bright);">${esc(p.period || 'Period')}</strong>
+          <span style="color:var(--dim);font-size:12px;">${winners.length} winners ▾</span>
+        </div>
+        <div style="display:${open ? '' : 'none'};padding:6px 14px 12px;">${rows || '<div style="color:var(--dim);padding:8px 0;">No winners recorded.</div>'}</div>
+      </div>`;
+    }).join('');
+    return `<div style="font-family:'Exo 2',sans-serif;font-weight:900;color:var(--gold);font-size:15px;margin:4px 0 10px;">🏆 Leaderboard</div>${cards}`;
+  }
+
+  function renderWinners(s) {
+    // Visibility handled by the router (#winners view) + nav. Here we populate.
+    const lbPeriods = s.leaderboardPeriods || [];
+    const wins = []
+      .concat((s.pastWinners || []).map(w => ({ kind: w.mode || 'raffle', winner: w.winner, item: w.itemName, drawnAt: w.drawnAt })))
+      .concat((s.giveawayWinners || []).map(w => ({ kind: 'giveaway', winner: w.winner, item: null, drawnAt: w.drawnAt })))
+      .sort((a, b) => _tsOf(b.drawnAt) - _tsOf(a.drawnAt));
+
+    const el = document.getElementById('winnersList');
+    if (!lbPeriods.length && !wins.length) { el.innerHTML = '<div class="empty">No winners yet.</div>'; return; }
+
+    let html = renderLbPeriods(lbPeriods);
+
+    if (wins.length) {
+      const present = [...new Set(wins.map(w => w.kind))];
+      const chipDefs = [['all', 'All'], ['point', 'Point Raffle'], ['wager', 'Wager Raffle'], ['giveaway', 'Giveaway']]
+        .filter(([k]) => k === 'all' || present.includes(k));
+      const chips = chipDefs.map(([k, lbl], i) =>
+        `<button class="pw-chip${i === 0 ? ' active' : ''}" data-f="${k}" onclick="pwFilter('${k}')" style="font-family:'Exo 2',sans-serif;font-size:12px;font-weight:700;padding:6px 14px;border-radius:999px;cursor:pointer;background:var(--bg-card);border:1px solid var(--border);color:var(--dim);">${lbl}</button>`).join('');
+      const rows = wins.map(w => `
+        <div class="pw-row" data-type="${esc(w.kind)}">
+          <span class="pw-mode">${winTypeLabel(w.kind)}</span>
+          <span class="pw-name">${esc(maskName(w.winner) || '—')}${w.item ? ` <span style="color:var(--dim);">· won “${esc(w.item)}”</span>` : ''}</span>
+          <span class="pw-date">${_dateShort(w.drawnAt)}</span>
+        </div>`).join('');
+      html += `<div style="font-family:'Exo 2',sans-serif;font-weight:900;color:var(--bright);font-size:15px;margin:18px 0 10px;">Recent Wins</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">${chips}</div>
+        <div id="pwWinList">${rows}</div>`;
+    }
+
+    el.innerHTML = html;
+  }
+
+  function renderAbout(s) {
+    const sec = document.getElementById('aboutSection');
+    const bio = s.streamer.bio;
+    const soc = s.streamer.socials || {};
+    const links = [];
+    if (soc.discord) links.push(`<a href="${esc(soc.discord)}" target="_blank" rel="noopener" style="color:var(--accent2)">Discord</a>`);
+    if (soc.youtube) links.push(`<a href="${esc(soc.youtube)}" target="_blank" rel="noopener" style="color:var(--accent2)">YouTube</a>`);
+    if (soc.twitter) links.push(`<a href="${esc(soc.twitter)}" target="_blank" rel="noopener" style="color:var(--accent2)">Twitter</a>`);
+    if (!bio && !links.length) { sec.classList.add('hidden'); return; }
+    sec.classList.remove('hidden');
+    document.getElementById('aboutBody').innerHTML =
+      (bio ? `<p>${esc(bio)}</p>` : '') +
+      `<p style="margin-top:12px;color:var(--dim)">Affiliated with <strong style="color:var(--accent)">${esc(s.streamer.providerName)}</strong>. Type <code style="color:var(--accent2)">!verify</code> in chat to link your casino account.</p>` +
+      (links.length ? `<p style="margin-top:10px">${links.join(' · ')}</p>` : '');
+  }
+
+  // -- Latest Videos (auto from her YouTube channel feed) --
+  const YT_CHANNEL = 'UCGmo_HIu2_gjViIxTF393Rg';
+  function _ytEmbed(id, auto) {
+    return '<iframe src="https://www.youtube.com/embed/' + id + '?rel=0' + (auto ? '&autoplay=1' : '') +
+      '" title="Irish Queen of the Slots" loading="lazy" frameborder="0" allowfullscreen ' +
+      'allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" ' +
+      'style="position:absolute;inset:0;width:100%;height:100%;"></iframe>';
+  }
+  window.ytPlay = function (id) { const m = document.getElementById('ytMain'); if (m) m.innerHTML = _ytEmbed(id, true); };
+  async function loadVideos() {
+    const main = document.getElementById('ytMain'), thumbs = document.getElementById('ytThumbs');
+    if (!main) return;
+    let vids = [];
+    try { const d = await (await fetch('/api/yt-feed?channel=' + YT_CHANNEL)).json(); vids = d.videos || []; } catch {}
+    if (!vids.length) {
+      main.innerHTML = '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;">' +
+        '<div style="font-size:42px;margin-bottom:10px;">🎬</div>' +
+        '<div style="color:var(--bright);font-family:\'Exo 2\',sans-serif;font-weight:800;font-size:18px;">New videos coming soon</div>' +
+        '<div style="font-size:13px;margin-top:6px;color:var(--dim);">Subscribe on YouTube to catch them first 💜</div></div>';
+      if (thumbs) thumbs.innerHTML = '';
+      return;
+    }
+    main.innerHTML = _ytEmbed(vids[0].id, false);
+    if (thumbs) thumbs.innerHTML = vids.slice(0, 4).map(v =>
+      '<button onclick="ytPlay(\'' + v.id + '\')" title="' + esc(v.title) + '" ' +
+      'style="border:1px solid var(--border);background:none;border-radius:10px;overflow:hidden;cursor:pointer;padding:0;width:160px;flex:0 0 auto;transition:border-color .15s;" ' +
+      'onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+      '<img src="' + v.thumb + '" alt="" loading="lazy" style="width:100%;height:90px;object-fit:cover;display:block;"></button>'
+    ).join('');
+  }
+
+  async function load() {
+    let s;
+    try { s = await (await fetch(`/api/portal-data?channel=${CHANNEL}`)).json(); }
+    catch { document.getElementById('lbTable').innerHTML = '<div class="empty">Couldn’t load data.</div>'; return; }
+    if (!s || s.error) { document.getElementById('lbTable').innerHTML = '<div class="empty">Portal unavailable.</div>'; return; }
+    window.__S = s;
+
+    const portal = s.portal || {};
+    applyTheme(portal.theme);
+
+    document.title = `${s.streamer.displayName} — Wager Race`;
+    const logo = portal.logoUrl || s.streamer.logoUrl || '/portals/irishqueenoftheslots/assets/hero-banner.jpg';
+    document.getElementById('brandLogo').src = logo;
+    const _hc = document.getElementById('heroChip'); if (_hc) _hc.src = logo;
+    document.getElementById('brandName').textContent = s.streamer.displayName;
+    document.getElementById('brandSub').textContent = 'kick.com/' + s.streamer.kickChannel;
+    document.getElementById('brandLink').href = s.streamer.socials?.kick || '/';
+
+    const hero = portal.hero || {};
+    if (hero.title) document.getElementById('heroTitle').textContent = hero.title;
+    // Degen race prize pool drives the hero prize; otherwise the portal-config prize.
+    const _pool = (s.leaderboard && s.leaderboard.prizePool) || 0;
+    document.getElementById('heroPrize').textContent = hero.prize || (_pool ? ('$' + Number(_pool).toLocaleString() + ' Prize Pool') : '');
+    // "Play on Gambulls — code SKSlots" CTA. (The separate "Code SKSlots" line was
+    // removed — the code is already in the CTA label, so it was redundant.)
+    const cta = hero.ctaHref ? `<a class="bonus" href="${esc(hero.ctaHref)}" target="_blank" rel="noopener">${esc(hero.ctaLabel || 'Play now')}</a>` : '';
+    document.getElementById('heroCtaWrap').innerHTML = cta;
+
+    if (portal.bgImage) {
+      document.body.style.background = `linear-gradient(rgba(8,7,13,.88),rgba(8,7,13,.95)), url("${portal.bgImage}") center/cover fixed no-repeat`;
+    }
+
+    // Degen owns its race timing — the race end drives the countdown. Falls back to
+    // a WenBot-managed period (other casinos) when there's no live race end.
+    const _lbEnd = (s.leaderboard && s.leaderboard.endAt) || (s.leaderboardTimer && s.leaderboardTimer.active ? s.leaderboardTimer.endAt : null);
+    startCountdown(_lbEnd);
+
+    const lb = s.leaderboard || {};
+    const cadence = hero.cadence ? hero.cadence + ' ' : '';
+    document.getElementById('lbHeading').textContent =
+      cadence + (lb.casinoName || s.streamer.providerName || 'Wager') + ' Leaderboard';
+    // portal-data returns rows as { rank, name, wagerAmount } — normalize to the
+    // { rank, username, wagered } shape the podium/table renderers expect.
+    // SKSlots only wants the TOP 10 shown (podium 1-3 + table 4-10); the rest
+    // are hidden from the public board.
+    const ranks = (lb.rankings || []).map(r => ({
+      rank: r.rank, username: r.name || r.username, wagered: r.wagerAmount != null ? r.wagerAmount : r.wagered, avatarUrl: r.avatarUrl || null, prize: r.prize || 0,
+    })).slice(0, 10);
+    // Degen returns a per-rank prize on each row — map it into the rank-indexed
+    // prizes array the podium/table expect. Other casinos use portal-config prizes.
+    const isDegen = (lb.casinoName === 'Degen') || ranks.some(r => r.prize > 0);
+    const prizes = isDegen ? ranks.map(r => r.prize) : ((portal.prizes) || []);
+    renderLinks(s);
+    // The podium shows the top 3 — so when it's displayed, the table starts at
+    // rank 4 to avoid repeating them. With fewer than 3 entries there's no
+    // podium, so the table shows everyone.
+    const hasPodium = ranks.length >= 3;
+    renderPodium(ranks, prizes);
+    // Below-podium rows: ranks 4+ when a podium shows; everyone otherwise.
+    // `belowPodium` flag tells the table whether an empty list means "all on the
+    // podium" (hide) vs. "genuinely no data" (show a message).
+    renderTable(hasPodium ? ranks.slice(3) : ranks, prizes, hasPodium);
+    renderActive(s);
+    renderStore(s);
+    renderWinners(s);
+    renderAbout(s);
+    renderRewards(s);
+
+    // Honor an initial #store/#winners/#rewards deep-link ONCE, on first load —
+    // not on the 60s refresh (which would yank the viewer out of their current view).
+    if (!window.__routedOnce) {
+      window.__routedOnce = true;
+      const initial = location.hash.replace(/^#/, '');
+      if (PAGE_IDS.has(initial)) showView(initial);
+    }
+
+    document.getElementById('footCredit').innerHTML = portal.brandCredit === false
+      ? `&copy; ${new Date().getFullYear()} ${esc(s.streamer.displayName)}`
+      : `Powered by <a href="https://wenbot.gg" target="_blank" rel="noopener">WenBot</a>`;
+  }
+
+  // Restore any existing Kick viewer session (shared with verify/battle/etc.) so
+  // the balance + Buy buttons are ready on load (eager — points are visible).
+  // On a custom domain, first claim a handoff code (?s=) minted on wenbot.gg.
+  async function initViewer() {
+    const params = new URLSearchParams(location.search);
+    const code = params.get('s');
+    if (code) {
+      try {
+        const r = await fetch('/api/kick-session-claim', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code }),
+        });
+        const d = await r.json();
+        if (r.ok && d.session) {
+          localStorage.setItem('kick_viewer_session', JSON.stringify(d.session));
+        }
+      } catch {}
+      // Strip ?s= from the URL regardless, so it can't be re-claimed / shared.
+      params.delete('s');
+      history.replaceState(null, '', location.pathname + (params.toString() ? '?' + params : '') + location.hash);
+    }
+    try { viewer = (typeof getKickViewerSession === 'function') ? getKickViewerSession() : null; } catch { viewer = null; }
+    refreshViewerUI();
+    if (viewer) fetchBalance();
+  }
+
+  // Resolve the viewer session BEFORE the first render — otherwise, right after
+  // the OAuth handoff, the store would paint with viewer=null ("Sign in to…")
+  // until the next refresh. Awaiting initViewer fixes the stale-button bug.
+  (async () => {
+    await initViewer();
+    load();
+    loadVideos();
+    setInterval(load, 60000); // refresh live data each minute
+  })();
+})();
+</script>
+</body>
+</html>
