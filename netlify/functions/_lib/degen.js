@@ -57,4 +57,33 @@ async function fetchDegenRace(referralCode) {
   };
 }
 
-module.exports = { fetchDegenRace };
+// Degen masks names as "<prefix>***<suffix>" (e.g. "krek" -> "k***k"). A claimed
+// username matches a masked board name when it starts with the prefix and ends
+// with the suffix and is long enough to fill the masked middle.
+function degenNameMatch(claimed, masked) {
+  if (!masked || !masked.includes("*")) return false;
+  const c   = (claimed || "").toLowerCase();
+  const pre = masked.slice(0, masked.indexOf("*")).toLowerCase();
+  const suf = masked.slice(masked.lastIndexOf("*") + 1).toLowerCase();
+  return c.length >= pre.length + suf.length && c.startsWith(pre) && c.endsWith(suf);
+}
+
+// Under-code lookup for verification: is `username` in this referral code's race?
+// Degen only exposes MASKED names (+ fully anonymous rows we can't match), so this
+// is best-effort prefix/suffix matching. Returns { underAffiliate, wagerAmount,
+// place, ambiguous } — ambiguous=true when >1 masked row fits (we take the highest
+// wager). Returns underAffiliate:false when no row fits, null on fetch failure.
+async function lookupDegen(referralCode, username) {
+  const race = await fetchDegenRace(referralCode);
+  if (!race) return null;
+  const u = (username || "").trim();
+  if (!u) return { underAffiliate: false, wagerAmount: 0 };
+  const fits = race.rankings.filter(
+    (r) => r.username && r.username !== "Anonymous" && degenNameMatch(u, r.username)
+  );
+  if (!fits.length) return { underAffiliate: false, wagerAmount: 0 };
+  fits.sort((a, b) => b.wagered - a.wagered);
+  return { underAffiliate: true, wagerAmount: fits[0].wagered || 0, place: fits[0].rank, ambiguous: fits.length > 1 };
+}
+
+module.exports = { fetchDegenRace, lookupDegen, degenNameMatch };

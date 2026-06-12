@@ -9,6 +9,7 @@ const { res, checkRateLimit }  = require("./_lib/http");
 const { CASINO_NAMES }         = require("./_lib/casinos");
 const { logAudit }             = require("./_lib/audit");
 const { lookupAffiliate }      = require("./_lib/affiliate");
+const { lookupDegen }          = require("./_lib/degen");
 const crypto                   = require("crypto");
 
 // Casinos with live API verification
@@ -131,6 +132,20 @@ exports.handler = async (event) => {
         providerUid    = result.uid || null; // capture UID so future checks are UID-based
       }
       // Not found on leaderboard = not under affiliate code, but still save as verified
+    } else if (provider === "degen") {
+      // Degen has no per-user lookup API, but it DOES expose the affiliate race
+      // leaderboard (masked names). Match the claimed username against it to
+      // confirm under-code status. Code stored in providers/degen (referral code).
+      const provDoc = await db.collection("streamers").doc(streamerUid)
+        .collection("providers").doc("degen").get();
+      const code = provDoc.exists ? (provDoc.data().referralCode || provDoc.data().apiKey) : null;
+      if (code) {
+        const m = await lookupDegen(code, affiliateUsername);
+        if (m && m.underAffiliate) {
+          underAffiliate = true;
+          wagerAmount    = m.wagerAmount || 0;
+        }
+      }
     } else {
       // Honor-system casino — no API check, username taken at face value
       underAffiliate = false;
