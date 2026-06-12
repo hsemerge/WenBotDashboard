@@ -3958,6 +3958,7 @@ function onAuthReady(user) {
   gwUpdateOverlayLinks();
   gwSyncSpinnerFrame();
   _applyGiveawayComplianceHold();
+  showGiveawayPolicyNoticeIfNeeded();
 
   // Subscribe to winners_log so the Giveaway right column + Overview Recent
   // Winners card stay populated across page refreshes (and pick up raffle
@@ -4169,6 +4170,20 @@ function _applyGiveawayComplianceHold() {
   // Subscribers Only restricts participation — not permitted under the policy.
   document.getElementById('toggleSubOnly')?.closest('.toggle-row')?.style.setProperty('display', 'none');
   if (currentGiveawayType === 'code') currentGiveawayType = 'everyone';
+}
+
+// One-time announcement of the giveaway policy change. Shows once per browser;
+// bump the storage key version to re-announce after a future change.
+function showGiveawayPolicyNoticeIfNeeded() {
+  if (!GIVEAWAY_COMPLIANCE_HOLD) return;
+  try { if (localStorage.getItem('wenbot_gw_policy_notice_v1')) return; } catch {}
+  const m = document.getElementById('giveawayPolicyModal');
+  if (m) m.style.display = 'flex';
+}
+function closeGiveawayPolicyNotice() {
+  try { localStorage.setItem('wenbot_gw_policy_notice_v1', '1'); } catch {}
+  const m = document.getElementById('giveawayPolicyModal');
+  if (m) m.style.display = 'none';
 }
 
 function setType(type) {
@@ -12345,6 +12360,35 @@ async function spRefreshCatalog() {
         <button id="stopWithoutSaveBtn" onclick="stopWithoutSaving()" style="padding:10px 16px;background:none;border:1px solid rgba(255,71,87,0.4);border-radius:8px;color:var(--red);font-size:13px;cursor:pointer;">Stop without saving</button>
         <button id="stopFinalizeBtn" onclick="stopFinalizeAndRecord()" style="padding:10px 18px;background:linear-gradient(135deg,#00e5ff,#00b8d4);border:none;border-radius:8px;color:#0d1117;font-family:'Exo 2',sans-serif;font-size:13px;font-weight:800;cursor:pointer;">🏆 Finalize Period</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Giveaway Policy Notice (one-time) -->
+<div id="giveawayPolicyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1001;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)closeGiveawayPolicyNotice()">
+  <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:16px;width:100%;max-width:500px;padding:28px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Exo 2',sans-serif;font-size:19px;font-weight:900;color:var(--bright);">📢 Giveaway update</div>
+      <button onclick="closeGiveawayPolicyNotice()" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:18px;">✕</button>
+    </div>
+    <div style="font-size:13px;color:var(--text);line-height:1.6;margin-bottom:14px;">
+      To stay aligned with <strong style="color:var(--bright);">Kick's giveaway policy</strong>, we've updated how giveaways work. Kick requires every giveaway to be <strong style="color:var(--bright);">open to all viewers with an equal chance to win</strong> — no entry restrictions and no weighted odds.
+    </div>
+    <div style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">What changed</div>
+    <ul style="font-size:12.5px;color:var(--text-dim);line-height:1.7;margin:0 0 14px;padding-left:18px;">
+      <li><strong style="color:var(--bright);">Code Users–only</strong> giveaways have been removed</li>
+      <li><strong style="color:var(--bright);">Wager-based eligibility</strong> (minimum / recently wagered) is removed</li>
+      <li>The <strong style="color:var(--bright);">Luck multiplier</strong> (extra entries by wager) is removed</li>
+      <li><strong style="color:var(--bright);">Subscribers Only</strong> is removed</li>
+    </ul>
+    <div style="font-size:13px;color:var(--text);line-height:1.6;background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.2);border-radius:8px;padding:11px 13px;margin-bottom:18px;">
+      ✅ Giveaways now run <strong style="color:var(--bright);">open to everyone — one entry per viewer</strong>. Your other settings (keyword, duration, spin picker, verification) are unchanged.
+    </div>
+    <div style="font-size:11.5px;color:var(--text-dim);line-height:1.5;margin-bottom:18px;">
+      This applies to all WenBot streamers. We'll bring options back if Kick's guidance changes — your previous settings are saved.
+    </div>
+    <div style="display:flex;justify-content:flex-end;">
+      <button onclick="closeGiveawayPolicyNotice()" style="padding:10px 22px;background:linear-gradient(135deg,#00e5ff,#00b8d4);border:none;border-radius:8px;color:#0d1117;font-family:'Exo 2',sans-serif;font-size:13px;font-weight:800;cursor:pointer;">Got it 👍</button>
     </div>
   </div>
 </div>
