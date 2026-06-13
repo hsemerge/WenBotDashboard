@@ -5869,10 +5869,34 @@ function renderVerifiedFromCache() {
       <td style="display:flex;gap:4px;justify-content:flex-end;">
         <button class="btn btn-ghost btn-sm" onclick="recheckVerified('${id}', this)" title="Re-check this user's affiliate status against the current leaderboard">↻</button>
         <button class="btn btn-ghost btn-sm" onclick="openLinkModal('${id}','${escHtml(v.kickName || id)}','${escHtml(v.providerUsername || '')}')" title="Manually link this user to a leaderboard entry — use this for anonymous (masked) users the auto-check can't match">🔗</button>
+        ${v.provider === 'degen' ? `<button class="btn btn-ghost btn-sm" onclick="toggleUnderCode('${id}', ${v.underAffiliate ? 'false' : 'true'}, this)" title="${v.underAffiliate ? 'Remove the Under Code badge' : 'Manually mark this Degen user Under Code (Degen only auto-confirms its top wagerers)'}">${v.underAffiliate ? '✗ Code' : '✓ Code'}</button>` : ''}
         <button class="btn btn-danger btn-sm" onclick="removeVerified('${id}')">Remove</button>
       </td>
     </tr>`;
   }).join('');
+}
+
+// Manually mark a Degen verified user Under Code (or remove it). Degen's API only
+// exposes the top wagerers, so the auto-check can't confirm everyone — this is the
+// stopgap until a fuller source exists. Owner-only; the verified_users onSnapshot
+// re-renders the row.
+async function toggleUnderCode(docId, flag, btn) {
+  if (!fb.currentUser) return;
+  if (btn) btn.disabled = true;
+  try {
+    const idToken = await fb.currentUser.getIdToken();
+    const resp = await fetch('/api/set-undercode', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ docId, underAffiliate: flag }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed');
+    flash(flag ? 'Marked Under Code ✓' : 'Under Code removed');
+  } catch (e) {
+    flash('Failed: ' + e.message, 'error');
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function loadVerifiedCount() {
