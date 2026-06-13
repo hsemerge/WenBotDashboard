@@ -20,6 +20,7 @@ const PROFILE_FIELDS = [
   "activeProvider", "currencyName", "plan", "portalEnabled", "leaderboardEnabled",
   "themeColor", "portal", "whiteLabel",
   "pointsPerMinute", "pointsOnEntry", "firstVerifyBonus",
+  "dailyBonus", "subMultiplier", "followBonus",
   "minMessageLength", "activityWindowSec",
   "giveawayType", "giveawayKeyword", "giveawayMinWager", "giveawayDuration",
   "giveawaySubOnly", "giveawayVerifiedCasino", "giveawayVerifiedDiscord",

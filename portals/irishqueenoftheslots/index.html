@@ -4,16 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Irish Queen of the Slots — Wager Race</title>
-<meta name="description" content="SKSlots monthly wager race — live leaderboard, giveaways & rewards.">
+<meta name="description" content="Irish Queen of the Slots — live wager leaderboard, giveaways & rewards. Join the community!">
+<!-- Social / link-unfurl preview (OpenGraph + Twitter). Crawlers don't run JS,
+     so these MUST be Meg's branding — not the skslots defaults the page was cloned from. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Irish Queen of the Slots">
+<meta property="og:title" content="Irish Queen of the Slots — Wager Race">
+<meta property="og:description" content="Live wager leaderboard, giveaways & rewards. Join the community!">
+<meta property="og:url" content="https://irishqueenoftheslots.com/">
+<meta property="og:image" content="https://irishqueenoftheslots.com/portals/irishqueenoftheslots/assets/hero-banner.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Irish Queen of the Slots — Wager Race">
+<meta name="twitter:description" content="Live wager leaderboard, giveaways & rewards. Join the community!">
+<meta name="twitter:image" content="https://irishqueenoftheslots.com/portals/irishqueenoftheslots/assets/hero-banner.jpg">
 <link rel="icon" href="/portals/irishqueenoftheslots/assets/logo.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Exo+2:wght@600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!--
-  BESPOKE white-label portal for SKSlots (Agency tier).
+  BESPOKE white-label portal for Irish Queen of the Slots (Agency tier).
   Self-contained page that pulls the SAME live data as the standard portal via
-  /api/portal-data?channel=skslots — only the presentation is custom. Reached by
-  skslots.co.uk through the SLUG_TO_PAGE map in netlify/edge-functions/custom-domain.js.
+  /api/portal-data?channel=irishqueenoftheslots — only the presentation is custom. Reached by
+  irishqueenoftheslots.com through the SLUG_TO_PAGE map in netlify/edge-functions/custom-domain.js.
   This is the STARTER scaffold — iterate the design freely; the data layer is shared.
 -->
 <style>
@@ -285,7 +297,7 @@
   <nav>
     <a class="brand" href="/" id="brandLink">
       <img id="brandLogo" src="/portals/irishqueenoftheslots/assets/logo.jpg" alt="Irish Queen of the Slots">
-      <div><div class="brand-name" id="brandName">SKSlots</div><div class="brand-sub" id="brandSub">kick.com/skslots</div></div>
+      <div><div class="brand-name" id="brandName">Irish Queen of the Slots</div><div class="brand-sub" id="brandSub">kick.com/irishqueenoftheslots</div></div>
     </a>
     <div class="nav-links" id="navLinks"></div>
     <div class="viewer-bar" id="viewerBar">
@@ -372,7 +384,7 @@
   <!-- Wager Rewards — separate routed view (#rewards) -->
   <div id="rewardsView" class="hidden">
     <div class="hero" style="padding:8px 0 4px;">
-      <h1 id="rewardsTitle"><span class="h-emoji">🎁</span> SKSLOTS WAGER REWARDS</h1>
+      <h1 id="rewardsTitle"><span class="h-emoji">🎁</span> WAGER REWARDS</h1>
       <p id="rewardsIntro" style="color:var(--dim);max-width:680px;margin:14px auto 0;line-height:1.6;"></p>
     </div>
     <div id="rewardGrid"></div>

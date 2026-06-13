@@ -20,6 +20,8 @@ const crypto = require("crypto");
 const ALLOWED_RETURN_HOSTS = new Set([
   "skslots.co.uk",
   "www.skslots.co.uk",
+  "irishqueenoftheslots.com",
+  "www.irishqueenoftheslots.com",
 ]);
 
 const CODE_TTL_MS = 60 * 1000;
