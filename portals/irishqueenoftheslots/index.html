@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Irish Queen of the Slots — Wager Race</title>
 <meta name="description" content="SKSlots monthly wager race — live leaderboard, giveaways & rewards.">
-<link rel="icon" href="/portals/irishqueenoftheslots/assets/hero-banner.jpg">
+<link rel="icon" href="/portals/irishqueenoftheslots/assets/logo.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Exo+2:wght@600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!--
   BESPOKE white-label portal for SKSlots (Agency tier).
   Self-contained page that pulls the SAME live data as the standard portal via
@@ -43,7 +43,7 @@
   /* NAV */
   nav { display:flex; align-items:center; justify-content:space-between; padding:20px 0; }
   .brand { display:flex; align-items:center; gap:12px; text-decoration:none; }
-  .brand img { width:48px; height:48px; border-radius:50%; box-shadow:0 0 22px var(--accent); }
+  .brand img { width:48px; height:48px; border-radius:50%; object-fit:cover; box-shadow:0 0 22px var(--accent); }
   .brand-name { font-family:'Exo 2',sans-serif; font-weight:900; font-size:22px; color:var(--bright); letter-spacing:.04em; }
   .brand-sub { font-size:11px; color:var(--dim); }
   .nav-links { display:flex; gap:22px; font-size:13px; }
@@ -64,7 +64,7 @@
   /* Static, serious logo treatment — no spin. Subtle dual-color glow + a slow
      breathing pulse so it still feels alive without being playful. */
   /* Full-width video/image hero banner (replaces the old round chip) */
-  .hero-banner-wrap { max-width:1000px; margin:0 auto 20px; padding:0 4px; }
+  .hero-banner-wrap { max-width:1080px; margin:0 auto 20px; padding:0 4px; }
   .hero-banner { width:100%; aspect-ratio:1179/480; object-fit:cover; display:block; background:#0b0613;
     border-radius:20px; border:1px solid rgba(196,59,255,.4);
     box-shadow:0 0 60px rgba(196,59,255,.32), 0 0 130px rgba(255,79,216,.14); animation:bannerPulse 6s ease-in-out infinite; }
@@ -76,7 +76,7 @@
   /* Hero "code + play" CTA */
   .hero-code { font-size:13px; color:var(--dim); margin:14px 0 6px; }
   .hero-code b { color:var(--gold); font-family:'Exo 2',sans-serif; letter-spacing:.04em; }
-  .hero h1 { font-family:'Exo 2',sans-serif; font-weight:900; font-size:clamp(30px,5vw,58px); line-height:1.05;
+  .hero h1 { font-family:'Cinzel Decorative','Exo 2',serif; font-weight:900; font-size:clamp(30px,5vw,58px); line-height:1.15;
     background:linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip:text; background-clip:text;
     -webkit-text-fill-color:transparent; letter-spacing:.02em; }
   /* Gradient headings clip their text to transparent — which also hides emoji
@@ -284,7 +284,7 @@
 <div class="wrap">
   <nav>
     <a class="brand" href="/" id="brandLink">
-      <img id="brandLogo" src="/portals/irishqueenoftheslots/assets/hero-banner.jpg" alt="Irish Queen of the Slots">
+      <img id="brandLogo" src="/portals/irishqueenoftheslots/assets/logo.jpg" alt="Irish Queen of the Slots">
       <div><div class="brand-name" id="brandName">SKSlots</div><div class="brand-sub" id="brandSub">kick.com/skslots</div></div>
     </a>
     <div class="nav-links" id="navLinks"></div>
@@ -314,7 +314,7 @@
         <source src="/portals/irishqueenoftheslots/assets/video-banner.mov" type="video/quicktime">
       </video>
     </div>
-    <h1 id="heroTitle">👑 IRISH QUEEN OF THE SLOTS</h1>
+    <h1 id="heroTitle"><span class="h-emoji">👑</span> IRISH QUEEN OF THE SLOTS</h1>
     <div class="prize" id="heroPrize"></div>
     <div id="heroCtaWrap"></div>
     <div class="countdown" id="countdown" style="display:none;">

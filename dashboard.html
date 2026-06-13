@@ -740,10 +740,12 @@
         .gw-badge { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; font-size: 10px; font-weight: 800; line-height: 1; flex-shrink: 0; }
         .gw-badge-casino  { background: rgba(255,215,0,0.18);  color: #ffd700; border: 1px solid rgba(255,215,0,0.45); }
         .gw-badge-discord { background: rgba(88,101,242,0.18); color: #a5b3f5; border: 1px solid rgba(88,101,242,0.45); }
+        .gw-badge-code    { background: rgba(0,255,136,0.18);  color: #00ff88; border: 1px solid rgba(0,255,136,0.45); }
         /* Subtle row tint when verified — gives a glanceable signal across the
-           list without making it noisy. Casino takes priority over Discord. */
+           list without making it noisy. Under-code > casino > Discord. */
         .gw-entry.gw-verified-casino  { background: linear-gradient(90deg, rgba(255,215,0,0.06), var(--bg-card) 70%); border-color: rgba(255,215,0,0.18); }
         .gw-entry.gw-verified-discord { background: linear-gradient(90deg, rgba(88,101,242,0.06), var(--bg-card) 70%); border-color: rgba(88,101,242,0.18); }
+        .gw-entry.gw-verified-code    { background: linear-gradient(90deg, rgba(0,255,136,0.07), var(--bg-card) 70%); border-color: rgba(0,255,136,0.2); }
         /* Pop-in animation for new entries — gives the stream a name-pop effect */
         .gw-pop-in { animation: gwPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1); }
         @keyframes gwPop {
@@ -826,6 +828,13 @@
               <option value="custom">Custom...</option>
             </select>
             <input type="number" id="giveawayDurationCustom" placeholder="Seconds" min="10" style="display:none;margin-top:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;width:100%;font-family:'Inter',sans-serif;">
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Followers Only</div>
+              <div class="toggle-desc" style="font-size:11px;">Only channel followers can enter (free to follow)</div>
+            </div>
+            <div class="toggle" id="toggleFollowerOnly" onclick="toggleOption(this)"></div>
           </div>
           <div class="toggle-row">
             <div class="toggle-info">
@@ -3992,6 +4001,7 @@ function onAuthReady(user) {
     if (_wwSel) _wwSel.value = ['daily', 'weekly', 'monthly'].includes(profile.giveawayWagerWindow) ? profile.giveawayWagerWindow : 'weekly';
     if (typeof updateWhoCanEnter === 'function') updateWhoCanEnter();
     if (profile.giveawaySubOnly) document.getElementById('toggleSubOnly').classList.add('on');
+    if (profile.giveawayFollowerOnly) document.getElementById('toggleFollowerOnly').classList.add('on');
     const _slSlider = document.getElementById('subLuckSlider');
     if (_slSlider && profile.giveawaySubLuck > 1) { _slSlider.value = profile.giveawaySubLuck; document.getElementById('subLuckVal').textContent = profile.giveawaySubLuck + 'x'; }
     const _clSlider = document.getElementById('codeLuckSlider');
@@ -4252,6 +4262,7 @@ async function startGiveaway() {
   const subLuck         = parseInt(document.getElementById('subLuckSlider')?.value, 10) || 1;
   const codeLuck        = parseInt(document.getElementById('codeLuckSlider')?.value, 10) || 1;
   const subOnly         = document.getElementById('toggleSubOnly')?.classList.contains('on') || false;
+  const followerOnly    = document.getElementById('toggleFollowerOnly')?.classList.contains('on') || false;
   const verifiedOn      = document.getElementById('toggleVerified')?.classList.contains('on') || false;
   const verifiedCasino  = verifiedOn && (document.getElementById('verifiedCasinoCheck')?.checked || false);
   const verifiedDiscord = verifiedOn && (document.getElementById('verifiedDiscordCheck')?.checked || false);
@@ -4304,6 +4315,7 @@ async function startGiveaway() {
     giveawaySubLuck:         subLuck,
     giveawayCodeLuck:        codeLuck,
     giveawaySubOnly:         subOnly,
+    giveawayFollowerOnly:    followerOnly,
     giveawayVerifiedCasino:  verifiedCasino,
     giveawayVerifiedDiscord: verifiedDiscord,
     giveawayDuration:        duration,
@@ -4514,6 +4526,7 @@ function gwAvatarHtml(entry) {
 // a Firestore read on every page load.
 let _gwVerifiedCasinoSet  = new Set();
 let _gwVerifiedDiscordSet = new Set();
+let _gwUnderCodeSet       = new Set();
 let _gwVerifiedCasinoUnsub  = null;
 let _gwVerifiedDiscordUnsub = null;
 
@@ -4525,11 +4538,17 @@ function _gwSubscribeVerifiedIfNeeded() {
       .collection('verified_users')
       .onSnapshot(snap => {
         const next = new Set();
+        const codeNext = new Set();
         snap.docs.forEach(d => {
           const data = d.data() || {};
-          if (data.kickName) next.add(data.kickName.toLowerCase());
+          if (data.kickName) {
+            const k = data.kickName.toLowerCase();
+            next.add(k);
+            if (data.underAffiliate) codeNext.add(k); // under the streamer's affiliate code
+          }
         });
         _gwVerifiedCasinoSet = next;
+        _gwUnderCodeSet = codeNext;
         if (typeof renderEntries === 'function') renderEntries();
       }, () => {});
   }
@@ -4555,10 +4574,12 @@ function _gwBadgesFor(entry) {
   const key = (entry.kickKey || entry.username || '').toLowerCase();
   const casino  = _gwVerifiedCasinoSet.has(key);
   const discord = _gwVerifiedDiscordSet.has(key);
+  const code    = _gwUnderCodeSet.has(key);
   let html = '';
   if (casino)  html += '<span class="gw-badge gw-badge-casino"  title="Casino verified">✓</span>';
   if (discord) html += '<span class="gw-badge gw-badge-discord" title="Discord linked">D</span>';
-  const rowClass = casino ? 'gw-verified-casino' : (discord ? 'gw-verified-discord' : '');
+  if (code)    html += '<span class="gw-badge gw-badge-code"    title="Under your affiliate code">C</span>';
+  const rowClass = code ? 'gw-verified-code' : (casino ? 'gw-verified-casino' : (discord ? 'gw-verified-discord' : ''));
   return { html, rowClass };
 }
 

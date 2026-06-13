@@ -146,10 +146,11 @@ const PORTAL_PRESETS = {
       bgCard:     "#19102e",
       border:     "#3a2a5c",
     },
-    logoUrl: "/portals/irishqueenoftheslots/assets/hero-banner.jpg",
+    logoUrl: "/portals/irishqueenoftheslots/assets/logo.jpg",
     hero: {
       tagline:   "Slots. Wins. Vibes. Queen Energy. 💜",
-      title:     "👑 IRISH QUEEN OF THE SLOTS",
+      // title omitted — the page markup renders it with a visible crown emoji
+      // (a gradient-clipped emoji in JS-set text would go invisible).
       cadence:   "Monthly",
       code:      "Meg",
       ctaLabel:  "Play on Degen — code Meg",
@@ -158,6 +159,7 @@ const PORTAL_PRESETS = {
     links: [
       { label: "Degen",   href: "https://degen.com/?ref=Meg", icon: "🎰" },
       { label: "YouTube", href: "https://youtube.com/@irishqueenoftheslots", icon: "▶️" },
+      { label: "VIP",     href: "https://vipfoundme.com/", icon: "👑" },
       { label: "Kick",    href: "https://kick.com/irishqueenoftheslots", icon: "💜" },
     ],
     brandCredit: true,
