@@ -5,38 +5,46 @@
 //
 // Auth: Firebase ID token (streamer). Scoped to the caller's own account/provider.
 // Per-provider behaviour:
-//   - Gambulls: true last-7-days + last-30-days wager (date-range endpoint).
+//   - Gambulls: this-week + this-month wager from the streamer's OWN referrals
+//     (real names + UIDs, complete incl. inactive — same source as under-code,
+//     so matching is reliable). Public leaderboard is NOT used (it masks names
+//     and is capped/top-N).
 //   - Degen:    current-race wager IF the user is in Degen's published top 20;
 //               otherwise unavailable (Degen exposes nothing below top 20).
 //   - Others:   unavailable (no per-user wager API).
 
 const { getDb, admin }        = require("./_lib/firebase");
 const { res, checkRateLimit } = require("./_lib/http");
-const { normalizeGambulls }   = require("./_lib/leaderboard");
 const { fetchDegenRace, degenNameMatch } = require("./_lib/degen");
 const { CASINO_NAMES }        = require("./_lib/casinos");
 
-function ymd(d) { return d.toISOString().slice(0, 10); }
-
-async function gambullsDateRange(apiKey, from, to) {
-  const url = `https://api.gambulls.com/api/public/streamer/leaderboard/date-range?from=${from}&to=${to}&limit=100`;
-  const r = await fetch(url, { headers: { "x-streamer-api-key": apiKey, "Accept": "application/json" } });
-  if (!r.ok) return null;
-  const d = await r.json();
-  if (!d.success || !d.responseObject?.rankings) return null;
-  return normalizeGambulls(d.responseObject); // [{ username, wagered, uid, ... }]
+// Find a user's wager in the streamer's Gambulls referral list for a period
+// (weekly ≈ this week, monthly ≈ this month). Matches by casino UID first
+// (masking-proof), then exact name, then masked-name fallback. Paginates with
+// early-exit. Returns the wager (number) or null if not found.
+async function findReferralWager(apiKey, type, pUser, pUid) {
+  for (let page = 1; page <= 6; page++) {
+    const url = `https://api.gambulls.com/api/public/streamer/referrals?type=${type}&includeInactive=true&pageSize=500&page=${page}`;
+    const r = await fetch(url, { headers: { "x-streamer-api-key": apiKey, "Accept": "application/json" } });
+    if (!r.ok) return null;
+    const ro = (await r.json()).responseObject || {};
+    for (const it of (ro.items || [])) {
+      const uid  = it.user?.id != null ? String(it.user.id) : null;
+      const name = String(it.user?.name || "").toLowerCase();
+      if ((pUid && uid && uid === String(pUid)) || (name && name === pUser) || degenNameMatch(pUser, it.user?.name || "")) {
+        return it.wagerAmount || 0;
+      }
+    }
+    if (page >= (ro.totalPages || 1)) break;
+  }
+  return null;
 }
 
-// Find a user's wager in a normalized rankings list. Matches by casino UID first
-// (masking-proof), then exact name, then a masked-name match (e.g. "Bo***o").
-function matchWager(list, pUser, pUid) {
-  if (!Array.isArray(list)) return null;
-  const m = list.find(x =>
-    (pUid && x.uid && String(x.uid) === String(pUid)) ||
-    String(x.username || "").toLowerCase() === pUser ||
-    degenNameMatch(pUser, x.username)
-  );
-  return m ? (m.wagered || 0) : null;
+// Case-insensitive lookup of the entrant's verified-user record (Firestore
+// queries are case-sensitive; kickName is stored with original casing).
+async function findVerified(db, uid, usernameLower) {
+  const vs = await db.collection("streamers").doc(uid).collection("verified_users").get();
+  return vs.docs.map(d => d.data()).find(x => String(x.kickName || "").toLowerCase() === usernameLower) || null;
 }
 
 exports.handler = async (event) => {
@@ -60,16 +68,16 @@ exports.handler = async (event) => {
   try {
     const sdoc = await db.collection("streamers").doc(uid).get();
     if (!sdoc.exists) return res(404, { error: "Streamer not found" });
-    const provider     = (sdoc.data().activeProvider || "gambulls").toLowerCase();
+    // Never assume a casino — if none is set, say so rather than querying the wrong one.
+    const provider = (sdoc.data().activeProvider || "").toLowerCase();
+    if (!provider) return res(200, { provider: null, providerName: null, available: false, reason: "No casino is set for this channel yet." });
     const providerName = CASINO_NAMES[provider] || provider;
 
-    // Resolve the entrant's casino identity + under-code status.
+    // Resolve the entrant's casino identity + under-code status (case-insensitive).
     let pUser = username, pUid = null, underCode = false;
     try {
-      const vq = await db.collection("streamers").doc(uid).collection("verified_users")
-        .where("kickName", "==", username).limit(1).get();
-      if (!vq.empty) {
-        const v = vq.docs[0].data();
+      const v = await findVerified(db, uid, username);
+      if (v) {
         if (v.providerUsername) pUser = String(v.providerUsername).toLowerCase();
         if (v.providerUid)      pUid  = v.providerUid;
         underCode = !!v.underAffiliate;
@@ -84,22 +92,16 @@ exports.handler = async (event) => {
     if (provider === "gambulls") {
       const apiKey = cfg.apiKey;
       if (!apiKey) return res(200, { ...base, available: false, reason: "Gambulls API key not configured." });
-      const now = new Date();
-      const to  = ymd(now);
-      const d7  = new Date(now); d7.setUTCDate(d7.getUTCDate() - 7);
-      const d30 = new Date(now); d30.setUTCDate(d30.getUTCDate() - 30);
-      const [r7, r30] = await Promise.all([
-        gambullsDateRange(apiKey, ymd(d7), to),
-        gambullsDateRange(apiKey, ymd(d30), to),
+      const [w7, w30] = await Promise.all([
+        findReferralWager(apiKey, "weekly",  pUser, pUid),
+        findReferralWager(apiKey, "monthly", pUser, pUid),
       ]);
-      const w7  = matchWager(r7,  pUser, pUid);
-      const w30 = matchWager(r30, pUser, pUid);
       const available = w7 != null || w30 != null;
       return res(200, {
         ...base, available,
         wager7d:  w7  != null ? w7  : 0,
         wager30d: w30 != null ? w30 : 0,
-        reason: available ? null : "No wager under your code in the last 30 days.",
+        reason: available ? null : "Not found under your code.",
       });
     }
 

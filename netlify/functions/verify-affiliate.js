@@ -33,8 +33,10 @@ exports.handler = async (event) => {
     return res(400, { error: "Missing required fields" });
   }
 
-  const provider = (casino || "gambulls").toLowerCase();
-  if (!CASINO_NAMES[provider]) {
+  // Never assume Gambulls. Validate only if a casino was supplied; otherwise it's
+  // derived from the streamer's actual activeProvider once we've loaded them.
+  let provider = (casino || "").toLowerCase();
+  if (provider && !CASINO_NAMES[provider]) {
     return res(400, { error: "Unsupported casino." });
   }
 
@@ -81,8 +83,13 @@ exports.handler = async (event) => {
     const kickKey      = kickUsername.toLowerCase();
     const affiliateKey = affiliateUsername.toLowerCase();
 
-    // Check the active casino matches what the streamer is currently streaming at
-    const activeProvider = streamerData.activeProvider || "gambulls";
+    // Check the active casino matches what the streamer is currently streaming at.
+    // Never default — if the streamer hasn't set a casino, verification can't run.
+    const activeProvider = (streamerData.activeProvider || "").toLowerCase();
+    if (!activeProvider) {
+      return res(400, { error: "This streamer hasn't set up a casino yet — verification isn't available until they do." });
+    }
+    if (!provider) provider = activeProvider; // client omitted casino → use the streamer's actual one
     if (provider !== activeProvider) {
       const activeName = CASINO_NAMES[activeProvider] || activeProvider;
       return res(400, { error: `This streamer is currently streaming at ${activeName}. Please verify your ${activeName} username instead.` });

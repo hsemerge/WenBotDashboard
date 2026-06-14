@@ -29,13 +29,17 @@ exports.handler = async (event) => {
   const data = profSnap.data() || {};
 
   const channelName = (data.kickChannel || "").toLowerCase();
+  const casino      = (data.activeProvider || "").toLowerCase();
   const verify      = data.discordConfig?.verify || {};
   const channelId   = verify.gateChannelId;
   if (!channelId) return res(400, { error: "No verification channel set. Pick one and save first." });
+  // Never post a gate that points at the wrong casino — require it to be set.
+  if (!casino) return res(400, { error: "Set your casino in Settings before posting the verification gate." });
 
   // src=discord tells the verify page the user is already in the server, so it
-  // skips the "join the server?" step and just links + assigns the role.
-  const verifyUrl = `https://wenbot.gg/verify.html?channel=${encodeURIComponent(channelName)}&src=discord`;
+  // skips the "join the server?" step and just links + assigns the role. The
+  // casino param ensures the verify page reflects THIS streamer's casino.
+  const verifyUrl = `https://wenbot.gg/verify.html?channel=${encodeURIComponent(channelName)}&casino=${encodeURIComponent(casino)}&src=discord`;
   const body = {
     content: verify.gateMessage ||
       "🛡️ **Verify to unlock the server**\n\nClick **Verify** below, connect your Kick + casino, and you'll be granted access.",

@@ -55,9 +55,10 @@ exports.handler = async (event) => {
     const lp = profile.leaderboardPeriod || {};
     if (!lp.active) return res(400, { error: "No active period to finalize." });
 
-    const casino   = (profile.activeProvider || "gambulls").toLowerCase();
+    const casino   = (profile.activeProvider || "").toLowerCase();
     const channel  = (profile.kickChannel || "").toLowerCase();
     if (!channel) return res(400, { error: "No Kick channel on file." });
+    if (!casino)  return res(400, { error: "No casino is set — choose one in Settings first." });
 
     const now      = Date.now();
     const startAt  = lp.startAt || (lp.endAt ? lp.endAt - 7 * 86400000 : now - 7 * 86400000);

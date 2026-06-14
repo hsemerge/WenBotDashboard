@@ -37,7 +37,14 @@ exports.handler = async (event) => {
   catch { return res(401, { error: "Invalid auth token" }); }
 
   try {
-    const provider = "gambulls"; // only API casino today
+    // Use the streamer's actual casino — don't assume Gambulls. Re-check only
+    // works for casinos with a per-user leaderboard API (Gambulls today).
+    const streamerDoc = await db.collection("streamers").doc(uid).get();
+    const provider = (streamerDoc.exists ? (streamerDoc.data().activeProvider || "") : "").toLowerCase();
+    if (!provider) return res(400, { error: "No casino is set for this channel — set one in Settings first." });
+    if (provider !== "gambulls") {
+      return res(400, { error: `Re-check isn't available for ${CASINO_NAMES[provider] || provider} yet — it has no per-user wager lookup.` });
+    }
     const providerDoc = await db.collection("streamers").doc(uid)
       .collection("providers").doc(provider).get();
     if (!providerDoc.exists || !providerDoc.data().apiKey) {

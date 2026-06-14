@@ -4,6 +4,7 @@
 // Types: giveaway_start | giveaway_winner | store_redemption
 
 const { getDb, admin } = require("./_lib/firebase");
+const { CASINO_NAMES } = require("./_lib/casinos");
 
 // Local res() — no CORS header (internal-only endpoint, not called from browser)
 function res(statusCode, body) {
@@ -34,15 +35,18 @@ function buildGiveawayStartEmbed(data, profile) {
   const type      = data.type || "code";
   const keyword   = data.keyword || "!join";
   const typeLabel = type === "everyone" ? "Open to everyone" : "Verified users only";
-  const platform  = profile?.activeProvider || "gambulls";
+  // Use the streamer's actual casino (proper-cased). If none is set, omit the
+  // field entirely rather than mislabel it as Gambulls.
+  const provider     = (profile?.activeProvider || "").toLowerCase();
+  const platformName = provider ? (CASINO_NAMES[provider] || provider) : null;
 
   return {
     color:       0x00e5ff,
     title:       "🎉 Giveaway is LIVE!",
     description: `A new giveaway has started on **${profile?.displayName || profile?.kickChannel || "stream"}**!`,
     fields: [
-      { name: "Eligibility", value: typeLabel,            inline: true },
-      { name: "Platform",    value: platform.toUpperCase(), inline: true },
+      { name: "Eligibility", value: typeLabel, inline: true },
+      ...(platformName ? [{ name: "Platform", value: platformName, inline: true }] : []),
       { name: "How to enter", value: `Click the **Join Giveaway** button below, or type \`${keyword}\` in Kick chat`, inline: false },
     ],
     footer:    { text: "WenBot • Giveaway" },

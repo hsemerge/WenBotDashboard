@@ -11,14 +11,15 @@ exports.handler = async (event) => {
   const { channel, casino } = event.queryStringParameters || {};
   if (!channel) return res(400, { error: "Missing channel" });
 
-  const provider = (casino || "gambulls").toLowerCase();
-
   try {
     const db = getDb();
     const snap = await db.collection("streamers").where("kickChannel", "==", channel.toLowerCase()).limit(1).get();
     if (snap.empty) return res(404, { error: "Channel not found" });
 
     const uid = snap.docs[0].id;
+    // Never assume Gambulls — param first, else the streamer's actual casino.
+    // An unset casino means an empty query (no past winners), not Gambulls data.
+    const provider = (casino || snap.docs[0].data().activeProvider || "").toLowerCase();
 
     // Filter by casino only (single-field, auto-indexed) and sort/slice in JS.
     // `where(casino==).orderBy(endDate)` needs a composite index that isn't

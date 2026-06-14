@@ -92,9 +92,6 @@ exports.handler = async (event) => {
   const { channel, casino } = event.queryStringParameters || {};
   if (!channel) return res(400, { error: "Missing channel" });
 
-  const provider = (casino || "gambulls").toLowerCase();
-  if (!CASINO_NAMES[provider]) return res(400, { error: "Unsupported casino" });
-
   try {
     const db = getDb();
     const snap = await db.collection("streamers").where("kickChannel", "==", channel.toLowerCase()).limit(1).get();
@@ -102,6 +99,11 @@ exports.handler = async (event) => {
 
     const streamerDoc = snap.docs[0];
     const streamerData = streamerDoc.data();
+
+    // Casino from the query param, else the streamer's actual choice. Never
+    // assume Gambulls — if none is set there's no leaderboard to show.
+    const provider = (casino || streamerData.activeProvider || "").toLowerCase();
+    if (!provider || !CASINO_NAMES[provider]) return res(400, { error: "This channel hasn't set a casino yet." });
 
     // Period/countdown config for the public page (set from the dashboard).
     const period = streamerData.leaderboardPeriod || null;

@@ -1395,7 +1395,7 @@
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:8px;flex-wrap:wrap;">
             <div class="card-title" style="margin-bottom:0;">🏆 Wager Rankings</div>
             <div style="display:flex;align-items:center;gap:6px;">
-              <select id="lbPeriodSelect" onchange="loadWagerRankings()" title="View a past period (Gambulls)" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:11px;padding:4px 6px;font-family:'Inter',sans-serif;cursor:pointer;"><option value="">Current</option></select>
+              <select id="lbPeriodSelect" onchange="loadWagerRankings()" title="View a past period" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:11px;padding:4px 6px;font-family:'Inter',sans-serif;cursor:pointer;"><option value="">Current</option></select>
               <select id="lbCountSelect" onchange="loadWagerRankings()" title="How many to show" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:11px;padding:4px 6px;font-family:'Inter',sans-serif;cursor:pointer;"><option value="15">Top 15</option><option value="50">Top 50</option><option value="all">All</option></select>
               <span id="lbPlatformNote" style="font-size:11px;color:var(--text-dim);"></span>
             </div>
@@ -1421,7 +1421,7 @@
         <div class="card-title" style="justify-content:space-between;">
           <span>✅ Verified Users (<span id="verifiedCountLabel">0</span>)</span>
           <div style="display:flex;gap:10px;align-items:center;">
-            <button id="recheckAllBtn" onclick="recheckAllVerified(this)" class="btn btn-ghost btn-sm" title="Re-check every verified user against the current leaderboard and repair anyone whose Gambulls ID changed.">↻ Re-check all</button>
+            <button id="recheckAllBtn" onclick="recheckAllVerified(this)" class="btn btn-ghost btn-sm" title="Re-check every verified user against the current leaderboard and repair anyone whose casino ID changed.">↻ Re-check all</button>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);cursor:pointer;" title="Show only users registered under your affiliate code">
               <input type="checkbox" id="verifiedUnderCodeOnly" onchange="renderVerifiedFromCache()" style="accent-color:var(--green);width:14px;height:14px;">
               Under Code only
@@ -1501,7 +1501,7 @@
             </select>
           </div>
           <div id="settingsApiKeyWrap" class="field">
-            <label>Leaderboard API Key</label>
+            <label id="settingsApiKeyLabel">Leaderboard API Key</label>
             <input type="password" id="settingsApiKey" placeholder="sk_...">
             <div class="hint" id="settingsApiKeyHint"></div>
           </div>
@@ -3993,7 +3993,7 @@ function onAuthReady(user) {
     // Clean the URL so refresh doesn't re-show it
     history.replaceState({}, '', window.location.pathname);
   }
-  updateLeaderboardLink(profile?.activeProvider || 'gambulls');
+  updateLeaderboardLink(profile?.activeProvider || '');
 
   // Restore the saved giveaway overlay style preference + wire links via the
   // themed helper so they match OBS Studio. Also pre-load the spinner iframe
@@ -4182,21 +4182,31 @@ function updatePlatformDisplays() {
 }
 
 function srProviderChange() {
-  const p = document.getElementById('settingsProvider').value;
-  const wrap = document.getElementById('settingsApiKeyWrap');
-  const hint = document.getElementById('settingsApiKeyHint');
-  if (PLATFORMS_WITH_LEADERBOARD_API.includes(p)) {
-    wrap.style.display = 'block';
-    hint.textContent = 'Required for wager leaderboard tracking.';
+  const p     = document.getElementById('settingsProvider').value;
+  const wrap  = document.getElementById('settingsApiKeyWrap');
+  const label = document.getElementById('settingsApiKeyLabel');
+  const hint  = document.getElementById('settingsApiKeyHint');
+  const input = document.getElementById('settingsApiKey');
+  // Each casino onboards its leaderboard differently — show the right field.
+  const cred = (typeof CASINO_CREDENTIALS !== 'undefined') ? CASINO_CREDENTIALS[p] : null;
+  wrap.style.display = 'block';
+  if (cred) {
+    input.style.display = '';
+    if (label) label.textContent = cred.label;
+    hint.textContent  = cred.hint;
+    input.placeholder = cred.placeholder || '';
+    input.type        = (cred.field === 'apiKey') ? 'password' : 'text';
   } else {
-    wrap.style.display = 'block';
-    hint.textContent = 'Leaderboard API not yet available for this platform — save platform without an API key.';
+    // No leaderboard integration for this casino yet — verification still works.
+    input.style.display = 'none';
+    if (label) label.textContent = 'Leaderboard';
+    hint.textContent = `Leaderboard tracking isn't available for ${(typeof CASINO_NAMES !== 'undefined' && CASINO_NAMES[p]) || p} yet — verification still works.`;
   }
 }
 
 function updateLeaderboardLink(casino) {
   const channel = profile?.kickChannel || '';
-  const url = `/leaderboard.html?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino || 'gambulls')}`;
+  const url = `/leaderboard.html?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino || '')}`;
   const openLink  = document.getElementById('lbOpenLink');
   const publicUrl = document.getElementById('lbPublicUrl');
   if (channel) {
@@ -5888,7 +5898,7 @@ let verifiedCache      = [];  // [{id, data}] cached so the filter checkbox can 
 function loadVerifiedUsers() {
   const uid            = fb.activeUid;
   const tbody          = document.getElementById('verifiedTable');
-  const activeProvider = profile?.activeProvider || 'gambulls';
+  const activeProvider = profile?.activeProvider || '';
 
   tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:16px;">Loading...</td></tr>';
 
@@ -6075,7 +6085,7 @@ async function recheckVerified(docId, btn) {
 // Gambulls UID changed in a single board fetch). Upgrade-only — never downgrades.
 async function recheckAllVerified(btn) {
   if (!fb.currentUser) return;
-  if (!confirm('Re-check every verified user against the current leaderboard? This repairs anyone whose Gambulls ID changed. (Won\'t remove anyone\'s status.)')) return;
+  if (!confirm('Re-check every verified user against the current leaderboard? This repairs anyone whose casino ID changed. (Won\'t remove anyone\'s status.)')) return;
   const orig = btn.textContent;
   btn.disabled = true;
   btn.textContent = '⏳ Re-checking…';
@@ -6115,7 +6125,7 @@ async function openLinkModal(docId, kickName, providerUsername) {
   list.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:24px;">Loading leaderboard…</div>';
 
   const channel = profile?.kickChannel;
-  const casino  = profile?.activeProvider || 'gambulls';
+  const casino  = profile?.activeProvider || '';
   if (!channel) { list.innerHTML = '<div style="color:var(--red);padding:16px;">Set your Kick channel first.</div>'; return; }
   try {
     const resp = await fetch(`/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1&raw=1`);
@@ -6172,19 +6182,18 @@ async function loadProviderSettings() {
   document.getElementById('settingsProvider').value = profile.activeProvider;
   srProviderChange();
   const doc = await getProviderConfig(profile.activeProvider);
-  if (doc?.apiKey) document.getElementById('settingsApiKey').value = doc.apiKey;
+  const cred = (typeof CASINO_CREDENTIALS !== 'undefined') ? CASINO_CREDENTIALS[profile.activeProvider] : null;
+  if (doc && cred && doc[cred.field]) document.getElementById('settingsApiKey').value = doc[cred.field];
 }
 
 async function saveProviderSettings() {
   const provider = document.getElementById('settingsProvider').value;
-  const apiKey   = document.getElementById('settingsApiKey').value.trim();
+  const value    = document.getElementById('settingsApiKey').value.trim();
+  const cred     = (typeof CASINO_CREDENTIALS !== 'undefined') ? CASINO_CREDENTIALS[provider] : null;
 
-  if (PLATFORMS_WITH_LEADERBOARD_API.includes(provider) && !apiKey) {
-    flash('Enter an API key for ' + (PLATFORM_NAMES[provider] || provider) + '.', 'error');
-    return;
-  }
-
-  if (apiKey) await saveProviderConfig(provider, { apiKey, enabled: true });
+  // Save the value to the field THIS casino uses (apiKey / referralCode / …).
+  // Optional — they can set the casino now and add the credential later.
+  if (cred && value) await saveProviderConfig(provider, { [cred.field]: value, enabled: true });
   await saveStreamerProfile({ activeProvider: provider });
   if (profile) profile.activeProvider = provider;
   updatePlatformDisplays();
@@ -6665,7 +6674,7 @@ async function _populateLbPeriods() {
   const sel = document.getElementById('lbPeriodSelect');
   if (!sel || sel.dataset.filled) return;
   sel.dataset.filled = '1';
-  const casino = (profile?.activeProvider || 'gambulls').toLowerCase();
+  const casino = (profile?.activeProvider || '').toLowerCase();
   let html = '<option value="">Current</option>';
   try {
     const snap = await fb.db.collection('streamers').doc(fb.activeUid)
@@ -6689,7 +6698,7 @@ async function loadWagerRankings() {
   const wrap = document.getElementById('wagerLeaderboard');
   if (!wrap) return;
   const channel = profile?.kickChannel;
-  const casino  = profile?.activeProvider || 'gambulls';
+  const casino  = profile?.activeProvider || '';
   if (!channel) { wrap.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Set your Kick channel in Settings first.</div>'; return; }
   const periodVal = document.getElementById('lbPeriodSelect')?.value || '';
   const countSel  = document.getElementById('lbCountSelect')?.value || '15';
@@ -6740,7 +6749,7 @@ async function loadWagerRankings() {
 
 function updatePublicLbCard() {
   const channel  = profile?.kickChannel || '';
-  const casino   = profile?.activeProvider || 'gambulls';
+  const casino   = profile?.activeProvider || '';
   const enabled  = profile?.leaderboardEnabled === true;
   const url      = `https://wenbot.gg/leaderboard.html?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}`;
 
@@ -6799,7 +6808,7 @@ function selectLbDuration(duration) {
 // public board only counts wagering from this moment until the period ends.
 async function startLeaderboard() {
   const channel = profile?.kickChannel;
-  const casino  = profile?.activeProvider || profile?.casino || 'gambulls';
+  const casino  = profile?.activeProvider || profile?.casino || '';
   if (!channel) { flash('Set your Kick channel in Settings first.', 'error'); return; }
 
   const duration = _lbSelectedDuration || profile?.leaderboardPeriod?.duration || 'weekly';
@@ -8644,7 +8653,7 @@ async function loadPointsEconomy() {
 // 💰 Wager stats — total wagered, active wagerers, top (live leaderboard)
 async function loadWagerStat() {
   const channel = profile?.kickChannel;
-  const casino  = profile?.activeProvider || 'gambulls';
+  const casino  = profile?.activeProvider || '';
   const el  = document.getElementById('ovWagered');
   const sub = document.getElementById('ovWageredSub');
   if (!el) return;
@@ -11242,7 +11251,7 @@ async function saveWagerRaffleConfig() {
 async function startWagerPeriod() {
   const uid     = fb.activeUid;
   const channel = profile?.kickChannel;
-  const casino  = profile?.activeProvider || 'gambulls';
+  const casino  = profile?.activeProvider || '';
   if (!channel) { flash('Set your Kick channel in Settings first.', 'error'); return; }
   if (!confirm('Start a new raffle period? This will snapshot all current wager amounts as baselines — only wagers after this point will earn tickets.')) return;
 
@@ -11314,7 +11323,7 @@ async function loadWagerTickets() {
   const wr        = profile?.wagerRaffle || {};
   const tbody     = document.getElementById('wagerTicketTable');
   const channel   = profile?.kickChannel;
-  const casino    = profile?.activeProvider || 'gambulls';
+  const casino    = profile?.activeProvider || '';
   const threshold = wr.threshold || 1000;
   const baselines = wr.baselines || {};
 
@@ -12559,7 +12568,7 @@ async function spRefreshCatalog() {
       <button onclick="closeLinkModal()" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:18px;">✕</button>
     </div>
     <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
-      Linking <strong id="linkUserLabel" style="color:var(--bright);">—</strong>. Anonymous users show on Gambulls with masked names (e.g. <code style="color:var(--accent);">Be***x</code>), so pick the row that's them — usually recognizable by their wager. This locks their account ID so they stay <strong>Under Code</strong> from now on, masking or not.
+      Linking <strong id="linkUserLabel" style="color:var(--bright);">—</strong>. Anonymous users can show with masked names (e.g. <code style="color:var(--accent);">Be***x</code>), so pick the row that's them — usually recognizable by their wager. This locks their account ID so they stay <strong>Under Code</strong> from now on, masking or not.
     </div>
     <div id="linkBoardList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;min-height:80px;">
       <div style="color:var(--text-dim);font-size:12px;text-align:center;padding:24px;">Loading leaderboard…</div>

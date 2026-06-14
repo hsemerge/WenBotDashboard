@@ -213,6 +213,7 @@
               <div class="setup-field">
                 <select id="setupProvider" onchange="updateProviderInfo()">
                   <option value="gambulls">Gambulls</option>
+                  <option value="degen">Degen</option>
                   <option value="stake">Stake</option>
                   <option value="rainbet">Rainbet</option>
                   <option value="thrill">Thrill</option>
@@ -407,18 +408,18 @@
                           || plan;
       const isElitePlus = ['elite', 'agency'].includes(pendingPlan) || TEST_ACCOUNTS.has((fb.streamerProfile?.kickChannel || '').toLowerCase());
 
-      if (API_CASINOS.has(provider) && isElitePlus) {
+      // Different casinos onboard their leaderboard differently (API key vs
+      // referral code). Show the right field for the chosen casino, labelled for
+      // that casino. Optional at setup — they can add it later in Settings.
+      const cred = (typeof CASINO_CREDENTIALS !== 'undefined') ? CASINO_CREDENTIALS[provider] : null;
+      if (cred && isElitePlus) {
         apiKeyField.style.display = '';
-        // Recommended, not required — streamers can finish setup without it and
-        // add the key later in Settings (the leaderboard just stays empty until
-        // they do).
-        input.required = false;
-        if (provider === "gambulls") {
-          label.textContent = "Gambulls Streamer API Key (recommended)";
-          hint.textContent  = "Powers your live leaderboard. You can add this later in Settings.";
-          input.placeholder = "sk_...";
-          info.innerHTML    = '<strong>Where to find this:</strong><br>Log into Gambulls &rarr; Streamer Dashboard &rarr; API Settings &rarr; copy your Streamer API Key. It starts with <strong>sk_</strong><br><span style="color:var(--text-dim);">Don\'t have it handy? Skip it for now and add it from Settings anytime.</span>';
-        }
+        input.required    = false;
+        label.textContent = cred.label + " (optional)";
+        hint.textContent  = cred.hint + " You can add this later in Settings.";
+        input.placeholder = cred.placeholder || '';
+        input.type        = (cred.field === 'apiKey') ? 'password' : 'text';
+        info.innerHTML    = '<span style="color:var(--text-dim);">Optional now — you can skip it and add it from Settings anytime. Your leaderboard stays empty until you do.</span>';
       } else {
         apiKeyField.style.display = 'none';
         input.required = false;
@@ -468,8 +469,11 @@
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
 
-        if (API_CASINOS.has(provider) && apiKey) {
-          await saveProviderConfig(provider, { apiKey, enabled: true });
+        // Save the credential to the field this casino actually uses
+        // (apiKey for Gambulls, referralCode for Degen, etc.).
+        const cred = (typeof CASINO_CREDENTIALS !== 'undefined') ? CASINO_CREDENTIALS[provider] : null;
+        if (cred && apiKey) {
+          await saveProviderConfig(provider, { [cred.field]: apiKey, enabled: true });
         }
 
         // Referral attribution — if they arrived via someone's invite link, record

@@ -39,7 +39,11 @@ exports.handler = async (event) => {
     if (streamerSnap.empty) return res(404, { error: "Channel not found" });
     const uid          = streamerSnap.docs[0].id;
     const streamerData = streamerSnap.docs[0].data();
-    const activeProvider = streamerData.activeProvider || "gambulls";
+    // Never assume a casino — if none is set there's nothing to verify against.
+    const activeProvider = (streamerData.activeProvider || "").toLowerCase();
+    if (!activeProvider) {
+      return res(200, { kickUsername, verified: false, provider: null, noCasino: true, discordLinkedAny: false });
+    }
 
     // Direct lookup by the known doc ID format — `${kickKey}_${provider}`
     const verifyRef = db.collection("streamers").doc(uid)

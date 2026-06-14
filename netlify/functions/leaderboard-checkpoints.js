@@ -28,7 +28,8 @@ function rangeLabel(startMs, endMs) {
 function currentPeriod(data) {
   const lp = data.leaderboardPeriod || {};
   if (!lp.endAt) return null;
-  const casino  = (data.activeProvider || "gambulls").toLowerCase();
+  const casino  = (data.activeProvider || "").toLowerCase();
+  if (!casino) return null; // no casino set → no period (never assume Gambulls)
   const startAt = lp.startAt || (lp.endAt - 7 * 86400000);
   const endAt   = lp.endAt;
   return { periodId: `${casino}_${ymd(startAt)}_${ymd(endAt)}`, casino, startAt, endAt };
@@ -88,8 +89,8 @@ exports.handler = async (event) => {
       await db.collection("streamers").doc(uid)
         .collection("leaderboard_periods").doc(periodId)
         .set({
-          casino:     cp.casino || (cur && cur.casino) || "gambulls",
-          casinoName: cp.casinoName || cp.casino || "gambulls",
+          casino:     cp.casino || (cur && cur.casino) || "",
+          casinoName: cp.casinoName || cp.casino || null,
           period:     (startAt && endAt) ? rangeLabel(startAt, endAt) : "Restored period",
           startDate:  startAt || null,
           endDate:    endAt || null,

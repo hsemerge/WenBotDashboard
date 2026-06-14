@@ -273,8 +273,9 @@ exports.handler = async (event) => {
     }
 
     // A white-label preset's provider wins (these are comped, code-configured
-    // clients); otherwise the streamer's dashboard choice, else gambulls.
-    const provider = (presetMain.provider || profile.activeProvider || "gambulls").toLowerCase();
+    // clients); otherwise the streamer's dashboard choice. Never assume Gambulls —
+    // if none is set, leave it empty so the portal simply shows no casino section.
+    const provider = (presetMain.provider || profile.activeProvider || "").toLowerCase();
 
     // Public-safe streamer info. Anything sensitive is NOT included here.
     const publicProfile = {
@@ -283,7 +284,7 @@ exports.handler = async (event) => {
       bio:         profile.bio || null,
       logoUrl:     profile.kickAvatar || null,
       provider,
-      providerName: CASINO_NAMES[provider] || provider,
+      providerName: provider ? (CASINO_NAMES[provider] || provider) : null,
       currency:    profile.currencyName || "points",
       plan,
       // Theme color only honored for Elite+ — keeps the upsell intact while

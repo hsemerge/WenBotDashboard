@@ -218,8 +218,10 @@
   const params     = new URLSearchParams(window.location.search);
   const channel    = params.get('channel') || '';
   const dtoken     = params.get('dtoken')  || '';
-  const casino     = (params.get('casino') || 'gambulls').toLowerCase();
-  const casinoName = CASINO_NAMES[casino]  || casino;
+  // Never assume Gambulls. Prefer the explicit ?casino= param; if it's missing,
+  // resolve the channel's real casino from portal-data (see initCasino below).
+  let casino     = (params.get('casino') || '').toLowerCase();
+  let casinoName = casino ? (CASINO_NAMES[casino] || casino) : '';
   const discordMode   = !!dtoken;
   const kickConnected = params.get('kick') === 'connected';
   // Came from the Discord verify gate → they're already in the server, so the
@@ -237,16 +239,40 @@
     document.getElementById('channelBadge').textContent = 'Unknown channel';
   }
 
-  document.getElementById('verifyTitle').textContent = discordMode
-    ? `Link Your Discord Account`
-    : `Connect Your ${casinoName} Account`;
-  document.getElementById('verifyDesc').textContent = discordMode
-    ? `Sign in with Kick and enter your ${casinoName} username to link everything in one step.`
-    : `Connect your ${casinoName} username to your Kick account so WenBot can track your wagers for giveaways.`;
-  document.getElementById('affiliateLabel').textContent = `${casinoName} Username`;
-  document.getElementById('affiliateInput').placeholder = `Enter your exact ${casinoName} username...`;
-  document.getElementById('providerHint').textContent   =
-    `Enter the username you use at ${casinoName}. If you're wagering under ${channel}'s affiliate code you'll qualify for wager giveaways too.`;
+  // Casino-specific copy. Deferred into a function so it can run after we resolve
+  // the casino (which may require a fetch when the URL has no ?casino= param).
+  function applyCasinoText() {
+    document.getElementById('verifyTitle').textContent = discordMode
+      ? `Link Your Discord Account`
+      : `Connect Your ${casinoName} Account`;
+    document.getElementById('verifyDesc').textContent = discordMode
+      ? `Sign in with Kick and enter your ${casinoName} username to link everything in one step.`
+      : `Connect your ${casinoName} username to your Kick account so WenBot can track your wagers for giveaways.`;
+    document.getElementById('affiliateLabel').textContent = `${casinoName} Username`;
+    document.getElementById('affiliateInput').placeholder = `Enter your exact ${casinoName} username...`;
+    document.getElementById('providerHint').textContent   =
+      `Enter the username you use at ${casinoName}. If you're wagering under ${channel}'s affiliate code you'll qualify for wager giveaways too.`;
+  }
+
+  // Resolve the casino: param first, else the channel's actual provider. If the
+  // streamer hasn't set one, tell the viewer instead of guessing a casino.
+  async function initCasino() {
+    if (!casino && channel) {
+      try {
+        const r = await fetch('/api/portal-data?channel=' + encodeURIComponent(channel));
+        if (r.ok) { const d = await r.json(); casino = (d.streamer?.provider || '').toLowerCase(); }
+      } catch {}
+    }
+    if (!casino) {
+      document.getElementById('verifyTitle').textContent = 'Casino not set up yet';
+      document.getElementById('verifyDesc').textContent  =
+        `${channel || 'This streamer'} hasn't chosen a casino yet, so there's nothing to verify against. Please check back once they've set it up.`;
+      return; // leave the form unconfigured rather than defaulting to the wrong casino
+    }
+    casinoName = CASINO_NAMES[casino] || casino;
+    applyCasinoText();
+  }
+  initCasino();
 
   // Track the reconnect countdown so we can cancel on tab close
   let reconnectInterval = null;
