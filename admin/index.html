@@ -253,7 +253,8 @@
       : '<span class="muted">no payments</span>';
     const u = _users.find(x => x.uid === uid) || {};
     const ch = esc(u.kickChannel || uid);
-    const actions = `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:8px;">`
+    const actions = `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;">`
+      + `<button class="btn-ghost" style="border-color:var(--accent);color:var(--accent);" onclick="manageStreamer('${esc(uid)}','${ch}')">🎛 Manage account (switch in)</button>`
       + (u.archived
           ? `<button class="btn-ghost" onclick="unarchiveStreamer('${esc(uid)}','${ch}')">♻ Unarchive</button>`
           : `<button class="btn-ghost" onclick="archiveStreamer('${esc(uid)}','${ch}')">📦 Archive</button>`)
@@ -286,6 +287,21 @@
     if (typed === null) return;
     if (typed.trim() !== channel) { alert('Name did not match — cancelled.'); return; }
     try { await streamerAction(uid, 'delete'); alert(`"${channel}" deleted.`); } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  // Switch into a streamer's account to manage their settings. Grants the admin
+  // a temporary delegatedFor claim (reusing the moderator mechanism), then opens
+  // their dashboard — the "Managing" banner + Exit there returns you. Audit-logged.
+  window.manageStreamer = async function (uid, channel) {
+    if (!confirm(`Switch into "${channel}"'s account to manage their settings?\n\nYou'll see a "Managing ${channel}" banner — click Exit there to return to your own account. This action is audit-logged.`)) return;
+    try {
+      const r = await authedPost('/api/admin-manage-user', { uid, action: 'grant' });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      await auth.currentUser.getIdToken(true); // refresh so the new delegatedFor claim is live
+      try { localStorage.setItem('wb_active_uid', uid); } catch {}
+      window.location.href = '/dashboard.html';
+    } catch (e) { alert('Could not switch in: ' + e.message); }
   };
 
   window.toggleDetail = async function (uid) {

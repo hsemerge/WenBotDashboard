@@ -274,6 +274,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/admin-manage-user"
+  to     = "/.netlify/functions/admin-manage-user"
+  status = 200
+
+[[redirects]]
   from   = "/api/referral-attribute"
   to     = "/.netlify/functions/referral-attribute"
   status = 200
