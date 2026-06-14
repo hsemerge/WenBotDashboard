@@ -606,7 +606,9 @@
         <div class="stat-card">
           <div class="stat-label">Platform</div>
           <div class="stat-value" id="statPlatform" style="font-size:15px;">—</div>
-          <div class="stat-sub" onclick="showPage('settings', document.querySelector('.nav-item[onclick*=settings]'))" style="cursor:pointer;text-decoration:underline;color:var(--accent);opacity:0.7;">Change in Settings</div>
+          <!-- Quick casino switch — only shown when 2+ casinos are configured. -->
+          <select id="ovCasinoSwitch" onchange="switchCasinoFromOverview(this.value)" style="display:none;margin-top:6px;width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:12px;padding:5px 6px;cursor:pointer;font-family:'Inter',sans-serif;" title="Switch the casino you're streaming on"></select>
+          <div class="stat-sub" id="ovCasinoChangeHint" onclick="showPage('settings', document.querySelector('.nav-item[onclick*=settings]'))" style="cursor:pointer;text-decoration:underline;color:var(--accent);opacity:0.7;">Change in Settings</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Verified Users</div>
@@ -8600,6 +8602,43 @@ function loadOverviewStats() {
   loadBhStats();
   loadPointsEconomy();
   loadWagerStat();
+  loadOverviewCasinoSwitch();
+}
+
+// Quick casino switch on the Overview. Only appears when the streamer has 2+
+// casinos configured (a credential saved in providers/<casino>). Selecting one
+// flips activeProvider — leaderboard, verification and giveaways follow.
+async function loadOverviewCasinoSwitch() {
+  const sel  = document.getElementById('ovCasinoSwitch');
+  const hint = document.getElementById('ovCasinoChangeHint');
+  if (!sel) return;
+  try {
+    const snap = await fb.db.collection('streamers').doc(fb.activeUid).collection('providers').get();
+    const configured = [];
+    snap.forEach(d => {
+      const v = d.data() || {};
+      if (v.apiKey || v.referralCode) configured.push(d.id); // has a leaderboard credential
+    });
+    const active = profile?.activeProvider || '';
+    if (active && !configured.includes(active)) configured.push(active);
+    if (configured.length < 2) { sel.style.display = 'none'; return; }
+    const name = c => (typeof CASINO_NAMES !== 'undefined' && CASINO_NAMES[c]) || c;
+    sel.innerHTML = configured.map(c => `<option value="${c}"${c === active ? ' selected' : ''}>${name(c)}</option>`).join('');
+    sel.style.display = '';
+    if (hint) hint.textContent = 'Quick-switch your live casino';
+  } catch { /* leave hidden on error */ }
+}
+
+async function switchCasinoFromOverview(casino) {
+  if (!casino || casino === profile?.activeProvider) return;
+  const name = (typeof CASINO_NAMES !== 'undefined' && CASINO_NAMES[casino]) || casino;
+  try {
+    await saveStreamerProfile({ activeProvider: casino });
+    flash('Switched to ' + name + '! Leaderboard & verification now use ' + name + '.');
+    setTimeout(() => window.location.reload(), 700);
+  } catch (e) {
+    flash('Could not switch: ' + e.message, 'error');
+  }
 }
 
 // 🎰 Bonus Hunt performance — net P/L, count, ROI, best hunt (bonus_hunt_history)
@@ -9367,7 +9406,8 @@ async function postVerifyGate() {
     const idToken = await fb.currentUser.getIdToken();
     const resp = await fetch('/api/discord-post-gate', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + idToken },
+      headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid: fb.activeUid }), // act on the managed account (mods/admins)
     });
     const data = await resp.json();
     if (!resp.ok || data.error) throw new Error(data.error || 'Failed to post');

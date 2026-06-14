@@ -17,12 +17,23 @@ exports.handler = async (event) => {
   if (!authHeader) return res(401, { error: "Missing auth token" });
 
   const db = getDb();
-  let uid;
+  let decoded;
   try {
-    uid = (await admin.auth().verifyIdToken(authHeader)).uid;
+    decoded = await admin.auth().verifyIdToken(authHeader);
   } catch {
     return res(401, { error: "Invalid auth token" });
   }
+
+  // Act on the target account. A moderator (or admin managing an account) carries
+  // a `delegatedFor` claim listing the owners they may act for — honor that so
+  // they can post the gate on the streamer's behalf, not just their own account.
+  let reqBody = {}; try { reqBody = JSON.parse(event.body || "{}"); } catch {}
+  const ownerUid  = (reqBody.uid || decoded.uid);
+  const delegated = Array.isArray(decoded.delegatedFor) && decoded.delegatedFor.includes(ownerUid);
+  if (ownerUid !== decoded.uid && !delegated) {
+    return res(403, { error: "You don't have access to that account." });
+  }
+  const uid = ownerUid;
 
   const profSnap = await db.collection("streamers").doc(uid).get();
   if (!profSnap.exists) return res(404, { error: "Streamer not found" });
