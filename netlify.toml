@@ -59,6 +59,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/entrant-wager"
+  to     = "/.netlify/functions/entrant-wager"
+  status = 200
+
+[[redirects]]
   from   = "/api/verify-affiliate"
   to     = "/.netlify/functions/verify-affiliate"
   status = 200

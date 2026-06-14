@@ -4638,7 +4638,7 @@ function renderEntries() {
     if (badges.rowClass) classes.push(badges.rowClass);
     return `<div class="${classes.join(' ')}" data-key="${escHtml(e.kickKey || '')}">
       ${gwAvatarHtml(e)}
-      <div class="gw-name"><span class="gw-name-text">@${escHtml(e.username)}</span>${badges.html}</div>
+      <div class="gw-name"><span class="gw-name-text" style="cursor:pointer;" title="Click to vet @${escHtml(e.username || '')} — wager, Kick info & mod tools" onclick="openViewerProfile('${escHtml(e.username || '')}')">@${escHtml(e.username)}</span>${badges.html}</div>
       ${meta.length ? `<div class="gw-meta">${meta.join(' · ')}</div>` : ''}
       <button class="gw-row-remove" onclick="gwRemoveParticipant(this)" title="Remove this entry">×</button>
     </div>`;
@@ -4942,9 +4942,12 @@ async function openViewerProfile(username) {
 
   body.innerHTML = _vpRender(username, kickUrl, null, { points: null, lastSeen: null, casino: false, discord: false }, true);
 
-  const tool = await _vpToolData(username);
-
-  const kick = await _vpFetchKickViaBot(username, reqId);
+  // Tool data (incl. on-demand wager lookup) and the bot's Kick fetch run in
+  // parallel so the slower casino call doesn't stack on top of the Kick fetch.
+  const [tool, kick] = await Promise.all([
+    _vpToolData(username),
+    _vpFetchKickViaBot(username, reqId),
+  ]);
   if (reqId !== _vpReqId) return; // closed or superseded by another click
   body.innerHTML = _vpRender(username, kickUrl, kick, tool, false);
 }
@@ -4981,11 +4984,12 @@ function closeViewerProfile() {
 
 // Data we already hold in the tool — no extra Kick call, no storage created.
 async function _vpToolData(username) {
-  const out = { points: null, lastSeen: null, casino: false, discord: false };
+  const out = { points: null, lastSeen: null, casino: false, discord: false, wager: null };
   const key = username.toLowerCase();
   try {
-    if (typeof _gwVerifiedCasinoSet  !== 'undefined') out.casino  = _gwVerifiedCasinoSet.has(key);
-    if (typeof _gwVerifiedDiscordSet !== 'undefined') out.discord = _gwVerifiedDiscordSet.has(key);
+    if (typeof _gwVerifiedCasinoSet  !== 'undefined') out.casino    = _gwVerifiedCasinoSet.has(key);
+    if (typeof _gwVerifiedDiscordSet !== 'undefined') out.discord   = _gwVerifiedDiscordSet.has(key);
+    if (typeof _gwUnderCodeSet       !== 'undefined') out.underCode = _gwUnderCodeSet.has(key);
   } catch {}
   try {
     const uid = fb.activeUid;
@@ -4994,7 +4998,42 @@ async function _vpToolData(username) {
       if (doc.exists) { const d = doc.data(); out.points = d.points || 0; out.lastSeen = d.lastSeen || null; }
     }
   } catch {}
+  // On-demand wager intel (casino lookup). Informational only — the giveaway
+  // draw stays equal-odds. Timeout-guarded so a slow casino API can't hang the card.
+  try {
+    if (fb.currentUser) {
+      const token = await fb.currentUser.getIdToken();
+      const ctrl  = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 9000);
+      const r = await fetch('/api/entrant-wager?username=' + encodeURIComponent(username),
+        { headers: { 'Authorization': 'Bearer ' + token }, signal: ctrl.signal });
+      clearTimeout(timer);
+      if (r.ok) out.wager = await r.json();
+    }
+  } catch {}
   return out;
+}
+
+// Build the "Wager intel" rows for the viewer card from the entrant-wager API
+// payload. Adapts per casino: Gambulls shows real 7d/30d; Degen shows the
+// current race (top-20 only); anything else / not found shows "Not available".
+function _vpWagerRows(w) {
+  const cur = (n) => '$' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+  if (!w) {
+    return _vpRow('💰 Wager', '<span style="color:var(--text-dim);">—</span>');
+  }
+  if (!w.available) {
+    return _vpRow('💰 Wager (' + escHtml(w.providerName || 'casino') + ')',
+      `<span style="color:var(--text-dim);">Not available</span>`)
+      + (w.reason ? `<div style="font-size:11px;color:var(--text-dim);padding:2px 0 4px;line-height:1.4;">${escHtml(w.reason)}</div>` : '');
+  }
+  if (w.supportsWindows) {
+    return _vpRow('💰 Last 7 days',  `<strong>${cur(w.wager7d)}</strong>`)
+         + _vpRow('💰 Last 30 days', `<strong>${cur(w.wager30d)}</strong>`);
+  }
+  // Degen-style single current-race figure.
+  return _vpRow('💰 ' + escHtml(w.providerName || 'Casino') + ' wager', `<strong>${cur(w.currentWager)}</strong>`)
+    + (w.raceLabel ? `<div style="font-size:11px;color:var(--text-dim);padding:2px 0 4px;line-height:1.4;">${escHtml(w.raceLabel)}</div>` : '');
 }
 
 function _vpRow(label, value) {
@@ -5043,7 +5082,7 @@ function _vpRender(username, kickUrl, kick, tool, loading) {
   if (loading) {
     kickRows = `<div style="color:var(--text-dim);font-size:13px;padding:6px 0;">Loading live details from Kick…</div>`;
   } else if (!kick) {
-    kickRows = `<div style="color:var(--orange);font-size:12px;padding:6px 0;line-height:1.5;">Couldn't load live Kick details right now. Use <strong>View on Kick</strong> below to open their profile and Kick's mod tools (incl. message history).</div>`;
+    kickRows = `<div style="color:var(--orange);font-size:12px;padding:6px 0;line-height:1.5;">Couldn't load live Kick details right now. Use <strong>Open Kick profile</strong> below to view their Kick account. (To see their message history in your chat, click their name in your live Kick chat — Kick has no link for that.)</div>`;
   } else {
     const follow = kick.followingSince ? _vpDate(kick.followingSince) : null;
     kickRows = [
@@ -5057,6 +5096,7 @@ function _vpRender(username, kickUrl, kick, tool, loading) {
     tool.points != null ? _vpRow('🪙 Points', Number(tool.points).toLocaleString()) : '',
     tool.lastSeen ? _vpRow('👀 Last seen', _vpDate(tool.lastSeen).rel) : '',
     _vpRow('🎰 Casino verified', tool.casino ? '<span style="color:var(--green);">Yes</span>' : 'No'),
+    _vpRow('🇨 Under your code', tool.underCode ? '<span style="color:var(--green);font-weight:700;">Yes</span>' : 'No'),
     _vpRow('💬 Discord linked', tool.discord ? '<span style="color:var(--green);">Yes</span>' : 'No'),
   ].join('');
 
@@ -5072,8 +5112,10 @@ function _vpRender(username, kickUrl, kick, tool, loading) {
     ${kickRows}
     <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin:16px 0 4px;">In your tool</div>
     ${toolRows}
+    <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin:16px 0 4px;">Wager activity</div>
+    ${loading ? `<div style="color:var(--text-dim);font-size:13px;padding:6px 0;">Loading wager…</div>` : _vpWagerRows(tool.wager)}
     <div style="display:flex;gap:10px;margin-top:20px;">
-      <a href="${escHtml(kickUrl)}" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:10px;background:rgba(83,224,119,0.12);border:1px solid rgba(83,224,119,0.4);border-radius:8px;color:var(--green);font-size:13px;font-weight:700;text-decoration:none;">View on Kick ↗</a>
+      <a href="${escHtml(kickUrl)}" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:10px;background:rgba(83,224,119,0.12);border:1px solid rgba(83,224,119,0.4);border-radius:8px;color:var(--green);font-size:13px;font-weight:700;text-decoration:none;">Open Kick profile ↗</a>
       <button onclick="closeViewerProfile()" style="padding:10px 18px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:13px;cursor:pointer;">Close</button>
     </div>`;
 }
