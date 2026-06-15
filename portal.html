@@ -292,6 +292,12 @@
     .store-buy:hover:not(:disabled) { filter:brightness(1.1); }
     .store-buy:disabled { opacity:.5; cursor:not-allowed; }
     .store-buy.raffle { background:linear-gradient(90deg,var(--gold),#ffe27a); color:#1a1407; }
+    .store-qty { display:flex; align-items:center; justify-content:center; gap:8px; margin:10px 0 2px; }
+    .store-qty .rq-btn { width:30px; height:30px; border-radius:8px; border:1px solid var(--border); background:var(--bg-card); color:var(--text); font-size:18px; font-weight:800; line-height:1; cursor:pointer; flex-shrink:0; }
+    .store-qty .rq-btn:hover { border-color:var(--gold); color:var(--gold); }
+    .store-qty .rq-input { width:54px; text-align:center; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:14px; font-weight:700; padding:6px 4px; -moz-appearance:textfield; }
+    .store-qty .rq-input::-webkit-outer-spin-button, .store-qty .rq-input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+    .store-qty .rq-hint { font-size:11px; color:var(--text-dim); }
     .store-name { font-family: 'Exo 2', sans-serif; font-weight: 800; font-size: 15px; color: var(--bright); margin-bottom: 4px; }
     .store-desc { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.45; min-height: 32px; }
     .store-footer { display: flex; justify-content: space-between; align-items: center; }
@@ -532,33 +538,51 @@
   }
   window.viewerLogin  = function () { initiateKickAuth('viewer', channel); };
   window.viewerLogout = function () { clearKickViewerSession(); viewer = null; refreshViewerUI(); };
+  // Raffle quantity stepper helpers.
+  function rqVal(id) { const el = document.getElementById('rq-' + id); return Math.max(1, Math.min(100, parseInt(el?.value, 10) || 1)); }
+  window.rqClamp = function (id) { const el = document.getElementById('rq-' + id); if (!el) return; el.value = rqVal(id); rqSyncBtn(id); };
+  window.rqAdj   = function (id, d) { const el = document.getElementById('rq-' + id); if (!el) return; el.value = Math.max(1, Math.min(100, (parseInt(el.value, 10) || 1) + d)); rqSyncBtn(id); };
+  // Reflect qty + total on the buy button (signed-in viewers only).
+  function rqSyncBtn(id) {
+    const item = (state?.store?.items || []).find(i => i.id === id); if (!item || !viewer) return;
+    const btn = document.querySelector(`.store-buy[data-id="${(window.CSS&&CSS.escape)?CSS.escape(id):id}"]`);
+    if (!btn || btn.dataset.busy) return;
+    const q = rqVal(id), cur = state?.streamer?.currency || 'points';
+    btn.textContent = q > 1 ? `Enter ×${q} — ${(Number(item.price) * q).toLocaleString()} ${cur}` : 'Enter raffle';
+  }
+
   window.buyItem = async function (itemId) {
     if (!viewer) { initiateKickAuth('viewer', channel); return; }
     const item = (state?.store?.items || []).find(i => i.id === itemId);
     if (!item) return;
     const cur = state?.streamer?.currency || 'points';
-    const verb = item.isRaffleItem ? 'enter the ' + item.name + ' raffle' : 'buy ' + item.name;
-    if (!confirm(`Spend ${Number(item.price).toLocaleString()} ${cur} to ${verb}?`)) return;
+    const qty = item.isRaffleItem ? rqVal(itemId) : 1;
+    const total = Number(item.price) * qty;
+    const verb = item.isRaffleItem
+      ? (qty > 1 ? `buy ${qty} tickets for the ${item.name} raffle` : `enter the ${item.name} raffle`)
+      : 'buy ' + item.name;
+    if (!confirm(`Spend ${total.toLocaleString()} ${cur} to ${verb}?`)) return;
     const btn = document.querySelector(`.store-buy[data-id="${(window.CSS&&CSS.escape)?CSS.escape(itemId):itemId}"]`);
-    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    if (btn) { btn.dataset.busy = '1'; btn.disabled = true; btn.textContent = '…'; }
+    const restore = () => { if (btn) { delete btn.dataset.busy; btn.disabled = false; rqSyncBtn(itemId); if (!item.isRaffleItem) btn.textContent = 'Buy'; } };
     try {
       const r = await fetch('/api/store-buy', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channel, kickUsername: viewer.kickUsername, accessToken: viewer.accessToken, itemId }),
+        body: JSON.stringify({ channel, kickUsername: viewer.kickUsername, accessToken: viewer.accessToken, itemId, quantity: qty }),
       });
       const d = await r.json();
       if (!r.ok) {
         if (r.status === 401) { clearKickViewerSession(); viewer = null; refreshViewerUI(); }
         alert(d.error || 'Purchase failed.');
-        if (btn) { btn.disabled = false; btn.textContent = item.isRaffleItem ? 'Enter raffle' : 'Buy'; }
+        restore();
         return;
       }
       if (d.newBalance != null) document.getElementById('viewerPts').textContent = Number(d.newBalance).toLocaleString() + ' ' + cur;
       alert(d.message || 'Success!');
-      load(); // refresh stock
+      load(); // refresh stock + entry counts
     } catch (e) {
       alert('Purchase failed: ' + e.message);
-      if (btn) { btn.disabled = false; btn.textContent = item.isRaffleItem ? 'Enter raffle' : 'Buy'; }
+      restore();
     }
   };
 
@@ -1027,6 +1051,15 @@
       const out = it.stock === 0;
       const label = it.isRaffleItem ? 'Enter raffle' : 'Buy';
       const buyBtn = `<button class="store-buy${it.isRaffleItem ? ' raffle' : ''}" data-id="${esc(it.id)}" ${out ? 'disabled' : ''} onclick="buyItem('${esc(it.id)}')">${out ? 'Out of stock' : (viewer ? label : '🟢 Sign in to ' + label.toLowerCase())}</button>`;
+      // Quantity stepper — raffle items only (buy multiple tickets at once).
+      const qtyStepper = (it.isRaffleItem && !out)
+        ? `<div class="store-qty">
+            <button type="button" class="rq-btn" onclick="rqAdj('${esc(it.id)}',-1)" aria-label="Fewer">−</button>
+            <input id="rq-${esc(it.id)}" class="rq-input" type="number" value="1" min="1" max="100" inputmode="numeric" oninput="rqClamp('${esc(it.id)}')">
+            <button type="button" class="rq-btn" onclick="rqAdj('${esc(it.id)}',1)" aria-label="More">+</button>
+            <span class="rq-hint">tickets</span>
+          </div>`
+        : '';
       return `
         <div class="store-card${it.isRaffleItem ? ' raffle' : ''}">
           ${img}
@@ -1037,6 +1070,7 @@
             ${stockHtml}
           </div>
           ${it.isRaffleItem ? `<div class="store-raffle-entries" data-id="${esc(it.id)}" style="font-size:12px;color:var(--text-dim);margin:0 0 8px;min-height:16px;"></div>` : ''}
+          ${qtyStepper}
           ${buyBtn}
           <div class="buy-cmd" title="Copy command" onclick="navigator.clipboard&&navigator.clipboard.writeText('${buyCmd.replace(/'/g,"\\'")}');this.textContent='✓ Copied — paste in chat';">📋 ${esc(buyCmd)}</div>
         </div>`;

@@ -235,6 +235,12 @@
   .store-buy:hover:not(:disabled) { filter:brightness(1.1); }
   .store-buy:disabled { opacity:.5; cursor:not-allowed; }
   .store-buy.raffle { background:linear-gradient(90deg,var(--gold),#ffd86b); color:#1a1407; }
+  .store-qty { display:flex; align-items:center; justify-content:center; gap:8px; margin:8px 0 2px; }
+  .store-qty .rq-btn { width:30px; height:30px; border-radius:8px; border:1px solid var(--border); background:var(--bg-card,rgba(255,255,255,.04)); color:var(--text); font-size:18px; font-weight:800; line-height:1; cursor:pointer; flex-shrink:0; }
+  .store-qty .rq-btn:hover { border-color:var(--gold); color:var(--gold); }
+  .store-qty .rq-input { width:54px; text-align:center; background:var(--bg-card,rgba(255,255,255,.04)); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:14px; font-weight:700; padding:6px 4px; -moz-appearance:textfield; }
+  .store-qty .rq-input::-webkit-outer-spin-button, .store-qty .rq-input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  .store-qty .rq-hint { font-size:11px; color:var(--dim); }
   .link-btn { display:inline-flex; align-items:center; gap:8px; background:var(--bg-card); border:1px solid var(--accent); color:var(--bright); font-weight:700; border-radius:10px; padding:11px 18px; text-decoration:none; font-size:14px; transition:.15s; }
   .link-btn:hover { background:rgba(168,85,247,.12); }
   footer { text-align:center; padding:40px 0 30px; color:var(--dim); font-size:12px; }
@@ -674,6 +680,14 @@
       const out = it.stock === 0;
       const label = it.isRaffleItem ? 'Enter raffle' : 'Buy';
       const buyBtn = `<button class="store-buy ${it.isRaffleItem ? 'raffle' : ''}" data-id="${esc(it.id)}" ${out ? 'disabled' : ''} onclick="buyItem('${esc(it.id)}')">${out ? 'Out of stock' : (viewer ? label : '🟢 Sign in to ' + label.toLowerCase())}</button>`;
+      const qtyStepper = (it.isRaffleItem && !out)
+        ? `<div class="store-qty">
+            <button type="button" class="rq-btn" onclick="rqAdj('${esc(it.id)}',-1)" aria-label="Fewer">−</button>
+            <input id="rq-${esc(it.id)}" class="rq-input" type="number" value="1" min="1" max="100" inputmode="numeric" oninput="rqClamp('${esc(it.id)}')">
+            <button type="button" class="rq-btn" onclick="rqAdj('${esc(it.id)}',1)" aria-label="More">+</button>
+            <span class="rq-hint">tickets</span>
+          </div>`
+        : '';
       const cmd = `!buy ${it.name}`;
       const img = it.imageUrl
         ? `<div class="store-img"><img src="${esc(it.imageUrl)}" alt="" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
@@ -688,6 +702,7 @@
           ${stock}
         </div>
         ${it.isRaffleItem ? `<div class="store-raffle-entries" data-id="${esc(it.id)}" style="font-size:12px;color:var(--dim);margin:0 0 8px;min-height:16px;"></div>` : ''}
+        ${qtyStepper}
         ${buyBtn}
         <div class="store-buycmd" title="Copy command" onclick="navigator.clipboard&&navigator.clipboard.writeText('${cmd.replace(/'/g,"\\'")}');this.textContent='✓ Copied — paste in chat';">📋 ${esc(cmd)}</div>
       </div>`;
@@ -751,33 +766,50 @@
   window.viewerLogin  = function () { initiateKickAuth('viewer', CHANNEL); };
   window.viewerLogout = function () { clearKickViewerSession(); viewer = null; refreshViewerUI(); renderStore(window.__S || {}); };
 
+  // Raffle quantity stepper helpers.
+  function rqVal(id) { const el = document.getElementById('rq-' + id); return Math.max(1, Math.min(100, parseInt(el?.value, 10) || 1)); }
+  window.rqClamp = function (id) { const el = document.getElementById('rq-' + id); if (!el) return; el.value = rqVal(id); rqSyncBtn(id); };
+  window.rqAdj   = function (id, d) { const el = document.getElementById('rq-' + id); if (!el) return; el.value = Math.max(1, Math.min(100, (parseInt(el.value, 10) || 1) + d)); rqSyncBtn(id); };
+  function rqSyncBtn(id) {
+    const item = _storeItems.find(i => i.id === id); if (!item || !viewer) return;
+    const btn = document.querySelector(`.store-buy[data-id="${CSS.escape(id)}"]`);
+    if (!btn || btn.dataset.busy) return;
+    const q = rqVal(id);
+    btn.textContent = q > 1 ? `Enter ×${q} — ${(Number(item.price) * q).toLocaleString()} ${_currency}` : 'Enter raffle';
+  }
+
   window.buyItem = async function (itemId) {
     if (!viewer) { initiateKickAuth('viewer', CHANNEL); return; }
     const item = _storeItems.find(i => i.id === itemId);
     if (!item) return;
-    const verb = item.isRaffleItem ? 'enter the ' + item.name + ' raffle' : 'buy ' + item.name;
-    if (!confirm(`Spend ${Number(item.price).toLocaleString()} ${_currency} to ${verb}?`)) return;
+    const qty = item.isRaffleItem ? rqVal(itemId) : 1;
+    const total = Number(item.price) * qty;
+    const verb = item.isRaffleItem
+      ? (qty > 1 ? `buy ${qty} tickets for the ${item.name} raffle` : `enter the ${item.name} raffle`)
+      : 'buy ' + item.name;
+    if (!confirm(`Spend ${total.toLocaleString()} ${_currency} to ${verb}?`)) return;
     const btn = document.querySelector(`.store-buy[data-id="${CSS.escape(itemId)}"]`);
-    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    if (btn) { btn.dataset.busy = '1'; btn.disabled = true; btn.textContent = '…'; }
+    const restore = () => { if (btn) { delete btn.dataset.busy; btn.disabled = false; rqSyncBtn(itemId); if (!item.isRaffleItem) btn.textContent = 'Buy'; } };
     try {
       const r = await fetch('/api/store-buy', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channel: CHANNEL, kickUsername: viewer.kickUsername, accessToken: viewer.accessToken, itemId }),
+        body: JSON.stringify({ channel: CHANNEL, kickUsername: viewer.kickUsername, accessToken: viewer.accessToken, itemId, quantity: qty }),
       });
       const d = await r.json();
       if (!r.ok) {
         if (r.status === 401) { clearKickViewerSession(); viewer = null; refreshViewerUI(); }
         alert(d.error || 'Purchase failed.');
-        if (btn) { btn.disabled = false; btn.textContent = item.isRaffleItem ? 'Enter raffle' : 'Buy'; }
+        restore();
         return;
       }
       if (d.newBalance != null) document.getElementById('viewerPts').textContent = Number(d.newBalance).toLocaleString() + ' ' + _currency;
       if (btn) { btn.textContent = '✓ Done'; }
       alert(d.message || 'Success!');
-      load(); // refresh stock
+      load(); // refresh stock + entry counts
     } catch (e) {
       alert('Purchase failed: ' + e.message);
-      if (btn) { btn.disabled = false; btn.textContent = item.isRaffleItem ? 'Enter raffle' : 'Buy'; }
+      restore();
     }
   };
 
