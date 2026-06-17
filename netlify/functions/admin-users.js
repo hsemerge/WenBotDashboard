@@ -2,7 +2,7 @@
 // Returns every streamer with key ops fields + global rollups for the admin panel.
 // Authority verified server-side via requireAdmin (Firebase token + allowlist).
 
-const { getDb }               = require("./_lib/firebase");
+const { getDb, admin }        = require("./_lib/firebase");
 const { res, checkRateLimit } = require("./_lib/http");
 const { requireAdmin, logAdminAudit } = require("./_lib/admin");
 
@@ -48,6 +48,23 @@ exports.handler = async (event) => {
       kickConnectedAt:    ms(s.kickConnectedAt),
     };
   });
+
+  // Last login — pulled from Firebase Auth metadata (no per-login writes needed).
+  // Batched getUsers (max 100/call). Non-fatal: on any failure, leave it null.
+  try {
+    for (let i = 0; i < users.length; i += 100) {
+      const chunk = users.slice(i, i + 100).map((u) => ({ uid: u.uid }));
+      const r = await admin.auth().getUsers(chunk);
+      const m = {};
+      r.users.forEach((rec) => {
+        const t = rec.metadata && rec.metadata.lastSignInTime;
+        if (t) m[rec.uid] = new Date(t).getTime();
+      });
+      for (const u of users.slice(i, i + 100)) u.lastLoginAt = m[u.uid] || null;
+    }
+  } catch (e) {
+    console.warn("[admin-users] last-login lookup failed:", e.message);
+  }
 
   users.sort((a, b) => (b.totalPaid - a.totalPaid) ||
     String(a.kickChannel || "").localeCompare(String(b.kickChannel || "")));

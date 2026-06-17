@@ -96,9 +96,9 @@
           <table>
             <thead><tr>
               <th></th><th>Channel</th><th>Plan</th><th>Sub</th><th>Onboarded</th>
-              <th>Referrals</th><th class="num">Total paid</th><th>Last payment</th><th>Email</th>
+              <th>Referrals</th><th class="num">Total paid</th><th>Last payment</th><th>Last login</th><th>Email</th>
             </tr></thead>
-            <tbody id="usersTable"><tr><td colspan="9" class="muted" style="text-align:center;padding:24px;">…</td></tr></tbody>
+            <tbody id="usersTable"><tr><td colspan="10" class="muted" style="text-align:center;padding:24px;">…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -138,6 +138,7 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const money = n => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const date = ms => ms ? new Date(ms).toLocaleDateString() : '—';
+  const rel  = ms => { if (!ms) return '—'; const d = Math.floor((Date.now() - ms) / 86400000); return d <= 0 ? 'today' : d === 1 ? '1d ago' : d < 30 ? d + 'd ago' : d < 365 ? Math.floor(d / 30) + 'mo ago' : Math.floor(d / 365) + 'y ago'; };
   const planPill = p => `<span class="pill ${esc(p)}">${esc(p)}</span>`;
 
   $('loginForm').addEventListener('submit', async (e) => {
@@ -210,7 +211,7 @@
       String(u.kickChannel||'').toLowerCase().includes(q) ||
       String(u.email||'').toLowerCase().includes(q) ||
       String(u.plan||'').toLowerCase().includes(q)));
-    if (!rows.length) { $('usersTable').innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:24px;">No matches.</td></tr>'; return; }
+    if (!rows.length) { $('usersTable').innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center;padding:24px;">No matches.</td></tr>'; return; }
     $('usersTable').innerHTML = rows.map(u => {
       const sub = u.subscriptionActive
         ? '<span class="ok">active</span>' + (u.paymentFailed ? ' <span class="warn">(failed)</span>' : '')
@@ -232,9 +233,10 @@
         <td class="num">${u.referralCount || 0}</td>
         <td class="num">${money(u.totalPaid)}</td>
         <td class="muted">${date(u.lastPaymentAt)}</td>
+        <td class="muted" title="${esc(date(u.lastLoginAt))}">${rel(u.lastLoginAt)}</td>
         <td class="muted">${esc(u.email || '—')}</td>
       </tr>`;
-      return main + (open ? `<tr><td colspan="9" style="background:#0c0c14;">${detailHtml(u.uid)}</td></tr>` : '');
+      return main + (open ? `<tr><td colspan="10" style="background:#0c0c14;">${detailHtml(u.uid)}</td></tr>` : '');
     }).join('');
   };
 
@@ -262,6 +264,11 @@
       + `</div>`;
     return `<div style="padding:10px 4px;font-size:12px;line-height:1.6;">
       <div>${refBy}Invited <b>${d.referralCount||0}</b>: ${refList}</div>
+      <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span class="muted">Set referrer:</span>
+        <input id="refset-${esc(uid)}" placeholder="referrer channel" style="background:#0c0c14;border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:12px;padding:4px 8px;width:170px;">
+        <button class="btn-ghost" onclick="setReferrer('${esc(uid)}')">${d.referredByChannel ? 'Change' : 'Set'} referrer</button>
+      </div>
       <div style="margin-top:8px;font-weight:700;color:var(--bright);">Payments (${money(d.totalPaid)} total)</div>${payList}
       ${actions}
     </div>`;
@@ -302,6 +309,24 @@
       try { localStorage.setItem('wb_active_uid', uid); } catch {}
       window.location.href = '/dashboard.html';
     } catch (e) { alert('Could not switch in: ' + e.message); }
+  };
+
+  // Attribute a streamer as referred by another (admin override of referredBy).
+  window.setReferrer = async function (uid) {
+    const el = document.getElementById('refset-' + uid);
+    const referrer = (el && el.value || '').trim();
+    if (!referrer) { alert("Enter the referrer's channel."); return; }
+    const u   = _users.find(x => x.uid === uid) || {};
+    const cur = _detail[uid] && _detail[uid].referredByChannel;
+    if (!confirm(`Attribute "${u.kickChannel || uid}" as referred by "${referrer}"?` + (cur ? `\n\nThis CHANGES their current referrer "${cur}".` : ''))) return;
+    try {
+      const r = await authedPost('/api/admin-set-referrer', { uid, referrer, override: true });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      delete _detail[uid]; _expanded.delete(uid);
+      await loadUsers();
+      alert('Referrer set → ' + (d.referrerChannel || referrer));
+    } catch (e) { alert('Failed: ' + e.message); }
   };
 
   window.toggleDetail = async function (uid) {
