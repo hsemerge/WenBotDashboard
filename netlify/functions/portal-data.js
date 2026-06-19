@@ -44,7 +44,7 @@ const PORTAL_PRESETS = {
     hero: {
       tagline:   "Live leaderboards, giveaways & rewards",
       title:     "WEEKLY WAGER RACE",
-      prize:     "$200",
+      prize:     "$250",
       cadence:   "Weekly",                 // weekly LB, not monthly
       code:      "SKSlots",                // affiliate code shown in the hero
       ctaLabel:  "Play on Gambulls — code SKSlots",
@@ -108,7 +108,7 @@ const PORTAL_PRESETS = {
           ],
         },
         {
-          type: "prizes", title: "Weekly Leaderboard", subtitle: "$200 prize pool",
+          type: "prizes", title: "Weekly Leaderboard", subtitle: "$250 prize pool",
           places: [
             { place: "1st", amount: "$85" },
             { place: "2nd", amount: "$50" },
