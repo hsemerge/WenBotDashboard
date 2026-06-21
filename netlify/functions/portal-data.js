@@ -235,6 +235,17 @@ exports.handler = async (event) => {
 
   try {
     const db = getDb();
+    // COST GUARD: portals poll this every 60s; with many open portals each poll
+    // was a heavy uncached read. Cache the whole (per-channel, NOT viewer-specific)
+    // response so all portals share one computation per TTL. `_cache` is admin-SDK
+    // only — clients can't read it.
+    const PORTAL_CACHE_TTL_MS = 60 * 1000;
+    const cacheRef = db.collection("_cache").doc(`portal_${channel}`);
+    try {
+      const c = await cacheRef.get();
+      if (c.exists && c.data().data && (Date.now() - c.data().cachedAt) < PORTAL_CACHE_TTL_MS) return res(200, c.data().data);
+    } catch { /* cache miss → compute fresh */ }
+
     const snap = await db.collection("streamers")
       .where("kickChannel", "==", channel).limit(1).get();
     if (snap.empty) return res(404, { error: "Channel not found on WenBot" });
@@ -487,7 +498,7 @@ exports.handler = async (event) => {
       }
     }
 
-    return res(200, {
+    const payload = {
       streamer:    publicProfile,
       // White-label branding (theme, logo, hero, footer credit). Null for
       // standard streamers, so the portal keeps its default look.
@@ -509,7 +520,9 @@ exports.handler = async (event) => {
         battle:      tier >= TIER_RANK.elite,
         tournament:  tier >= TIER_RANK.elite,
       },
-    });
+    };
+    try { await cacheRef.set({ cachedAt: Date.now(), data: payload }); } catch { /* cache write failed — non-fatal */ }
+    return res(200, payload);
 
   } catch (err) {
     console.error("[portal-data] error:", err.message);

@@ -28,21 +28,40 @@ exports.handler = async (event) => {
     if (snap.empty) return res(404, { error: "Channel not found" });
     const uid = snap.docs[0].id;
 
-    const redemptionsSnap = await db.collection("streamers").doc(uid)
-      .collection("store_redemptions").where("status", "==", "raffle_entry").get();
+    // COST GUARD: scanning every raffle_entry redemption on every portal poll
+    // (×60/hr ×every open portal) was a runaway as ticket docs piled up. Cache the
+    // aggregation per streamer; all portals/viewers share one scan per TTL. The
+    // per-user map is keyed by unique entrant (bounded by audience, NOT ticket
+    // count), so it stays small. `_cache` is admin-SDK only — clients can't read it.
+    const CACHE_TTL_MS = 5 * 60 * 1000;
+    const cacheRef = db.collection("_cache").doc(`raffle_${uid}`);
+    let agg = null;
+    try {
+      const c = await cacheRef.get();
+      if (c.exists && c.data().agg && (Date.now() - c.data().cachedAt) < CACHE_TTL_MS) agg = c.data().agg;
+    } catch { /* cache miss → recompute */ }
+
+    if (!agg) {
+      const redemptionsSnap = await db.collection("streamers").doc(uid)
+        .collection("store_redemptions").where("status", "==", "raffle_entry").get();
+      agg = {}; // itemId -> { total, users: { kickKey: count } }
+      redemptionsSnap.forEach((doc) => {
+        const d = doc.data();
+        const id = d.itemId;
+        if (!id) return;
+        if (!agg[id]) agg[id] = { total: 0, users: {} };
+        agg[id].total += 1;
+        // chat/Discord/web all store kickUsernameKey now; fall back to raw name for legacy docs.
+        const who = (d.kickUsernameKey || d.kickUsername || "").toLowerCase();
+        if (who) agg[id].users[who] = (agg[id].users[who] || 0) + 1;
+      });
+      try { await cacheRef.set({ cachedAt: Date.now(), agg }); } catch { /* too big / write fail → skip cache */ }
+    }
 
     const entries = {}; // itemId -> { total, mine }
-    redemptionsSnap.forEach((doc) => {
-      const d = doc.data();
-      const id = d.itemId;
-      if (!id) return;
-      if (!entries[id]) entries[id] = { total: 0, mine: 0 };
-      entries[id].total += 1;
-      // Match the buyer by key, falling back to the raw username — chat (!buy) and
-      // Discord (/buy) purchases historically stored only kickUsername, no key.
-      const who = (d.kickUsernameKey || d.kickUsername || "").toLowerCase();
-      if (kick && who === kick) entries[id].mine += 1;
-    });
+    for (const id in agg) {
+      entries[id] = { total: agg[id].total, mine: kick ? (agg[id].users[kick] || 0) : 0 };
+    }
 
     return res(200, { success: true, entries, signedIn: !!kick });
   } catch (err) {
