@@ -69,6 +69,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/verify-status"
+  to     = "/.netlify/functions/verify-status"
+  status = 200
+
+[[redirects]]
   from   = "/api/send-agency-inquiry"
   to     = "/.netlify/functions/send-agency-inquiry"
   status = 200

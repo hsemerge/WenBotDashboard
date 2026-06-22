@@ -10,6 +10,7 @@ const { CASINO_NAMES }         = require("./_lib/casinos");
 const { logAudit }             = require("./_lib/audit");
 const { lookupAffiliate }      = require("./_lib/affiliate");
 const { lookupDegen }          = require("./_lib/degen");
+const { getKickUser }          = require("./_lib/kick");
 const crypto                   = require("crypto");
 
 // Casinos with live API verification
@@ -53,15 +54,12 @@ exports.handler = async (event) => {
       return res(400, { error: "This streamer hasn't finished setting up their channel yet." });
     }
 
-    // Kick identity proven via OAuth access token — same path for chat-initiated and Discord-initiated
-    const kickApiResp = await fetch("https://api.kick.com/public/v1/users", {
-      headers: { "Authorization": `Bearer ${kickAccessToken}` },
-    });
-    if (!kickApiResp.ok) throw Object.assign(new Error("Could not verify your Kick identity. Please try again."), { status: 401 });
-    const kickApiData = await kickApiResp.json();
-    const kickApiUser = kickApiData.data?.[0];
-    if (!kickApiUser) throw Object.assign(new Error("Could not verify your Kick identity."), { status: 401 });
-    const kickUsername = kickApiUser.name;
+    // Kick identity proven via OAuth access token — hardened shared lookup turns
+    // any Kick-side failure (bad token char, network, timeout, non-JSON) into a
+    // clear, retryable message instead of a generic 500.
+    const kickLookup = await getKickUser(kickAccessToken);
+    if (kickLookup.error) throw Object.assign(new Error(kickLookup.error), { status: kickLookup.status });
+    const kickUsername = kickLookup.user.name;
 
     // If a Discord verification token was provided, consume it and link Discord identity
     let discordUserId   = null;

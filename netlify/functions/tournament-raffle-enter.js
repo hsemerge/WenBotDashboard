@@ -8,6 +8,7 @@
 const { getDb, admin }        = require("./_lib/firebase");
 const { res, checkRateLimit } = require("./_lib/http");
 const { logAudit }            = require("./_lib/audit");
+const { getKickUser }         = require("./_lib/kick");
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
@@ -27,13 +28,10 @@ exports.handler = async (event) => {
 
   try {
     // 1. Verify Kick identity
-    const kickResp = await fetch("https://api.kick.com/public/v1/users", {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (!kickResp.ok) return res(401, { error: "Could not verify Kick identity — please log in again" });
-    const kickData = await kickResp.json();
-    const kickUser = kickData.data?.[0];
-    if (!kickUser || kickUser.name.toLowerCase() !== userKey) {
+    const kickLookup = await getKickUser(accessToken);
+    if (kickLookup.error) return res(kickLookup.status, { error: kickLookup.error });
+    const kickUser = kickLookup.user;
+    if (kickUser.name.toLowerCase() !== userKey) {
       return res(401, { error: "Identity mismatch — please log in again" });
     }
 

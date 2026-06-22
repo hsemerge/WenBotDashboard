@@ -9,6 +9,7 @@
 
 const { getDb, admin } = require("./_lib/firebase");
 const { res }          = require("./_lib/http");
+const { getKickUser }  = require("./_lib/kick");
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
@@ -22,15 +23,10 @@ exports.handler = async (event) => {
   if (!channel || !kickAccessToken) return res(400, { error: "Missing channel or kickAccessToken" });
 
   try {
-    // Prove Kick identity — same path as verify-affiliate.js uses
-    const kickApiResp = await fetch("https://api.kick.com/public/v1/users", {
-      headers: { "Authorization": `Bearer ${kickAccessToken}` },
-    });
-    if (!kickApiResp.ok) return res(401, { error: "Kick identity check failed" });
-    const kickData = await kickApiResp.json();
-    const kickUser = kickData.data?.[0];
-    if (!kickUser) return res(401, { error: "Kick identity check failed" });
-    const kickUsername = kickUser.name;
+    // Prove Kick identity — hardened shared lookup (clear, retryable errors).
+    const kickLookup = await getKickUser(kickAccessToken);
+    if (kickLookup.error) return res(kickLookup.status, { error: kickLookup.error });
+    const kickUsername = kickLookup.user.name;
     const kickKey      = kickUsername.toLowerCase();
 
     const db = getDb();

@@ -5,6 +5,7 @@
 
 const { getDb, admin } = require("./_lib/firebase");
 const { res }          = require("./_lib/http");
+const { getKickUser }  = require("./_lib/kick");
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
@@ -40,12 +41,10 @@ exports.handler = async (event) => {
     return res(401, { error: "Kick session required — please sign in with Kick again." });
   }
   try {
-    const kr = await fetch("https://api.kick.com/public/v1/users", {
-      headers: { Authorization: `Bearer ${kickAccessToken}` },
-    });
-    if (!kr.ok) return res(401, { error: "Could not verify your Kick identity — please sign in with Kick again." });
-    const ku = (await kr.json()).data?.[0];
-    if (!ku || !ku.name || ku.name.toLowerCase() !== String(kickUsername).toLowerCase()) {
+    const kickLookup = await getKickUser(kickAccessToken);
+    if (kickLookup.error) return res(kickLookup.status, { error: kickLookup.error });
+    const ku = kickLookup.user;
+    if (ku.name.toLowerCase() !== String(kickUsername).toLowerCase()) {
       return res(401, { error: "Kick identity mismatch — please sign in with Kick again." });
     }
     kickUsername = ku.name; // canonical, token-verified

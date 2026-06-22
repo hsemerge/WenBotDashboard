@@ -13,6 +13,7 @@
 
 const { getDb }               = require("./_lib/firebase");
 const { res, checkRateLimit } = require("./_lib/http");
+const { getKickUser }         = require("./_lib/kick");
 const crypto = require("crypto");
 
 // White-label hosts allowed to receive a handed-off session. Mirrors
@@ -56,18 +57,10 @@ exports.handler = async (event) => {
   // Verify the token is a genuine Kick token that belongs to the claimed user
   // BEFORE storing it in a handoff code. This stops forged/garbage tokens from
   // ever entering the codes collection and confirms the session is real.
-  try {
-    const kr = await fetch("https://api.kick.com/public/v1/users", {
-      headers: { Authorization: `Bearer ${session.accessToken}` },
-    });
-    if (!kr.ok) return res(401, { error: "Invalid Kick token" });
-    const kd = await kr.json();
-    const ku = kd.data?.[0];
-    if (!ku || ku.name.toLowerCase() !== String(session.kickUsername).toLowerCase()) {
-      return res(401, { error: "Token does not match the claimed user" });
-    }
-  } catch {
-    return res(502, { error: "Could not verify token with Kick" });
+  const kickLookup = await getKickUser(session.accessToken);
+  if (kickLookup.error) return res(kickLookup.status, { error: kickLookup.error });
+  if (kickLookup.user.name.toLowerCase() !== String(session.kickUsername).toLowerCase()) {
+    return res(401, { error: "Token does not match the claimed user" });
   }
 
   const code = crypto.randomBytes(24).toString("hex");
