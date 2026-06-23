@@ -74,6 +74,21 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/extension-pair-create"
+  to     = "/.netlify/functions/extension-pair-create"
+  status = 200
+
+[[redirects]]
+  from   = "/api/extension-pair"
+  to     = "/.netlify/functions/extension-pair"
+  status = 200
+
+[[redirects]]
+  from   = "/api/ext-bonus-hunt"
+  to     = "/.netlify/functions/ext-bonus-hunt"
+  status = 200
+
+[[redirects]]
   from   = "/api/send-agency-inquiry"
   to     = "/.netlify/functions/send-agency-inquiry"
   status = 200

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="hd">
+    <div class="logo">Wen<span>Bot</span> Companion</div>
+    <div class="dot" id="dot"></div>
+  </div>
+
+  <!-- connected view -->
+  <section id="view-connected" class="hide">
+    <div class="conn">Connected as <b id="ch"></b><span id="casino" class="pill"></span></div>
+    <div class="stats">
+      <div class="stat"><div class="k">Bonuses</div><div class="v" id="count">—</div></div>
+      <div class="stat"><div class="k">Break-even</div><div class="v" id="be">—</div></div>
+      <div class="stat"><div class="k">P/L</div><div class="v" id="pnl">—</div></div>
+    </div>
+    <div id="hunt-note" class="note"></div>
+    <a class="btn ghost" id="open-dash" href="#">Open WenBot dashboard ↗</a>
+    <button class="btn link" id="disconnect">Disconnect</button>
+  </section>
+
+  <!-- setup view -->
+  <section id="view-setup">
+    <p class="lead">Connect this extension to your WenBot account to add bonuses to your live hunt.</p>
+    <ol class="steps">
+      <li>Click <b>Get a code</b> (opens WenBot — sign in if asked).</li>
+      <li>Copy the 6-character code.</li>
+      <li>Paste it below &amp; connect.</li>
+    </ol>
+    <a class="btn" id="get-code" href="#">Get a code ↗</a>
+    <div class="pairrow">
+      <input id="code" maxlength="8" placeholder="PAIR CODE" autocomplete="off" />
+      <button class="btn small" id="connect">Connect</button>
+    </div>
+    <div class="or">— or, read-only —</div>
+    <div class="pairrow">
+      <input id="channel" placeholder="your kick channel" autocomplete="off" />
+      <button class="btn small ghost" id="watch">Watch</button>
+    </div>
+    <p class="hint">Read-only just shows your live hunt HUD. Adding bonuses needs a pair code.</p>
+  </section>
+
+  <div id="msg" class="msg"></div>
+  <div class="ft">🔒 Tracking only — never touches your casino account.</div>
+
+  <script src="../config.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

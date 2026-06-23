@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connect WenBot Companion</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    body { background:#0a0e17; color:#e7ecf5; font-family:"Segoe UI",system-ui,sans-serif;
+           min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+    .card { width:100%; max-width:440px; background:#0e1320; border:1px solid #1f2a42;
+            border-radius:18px; padding:30px; box-shadow:0 20px 60px rgba(0,0,0,.5); text-align:center; }
+    .logo { font-weight:800; font-size:22px; color:#38e1c6; margin-bottom:4px; }
+    .logo span { color:#b69cff; }
+    .sub { color:#8da2c0; font-size:13px; margin-bottom:24px; }
+    h1 { font-size:16px; margin-bottom:8px; }
+    p { color:#c4d0e4; font-size:13px; line-height:1.6; }
+    .code { font-size:40px; font-weight:800; letter-spacing:8px; color:#38e1c6; margin:20px 0 6px;
+            font-family:"Consolas",monospace; }
+    .meta { color:#6f86a8; font-size:12px; margin-bottom:18px; }
+    .btn { display:inline-block; background:linear-gradient(90deg,#00d1b2,#7c4dff); color:#06121f;
+           font-weight:800; border:0; border-radius:10px; padding:12px 22px; cursor:pointer;
+           text-decoration:none; font-size:14px; }
+    .btn:hover { filter:brightness(1.08); }
+    .btn.ghost { background:#182338; color:#cdd9ee; border:1px solid #28344f; }
+    .steps { text-align:left; color:#9fb0cc; font-size:13px; line-height:1.7; margin:18px 0; padding-left:20px; }
+    .steps b { color:#e7ecf5; }
+    .err { color:#ff6b81; font-size:13px; margin-top:12px; }
+    .lock { color:#5f7393; font-size:11px; margin-top:22px; }
+    .hide { display:none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">Wen<span>Bot</span> Companion</div>
+    <div class="sub">Browser extension pairing</div>
+
+    <!-- signed out -->
+    <div id="signedOut" class="hide">
+      <h1>Sign in to get your code</h1>
+      <p>You need to be signed in to WenBot to connect the extension.</p>
+      <p style="margin-top:18px"><a class="btn" href="login.html">Sign in to WenBot</a></p>
+    </div>
+
+    <!-- loading -->
+    <div id="loading">
+      <p>Checking your session…</p>
+    </div>
+
+    <!-- code -->
+    <div id="codeView" class="hide">
+      <h1>Your pairing code</h1>
+      <div class="code" id="code">······</div>
+      <div class="meta" id="meta">Expires in 10 minutes · one-time use</div>
+      <ol class="steps">
+        <li>Open the <b>WenBot Companion</b> extension (toolbar icon).</li>
+        <li>Paste this code &amp; click <b>Connect</b>.</li>
+        <li>Head to your casino — the hunt panel will appear.</li>
+      </ol>
+      <button class="btn ghost" id="regen">Generate a new code</button>
+      <div class="err hide" id="err"></div>
+    </div>
+
+    <div class="lock">🔒 The extension only tracks your bonus hunt — it never touches your casino account.</div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script>
+    // firebase-config.js defines `firebaseConfig` but does NOT auto-init, so we
+    // init our own lightweight app here (no dashboard side effects).
+    const app = firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const $ = (id) => document.getElementById(id);
+    const show = (id) => { ["signedOut","loading","codeView"].forEach(v => $(v).classList.toggle("hide", v !== id)); };
+
+    async function makeCode(user) {
+      $("err").classList.add("hide");
+      const token = await user.getIdToken();
+      const resp = await fetch("/api/extension-pair-create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+      });
+      const data = await resp.json();
+      if (!resp.ok) { show("codeView"); $("code").textContent = "ERROR"; $("err").textContent = data.error || "Failed to create a code."; $("err").classList.remove("hide"); return; }
+      $("code").textContent = data.code;
+      $("meta").textContent = `Channel: ${data.channel}${data.casino ? " · " + data.casino : ""} · expires in ${data.expiresInMin} min`;
+      show("codeView");
+    }
+
+    auth.onAuthStateChanged((user) => {
+      if (!user) { show("signedOut"); return; }
+      makeCode(user);
+    });
+    $("regen").onclick = () => { if (auth.currentUser) { show("loading"); makeCode(auth.currentUser); } };
+  </script>
+</body>
+</html>
