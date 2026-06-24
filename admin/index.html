@@ -83,6 +83,18 @@
 
     <!-- STREAMERS -->
     <div id="usersView">
+      <!-- TRANSFER VIEWER -->
+      <div class="tablecard" style="padding:16px;margin-bottom:16px;">
+        <div style="font-weight:700;margin-bottom:3px;">🔁 Transfer Viewer</div>
+        <div class="sub" style="margin-bottom:11px;">Move a viewer's points, verification, raffle tickets &amp; purchases from an old Kick username to a new one — across every channel they're in. Preview is read-only; confirm migrates.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input id="mvFrom" type="text" placeholder="Old username" style="background:#0a1120;border:1px solid #26385a;color:#eaf1fb;border-radius:8px;padding:9px 11px;min-width:150px;">
+          <span class="sub">→</span>
+          <input id="mvTo" type="text" placeholder="New username" style="background:#0a1120;border:1px solid #26385a;color:#eaf1fb;border-radius:8px;padding:9px 11px;min-width:150px;">
+          <button onclick="mvPreview()">Preview</button>
+        </div>
+        <div id="mvResult" style="margin-top:12px;"></div>
+      </div>
       <div class="stats" id="statCards"></div>
       <div class="toolbar">
         <input id="search" type="text" placeholder="Search channel / email / plan…" oninput="renderTable()">
@@ -419,6 +431,40 @@
   };
 
   window.adminSignOut = function () { auth.signOut(); _users = []; _adminSecret = ''; };
+
+  // ---- Transfer Viewer (old Kick username → new, across all channels) ----
+  function mvEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+  function mvRender(d, committed) {
+    const out = $('mvResult');
+    if (!d.channelCount) { out.innerHTML = `<span class="muted">No data found for "${mvEsc(d.fromUsername)}" on any channel.</span>`; return; }
+    let h = `<div style="margin-bottom:8px;">${committed ? '✅ Migrated' : '🔍 Preview'}: <b>${mvEsc(d.fromUsername)}</b> → <b>${mvEsc(d.toUsername)}</b> · ${d.channelCount} channel(s) · ${d.totalPoints.toLocaleString()} pts · ${d.totalRedemptions} tickets/buys</div>`;
+    h += '<table style="width:100%;font-size:13px;"><thead><tr><th>Channel</th><th class="num">Points</th><th>Verified</th><th class="num">Tickets/buys</th><th class="num">New acct has</th></tr></thead><tbody>';
+    for (const c of d.channels) {
+      h += `<tr><td>${mvEsc(c.channel)}</td><td class="num">${(c.fromPoints||0).toLocaleString()}</td><td>${c.verified.length ? mvEsc(c.verified.join(', ')) : '—'}</td><td class="num">${c.redemptions}</td><td class="num">${(c.toPointsExisting||0).toLocaleString()}</td></tr>`;
+    }
+    h += '</tbody></table>';
+    if (!committed) h += `<button onclick="mvCommit()" style="margin-top:12px;">Confirm move →</button>`;
+    else h += `<div class="sub" style="margin-top:10px;">Old account flagged <code>migratedTo</code> (points preserved as <code>migratedPoints</code>) — recoverable.</div>`;
+    out.innerHTML = h;
+  }
+  async function mvCall(action) {
+    const from = $('mvFrom').value.trim(), to = $('mvTo').value.trim();
+    const out = $('mvResult');
+    if (!from || !to) { out.innerHTML = '<span style="color:#f87171">Enter both usernames.</span>'; return null; }
+    out.innerHTML = action === 'commit' ? 'Migrating…' : 'Checking all channels…';
+    try {
+      const r = await authedPost('/api/admin-merge-viewer', { fromUsername: from, toUsername: to, action });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      return d;
+    } catch (e) { out.innerHTML = '<span style="color:#f87171">' + mvEsc(e.message) + '</span>'; return null; }
+  }
+  window.mvPreview = async function () { const d = await mvCall('preview'); if (d) mvRender(d, false); };
+  window.mvCommit = async function () {
+    const from = $('mvFrom').value.trim(), to = $('mvTo').value.trim();
+    if (!confirm(`Move ${from} → ${to} across all channels?\n\nThe old account keeps a recoverable record.`)) return;
+    const d = await mvCall('commit'); if (d) mvRender(d, true);
+  };
 
   function show(which) {
     $('loginView').classList.toggle('hidden', which !== 'login');

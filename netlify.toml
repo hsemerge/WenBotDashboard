@@ -89,6 +89,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/admin-merge-viewer"
+  to     = "/.netlify/functions/admin-merge-viewer"
+  status = 200
+
+[[redirects]]
   from   = "/api/send-agency-inquiry"
   to     = "/.netlify/functions/send-agency-inquiry"
   status = 200
