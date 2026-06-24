@@ -61,17 +61,18 @@ async function addBonus(bonus) {
 }
 
 // ---- slots catalog (cached) ------------------------------------------------
+const SLOTS_VER = 2; // bump when the cached slot shape changes (forces a refetch)
 async function getSlots() {
-  const { slots, slotsAt } = await store.get(["slots", "slotsAt"]);
-  if (slots && slotsAt && Date.now() - slotsAt < CFG.SLOTS_TTL_MS) return slots;
+  const { slots, slotsAt, slotsVer } = await store.get(["slots", "slotsAt", "slotsVer"]);
+  if (slots && slotsAt && slotsVer === SLOTS_VER && Date.now() - slotsAt < CFG.SLOTS_TTL_MS) return slots;
   const resp = await fetch(CFG.SLOTS_URL);
   const list = await resp.json();
   // Keep only what the autocomplete needs (shrinks the 1.4MB payload a lot).
   const slim = (Array.isArray(list) ? list : list.slots || []).map((s) => ({
     name: s.name, provider: s.provider || "", gameId: s.gameId || s.id || null,
-    thumbnailUrl: s.thumbnailUrl || null,
+    thumbnailUrl: s.thumbnailUrl || null, maxWin: s.maxWin || null, bonusBuy: !!s.bonusBuy,
   }));
-  await store.set({ slots: slim, slotsAt: Date.now() });
+  await store.set({ slots: slim, slotsAt: Date.now(), slotsVer: SLOTS_VER });
   return slim;
 }
 

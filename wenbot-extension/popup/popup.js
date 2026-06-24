@@ -1,7 +1,14 @@
 // WenBot Companion — popup controller. Thin UI over the background worker.
 const CFG = window.WENBOT_CONFIG;
 const $ = (id) => document.getElementById(id);
-const bg = (type, payload) => new Promise((r) => chrome.runtime.sendMessage({ type, payload }, r));
+const bg = (type, payload) => new Promise((resolve) => {
+  try {
+    chrome.runtime.sendMessage({ type, payload }, (resp) => {
+      const err = chrome.runtime.lastError;
+      resolve(err ? { ok: false, error: err.message } : resp);
+    });
+  } catch (e) { resolve({ ok: false, error: e.message }); }
+});
 
 function msg(text, ok) {
   const m = $("msg");
@@ -11,20 +18,30 @@ function msg(text, ok) {
 }
 function fmt(n) { return "$" + (Math.round(n * 100) / 100).toLocaleString(); }
 
+const flag = {
+  get: (k) => new Promise((r) => chrome.storage.local.get([k], (o) => r(o[k]))),
+  set: (k, v) => new Promise((r) => chrome.storage.local.set({ [k]: v }, r)),
+};
+
 async function render() {
   const conn = (await bg("getConn")).data || {};
   const connected = !!conn.token;
   const watching = !!conn.channel;
+  const pairing = await flag.get("wbcPairing"); // mid-pairing → keep showing the code box
 
-  // Connected (or read-only watching) → show status panel.
-  $("view-connected").classList.toggle("hide", !(connected || watching));
-  $("view-setup").classList.toggle("hide", connected || watching);
+  // Decide the view. If they're part-way through pairing, the popup may have
+  // closed when they tabbed to grab the code — bring them straight back to it.
+  const showSetup = connected ? false : (pairing || !watching);
+  $("view-setup").classList.toggle("hide", !showSetup);
+  $("view-connected").classList.toggle("hide", showSetup);
+  if (showSetup) { setTimeout(() => $("code").focus(), 40); return; }
 
   if (connected || watching) {
     $("ch").textContent = conn.channel || "—";
     $("casino").textContent = conn.casino ? conn.casino : "";
     $("casino").style.display = conn.casino ? "" : "none";
     $("disconnect").style.display = connected ? "" : "none";
+    $("upgrade").classList.toggle("hide", connected); // watch-only → offer pairing
     $("open-dash").href = "https://wenbot.gg/dashboard.html";
     await renderHunt();
   }
@@ -57,20 +74,25 @@ async function renderHunt() {
 }
 
 // ---- actions ---------------------------------------------------------------
-$("get-code").onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: CFG.CONNECT_URL }); };
+$("get-code").onclick = async (e) => {
+  e.preventDefault();
+  await flag.set("wbcPairing", true);          // remember we're pairing → survive the popup closing
+  chrome.tabs.create({ url: CFG.CONNECT_URL });
+};
 
 $("connect").onclick = async () => {
   const code = $("code").value.trim();
   if (!code) return msg("Enter your pair code.", false);
   msg("Connecting…", true);
   const r = await bg("pair", code);
-  if (r && r.ok) { msg("Connected ✓", true); render(); }
+  if (r && r.ok) { await flag.set("wbcPairing", false); msg("Connected ✓", true); render(); }
   else msg((r && r.error) || "Pairing failed.", false);
 };
 
 $("watch").onclick = async () => {
   const channel = $("channel").value.trim().toLowerCase();
   if (!channel) return msg("Enter your channel.", false);
+  await flag.set("wbcPairing", false);
   await new Promise((res) => chrome.storage.local.set({ channel }, res));
   msg("Watching your hunt (read-only) ✓", true);
   render();
@@ -78,11 +100,20 @@ $("watch").onclick = async () => {
 
 $("disconnect").onclick = async () => {
   await bg("disconnect");
+  await flag.set("wbcPairing", false);
   await new Promise((res) => chrome.storage.local.set({ channel: null, casino: null }, res));
   msg("", true);
   render();
 };
 
 $("open-dash").onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: "https://wenbot.gg/dashboard.html" }); };
+
+// Watch-only → reveal the pairing UI without having to disconnect first.
+$("upgrade").onclick = async () => {
+  await flag.set("wbcPairing", true);
+  $("view-connected").classList.add("hide");
+  $("view-setup").classList.remove("hide");
+  setTimeout(() => $("code").focus(), 40);
+};
 
 render();

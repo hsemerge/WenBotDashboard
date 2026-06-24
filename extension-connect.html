@@ -51,6 +51,7 @@
     <div id="codeView" class="hide">
       <h1>Your pairing code</h1>
       <div class="code" id="code">······</div>
+      <button class="btn ghost" id="copy" style="padding:7px 16px; margin-bottom:14px;">Copy code</button>
       <div class="meta" id="meta">Expires in 10 minutes · one-time use</div>
       <ol class="steps">
         <li>Open the <b>WenBot Companion</b> extension (toolbar icon).</li>
@@ -94,6 +95,10 @@
       makeCode(user);
     });
     $("regen").onclick = () => { if (auth.currentUser) { show("loading"); makeCode(auth.currentUser); } };
+    $("copy").onclick = () => {
+      const code = $("code").textContent.trim();
+      navigator.clipboard.writeText(code).then(() => { $("copy").textContent = "Copied ✓"; setTimeout(() => $("copy").textContent = "Copy code", 1500); }).catch(() => {});
+    };
   </script>
 </body>
 </html>
