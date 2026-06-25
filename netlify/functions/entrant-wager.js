@@ -40,11 +40,13 @@ async function findReferralWager(apiKey, type, pUser, pUid) {
   return null;
 }
 
-// Case-insensitive lookup of the entrant's verified-user record (Firestore
-// queries are case-sensitive; kickName is stored with original casing).
+// Look up the entrant's verified-user record by the denormalized lowercase name
+// (single-field indexed → 1 read). Replaces a full verified_users collection
+// scan that ran on every entrant-card open and was a major read-cost driver.
 async function findVerified(db, uid, usernameLower) {
-  const vs = await db.collection("streamers").doc(uid).collection("verified_users").get();
-  return vs.docs.map(d => d.data()).find(x => String(x.kickName || "").toLowerCase() === usernameLower) || null;
+  const snap = await db.collection("streamers").doc(uid).collection("verified_users")
+    .where("kickName_lower", "==", usernameLower).limit(1).get();
+  return snap.empty ? null : snap.docs[0].data();
 }
 
 exports.handler = async (event) => {

@@ -21,6 +21,17 @@ exports.handler = async (event) => {
     // An unset casino means an empty query (no past winners), not Gambulls data.
     const provider = (casino || snap.docs[0].data().activeProvider || "").toLowerCase();
 
+    // Past winners change only when a period finalizes (rare), but every open
+    // leaderboard polls this every 5 min — so cache per channel+casino to avoid
+    // re-scanning leaderboard_periods for every viewer.
+    const cacheRef = db.collection("_cache").doc(`lbwinners_${uid}_${provider || "none"}`);
+    try {
+      const c = await cacheRef.get();
+      if (c.exists && c.data().payload && (Date.now() - c.data().cachedAt) < 5 * 60 * 1000) {
+        return res(200, c.data().payload);
+      }
+    } catch { /* recompute */ }
+
     // Filter by casino only (single-field, auto-indexed) and sort/slice in JS.
     // `where(casino==).orderBy(endDate)` needs a composite index that isn't
     // deployed — without it the query throws and Past Winners silently empties.
@@ -33,7 +44,9 @@ exports.handler = async (event) => {
       .map(d => d.data())
       .sort((a, b) => (b.endDate || 0) - (a.endDate || 0))
       .slice(0, 24);
-    return res(200, { success: true, periods });
+    const payload = { success: true, periods };
+    try { await cacheRef.set({ cachedAt: Date.now(), payload }); } catch { /* skip cache */ }
+    return res(200, payload);
 
   } catch (err) {
     console.error("[leaderboard-winners] error:", err.message);

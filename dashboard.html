@@ -4571,41 +4571,38 @@ let _gwUnderCodeSet       = new Set();
 let _gwVerifiedCasinoUnsub  = null;
 let _gwVerifiedDiscordUnsub = null;
 
+let _gwVerifiedLoadedUid = null;
 function _gwSubscribeVerifiedIfNeeded() {
   const uid = fb.activeUid;
-  if (!uid) return;
-  if (!_gwVerifiedCasinoUnsub) {
-    _gwVerifiedCasinoUnsub = fb.db.collection('streamers').doc(uid)
-      .collection('verified_users')
-      .onSnapshot(snap => {
-        const next = new Set();
-        const codeNext = new Set();
-        snap.docs.forEach(d => {
-          const data = d.data() || {};
-          if (data.kickName) {
-            const k = data.kickName.toLowerCase();
-            next.add(k);
-            if (data.underAffiliate) codeNext.add(k); // under the streamer's affiliate code
-          }
-        });
-        _gwVerifiedCasinoSet = next;
-        _gwUnderCodeSet = codeNext;
-        if (typeof renderEntries === 'function') renderEntries();
-      }, () => {});
-  }
-  if (!_gwVerifiedDiscordUnsub) {
-    _gwVerifiedDiscordUnsub = fb.db.collection('streamers').doc(uid)
-      .collection('discord_links')
-      .onSnapshot(snap => {
-        const next = new Set();
-        snap.docs.forEach(d => {
-          const data = d.data() || {};
-          if (data.kickUsername) next.add(data.kickUsername.toLowerCase());
-        });
-        _gwVerifiedDiscordSet = next;
-        if (typeof renderEntries === 'function') renderEntries();
-      }, () => {});
-  }
+  if (!uid || _gwVerifiedLoadedUid === uid) return;
+  _gwVerifiedLoadedUid = uid;
+  // ONE-TIME reads, not live listeners. These sets only badge giveaway entries
+  // (✓ verified / under-code / D). As onSnapshot they re-read EVERY verified_users
+  // doc on every wager-sync write — a top read-cost driver. Refreshed on account
+  // switch; that's plenty for a cosmetic badge.
+  fb.db.collection('streamers').doc(uid).collection('verified_users').get().then(snap => {
+    const next = new Set(), codeNext = new Set();
+    snap.docs.forEach(d => {
+      const data = d.data() || {};
+      if (data.kickName) {
+        const k = data.kickName.toLowerCase();
+        next.add(k);
+        if (data.underAffiliate) codeNext.add(k);
+      }
+    });
+    _gwVerifiedCasinoSet = next;
+    _gwUnderCodeSet = codeNext;
+    if (typeof renderEntries === 'function') renderEntries();
+  }).catch(() => {});
+  fb.db.collection('streamers').doc(uid).collection('discord_links').get().then(snap => {
+    const next = new Set();
+    snap.docs.forEach(d => {
+      const data = d.data() || {};
+      if (data.kickUsername) next.add(data.kickUsername.toLowerCase());
+    });
+    _gwVerifiedDiscordSet = next;
+    if (typeof renderEntries === 'function') renderEntries();
+  }).catch(() => {});
 }
 
 // Build the small ✓ / D badges shown next to a giveaway entry's name and
@@ -5919,14 +5916,17 @@ function loadVerifiedUsers() {
 
   if (verifiedUnsub) { verifiedUnsub(); verifiedUnsub = null; }
 
-  verifiedUnsub = fb.db.collection('streamers').doc(uid)
+  // ONE-TIME read (re-runs each time this view opens). Previously a live listener
+  // that re-read every verified_users doc on every wager-sync write — 24/7, per
+  // open dashboard. The management table doesn't need to be real-time.
+  fb.db.collection('streamers').doc(uid)
     .collection('verified_users')
     .where('provider', '==', activeProvider)
-    .onSnapshot(snap => {
+    .get().then(snap => {
       verifiedCache = snap.docs.map(d => ({ id: d.id, data: d.data() }));
       document.getElementById('statVerified').textContent = snap.size;
       renderVerifiedFromCache();
-    }, e => {
+    }).catch(e => {
       tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--red);padding:16px;">Error: ${escHtml(e.message)}</td></tr>`;
     });
 }
@@ -8668,8 +8668,13 @@ async function loadBhStats() {
 }
 
 // 🪙 Points economy + 🎁 store sales (viewers + store_redemptions + winners_log)
+// Sums ALL viewers + ALL redemptions (can be ~20K docs on a big channel), so we
+// bound it: recompute at most once per 5 min. Re-opening Overview in between
+// keeps the last values (the stat cells aren't cleared). winners via count().
+let _peCacheUid = null, _peCacheAt = 0;
 async function loadPointsEconomy() {
   const uid = fb.activeUid;
+  if (uid === _peCacheUid && Date.now() - _peCacheAt < 5 * 60 * 1000) return;
   try {
     const vSnap = await fb.db.collection('streamers').doc(uid).collection('viewers').get();
     let outstanding = 0;
@@ -8685,9 +8690,10 @@ async function loadPointsEconomy() {
     const actEl = document.getElementById('ovActivity'); if (actEl) actEl.textContent = sales.toLocaleString();
 
     let winners = 0;
-    try { winners = (await fb.db.collection('streamers').doc(uid).collection('winners_log').get()).size; } catch {}
+    try { winners = (await fb.db.collection('streamers').doc(uid).collection('winners_log').count().get()).data().count; } catch {}
     const actSub = document.getElementById('ovActivitySub');
     if (actSub) actSub.textContent = `${winners} winner${winners !== 1 ? 's' : ''} drawn`;
+    _peCacheUid = uid; _peCacheAt = Date.now();
   } catch (e) { console.warn('[overview] points economy:', e.message); }
 }
 
