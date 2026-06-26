@@ -1064,6 +1064,14 @@
             </div>
             <input type="number" class="earn-input" id="earnFollowBonus" value="25" min="0" max="10000">
           </div>
+          <div class="earn-method-row">
+            <div class="earn-icon">🔁</div>
+            <div class="earn-info">
+              <div class="name">Allow Viewers to Give Points</div>
+              <div class="desc">Lets viewers transfer points to each other with <code>!pgive</code>. Turn this OFF if it's being abused. Saves instantly.</div>
+            </div>
+            <input type="checkbox" id="allowPointGiving" checked onchange="savePointGiving()" style="width:20px;height:20px;cursor:pointer;flex:none;">
+          </div>
 
           <!-- Engagement filter — what counts as a "qualifying" message -->
           <div style="margin-top:14px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;">
@@ -3955,6 +3963,7 @@ function onAuthReady(user) {
   if (profile?.dailyBonus        != null) document.getElementById('earnDailyBonus').value       = profile.dailyBonus;
   if (profile?.subMultiplier     != null) document.getElementById('earnSubMultiplier').value    = profile.subMultiplier;
   if (profile?.followBonus       != null) document.getElementById('earnFollowBonus').value      = profile.followBonus;
+  { const _pg = document.getElementById('allowPointGiving'); if (_pg) _pg.checked = !profile?.pointGivingDisabled; }
   if (profile?.minMessageLength  != null) document.getElementById('earnMinMessageLength').value = profile.minMessageLength;
   if (profile?.activityWindowSec != null) document.getElementById('earnActivityWindow').value   = Math.round(profile.activityWindowSec / 60);
   if (profile?.kickChannel) document.getElementById('settingsChannel').value = profile.kickChannel;
@@ -5482,6 +5491,13 @@ async function savePointsConfig() {
   if (profile) profile.currencyName = name;
   { const _sc = document.getElementById('statCurrency'); if (_sc) _sc.textContent = name + ' total'; }
   flash('Currency name saved!');
+}
+
+async function savePointGiving() {
+  const allowed = document.getElementById('allowPointGiving').checked;
+  await saveStreamerProfile({ pointGivingDisabled: !allowed });
+  if (profile) profile.pointGivingDisabled = !allowed;
+  flash(allowed ? 'Viewers can give points (!pgive on).' : 'Point giving disabled — !pgive is now off.');
 }
 
 async function saveEarnRates() {
