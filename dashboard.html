@@ -5104,25 +5104,35 @@ function _vpRender(username, kickUrl, kick, tool, loading) {
   } else if (!kick) {
     kickRows = `<div style="color:var(--orange);font-size:12px;padding:6px 0;line-height:1.5;">Couldn't load live Kick details right now. Use <strong>Open Kick profile</strong> below to view their Kick account. (To see their message history in your chat, click their name in your live Kick chat — Kick has no link for that.)</div>`;
   } else {
-    const fromChat = kick.badgeSource === 'chat';
-    const subMo    = kick.subMonths != null ? kick.subMonths : kick.subscribedFor;
-    const rows = [ _vpRow('⭐ Subscriber', kick.isSubscriber ? (subMo > 0 ? `Yes — ${subMo} mo` : 'Yes') : 'No') ];
-    if (fromChat) {
-      // Chat-derived snapshot: we can see sub/roles but NOT follow date or bans.
-      // Don't claim "not following" when we simply can't see it.
-      rows.push(_vpRow('🗓️ Following since', '<span style="color:var(--text-dim);">Not available from chat</span>'));
-      rows.push(_vpRow('⛔ Ban / timeout', '<span style="color:var(--text-dim);">Unknown (chat-only)</span>'));
+    if (kick.badgeSource) {
+      const fromChat = kick.badgeSource === 'chat';
+      const subMo    = kick.subMonths != null ? kick.subMonths : kick.subscribedFor;
+      const rows = [ _vpRow('⭐ Subscriber', kick.isSubscriber ? (subMo > 0 ? `Yes — ${subMo} mo` : 'Yes') : 'No') ];
+      if (fromChat) {
+        // Chat-derived snapshot: we can see sub/roles but NOT follow date or bans.
+        rows.push(_vpRow('🗓️ Following since', '<span style="color:var(--text-dim);">Not available from chat</span>'));
+        rows.push(_vpRow('⛔ Ban / timeout', '<span style="color:var(--text-dim);">Unknown (chat-only)</span>'));
+      } else {
+        const follow = kick.followingSince ? _vpDate(kick.followingSince) : null;
+        rows.push(_vpRow('🗓️ Following since', follow ? `${follow.date} <span style="color:var(--text-dim);">(${follow.rel})</span>` : 'Not following'));
+        rows.push(_vpRow('⛔ Ban / timeout', kick.banned ? `<span style="color:var(--red);font-weight:700;">${escHtml(_vpBanText(kick.banned))}</span>` : '<span style="color:var(--green);">None</span>'));
+      }
+      if (fromChat) {
+        const rel = kick.chatBadgesAt ? _vpDate(kick.chatBadgesAt).rel : 'recently';
+        rows.push(`<div style="font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.5;">ⓘ Live from chat (as of ${escHtml(rel)}). Kick blocks full profile reads from servers, so follow date &amp; bans aren't available — use <strong>Open Kick profile</strong>.</div>`);
+      }
+      kickRows = rows.join('');
     } else {
-      const follow = kick.followingSince ? _vpDate(kick.followingSince) : null;
-      rows.push(_vpRow('🗓️ Following since', follow ? `${follow.date} <span style="color:var(--text-dim);">(${follow.rel})</span>` : 'Not following'));
-      rows.push(_vpRow('⛔ Ban / timeout', kick.banned ? `<span style="color:var(--red);font-weight:700;">${escHtml(_vpBanText(kick.banned))}</span>` : '<span style="color:var(--green);">None</span>'));
+      kickRows = `<div style="color:var(--text-dim);font-size:12px;padding:6px 0;line-height:1.5;">Live Kick details (sub / follow) aren't available — Kick blocks server-side profile reads. Use <strong>Open Kick profile</strong> below.</div>`;
     }
-    let note = '';
-    if (fromChat) {
-      const rel = kick.chatBadgesAt ? _vpDate(kick.chatBadgesAt).rel : 'recently';
-      note = `<div style="font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.5;">ⓘ Live from chat (as of ${escHtml(rel)}). Kick blocks full profile reads from servers, so follow date &amp; bans aren't available here — use <strong>Open Kick profile</strong> for those.</div>`;
+    // Recent messages in this streamer's chat (from the bot's in-memory ring).
+    const recent = Array.isArray(kick.recentMessages) ? kick.recentMessages : [];
+    if (recent.length) {
+      const msgs = recent.map(m => `<div style="font-size:12px;padding:4px 0;border-top:1px solid var(--border);line-height:1.4;"><span style="color:var(--text-dim);font-size:11px;">${escHtml(_vpDate(m.ts).rel)}</span> ${escHtml(m.content)}</div>`).join('');
+      kickRows += `<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin:14px 0 2px;">Recent messages in your chat</div>${msgs}`;
+    } else {
+      kickRows += `<div style="font-size:11px;color:var(--text-dim);margin-top:12px;line-height:1.5;">No recent messages captured — they haven't chatted since the bot last connected.</div>`;
     }
-    kickRows = rows.join('') + note;
   }
 
   const toolRows = [
