@@ -5025,7 +5025,7 @@ async function _vpToolData(username) {
       const token = await fb.currentUser.getIdToken();
       const ctrl  = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 9000);
-      const r = await fetch('/api/entrant-wager?username=' + encodeURIComponent(username),
+      const r = await fetch('/api/entrant-wager?username=' + encodeURIComponent(username) + '&uid=' + encodeURIComponent(fb.activeUid || ''),
         { headers: { 'Authorization': 'Bearer ' + token }, signal: ctrl.signal });
       clearTimeout(timer);
       if (r.ok) out.wager = await r.json();

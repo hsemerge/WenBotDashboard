@@ -60,9 +60,19 @@ exports.handler = async (event) => {
 
   const idToken = (event.headers["authorization"] || "").replace("Bearer ", "").trim();
   if (!idToken) return res(401, { error: "Missing auth token" });
-  let uid;
-  try { uid = (await admin.auth().verifyIdToken(idToken)).uid; }
+  let decoded;
+  try { decoded = await admin.auth().verifyIdToken(idToken); }
   catch { return res(401, { error: "Invalid auth token" }); }
+
+  // Resolve the TARGET streamer (the account the dashboard is managing), not the
+  // caller's own — otherwise a mod/admin viewing another streamer's card would
+  // query their OWN casino (e.g. showing Gambulls for a Degen streamer). Authorize
+  // via owner-self or the delegatedFor custom claim (same model as the dashboard).
+  const delegated = Array.isArray(decoded.delegatedFor) ? decoded.delegatedFor : [];
+  const uid = (event.queryStringParameters?.uid || "").trim() || decoded.uid;
+  if (uid !== decoded.uid && !delegated.includes(uid)) {
+    return res(403, { error: "Not authorized for that account" });
+  }
 
   const username = (event.queryStringParameters?.username || "").replace(/^@/, "").trim().toLowerCase();
   if (!username) return res(400, { error: "Missing username" });
