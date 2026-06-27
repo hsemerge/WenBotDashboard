@@ -60,15 +60,32 @@ exports.handler = async (event) => {
         try { await cacheRef.set({ cachedAt: Date.now(), totals }); } catch { /* skip cache */ }
       }
 
-      // Viewer's own count — read just THEIR redemptions (single-field index),
-      // keep raffle_entry, bucket by item. Small for normal viewers.
+      // Viewer's own per-item count — count() per raffle item (kickUsernameKey +
+      // itemId + status, all equality → zigzag merge, no composite index). This
+      // was the #1 read source: the old `.get()` downloaded EVERY one of the
+      // viewer's tickets (hundreds for a big raffle) on every portal poll. Now
+      // it's ~1 read per raffle item. Isolated try/catch so a count() failure
+      // degrades to a CAPPED scan of just this viewer's docs — never the full
+      // channel scan in the outer fallback.
       const mine = {};
       if (kick) {
-        const mySnap = await redemptions.where("kickUsernameKey", "==", kick).get();
-        mySnap.forEach((d) => {
-          const x = d.data();
-          if (x.status === "raffle_entry" && x.itemId) mine[x.itemId] = (mine[x.itemId] || 0) + 1;
-        });
+        try {
+          await Promise.all(raffleItemIds.map(async (id) => {
+            const agg = await redemptions
+              .where("kickUsernameKey", "==", kick)
+              .where("itemId", "==", id)
+              .where("status", "==", "raffle_entry")
+              .count().get();
+            mine[id] = agg.data().count || 0;
+          }));
+        } catch (mineErr) {
+          console.warn("[raffle-entries] mine count() failed, capped scan:", mineErr.message);
+          const mySnap = await redemptions.where("kickUsernameKey", "==", kick).limit(2000).get();
+          mySnap.forEach((d) => {
+            const x = d.data();
+            if (x.status === "raffle_entry" && x.itemId) mine[x.itemId] = (mine[x.itemId] || 0) + 1;
+          });
+        }
       }
 
       const entries = {};
