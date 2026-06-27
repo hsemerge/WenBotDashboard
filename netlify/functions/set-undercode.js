@@ -22,8 +22,8 @@ exports.handler = async (event) => {
 
   const idToken = (event.headers["authorization"] || "").replace("Bearer ", "").trim();
   if (!idToken) return res(401, { error: "Missing auth token" });
-  let uid;
-  try { uid = (await admin.auth().verifyIdToken(idToken)).uid; }
+  let decoded;
+  try { decoded = await admin.auth().verifyIdToken(idToken); }
   catch { return res(401, { error: "Invalid auth token" }); }
 
   let body = {};
@@ -31,6 +31,13 @@ exports.handler = async (event) => {
   const { docId } = body;
   const flag = !!body.underAffiliate;
   if (!docId) return res(400, { error: "Missing docId" });
+
+  // Operate on the MANAGED streamer (impersonation-safe), not the caller's own —
+  // otherwise a mod/admin managing another streamer's account would 404 (the doc
+  // lives under that streamer's uid). Authorize via owner-self or delegatedFor.
+  const delegated = Array.isArray(decoded.delegatedFor) ? decoded.delegatedFor : [];
+  const uid = (body.uid || "").trim() || decoded.uid;
+  if (uid !== decoded.uid && !delegated.includes(uid)) return res(403, { error: "Not authorized for that account" });
 
   try {
     const docRef = db.collection("streamers").doc(uid).collection("verified_users").doc(docId);

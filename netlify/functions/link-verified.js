@@ -30,17 +30,19 @@ exports.handler = async (event) => {
   const idToken    = authHeader.replace("Bearer ", "").trim();
   if (!idToken) return res(401, { error: "Missing auth token" });
 
-  let uid;
-  try {
-    uid = (await admin.auth().verifyIdToken(idToken)).uid;
-  } catch {
-    return res(401, { error: "Invalid auth token" });
-  }
+  let decoded;
+  try { decoded = await admin.auth().verifyIdToken(idToken); }
+  catch { return res(401, { error: "Invalid auth token" }); }
 
   let body = {};
   try { body = JSON.parse(event.body || "{}"); } catch {}
   const { docId, providerUid } = body;
   if (!docId || !providerUid) return res(400, { error: "Missing docId or providerUid" });
+
+  // Operate on the MANAGED streamer (impersonation-safe), not the caller's own.
+  const delegated = Array.isArray(decoded.delegatedFor) ? decoded.delegatedFor : [];
+  const uid = (body.uid || "").trim() || decoded.uid;
+  if (uid !== decoded.uid && !delegated.includes(uid)) return res(403, { error: "Not authorized for that account" });
 
   try {
     const docRef = db.collection("streamers").doc(uid)

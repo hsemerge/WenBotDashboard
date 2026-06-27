@@ -5015,7 +5015,7 @@ async function _vpToolData(username) {
     const uid = fb.activeUid;
     if (uid) {
       const doc = await fb.db.collection('streamers').doc(uid).collection('viewers').doc(key).get();
-      if (doc.exists) { const d = doc.data(); out.points = d.points || 0; out.lastSeen = d.lastSeen || null; }
+      if (doc.exists) { const d = doc.data(); out.points = d.points || 0; out.lastSeen = d.lastSeen || null; out.followedAt = d.followedAt || null; }
     }
   } catch {}
   // On-demand wager intel (casino lookup). Informational only — the giveaway
@@ -5109,8 +5109,10 @@ function _vpRender(username, kickUrl, kick, tool, loading) {
       const subMo    = kick.subMonths != null ? kick.subMonths : kick.subscribedFor;
       const rows = [ _vpRow('⭐ Subscriber', kick.isSubscriber ? (subMo > 0 ? `Yes — ${subMo} mo` : 'Yes') : 'No') ];
       if (fromChat) {
-        // Chat-derived snapshot: we can see sub/roles but NOT follow date or bans.
-        rows.push(_vpRow('🗓️ Following since', '<span style="color:var(--text-dim);">Not available from chat</span>'));
+        // Chat-derived snapshot: we can't see follow date from chat — but if the
+        // follow webhook recorded one (forward-only), show that.
+        const fr = tool && tool.followedAt ? _vpDate(tool.followedAt) : null;
+        rows.push(_vpRow('🗓️ Following since', fr ? `${fr.date} <span style="color:var(--text-dim);">(recorded ${fr.rel})</span>` : '<span style="color:var(--text-dim);">Not available from chat</span>'));
         rows.push(_vpRow('⛔ Ban / timeout', '<span style="color:var(--text-dim);">Unknown (chat-only)</span>'));
       } else {
         const follow = kick.followingSince ? _vpDate(kick.followingSince) : null;
@@ -5128,8 +5130,9 @@ function _vpRender(username, kickUrl, kick, tool, loading) {
     // Recent messages in this streamer's chat (from the bot's in-memory ring).
     const recent = Array.isArray(kick.recentMessages) ? kick.recentMessages : [];
     if (recent.length) {
-      const msgs = recent.map(m => `<div style="font-size:12px;padding:4px 0;border-top:1px solid var(--border);line-height:1.4;"><span style="color:var(--text-dim);font-size:11px;">${escHtml(_vpDate(m.ts).rel)}</span> ${escHtml(m.content)}</div>`).join('');
-      kickRows += `<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin:14px 0 2px;">Recent messages in your chat</div>${msgs}`;
+      const fmtT = (t) => { try { return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch { return ''; } };
+      const msgs = recent.map(m => `<div style="font-size:12px;padding:4px 0;border-top:1px solid var(--border);line-height:1.4;"><span style="color:var(--text-dim);font-size:11px;">${escHtml(fmtT(m.ts))}</span> ${escHtml(m.content)}</div>`).join('');
+      kickRows += `<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin:14px 0 2px;">Recent messages in your chat</div><div style="max-height:170px;overflow-y:auto;">${msgs}</div>`;
     } else {
       kickRows += `<div style="font-size:11px;color:var(--text-dim);margin-top:12px;line-height:1.5;">No recent messages captured — they haven't chatted since the bot last connected.</div>`;
     }
@@ -6034,7 +6037,7 @@ async function toggleUnderCode(docId, flag, btn) {
     const resp = await fetch('/api/set-undercode', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ docId, underAffiliate: flag }),
+      body: JSON.stringify({ docId, underAffiliate: flag, uid: fb.activeUid }),
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Failed');
@@ -6102,7 +6105,7 @@ async function recheckVerified(docId, btn) {
     const resp = await fetch('/api/recheck-verified', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ docId }),
+      body: JSON.stringify({ docId, uid: fb.activeUid }),
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Recheck failed');
@@ -6206,7 +6209,7 @@ async function selectLinkEntry(providerUid, btn) {
     const resp = await fetch('/api/link-verified', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ docId: _linkDocId, providerUid }),
+      body: JSON.stringify({ docId: _linkDocId, providerUid, uid: fb.activeUid }),
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Link failed');
