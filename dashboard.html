@@ -5104,12 +5104,25 @@ function _vpRender(username, kickUrl, kick, tool, loading) {
   } else if (!kick) {
     kickRows = `<div style="color:var(--orange);font-size:12px;padding:6px 0;line-height:1.5;">Couldn't load live Kick details right now. Use <strong>Open Kick profile</strong> below to view their Kick account. (To see their message history in your chat, click their name in your live Kick chat — Kick has no link for that.)</div>`;
   } else {
-    const follow = kick.followingSince ? _vpDate(kick.followingSince) : null;
-    kickRows = [
-      _vpRow('🗓️ Following since', follow ? `${follow.date} <span style="color:var(--text-dim);">(${follow.rel})</span>` : 'Not following'),
-      _vpRow('⭐ Subscriber', kick.isSubscriber ? (kick.subscribedFor > 0 ? `Yes — ${kick.subscribedFor} mo` : 'Yes') : 'No'),
-      _vpRow('⛔ Ban / timeout', kick.banned ? `<span style="color:var(--red);font-weight:700;">${escHtml(_vpBanText(kick.banned))}</span>` : '<span style="color:var(--green);">None</span>'),
-    ].join('');
+    const fromChat = kick.badgeSource === 'chat';
+    const subMo    = kick.subMonths != null ? kick.subMonths : kick.subscribedFor;
+    const rows = [ _vpRow('⭐ Subscriber', kick.isSubscriber ? (subMo > 0 ? `Yes — ${subMo} mo` : 'Yes') : 'No') ];
+    if (fromChat) {
+      // Chat-derived snapshot: we can see sub/roles but NOT follow date or bans.
+      // Don't claim "not following" when we simply can't see it.
+      rows.push(_vpRow('🗓️ Following since', '<span style="color:var(--text-dim);">Not available from chat</span>'));
+      rows.push(_vpRow('⛔ Ban / timeout', '<span style="color:var(--text-dim);">Unknown (chat-only)</span>'));
+    } else {
+      const follow = kick.followingSince ? _vpDate(kick.followingSince) : null;
+      rows.push(_vpRow('🗓️ Following since', follow ? `${follow.date} <span style="color:var(--text-dim);">(${follow.rel})</span>` : 'Not following'));
+      rows.push(_vpRow('⛔ Ban / timeout', kick.banned ? `<span style="color:var(--red);font-weight:700;">${escHtml(_vpBanText(kick.banned))}</span>` : '<span style="color:var(--green);">None</span>'));
+    }
+    let note = '';
+    if (fromChat) {
+      const rel = kick.chatBadgesAt ? _vpDate(kick.chatBadgesAt).rel : 'recently';
+      note = `<div style="font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.5;">ⓘ Live from chat (as of ${escHtml(rel)}). Kick blocks full profile reads from servers, so follow date &amp; bans aren't available here — use <strong>Open Kick profile</strong> for those.</div>`;
+    }
+    kickRows = rows.join('') + note;
   }
 
   const toolRows = [
