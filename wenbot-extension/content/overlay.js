@@ -262,7 +262,7 @@
       store.set({ wbcFull: full });
       anchorToGame();
     };
-    $("#wbc-snap").onclick = () => { manual = false; store.set({ wbcManual: false }); anchorToGame(); };
+    $("#wbc-snap").onclick = () => { manual = false; anchorToGame(); }; // re-dock under the slot
     makeDraggable($("#wbc-drag"));
     makeResizable($("#wbc-grip"));
   }
@@ -285,10 +285,9 @@
       root.style.left = Math.max(0, ox + e.clientX - sx) + "px";
       root.style.top = Math.max(0, oy + e.clientY - sy) + "px";
     });
-    window.addEventListener("mouseup", () => {
-      if (!drag) return; drag = false;
-      store.set({ wbcManual: true, wbcPos: { left: root.style.left, top: root.style.top } });
-    });
+    // Drag floats the card for THIS session only — we no longer persist it, so a
+    // fresh page load always re-docks under the slot (use ⌖ to re-dock right away).
+    window.addEventListener("mouseup", () => { if (!drag) return; drag = false; });
   }
   function makeResizable(grip) {
     let sx, sw, rz = false;
@@ -297,15 +296,16 @@
     window.addEventListener("mouseup", () => { if (!rz) return; rz = false; store.set({ wbcWidth: root.offsetWidth }); anchorToGame(); });
   }
   function restoreState() {
-    store.get(["wbcPos", "wbcManual", "wbcFull", "wbcWidth", "wbcCollapsed"], (s) => {
+    store.get(["wbcFull", "wbcWidth", "wbcCollapsed"], (s) => {
       if (!s) return;
       if (s.wbcWidth) root.style.width = s.wbcWidth + "px";
       if (s.wbcFull) root.classList.add("wbc-full");
-      manual = !!s.wbcManual;
-      if (manual && s.wbcPos && s.wbcPos.left) {
-        root.style.left = s.wbcPos.left; root.style.top = s.wbcPos.top;
-        root.style.right = "auto"; root.style.bottom = "auto";
-      } else { setTimeout(anchorToGame, 300); }
+      // Always start DOCKED under the slot on each load. Previously a single drag
+      // persisted "manual" mode and the card NEVER auto-docked again (that was the
+      // "won't place itself under the slot" bug). Dragging still floats it for the
+      // current session; the ⌖ button re-docks it.
+      manual = false;
+      setTimeout(anchorToGame, 300);
       if (s.wbcCollapsed) collapse(true);
     });
   }

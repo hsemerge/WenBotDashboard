@@ -329,6 +329,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/dashboard-state"
+  to     = "/.netlify/functions/dashboard-state"
+  status = 200
+
+[[redirects]]
   from   = "/api/team-add-mod"
   to     = "/.netlify/functions/team-add-mod"
   status = 200

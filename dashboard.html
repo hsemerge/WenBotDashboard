@@ -513,6 +513,7 @@
         <div class="nav-item" onclick="showPage('raffle',this)"><span class="icon">🎟</span> Raffles</div>
         <div class="nav-item" onclick="showPage('commands',this)"><span class="icon">💬</span> Commands</div>
         <div class="nav-item" onclick="showPage('overlays',this)"><span class="icon">🖥</span> Overlays</div>
+        <div class="nav-item" onclick="showPage('extension',this)"><span class="icon">🧩</span> Companion Extension</div>
       </div>
       <div class="sidebar-section" style="margin-top:8px;">
         <div class="sidebar-label">Account</div>
@@ -521,6 +522,7 @@
         <div class="nav-item" onclick="showPage('settings',this)"><span class="icon">⚙️</span> Settings</div>
         <div class="nav-item" onclick="showPage('activity',this)"><span class="icon">📜</span> Activity Log</div>
         <div class="nav-item" onclick="showPage('help',this)"><span class="icon">❓</span> Help</div>
+        <div class="nav-item" onclick="showPage('whatsnew',this)"><span class="icon">✨</span> What's New</div>
       </div>
     </div>
     <div class="sidebar-bot-status">
@@ -533,8 +535,8 @@
         <div class="sidebar-user-name" id="sidebarUser">—</div>
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
-      <div id="appVersion" style="font-size:10px;color:var(--text-dim);opacity:0.5;text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;">
-        WenBot v<span id="appVersionNumber">1.0.0</span>
+      <div id="appVersion" onclick="showPage('whatsnew')" title="What's new" style="font-size:10px;color:var(--text-dim);opacity:0.5;text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
+        WenBot v<span id="appVersionNumber">1.0.1</span>
       </div>
     </div>
   </aside>
@@ -1931,6 +1933,86 @@
     </div>
 
     <!-- ── HELP ── -->
+    <!-- ════ WHAT'S NEW / RELEASE NOTES ════ -->
+    <div class="page" id="page-whatsnew">
+      <div class="stack" style="max-width:780px;">
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <h3 style="margin:0;">✨ What's New</h3>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.0.1</span>
+          </div>
+          <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.0.1</h3>
+            <span style="font-size:12px;color:var(--text-dim);">June 28, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🧩 <strong>New — WenBot Companion extension.</strong> Add bonus-hunt slots straight from the casino page, no alt-tabbing. Grab it on the <a href="#" onclick="showPage('extension');return false;" style="color:var(--accent);">Companion Extension</a> page.</li>
+            <li>🎰 <strong>Slot Requests — Draw from Requests.</strong> After a draw you can now <strong>Remove</strong> the chosen viewer from the queue (so they aren't drawn again) or <strong>Keep</strong> them in the pool.</li>
+            <li>⚡ <strong>Faster, lighter dashboard.</strong> A big performance pass — dashboards left open in a background tab no longer waste resources, and the redemption &amp; slot-request queues now load from a shared cache.</li>
+            <li>🐛 <strong>Fix.</strong> Fulfilled redemptions and handled slot requests no longer briefly flicker back into the list.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px;">
+            <h3 style="margin:0;">v1.0.0</h3>
+            <span style="font-size:12px;color:var(--text-dim);">Initial release</span>
+          </div>
+          <div style="font-size:13px;color:var(--text-dim);line-height:1.7;">Giveaways, casino verification, points &amp; store, raffles, bonus hunt, slot picker &amp; requests, Guess the Balance, bonus battles, tournaments, wager leaderboards, OBS overlays, and Discord integration.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ COMPANION EXTENSION ════ -->
+    <div class="page" id="page-extension">
+      <div class="stack" style="max-width:840px;">
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <h3 style="margin:0;">🧩 WenBot Companion</h3>
+            <span style="background:rgba(83,224,119,0.12);border:1px solid rgba(83,224,119,0.3);color:var(--green);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">New</span>
+          </div>
+          <div style="font-size:14px;color:var(--bright);line-height:1.6;margin-bottom:6px;">A lightweight Chrome / Edge extension that lets you add slots to your live Bonus Hunt right from the casino page — no jumping back to the dashboard.</div>
+          <div style="font-size:12px;color:var(--text-dim);">🔒 It only reads the game's <em>name</em> from the page to match the slot. It never touches your casino account, balance, or bets — and nothing is automated.</div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">1 · Download</h3>
+          <a href="/downloads/wenbot-companion.zip" download
+             style="display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#04141a;font-weight:800;font-size:14px;text-decoration:none;padding:11px 20px;border-radius:9px;">⬇ Download WenBot Companion</a>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:10px;">Unzip it somewhere you'll keep it — Chrome loads the extension from that folder, so don't delete it afterward.</div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">2 · Install in Chrome / Edge</h3>
+          <ol style="line-height:1.95;font-size:14px;color:var(--bright);padding-left:20px;margin:0;">
+            <li>Open <code style="background:var(--bg-card);padding:1px 6px;border-radius:4px;">chrome://extensions</code> &nbsp;(Edge: <code style="background:var(--bg-card);padding:1px 6px;border-radius:4px;">edge://extensions</code>).</li>
+            <li>Turn on <strong>Developer mode</strong> (toggle, top-right).</li>
+            <li>Click <strong>Load unpacked</strong> and select the unzipped <strong>wenbot-companion</strong> folder.</li>
+            <li>Pin it (the puzzle-piece icon → pin) so it's one click away.</li>
+          </ol>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">3 · Connect it to your channel</h3>
+          <ol style="line-height:1.95;font-size:14px;color:var(--bright);padding-left:20px;margin:0;">
+            <li>Click the WenBot icon → <strong>Connect</strong> (opens the pairing page).</li>
+            <li>Copy the 6-character code and paste it into the extension.</li>
+            <li>Open any supported casino game — the WenBot card docks under the slot. Confirm the slot + bet, then <strong>Add to Hunt</strong>.</li>
+          </ol>
+          <a href="/extension-connect.html" target="_blank" rel="noopener" style="display:inline-block;margin-top:10px;color:var(--accent);font-size:13px;font-weight:600;">Open the pairing page →</a>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">Supported casinos</h3>
+          <div style="font-size:13px;color:var(--text-dim);line-height:1.6;">Stake, Shuffle, Roobet, Rainbet, Gamdom, Razed, Chips.gg, Degen, and Thrill. On any other site you can still type the slot name in manually — nothing breaks.</div>
+        </div>
+      </div>
+    </div>
+
     <div class="page" id="page-help">
       <div class="grid-2">
         <!-- ════ LEFT COLUMN: Chat command reference ════ -->
@@ -3541,7 +3623,7 @@ function showPage(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotpicker:'Slot Picker', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', settings:'Settings', activity:'Activity Log', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade', referrals:'Invite & Earn' };
+  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotpicker:'Slot Picker', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', settings:'Settings', activity:'Activity Log', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade', referrals:'Invite & Earn', extension:'Companion Extension', whatsnew:"What's New" };
   document.getElementById('topbarTitle').textContent = titles[id] || id;
   // Tear down SR listeners when leaving their pages
   if (id !== 'slotrequest' && srUnsub)        { srUnsub(); srUnsub = null; }
@@ -7258,67 +7340,140 @@ async function deleteStoreItem(id) {
   loadStoreItems();
 }
 
+// ── Phase 1 batch 2: cached dashboard-state polling ──────────────────────────
+// The pollable queues (pending redemptions + slot requests) read from ONE cached
+// endpoint instead of holding live Firestore listeners. The endpoint serves a
+// per-streamer _cache doc shared across the streamer + all their mods, so cost
+// scales with the poll interval, not (dashboards × write-rate). Polls skip while
+// the tab is hidden (complements the idle-tab pause). Rarely-changing panels
+// (audit/winners/history) stay as listeners on purpose — cheaper than polling.
+let _dashStatePromise = null, _dashStateAt = 0, _dashStateUid = null;
+function fetchDashState() {
+  const uid = fb.activeUid;
+  // De-dupe concurrent panel polls onto one in-flight request (~10s).
+  if (_dashStatePromise && _dashStateUid === uid && (Date.now() - _dashStateAt) < 10000) return _dashStatePromise;
+  _dashStateUid = uid; _dashStateAt = Date.now();
+  _dashStatePromise = (async () => {
+    const token = await fb.currentUser.getIdToken();
+    const r = await fetch(`/api/dashboard-state?uid=${encodeURIComponent(uid)}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!r.ok) throw new Error('dashboard-state ' + r.status);
+    return r.json();
+  })();
+  // On failure, drop the cache so the next tick retries (keep-last-good visually).
+  _dashStatePromise.catch(() => { if (_dashStateUid === uid) { _dashStatePromise = null; _dashStateAt = 0; } });
+  return _dashStatePromise;
+}
+// Run fn now + every intervalMs; skip while the tab is hidden. Returns a stop fn
+// (drop-in for an onSnapshot unsub, so showPage's existing teardown still works).
+function _pollPanel(fn, intervalMs) {
+  let stopped = false;
+  const tick = () => { if (stopped || document.hidden) return; Promise.resolve().then(fn).catch(() => {}); };
+  tick();
+  const id = setInterval(tick, intervalMs);
+  return () => { stopped = true; clearInterval(id); };
+}
+// Wrap plain rows (from the JSON endpoint) in a QuerySnapshot-shaped object so the
+// existing render code (snap.docs / doc.data() / doc.id / snap.size / .empty) works
+// unchanged. tsFields are revived from epoch-ms numbers back into {toMillis,toDate}.
+function _fakeSnap(rows, tsFields) {
+  rows = rows || []; tsFields = tsFields || [];
+  return {
+    empty: rows.length === 0,
+    size:  rows.length,
+    docs:  rows.map(r => {
+      const d = { ...r };
+      for (const f of tsFields) if (typeof d[f] === 'number' && d[f] > 0) { const ms = d[f]; d[f] = { toMillis: () => ms, toDate: () => new Date(ms) }; }
+      return { id: r.id, data: () => d };
+    }),
+    forEach(fn) { this.docs.forEach((doc, i) => fn(doc, i)); }
+  };
+}
+
+// When you fulfill/dismiss an item, the write hits Firestore instantly but the
+// SHARED server cache (≤12s) keeps listing it as pending — so the next poll would
+// flicker it back. We track just-acted-on ids and filter them out of the polled
+// list until the cache catches up (auto-pruned once the endpoint stops returning
+// them). Separate sets per collection so pruning one never drops the other's ids.
+const _supRedemptions = new Set();
+const _supSlotReqs    = new Set();
+function _suppress(set, rows) {
+  rows = rows || [];
+  const present = new Set(rows.map(r => r.id));
+  for (const id of set) if (!present.has(id)) set.delete(id); // prune: endpoint already dropped it
+  return rows.filter(r => !set.has(r.id));
+}
+
 let redemptionsUnsub = null;
 
-function loadRedemptions() {
-  const uid   = fb.activeUid;
+// Render is unchanged from the old onSnapshot callback — now fed by the poll.
+function _renderRedemptions(snap) {
   const tbody = document.getElementById('redemptionsTable');
+  const badge = document.getElementById('storeBadge');
+  if (!tbody) return;
+  if (snap.empty) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:20px;">No pending redemptions</td></tr>';
+    if (badge) badge.style.display = 'none';
+    return;
+  }
+  if (badge) { badge.style.display = ''; badge.textContent = snap.size; }
+  const currency = profile?.currencyName || 'points';
+  const sorted = snap.docs.slice().sort((a, b) => {
+    const ta = a.data().redeemedAt?.toMillis?.() ?? 0;
+    const tb = b.data().redeemedAt?.toMillis?.() ?? 0;
+    return ta - tb;
+  });
+  tbody.innerHTML = sorted.map(doc => {
+    const d      = doc.data();
+    const ts     = d.redeemedAt?.toDate ? d.redeemedAt.toDate().toLocaleTimeString() : '—';
+    const source = d.source === 'discord'
+      ? `<span style="color:#5865F2;font-size:11px;font-weight:700;">Discord</span>`
+      : `<span style="color:var(--green);font-size:11px;font-weight:700;">Kick</span>`;
+    return `<tr>
+      <td class="td-highlight">@${d.kickUsername}</td>
+      <td>${d.itemName}</td>
+      <td style="color:var(--green);">${(d.pointsSpent||0).toLocaleString()} ${currency}</td>
+      <td>${source}</td>
+      <td style="color:var(--text-dim);">${ts}</td>
+      <td><button class="btn btn-green btn-sm" onclick="fulfillRedemption('${doc.id}')">✓ Fulfill</button></td>
+    </tr>`;
+  }).join('');
+}
 
+function loadRedemptions() {
   if (redemptionsUnsub) { redemptionsUnsub(); redemptionsUnsub = null; }
-
-  redemptionsUnsub = fb.db.collection('streamers').doc(uid)
-    .collection('store_redemptions')
-    .where('status', '==', 'pending')
-    .onSnapshot(snap => {
-      const badge = document.getElementById('storeBadge');
-      if (snap.empty) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:20px;">No pending redemptions</td></tr>';
-        badge.style.display = 'none';
-        return;
-      }
-      badge.style.display = '';
-      badge.textContent = snap.size;
-      const currency = profile?.currencyName || 'points';
-      const sorted = snap.docs.slice().sort((a, b) => {
-        const ta = a.data().redeemedAt?.toMillis?.() ?? 0;
-        const tb = b.data().redeemedAt?.toMillis?.() ?? 0;
-        return ta - tb;
-      });
-      tbody.innerHTML = sorted.map(doc => {
-        const d      = doc.data();
-        const ts     = d.redeemedAt?.toDate ? d.redeemedAt.toDate().toLocaleTimeString() : '—';
-        const source = d.source === 'discord'
-          ? `<span style="color:#5865F2;font-size:11px;font-weight:700;">Discord</span>`
-          : `<span style="color:var(--green);font-size:11px;font-weight:700;">Kick</span>`;
-        return `<tr>
-          <td class="td-highlight">@${d.kickUsername}</td>
-          <td>${d.itemName}</td>
-          <td style="color:var(--green);">${(d.pointsSpent||0).toLocaleString()} ${currency}</td>
-          <td>${source}</td>
-          <td style="color:var(--text-dim);">${ts}</td>
-          <td><button class="btn btn-green btn-sm" onclick="fulfillRedemption('${doc.id}')">✓ Fulfill</button></td>
-        </tr>`;
-      }).join('');
-    }, e => {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--red);padding:20px;">Error: ${e.message}</td></tr>`;
-    });
+  redemptionsUnsub = _pollPanel(async () => {
+    const st = await fetchDashState();
+    _renderRedemptions(_fakeSnap(_suppress(_supRedemptions, st.redemptions), ['redeemedAt']));
+  }, 12000);
 }
 
 async function fulfillRedemption(id) {
-  const uid  = fb.activeUid;
-  const snap = await fb.db.collection('streamers').doc(uid).collection('store_redemptions').doc(id).get();
-  await fb.db.collection('streamers').doc(uid)
-    .collection('store_redemptions').doc(id).update({ status: 'fulfilled', fulfilledAt: new Date() });
-  if (snap.exists) {
-    const d = snap.data();
-    discordNotify('store_redemption', { kickUsername: d.kickUsername || d.viewer, itemName: d.itemName });
-    logAction('redemption_fulfilled', {
-      kickUsername: d.kickUsername || d.viewer,
-      itemName:     d.itemName,
-      pointsSpent:  d.pointsSpent,
+  const uid = fb.activeUid;
+  const ref = fb.db.collection('streamers').doc(uid).collection('store_redemptions').doc(id);
+  // Idempotent: with the queue now polled (≤12s stale), two mods could both click
+  // the same row. A transaction guarantees only the first fulfill writes + notifies.
+  let d;
+  try {
+    d = await fb.db.runTransaction(async (tx) => {
+      const s = await tx.get(ref);
+      if (!s.exists) return null;                         // already removed
+      if (s.data().status === 'fulfilled') return 'already'; // beaten to it — no double notify
+      tx.update(ref, { status: 'fulfilled', fulfilledAt: new Date() });
+      return s.data();
     });
+  } catch (e) { flash('Could not fulfill: ' + e.message, 'error'); return; }
+
+  if (d === null)           flash('That redemption is no longer pending.');
+  else if (d === 'already') flash('Already fulfilled by someone else.');
+  else {
+    discordNotify('store_redemption', { kickUsername: d.kickUsername || d.viewer, itemName: d.itemName });
+    logAction('redemption_fulfilled', { kickUsername: d.kickUsername || d.viewer, itemName: d.itemName, pointsSpent: d.pointsSpent });
+    flash('Marked as fulfilled!');
   }
-  flash('Marked as fulfilled!');
+  // Suppress it from the polled queue until the shared cache catches up (no flicker-back),
+  // plus optimistic removal so the acting mod doesn't wait for the next poll.
+  _supRedemptions.add(id);
+  try { document.querySelector(`#redemptionsTable button[onclick*="${id}"]`)?.closest('tr')?.remove(); } catch {}
 }
 
 // ── Finalize Period Modal — ends the live period now + records Past Winners ───
@@ -8443,15 +8598,13 @@ function loadSlotRequestsForBh() {
       }, () => {});
   }
 
-  // Listen to pending requests
-  bhSrUnsub = fb.db.collection('streamers').doc(uid)
-    .collection('slot_requests').where('status', '==', 'pending')
-    .onSnapshot(snap => {
-      bhSrReqs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
-      srRequests = bhSrReqs;
-      bhSrRenderPanel();
-    }, () => {});
+  // Pending requests — polled via the shared dashboard-state cache.
+  bhSrUnsub = _pollPanel(async () => {
+    const st = await fetchDashState();
+    bhSrReqs = _suppress(_supSlotReqs, st.slotRequests).sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
+    srRequests = bhSrReqs;
+    bhSrRenderPanel();
+  }, 12000);
 }
 
 function unsubBhSr() {
@@ -8477,6 +8630,7 @@ async function srDismissFromBh(id) {
   try {
     await fb.db.collection('streamers').doc(fb.activeUid)
       .collection('slot_requests').doc(id).update({ status: 'dismissed' });
+    _supSlotReqs.add(id);
   } catch (e) { flash('Failed to dismiss: ' + e.message, 'error'); }
 }
 
@@ -9535,18 +9689,13 @@ async function loadSlotRequests() {
     }
   } catch {}
 
-  // Live queue listener
+  // Live queue — polled via the shared dashboard-state cache (was an onSnapshot).
   if (srUnsub) { srUnsub(); srUnsub = null; }
-  srUnsub = fb.db.collection('streamers').doc(uid)
-    .collection('slot_requests')
-    .where('status', '==', 'pending')
-    .onSnapshot(snap => {
-      srRequests = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
-      srRenderQueue();
-    }, e => {
-      flash('Slot requests error: ' + e.message, 'error');
-    });
+  srUnsub = _pollPanel(async () => {
+    const st = await fetchDashState();
+    srRequests = _suppress(_supSlotReqs, st.slotRequests).sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
+    srRenderQueue();
+  }, 12000);
 
   // Wire overlay links
   const chan = profile?.kickChannel || '';
@@ -9705,10 +9854,26 @@ function rspShowResult(entry) {
         <div style="font-family:'Exo 2',sans-serif;font-size:20px;font-weight:900;color:var(--accent);">@${escHtml(entry.kickUsername)}</div>
         <div style="font-size:13px;color:var(--bright);margin-top:2px;">${escHtml(entry.slotName)}</div>
       </div>
-      <div style="margin-left:auto;">
+      <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+        ${entry.id ? `<button onclick="rspRemoveWinner('${escHtml(entry.id)}')" style="background:rgba(255,71,87,0.1);border:1px solid rgba(255,71,87,0.35);border-radius:7px;color:var(--red);font-size:12px;cursor:pointer;padding:6px 14px;" title="Take this request out of the queue — they won't be drawn again">🚫 Remove</button>` : ''}
+        <button onclick="rspKeepWinner()" style="background:rgba(83,224,119,0.1);border:1px solid rgba(83,224,119,0.3);border-radius:7px;color:var(--green);font-size:12px;cursor:pointer;padding:6px 14px;" title="Leave them in the queue (re-drawable)">✓ Keep</button>
         <button onclick="rspSpin()" style="background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);border-radius:7px;color:var(--accent);font-size:12px;cursor:pointer;padding:6px 14px;">🔄 Draw Again</button>
       </div>
     </div>`;
+}
+
+// "Remove" the drawn winner from the Draw-from-Requests pool so they can't be drawn
+// again (Add-to-Hunt already removes an entry; this is for picked-and-handled).
+async function rspRemoveWinner(id) {
+  await srDismiss(id);
+  const rp = document.getElementById('rspResult');
+  if (rp) rp.innerHTML = `<div class="card" style="margin:0;color:var(--text-dim);font-size:13px;padding:12px 16px;">✓ Removed from the queue — won't be drawn again.</div>`;
+}
+
+// "Keep" the winner in the pool (re-drawable) and dismiss the result card.
+function rspKeepWinner() {
+  const rp = document.getElementById('rspResult');
+  if (rp) rp.style.display = 'none';
 }
 
 function rspAddDrawn(entry) {
@@ -9870,6 +10035,7 @@ async function srDismiss(id) {
   try {
     await fb.db.collection('streamers').doc(fb.activeUid)
       .collection('slot_requests').doc(id).update({ status: 'dismissed' });
+    _supSlotReqs.add(id);
     srRequests = srRequests.filter(r => r.id !== id);
     srRenderQueue();
   } catch (e) {
@@ -9989,6 +10155,7 @@ async function srConfirmAddToHunt() {
     // Mark request fulfilled
     await fb.db.collection('streamers').doc(uid)
       .collection('slot_requests').doc(id).update({ status: 'added_to_hunt' });
+    _supSlotReqs.add(id);
 
     // Update local bhHunt so the bonus list refreshes immediately without a full reload
     bhHunt = { ...hunt, bonuses };
@@ -10010,6 +10177,7 @@ async function srClearAll() {
   try {
     const batch = fb.db.batch();
     srRequests.forEach(r => {
+      _supSlotReqs.add(r.id);
       const ref = fb.db.collection('streamers').doc(uid)
         .collection('slot_requests').doc(r.id);
       batch.update(ref, { status: 'dismissed' });
@@ -10530,17 +10698,15 @@ function loadTournament() {
       }
     }, () => {});
 
-  // Pending !r slot requests — drive the Slot Request mode pull list.
+  // Pending !r slot requests — polled via the shared dashboard-state cache.
   if (tnSrUnsub) { tnSrUnsub(); tnSrUnsub = null; }
-  tnSrUnsub = fb.db.collection('streamers').doc(uid)
-    .collection('slot_requests').where('status', '==', 'pending')
-    .onSnapshot(s => {
-      tnSrRequests = s.docs.map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
-      if (tnTournament && tnTournament.mode === 'slotrequest' && tnTournament.status === 'registration') {
-        tnRenderRegistration(tnTournament);
-      }
-    }, () => {});
+  tnSrUnsub = _pollPanel(async () => {
+    const st = await fetchDashState();
+    tnSrRequests = _suppress(_supSlotReqs, st.slotRequests).sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
+    if (tnTournament && tnTournament.mode === 'slotrequest' && tnTournament.status === 'registration') {
+      tnRenderRegistration(tnTournament);
+    }
+  }, 12000);
 
   async function setTnLinks() {
     let chan = profile?.kickChannel || '';
@@ -10705,6 +10871,7 @@ async function tnAddSrParticipant(reqId) {
     await fb.db.collection('streamers').doc(fb.activeUid).collection('tournaments').doc('current')
       .update({ participants: firebase.firestore.FieldValue.arrayUnion(participant), updatedAt: Date.now() });
     // Mark the request handled so it leaves the pending queue.
+    _supSlotReqs.add(reqId);
     fb.db.collection('streamers').doc(fb.activeUid).collection('slot_requests').doc(reqId)
       .update({ status: 'added_to_tournament' }).catch(() => {});
   } catch (e) { flash('Error: ' + e.message, 'error'); }
