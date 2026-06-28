@@ -12544,6 +12544,51 @@ async function spRefreshCatalog() {
 }
 
 // ── END SLOT PICKER ───────────────────────────────────────────────────────────
+
+// ── IDLE-TAB LISTENER PAUSE (Phase 1, cost) ─────────────────────────────────
+// When the dashboard sits in a hidden/background tab, the only ALWAYS-ON
+// Firestore listeners are the bot-status heartbeat (re-reads every 60s) and the
+// 3 live-badge watchers. Across many open/backgrounded dashboards (streamers +
+// mods leaving tabs open) that fan-out is pure waste — nobody's looking. Here we
+// detach just those globals after the tab's been hidden a while, and reattach on
+// return via their purpose-built start fns.
+//
+// Deliberately SAFE / narrow:
+//  • Only the global heartbeat + badge listeners are touched. Section listeners
+//    (already torn down when you navigate away) and the live giveaway/GTB/winner
+//    listeners are NOT paused — an in-progress draw stays fully live in the bg.
+//  • 45s delay: quick alt-tabs never pause/reload, so no churn and no risk of
+//    disrupting an in-progress edit. Only genuinely-idle tabs pause.
+//  • Reattach uses startBotStatusListener / startLiveBadgeListeners (idempotent),
+//    so on return the heartbeat + badges are immediately fresh.
+let _idlePauseTimer = null;
+let _idlePaused     = false;
+
+function _pauseIdleListeners() {
+  if (_idlePaused || !fb.activeUid) return;
+  _idlePaused = true;
+  try { if (botStatusUnsub) { botStatusUnsub(); botStatusUnsub = null; } } catch {}
+  try { if (botStatusTimer) { clearInterval(botStatusTimer); botStatusTimer = null; } } catch {}
+  try { _liveBadgeUnsubs.forEach(fn => { try { fn(); } catch {} }); _liveBadgeUnsubs = []; } catch {}
+}
+
+function _resumeIdleListeners() {
+  if (!_idlePaused) return;
+  _idlePaused = false;
+  const uid = fb.activeUid;
+  if (!uid) return;
+  try { startBotStatusListener(uid); }  catch {}
+  try { startLiveBadgeListeners(uid); } catch {}
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (!_idlePauseTimer) _idlePauseTimer = setTimeout(() => { _idlePauseTimer = null; _pauseIdleListeners(); }, 45000);
+  } else {
+    if (_idlePauseTimer) { clearTimeout(_idlePauseTimer); _idlePauseTimer = null; }
+    _resumeIdleListeners();
+  }
+});
 </script>
 
 <!-- Leaderboard Prizes Modal -->
