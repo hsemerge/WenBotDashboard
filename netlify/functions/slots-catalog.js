@@ -12,10 +12,11 @@
 // Each slot:
 //   { id, name, provider, thumbnailUrl, bonusBuy, exclusive }
 
-const { getDb }   = require("./_lib/firebase");
-const { res }     = require("./_lib/http");
-const path        = require("path");
-const fs          = require("fs");
+const { getDb }     = require("./_lib/firebase");
+const { res }       = require("./_lib/http");
+const { unpackDoc } = require("./_lib/slot-merge");
+const path          = require("path");
+const fs            = require("fs");
 
 const CACHE_DOC     = "_cache/slots_catalog";
 const CACHE_TTL_MS  = 6 * 60 * 60 * 1000; // 6 hours
@@ -149,12 +150,8 @@ exports.handler = async (event) => {
       if (cached.exists) {
         const d = cached.data();
         if (Date.now() - (d.cachedAt || 0) < CACHE_TTL_MS) {
-          return res(200, {
-            slots:    d.slots,
-            total:    d.slots.length,
-            source:   "cache",
-            cachedAt: d.cachedAt,
-          });
+          const slots = unpackDoc(d);
+          if (slots.length) return res(200, { slots, total: slots.length, source: "cache", cachedAt: d.cachedAt });
         }
       }
     } catch (err) {
@@ -193,8 +190,8 @@ exports.handler = async (event) => {
     try {
       const allRef = db.collection("_cache").doc("slots_catalog_all");
       const cached = await allRef.get();
-      if (cached.exists && Array.isArray(cached.data().slots) && cached.data().slots.length) {
-        const all = cached.data().slots;
+      const all = cached.exists ? unpackDoc(cached.data()) : [];
+      if (all.length) {
         const f = providerSlug
           ? all.filter(s => s.provider?.toLowerCase().replace(/[^a-z0-9]/g, "-") === providerSlug)
           : all;

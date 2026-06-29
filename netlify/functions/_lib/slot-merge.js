@@ -106,4 +106,26 @@ function mergeSlots(catalogSlots, pull) {
   return { slots, added, backfilled, skipped, newList, backfillList };
 }
 
-module.exports = { mergeSlots, norm };
+// ── Compressed catalog storage ──────────────────────────────────────────────
+// The merged catalog (Stake + Shuffle + future casinos) exceeds Firestore's 1 MB
+// per-document limit when stored raw. We gzip the slots into a Bytes field instead
+// (built-in zlib, ~6x smaller). unpackDoc reads either form (gz OR legacy plain
+// `slots`) so the switch-over needs no migration.
+const zlib = require("zlib");
+
+function packSlots(slots) {
+  return zlib.gzipSync(Buffer.from(JSON.stringify(slots)));   // Buffer → Firestore Bytes
+}
+
+function unpackDoc(d) {
+  if (!d) return [];
+  if (d.gz) {
+    try {
+      const buf = Buffer.isBuffer(d.gz) ? d.gz : (d.gz.toBuffer ? d.gz.toBuffer() : Buffer.from(d.gz));
+      return JSON.parse(zlib.gunzipSync(buf).toString("utf8"));
+    } catch { return []; }
+  }
+  return Array.isArray(d.slots) ? d.slots : [];   // legacy uncompressed docs
+}
+
+module.exports = { mergeSlots, norm, packSlots, unpackDoc };

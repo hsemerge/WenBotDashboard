@@ -13,12 +13,12 @@
 
 const { getDb }                    = require("./_lib/firebase");
 const { timingSafeEq, checkRateLimit } = require("./_lib/http");
-const { mergeSlots }               = require("./_lib/slot-merge");
+const { mergeSlots, packSlots, unpackDoc } = require("./_lib/slot-merge");
 
 // Only accept thumbnails from CSP-displayable domains. If the ingest key ever
 // leaked, this stops junk/hostile image URLs from entering the catalog (those
 // entries are dropped → merge skips them as imageless).
-const ALLOWED_IMG = ["mediumrare.imgix.net", "cdn.softswiss.net", "cdn.pragmaticplay.net", "cms.pragmaticplay.net", "cloudfront.net", "bucket.gambulls.com"];
+const ALLOWED_IMG = ["mediumrare.imgix.net", "shuffle-com.imgix.net", "cdn.softswiss.net", "cdn.pragmaticplay.net", "cms.pragmaticplay.net", "cloudfront.net", "bucket.gambulls.com"];
 const okImg = (u) => { try { const h = new URL(u).hostname.toLowerCase(); return ALLOWED_IMG.some((d) => h === d || h.endsWith("." + d)); } catch { return false; } };
 const path = require("path");
 const fs   = require("fs");
@@ -72,7 +72,7 @@ exports.handler = async (event) => {
   let current = [];
   try {
     const c = await cacheRef.get();
-    if (c.exists && Array.isArray(c.data().slots) && c.data().slots.length) current = c.data().slots;
+    if (c.exists) current = unpackDoc(c.data());
   } catch { /* fall through */ }
   if (!current.length) current = loadStatic();
   if (!current.length) return reply(500, { error: "No base catalog available" });
@@ -80,8 +80,8 @@ exports.handler = async (event) => {
   // ── Merge (append-new + fill-empty-only) ────────────────────────────────────
   const { slots, added, backfilled, skipped, newList } = mergeSlots(current, pull);
 
-  // ── Persist to the live cache (slots-catalog serves this) ───────────────────
-  try { await cacheRef.set({ slots, cachedAt: Date.now() }); }
+  // ── Persist to the live cache (gzip → Bytes, under Firestore's 1MB limit) ───
+  try { await cacheRef.set({ gz: packSlots(slots), count: slots.length, cachedAt: Date.now() }); }
   catch (e) { return reply(500, { error: "Catalog write failed: " + e.message }); }
 
   return reply(200, {

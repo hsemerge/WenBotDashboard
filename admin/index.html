@@ -132,6 +132,14 @@
         </div>
         <div id="bm-area" class="sub">Loading updater…</div>
       </div>
+      <div class="tablecard" style="padding:16px;margin-bottom:14px;">
+        <div style="font-weight:800;font-size:15px;margin-bottom:6px;">⟳ Pull Shuffle catalog (server-side)</div>
+        <div class="sub" style="margin-bottom:10px;line-height:1.5;">
+          Shuffle's catalog is public, so this runs <b>server-side — no bookmarklet</b>. Click to pull Shuffle's slots (including their exclusives) into the catalog. Live-casino games and Shuffle originals are filtered out automatically.
+        </div>
+        <button id="shufBtn" onclick="pullShuffle()">⟳ Pull Shuffle now</button>
+        <span class="sub" id="shufNote" style="margin-left:10px;"></span>
+      </div>
       <div class="tablecard">
         <div style="overflow-x:auto;max-height:70vh;overflow-y:auto;">
           <table>
@@ -420,6 +428,19 @@
       area.innerHTML = '<span class="warn">Couldn\'t load updater: ' + esc(e.message) + '</span>';
     }
   }
+
+  window.pullShuffle = async function () {
+    const btn = $('shufBtn'), note = $('shufNote');
+    btn.disabled = true; const o = btn.textContent; btn.textContent = 'Pulling Shuffle…'; note.textContent = '';
+    try {
+      const r = await authedFetch('/api/admin-slots-pull-shuffle');
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      note.textContent = '✓ added ' + d.added + ', filled ' + d.backfilled + ', total ' + d.total + ' (live skipped ' + d.skippedLive + ')';
+      loadSlots();
+    } catch (e) { note.textContent = '⚠ ' + e.message; }
+    btn.disabled = false; btn.textContent = o;
+  };
 
   window.refreshSlots = async function () {
     const btn = $('slotRefreshBtn'); btn.disabled = true; const o = btn.textContent; btn.textContent = 'Re-fetching…';
