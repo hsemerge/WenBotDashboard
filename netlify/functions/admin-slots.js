@@ -23,6 +23,20 @@ exports.handler = async (event) => {
   const adminUser = await requireAdmin(event);
   if (!adminUser) return res(403, { error: "Not authorized" });
 
+  // ?bookmarklet=1 — return (generating once) the admin ingest key so the panel
+  // can build the "update slot catalog from Stake" bookmarklet. Admin-gated above.
+  if ((event.queryStringParameters || {}).bookmarklet === "1") {
+    const keyRef = db.collection("_cache").doc("slots_ingest_key");
+    let key;
+    try {
+      const snap = await keyRef.get();
+      key = snap.exists ? snap.data().key : null;
+      if (!key) { key = require("crypto").randomBytes(24).toString("hex"); await keyRef.set({ key, createdAt: Date.now() }); }
+    } catch (e) { return res(500, { error: "Key store unavailable: " + e.message }); }
+    logAdminAudit(db, adminUser.uid, "slots_bookmarklet_key", {});
+    return res(200, { key });
+  }
+
   const refresh = (event.queryStringParameters || {}).refresh === "1";
   const host = event.headers.host;
   const url  = `https://${host}/.netlify/functions/slots-catalog${refresh ? "?refresh=1" : ""}`;

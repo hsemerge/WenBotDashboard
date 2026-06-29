@@ -125,6 +125,13 @@
         <button id="slotRefreshBtn" onclick="refreshSlots()">⟳ Try live re-fetch</button>
         <span class="sub" id="slotSourceNote" style="align-self:center;"></span>
       </div>
+      <div class="tablecard" style="padding:16px;margin-bottom:14px;">
+        <div style="font-weight:800;font-size:15px;margin-bottom:6px;">⟳ Update slot catalog from Stake</div>
+        <div class="sub" style="margin-bottom:10px;line-height:1.5;">
+          Stake blocks our servers, so the pull runs in <b>your</b> browser. Drag the button to your bookmarks bar (once), then click it while on <b>stake.com</b> — it pulls the latest slots and uploads them. New slots + missing thumbnails appear in every streamer's picker within minutes (no deploy).
+        </div>
+        <div id="bm-area" class="sub">Loading updater…</div>
+      </div>
       <div class="tablecard">
         <div style="overflow-x:auto;max-height:70vh;overflow-y:auto;">
           <table>
@@ -373,8 +380,46 @@
       if (!r.ok) throw new Error(d.error || 'Failed');
       _slotsLoaded = true;
       renderSlots(d);
+      loadBookmarklet();
     } catch (e) { $('slotsTable').innerHTML = `<tr><td colspan="3" class="warn" style="text-align:center;padding:24px;">${esc(e.message)}</td></tr>`; }
   };
+
+  // Build the "update slot catalog from Stake" bookmarklet (carries the admin
+  // ingest key, fetched admin-gated). Drag to bookmarks → click on stake.com.
+  function _slotPullCode(key) {
+    return `(async()=>{const KEY=${JSON.stringify(key)};const P=['pragmatic-play','hacksaw-gaming','nolimit','playngo','relax','bgaming','elk','big-time-gaming','redtiger','netent','thunderkick','quickspin','avatarux','booming','blueprint','push-gaming','pgsoft','3-oaks','wazdan','endorphina'];const L=50,s=ms=>new Promise(r=>setTimeout(r,ms));async function g(sl,mx){const o=[];let f=0;while(f<mx){const q='{slugKuratorGroup(slug:"'+sl+'"){groupGamesList(limit:'+L+',offset:'+f+'){game{name slug thumbnailUrl provider{name}}}}}';let r;try{r=await fetch('/_api/graphql',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})})}catch(e){break}if(!r.ok)break;const j=await r.json();const l=j.data&&j.data.slugKuratorGroup&&j.data.slugKuratorGroup.groupGamesList;if(!l)break;o.push(...l.map(i=>i.game).filter(Boolean));if(l.length<L)break;f+=L;await s(200)}return o}const a=[];for(const x of P){a.push(...await g(x,5000))}a.push(...await g('slots',200));const seen=new Set(),sl=[];for(const z of a){if(!z||!z.slug||!z.name||seen.has(z.slug))continue;seen.add(z.slug);sl.push({name:z.name,slug:z.slug,thumbnailUrl:z.thumbnailUrl,provider:z.provider&&z.provider.name})}if(!sl.length){alert('WenBot: pulled 0 games — are you logged in to Stake?');return}let rp;try{rp=await fetch('https://wenbot.gg/api/admin-slots-ingest',{method:'POST',headers:{'Content-Type':'application/json','X-Ingest-Key':KEY},body:JSON.stringify({slots:sl})})}catch(e){alert('WenBot upload failed: '+e.message);return}const d=await rp.json().catch(()=>({}));alert(rp.ok?('WenBot ✓ pulled '+sl.length+', added '+d.added+', filled '+d.backfilled+'. Total now '+d.total+'.'):'WenBot error: '+(d.error||rp.status))})()`;
+  }
+
+  let _bmLoaded = false;
+  async function loadBookmarklet() {
+    const area = $('bm-area');
+    if (!area || _bmLoaded) return;
+    try {
+      const r = await authedFetch('/api/admin-slots?bookmarklet=1');
+      const d = await r.json();
+      if (!r.ok || !d.key) throw new Error(d.error || 'no key');
+      _bmLoaded = true;
+      const code = _slotPullCode(d.key);
+      area.innerHTML = '';
+      const a = document.createElement('a');
+      a.href = 'javascript:' + encodeURIComponent(code);
+      a.textContent = '⟳ Update WenBot Slots';
+      a.draggable = true;
+      a.style.cssText = 'display:inline-block;background:#3b82f6;color:#fff;font-weight:800;text-decoration:none;padding:9px 16px;border-radius:8px;margin-right:10px;cursor:grab;';
+      a.onclick = (e) => { e.preventDefault(); alert('Drag this button up to your bookmarks bar, then click it while on stake.com. Clicking it here does nothing — it has to run on Stake.'); };
+      area.appendChild(a);
+      const btn = document.createElement('button');
+      btn.className = 'btn-ghost'; btn.textContent = '📋 Copy console version';
+      btn.onclick = async () => { try { await navigator.clipboard.writeText(code); btn.textContent = '✓ Copied — paste in the Stake console'; } catch { btn.textContent = 'Copy failed'; } };
+      area.appendChild(btn);
+      const note = document.createElement('div');
+      note.className = 'sub'; note.style.cssText = 'margin-top:10px;line-height:1.5;';
+      note.innerHTML = 'Drag the blue button to your bookmarks bar → on <b>stake.com</b>, click it (takes ~1–2 min, then shows a result popup). If Stake blocks the bookmarklet, use <b>Copy console version</b> → on stake.com press F12 → Console → paste → Enter.';
+      area.appendChild(note);
+    } catch (e) {
+      area.innerHTML = '<span class="warn">Couldn\'t load updater: ' + esc(e.message) + '</span>';
+    }
+  }
 
   window.refreshSlots = async function () {
     const btn = $('slotRefreshBtn'); btn.disabled = true; const o = btn.textContent; btn.textContent = 'Re-fetching…';

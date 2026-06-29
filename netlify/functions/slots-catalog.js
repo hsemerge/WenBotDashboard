@@ -187,6 +187,21 @@ exports.handler = async (event) => {
   } catch (err) {
     console.error("[slots-catalog] Stake API failed:", err.message);
 
+    // Prefer the last cached catalog (incl. any admin bookmarklet ingest) over the
+    // bundled static list — even if past TTL — so ingested updates persist after the
+    // 6h window instead of silently reverting to the shipped file.
+    try {
+      const allRef = db.collection("_cache").doc("slots_catalog_all");
+      const cached = await allRef.get();
+      if (cached.exists && Array.isArray(cached.data().slots) && cached.data().slots.length) {
+        const all = cached.data().slots;
+        const f = providerSlug
+          ? all.filter(s => s.provider?.toLowerCase().replace(/[^a-z0-9]/g, "-") === providerSlug)
+          : all;
+        return res(200, { slots: f, total: f.length, source: "cache", cachedAt: cached.data().cachedAt || null });
+      }
+    } catch (e) { console.warn("[slots-catalog] stale-cache fallback failed:", e.message); }
+
     // ── Static fallback ────────────────────────────────────────────────────
     const filtered = providerSlug
       ? staticSlots.filter(s => s.provider?.toLowerCase().replace(/[^a-z0-9]/g, "-") === providerSlug)

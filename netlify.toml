@@ -299,6 +299,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/admin-slots-ingest"
+  to     = "/.netlify/functions/admin-slots-ingest"
+  status = 200
+
+[[redirects]]
   from   = "/api/admin-streamer-action"
   to     = "/.netlify/functions/admin-streamer-action"
   status = 200
