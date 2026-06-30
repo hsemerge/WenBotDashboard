@@ -863,7 +863,7 @@
             </div>
             <div class="field" style="margin-bottom:0;">
               <label>Luck Multiplier: <strong id="wagerLuckVal">1x</strong></label>
-              <input type="range" id="wagerLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('wagerLuckVal').textContent=this.value+'x'">
+              <input type="range" id="wagerLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('wagerLuckVal').textContent=this.value+'x'" onchange="if(typeof renderEntries==='function')renderEntries()">
             </div>
           </div>
           <div class="toggle-row" style="margin-top:10px;">
@@ -875,12 +875,12 @@
           </div>
           <div class="field" style="margin-top:14px;margin-bottom:0;">
             <label>Subscriber Luck: <strong id="subLuckVal">1x</strong> entries</label>
-            <input type="range" id="subLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('subLuckVal').textContent=this.value+'x'">
+            <input type="range" id="subLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('subLuckVal').textContent=this.value+'x'" onchange="if(typeof renderEntries==='function')renderEntries()">
             <div class="hint" style="font-size:11px;">Subscribers get this many entries (1x = no bonus).</div>
           </div>
           <div class="field" style="margin-top:10px;margin-bottom:0;">
             <label>Code Luck: <strong id="codeLuckVal">1x</strong> entries</label>
-            <input type="range" id="codeLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('codeLuckVal').textContent=this.value+'x'">
+            <input type="range" id="codeLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('codeLuckVal').textContent=this.value+'x'" onchange="if(typeof renderEntries==='function')renderEntries()">
             <div class="hint" style="font-size:11px;">Viewers verified under your casino code get this many entries (1x = no bonus). Stacks with Subscriber Luck.</div>
           </div>
           <div class="toggle-row" style="margin-top:10px;">
@@ -4528,6 +4528,26 @@ async function gwClearAndEnd() {
   flash('Giveaway cleared and ended.', 'success');
 }
 
+// Read the live luck sliders ONCE per operation (cheap — 3 DOM reads, not per
+// entry). The per-entry weight (gwTickets) is then pure arithmetic, so the draw
+// is as fast as it ever was — no DOM work inside the loop. Mirrors the bot's
+// entryWeight, so a streamer who moves a slider and draws gets the new odds with
+// no snapshot lag.
+function gwLuckNow() {
+  return {
+    sub:   parseInt(document.getElementById('subLuckSlider')?.value, 10)   || 1,
+    code:  parseInt(document.getElementById('codeLuckSlider')?.value, 10)  || 1,
+    wager: parseInt(document.getElementById('wagerLuckSlider')?.value, 10) || 1,
+  };
+}
+function gwTickets(e, luck) {
+  let extra = 0;
+  if (luck.wager > 1 && e.wager > 0) extra += Math.min(Math.floor(e.wager / 1000), luck.wager - 1);
+  if (luck.sub   > 1 && e.isSub)     extra += (luck.sub - 1);
+  if (luck.code  > 1 && e.underCode) extra += (luck.code - 1);
+  return 1 + extra;
+}
+
 function subscribeEntries() {
   if (entriesUnsub) entriesUnsub();
   const uid = fb.activeUid;
@@ -4544,6 +4564,8 @@ function subscribeEntries() {
         tickets:   e.tickets  || 1,
         kickKey:   e.kickKey,
         avatarUrl: e.avatarUrl || null,
+        isSub:     !!e.isSub,      // for live-at-draw weighting (see gwTickets)
+        underCode: !!e.underCode,
       }));
       renderEntries();
     });
@@ -4728,12 +4750,14 @@ function renderEntries() {
   }
 
   // Newest at top — the snapshot order is insertion order, so reverse.
+  const luck = gwLuckNow();
   const ordered = [...entries].reverse();
   list.innerHTML = ordered.map(e => {
     const isNew = !_gwShownKeys.has(e.kickKey);
     const meta = [];
     if (e.wager)       meta.push(`$${e.wager.toLocaleString()}`);
-    if (e.tickets > 1) meta.push(`${e.tickets}× tickets`);
+    const liveTix = gwTickets(e, luck);
+    if (liveTix > 1)   meta.push(`${liveTix}× tickets`);
     const badges = _gwBadgesFor(e);
     const classes = ['gw-entry'];
     if (isNew) classes.push('gw-pop-in');
@@ -4860,9 +4884,12 @@ async function spinPicker() {
   spinningNow = true;
   setTimeout(() => { spinningNow = false; }, 250);
 
-  // True RNG over the weighted pool (each entry repeated by their tickets)
+  // True RNG over the weighted pool. Tickets are recomputed from the LIVE luck
+  // sliders at THIS click (gwTickets), NOT the up-to-5s-old snapshot value —
+  // so a streamer who nudges a slider and immediately draws gets the new odds.
+  const luck = gwLuckNow();
   const pool = [];
-  entries.forEach(e => { for (let i = 0; i < (e.tickets || 1); i++) pool.push(e); });
+  entries.forEach(e => { const t = gwTickets(e, luck); for (let i = 0; i < t; i++) pool.push(e); });
   winner = pool[Math.floor(Math.random() * pool.length)];
   const pickedWinner = winner;
 
