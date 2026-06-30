@@ -11,6 +11,7 @@ const { getDb, admin }        = require("./_lib/firebase");
 const { res, checkRateLimit } = require("./_lib/http");
 const { CASINO_NAMES }        = require("./_lib/casinos");
 const { lookupAffiliate }     = require("./_lib/affiliate");
+const { lookupDegen }         = require("./_lib/degen");
 const { logAudit }            = require("./_lib/audit");
 
 const API_CASINOS = new Set(["gambulls"]);
@@ -55,6 +56,39 @@ exports.handler = async (event) => {
     const affiliateUsername = v.providerUsername || v.providerUsername_lower;
     if (!provider || !affiliateUsername) {
       return res(400, { error: "Doc is missing provider or providerUsername" });
+    }
+
+    // Degen: public race, masked-name match (no per-user API / no UID). Re-check
+    // refreshes the wager + confirms under-code from the live race. Upgrade-only:
+    // if not found (anonymous row / inactive), leave the existing status alone so a
+    // manual under-code isn't wiped.
+    if (provider === "degen") {
+      const provDoc = await db.collection("streamers").doc(uid).collection("providers").doc("degen").get();
+      const code = provDoc.exists ? (provDoc.data().referralCode || provDoc.data().apiKey) : null;
+      if (!code) return res(400, { error: "Degen referral code isn't configured." });
+      const m = await lookupDegen(code, affiliateUsername);
+      if (!m) return res(502, { error: "Couldn't reach the Degen race right now." });
+      const wasUnder = !!v.underAffiliate;
+      const update = { lastRecheckAt: Date.now() };
+      if (m.underAffiliate) {
+        update.apiVerified       = true;
+        update.underAffiliate    = true;
+        update.wagerAmount       = m.wagerAmount || 0;
+        update.wagerLastSyncedAt = Date.now();
+      }
+      await docRef.update(update);
+      if (!wasUnder && m.underAffiliate) {
+        logAudit(uid, "verified_status_updated", { kickUsername: v.kickName, providerUsername: affiliateUsername, provider, from: "Standard", to: "Under Code" });
+      }
+      return res(200, {
+        success:           true,
+        underAffiliate:    m.underAffiliate ? true : wasUnder,
+        foundOnLeaderboard: !!m.underAffiliate,
+        wagerAmount:       m.wagerAmount || 0,
+        ambiguous:         !!m.ambiguous,
+        statusChanged:     !wasUnder && !!m.underAffiliate,
+        target:            affiliateUsername,
+      });
     }
 
     if (!API_CASINOS.has(provider)) {

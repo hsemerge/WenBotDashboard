@@ -6265,7 +6265,7 @@ async function recheckAllVerified(btn) {
     const resp = await fetch('/api/recheck-all-verified', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ uid: fb.activeUid }),
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Bulk recheck failed');
@@ -7444,6 +7444,41 @@ function _suppress(set, rows) {
   const present = new Set(rows.map(r => r.id));
   for (const id of set) if (!present.has(id)) set.delete(id); // prune: endpoint already dropped it
   return rows.filter(r => !set.has(r.id));
+}
+
+// A slot request was just acted on (dismissed / added-to-hunt / drawn-out / added to
+// a tournament). The Firestore write is instant, but the slot-request panels are now
+// POLLED (≤12s) and the shared cache keeps listing the row until it expires — so
+// without an optimistic update the row lingers for up to 12s (streamers reported
+// "remove takes forever"). Suppress the id, drop it from EVERY in-memory list, and
+// re-render EVERY mounted slot-request panel so the UI reacts instantly. Safe to call
+// no matter which panels are currently open (each render is guarded).
+// Map a live slot_requests snapshot to the SAME plain-row shape the polled
+// dashboard-state endpoint produced, so every existing render works unchanged —
+// notably requestedAt as epoch-ms (srTimeAgo/sort expect a number, not a Timestamp).
+function _slotReqRows(snap) {
+  return (snap && snap.docs ? snap.docs : []).map(d => {
+    const x  = d.data() || {};
+    const ra = x.requestedAt;
+    return { ...x, id: d.id,
+      kickUsername: x.kickUsername || '',
+      slotName:     x.slotName || '',
+      requestedAt:  (ra && ra.toMillis) ? ra.toMillis() : (typeof ra === 'number' ? ra : 0),
+      avatarUrl:    x.avatarUrl || null };
+  }).sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
+}
+function _slotReqRenderAll() {
+  try { bhSrRenderPanel(); } catch {}
+  try { srRenderQueue();   } catch {}
+  try { if (typeof tnTournament !== 'undefined' && tnTournament && tnTournament.mode === 'slotrequest' && tnTournament.status === 'registration') tnRenderRegistration(tnTournament); } catch {}
+}
+function slotReqActOn(id) {
+  if (!id) return;
+  _supSlotReqs.add(id);
+  if (Array.isArray(bhSrReqs))     bhSrReqs     = bhSrReqs.filter(r => r.id !== id);
+  if (Array.isArray(srRequests))   srRequests   = srRequests.filter(r => r.id !== id);
+  if (Array.isArray(tnSrRequests)) tnSrRequests = tnSrRequests.filter(r => r.id !== id);
+  _slotReqRenderAll();
 }
 
 let redemptionsUnsub = null;
@@ -8641,13 +8676,16 @@ function loadSlotRequestsForBh() {
       }, () => {});
   }
 
-  // Pending requests — polled via the shared dashboard-state cache.
-  bhSrUnsub = _pollPanel(async () => {
-    const st = await fetchDashState();
-    bhSrReqs = _suppress(_supSlotReqs, st.slotRequests).sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
-    srRequests = bhSrReqs;
-    bhSrRenderPanel();
-  }, 12000);
+  // Pending requests — LIVE listener so new !sr requests appear instantly. Slot-request
+  // writes are infrequent vs the wager-sync writes that drove the read-cost work, and
+  // this is scoped to the bonus-hunt page only (torn down on leave), so cost stays small.
+  bhSrUnsub = fb.db.collection('streamers').doc(uid)
+    .collection('slot_requests').where('status', '==', 'pending')
+    .onSnapshot(snap => {
+      bhSrReqs = _suppress(_supSlotReqs, _slotReqRows(snap));
+      srRequests = bhSrReqs;
+      bhSrRenderPanel();
+    }, () => {});
 }
 
 function unsubBhSr() {
@@ -8673,7 +8711,7 @@ async function srDismissFromBh(id) {
   try {
     await fb.db.collection('streamers').doc(fb.activeUid)
       .collection('slot_requests').doc(id).update({ status: 'dismissed' });
-    _supSlotReqs.add(id);
+    slotReqActOn(id);
   } catch (e) { flash('Failed to dismiss: ' + e.message, 'error'); }
 }
 
@@ -9732,13 +9770,15 @@ async function loadSlotRequests() {
     }
   } catch {}
 
-  // Live queue — polled via the shared dashboard-state cache (was an onSnapshot).
+  // Live queue — LIVE listener so new !sr requests appear instantly. Scoped to this
+  // page (torn down on leave); slot-request write volume is low, so cost stays small.
   if (srUnsub) { srUnsub(); srUnsub = null; }
-  srUnsub = _pollPanel(async () => {
-    const st = await fetchDashState();
-    srRequests = _suppress(_supSlotReqs, st.slotRequests).sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
-    srRenderQueue();
-  }, 12000);
+  srUnsub = fb.db.collection('streamers').doc(uid)
+    .collection('slot_requests').where('status', '==', 'pending')
+    .onSnapshot(snap => {
+      srRequests = _suppress(_supSlotReqs, _slotReqRows(snap));
+      srRenderQueue();
+    }, () => {});
 
   // Wire overlay links
   const chan = profile?.kickChannel || '';
@@ -10078,9 +10118,7 @@ async function srDismiss(id) {
   try {
     await fb.db.collection('streamers').doc(fb.activeUid)
       .collection('slot_requests').doc(id).update({ status: 'dismissed' });
-    _supSlotReqs.add(id);
-    srRequests = srRequests.filter(r => r.id !== id);
-    srRenderQueue();
+    slotReqActOn(id);
   } catch (e) {
     flash('Failed to dismiss: ' + e.message, 'error');
   }
@@ -10198,14 +10236,12 @@ async function srConfirmAddToHunt() {
     // Mark request fulfilled
     await fb.db.collection('streamers').doc(uid)
       .collection('slot_requests').doc(id).update({ status: 'added_to_hunt' });
-    _supSlotReqs.add(id);
 
     // Update local bhHunt so the bonus list refreshes immediately without a full reload
     bhHunt = { ...hunt, bonuses };
     bhRender();
 
-    srRequests = srRequests.filter(r => r.id !== id);
-    srRenderQueue();
+    slotReqActOn(id);   // suppress + re-render every slot-request panel instantly
     srCloseHuntModal();
     flash(`"${slotName}" added to bonus hunt!`);
   } catch (e) {
@@ -10226,8 +10262,8 @@ async function srClearAll() {
       batch.update(ref, { status: 'dismissed' });
     });
     await batch.commit();
-    srRequests = [];
-    srRenderQueue();
+    srRequests = []; bhSrReqs = []; tnSrRequests = [];
+    _slotReqRenderAll();
     flash('All requests cleared.');
   } catch (e) {
     flash('Failed to clear: ' + e.message, 'error');
@@ -10741,15 +10777,17 @@ function loadTournament() {
       }
     }, () => {});
 
-  // Pending !r slot requests — polled via the shared dashboard-state cache.
+  // Pending !r slot requests — LIVE listener so new requests appear instantly. Scoped
+  // to this page (torn down on leave); slot-request write volume is low, cost stays small.
   if (tnSrUnsub) { tnSrUnsub(); tnSrUnsub = null; }
-  tnSrUnsub = _pollPanel(async () => {
-    const st = await fetchDashState();
-    tnSrRequests = _suppress(_supSlotReqs, st.slotRequests).sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
-    if (tnTournament && tnTournament.mode === 'slotrequest' && tnTournament.status === 'registration') {
-      tnRenderRegistration(tnTournament);
-    }
-  }, 12000);
+  tnSrUnsub = fb.db.collection('streamers').doc(uid)
+    .collection('slot_requests').where('status', '==', 'pending')
+    .onSnapshot(snap => {
+      tnSrRequests = _suppress(_supSlotReqs, _slotReqRows(snap));
+      if (tnTournament && tnTournament.mode === 'slotrequest' && tnTournament.status === 'registration') {
+        tnRenderRegistration(tnTournament);
+      }
+    }, () => {});
 
   async function setTnLinks() {
     let chan = profile?.kickChannel || '';
@@ -10914,9 +10952,9 @@ async function tnAddSrParticipant(reqId) {
     await fb.db.collection('streamers').doc(fb.activeUid).collection('tournaments').doc('current')
       .update({ participants: firebase.firestore.FieldValue.arrayUnion(participant), updatedAt: Date.now() });
     // Mark the request handled so it leaves the pending queue.
-    _supSlotReqs.add(reqId);
     fb.db.collection('streamers').doc(fb.activeUid).collection('slot_requests').doc(reqId)
       .update({ status: 'added_to_tournament' }).catch(() => {});
+    slotReqActOn(reqId);
   } catch (e) { flash('Error: ' + e.message, 'error'); }
 }
 
