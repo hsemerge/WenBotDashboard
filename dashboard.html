@@ -2468,6 +2468,7 @@
             <option value="">All Slots</option>
             <option value="stake">Stake Exclusives</option>
             <option value="stakeengine">Stake Engine</option>
+            <option value="shuffle">Shuffle</option>
           </select>
           <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text-dim);cursor:pointer;white-space:nowrap;">
             <input type="checkbox" id="spBonusBuyFilter" onchange="spApplyFilters()" style="width:15px;height:15px;accent-color:var(--accent);">
@@ -12515,14 +12516,29 @@ function spPrettyProvider(p) {
   return p.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
+// Normalized provider key so a studio stored multiple ways — Stake's slug
+// ("twist-gaming") vs a casino's Title-Case ("Twist Gaming"), or case variants
+// ("Avatarux"/"AvatarUX") — collapses to ONE dropdown entry. The option VALUE is
+// this key; spApplyFilters matches s.provider on it, so every variant is included.
+function spProvKey(p) { return spPrettyProvider(p || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+
 function spBuildProviderFilter() {
   const sel = document.getElementById('spProviderFilter');
   if (!sel) return;
-  const providers = [...new Set(BH_SLOTS.map(s => s.provider))]
-    .sort((a, b) => spPrettyProvider(a).localeCompare(spPrettyProvider(b)));
+  // Group raw providers by normalized key; keep the nicest-cased display per group.
+  const groups = new Map();
+  for (const s of BH_SLOTS) {
+    const key = spProvKey(s.provider);
+    if (!key) continue;
+    const disp = spPrettyProvider(s.provider);
+    const score = (/[A-Z]/.test(disp) ? 100 : 0) + disp.length; // prefer mixed-case
+    const g = groups.get(key);
+    if (!g || score > g.score) groups.set(key, { display: disp, score });
+  }
+  const entries = [...groups.entries()].sort((a, b) => a[1].display.localeCompare(b[1].display));
   const cur = sel.value;
   sel.innerHTML = '<option value="">All Providers</option>' +
-    providers.map(p => `<option value="${escHtml(p)}"${p === cur ? ' selected' : ''}>${escHtml(spPrettyProvider(p))}</option>`).join('');
+    entries.map(([key, g]) => `<option value="${escHtml(key)}"${key === cur ? ' selected' : ''}>${escHtml(g.display)}</option>`).join('');
 }
 
 let spSpinning = false;
@@ -12538,9 +12554,10 @@ function spApplyFilters() {
   const search    = (document.getElementById('spSearchFilter')?.value || '').trim().toLowerCase();
 
   spPool = BH_SLOTS.filter(s => {
-    if (provider && s.provider !== provider) return false;
+    if (provider && spProvKey(s.provider) !== provider) return false;
     if (mode === 'stake'       && s.exclusive !== 'stake')   return false;
     if (mode === 'stakeengine' && !spIsStakeEngine(s.provider)) return false;
+    if (mode === 'shuffle'     && !(s.thumbnailUrl || '').includes('shuffle-com')) return false;
     if (bonusBuy && !s.bonusBuy) return false;
     if (search   && !s.name.toLowerCase().includes(search) && !spPrettyProvider(s.provider).toLowerCase().includes(search)) return false;
     return true;
