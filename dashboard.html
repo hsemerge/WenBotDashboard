@@ -7519,17 +7519,26 @@ function _renderRedemptions(snap) {
 
 function loadRedemptions() {
   if (redemptionsUnsub) { redemptionsUnsub(); redemptionsUnsub = null; }
-  redemptionsUnsub = _pollPanel(async () => {
-    const st = await fetchDashState();
-    _renderRedemptions(_fakeSnap(_suppress(_supRedemptions, st.redemptions), ['redeemedAt']));
-  }, 12000);
+  // LIVE listener — redemptions only change on human action (redeem / fulfill), so a
+  // delta-billed listener is cheaper than the constant 12s poll AND instant. This was
+  // the last consumer of the dashboard-state poll, which is now retired.
+  redemptionsUnsub = fb.db.collection('streamers').doc(fb.activeUid)
+    .collection('store_redemptions').where('status', '==', 'pending')
+    .onSnapshot(snap => {
+      const rows = snap.docs.map(d => {
+        const x = d.data() || {};
+        const r = x.redeemedAt;
+        return { ...x, id: d.id, redeemedAt: (r && r.toMillis) ? r.toMillis() : (typeof r === 'number' ? r : 0) };
+      });
+      _renderRedemptions(_fakeSnap(_suppress(_supRedemptions, rows), ['redeemedAt']));
+    }, () => {});
 }
 
 async function fulfillRedemption(id) {
   const uid = fb.activeUid;
   const ref = fb.db.collection('streamers').doc(uid).collection('store_redemptions').doc(id);
-  // Idempotent: with the queue now polled (≤12s stale), two mods could both click
-  // the same row. A transaction guarantees only the first fulfill writes + notifies.
+  // Idempotent: two mods watching the live queue could both click the same row.
+  // A transaction guarantees only the first fulfill writes + notifies.
   let d;
   try {
     d = await fb.db.runTransaction(async (tx) => {
