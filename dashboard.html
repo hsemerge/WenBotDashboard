@@ -535,7 +535,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.0.1</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.0.2</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -1938,9 +1938,21 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.0.1</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.0.2</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.0.2</h3>
+            <span style="font-size:12px;color:var(--text-dim);">June 30, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🎰 <strong>Way more slots.</strong> Added Shuffle's full catalog — including Shuffle-exclusive titles — on top of Stake, so the slot picker now has 7,400+ games. New <strong>Shuffle</strong> filter to find them, and a cleaner provider list (de-duped studio names).</li>
+            <li>🎁 <strong>Giveaway luck is now retroactive.</strong> Move the Sub / Code / Wager luck sliders any time before you draw and it re-weights <em>everyone</em> already entered — no need to set it up front. The draw uses your live slider values instantly (no lag).</li>
+            <li>🛡️ <strong>Giveaways survive updates.</strong> Entries are no longer lost if the bot restarts or we ship an update mid-giveaway — they're restored automatically.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -4541,6 +4553,10 @@ function gwLuckNow() {
   };
 }
 function gwTickets(e, luck) {
+  // Pre-flag snapshots (entries collected before the bot started sending isSub/
+  // underCode) → trust the bot's already-correct precomputed tickets, so weighting
+  // still works for an in-flight giveaway that spanned the update.
+  if (e.isSub === undefined && e.underCode === undefined) return e.tickets || 1;
   let extra = 0;
   if (luck.wager > 1 && e.wager > 0) extra += Math.min(Math.floor(e.wager / 1000), luck.wager - 1);
   if (luck.sub   > 1 && e.isSub)     extra += (luck.sub - 1);
@@ -4564,8 +4580,8 @@ function subscribeEntries() {
         tickets:   e.tickets  || 1,
         kickKey:   e.kickKey,
         avatarUrl: e.avatarUrl || null,
-        isSub:     !!e.isSub,      // for live-at-draw weighting (see gwTickets)
-        underCode: !!e.underCode,
+        isSub:     e.isSub,        // left undefined for pre-flag snapshots (see gwTickets)
+        underCode: e.underCode,
       }));
       renderEntries();
     });
