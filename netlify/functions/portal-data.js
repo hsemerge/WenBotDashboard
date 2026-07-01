@@ -51,8 +51,10 @@ const PORTAL_PRESETS = {
       ctaHref:   "https://gambulls.com/?ref=SKSlots",
     },
     // Prize per leaderboard rank — shown next to the leaders currently in line
-    // to win them (index 0 = 1st place). $200 weekly pool.
-    prizes: ["$85", "$50", "$35", "$20", "$10"],
+    // to win them (index 0 = 1st place). $250 weekly pool. NOTE: this is only a
+    // FALLBACK — when the dashboard's Leaderboard Prizes are set they override this,
+    // and the Wager Rewards "Weekly Leaderboard" tiles below auto-track that list.
+    prizes: ["$100", "$65", "$45", "$25", "$15"],
     // Extra nav links shown on the bespoke portal (beyond the auto socials).
     links: [
       { label: "Gambulls", href: "https://gambulls.com/?ref=SKSlots", icon: "🎰" },
@@ -108,13 +110,15 @@ const PORTAL_PRESETS = {
           ],
         },
         {
+          // NOTE: subtitle + places are auto-synced to the live prize list in
+          // buildPortalConfig — these static values are only a no-dashboard fallback.
           type: "prizes", title: "Weekly Leaderboard", subtitle: "$250 prize pool",
           places: [
-            { place: "1st", amount: "$85" },
-            { place: "2nd", amount: "$50" },
-            { place: "3rd", amount: "$35" },
-            { place: "4th", amount: "$20" },
-            { place: "5th", amount: "$10" },
+            { place: "1st", amount: "$100" },
+            { place: "2nd", amount: "$65" },
+            { place: "3rd", amount: "$45" },
+            { place: "4th", amount: "$25" },
+            { place: "5th", amount: "$15" },
           ],
         },
         {
@@ -180,16 +184,43 @@ function buildPortalConfig(channel, profile, canBrand) {
   const dashPrizes = (lbPrizes && lbPrizes.length)
     ? lbPrizes.map((n) => (Number(n) > 0 ? "$" + Number(n).toLocaleString() : ""))
     : null;
+  const prizes  = dashPrizes || p.prizes || preset.prizes || [];
+  const hero    = { ...(preset.hero || {}), ...(p.hero || {}) };
+  let   rewards = p.rewards  || preset.rewards || null;
+
+  // ONE source of truth: the (dashboard-set) prize list drives BOTH the live
+  // leaderboard badges AND the Wager Rewards "Weekly Leaderboard" tiles + its pool
+  // subtitle + the hero headline — so a single dashboard change updates everything and
+  // they can never drift apart. Clone rewards first; never mutate the shared preset.
+  const list = prizes.filter(Boolean);
+  const pool = list.reduce((s, v) => s + (parseFloat(String(v).replace(/[^0-9.]/g, "")) || 0), 0);
+  if (pool > 0) {
+    hero.prize = "$" + pool.toLocaleString();
+    if (rewards && Array.isArray(rewards.sections)) {
+      const ORD = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"];
+      rewards = {
+        ...rewards,
+        sections: rewards.sections.map((sec) =>
+          sec && sec.type === "prizes"
+            ? { ...sec,
+                subtitle: "$" + pool.toLocaleString() + " prize pool",
+                places:   list.map((amt, i) => ({ place: ORD[i] || `${i + 1}th`, amount: amt })) }
+            : sec
+        ),
+      };
+    }
+  }
+
   return {
     theme:       { ...(preset.theme || {}), ...(p.theme || {}) },
     logoUrl:     p.logoUrl   || preset.logoUrl   || null,
     bannerUrl:   p.bannerUrl || preset.bannerUrl || null,
     bgImage:     p.bgImage   || preset.bgImage   || null,
-    hero:        { ...(preset.hero || {}), ...(p.hero || {}) },
-    prizes:      dashPrizes  || p.prizes || preset.prizes || [],
+    hero,
+    prizes,
     links:       p.links     || preset.links     || [],
     pages:       p.pages     || preset.pages     || [],
-    rewards:     p.rewards   || preset.rewards   || null,
+    rewards,
     brandCredit: p.brandCredit ?? preset.brandCredit ?? true,
   };
 }
