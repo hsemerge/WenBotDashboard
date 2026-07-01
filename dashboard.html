@@ -8795,17 +8795,22 @@ function bhRender() {
     let resultCell;
     if (bhResultRow === b.id) {
       resultCell = `<div style="display:flex;gap:6px;align-items:center;">
-        <input type="number" draggable="false" id="bhResultInput_${b.id}" class="form-input" placeholder="Payout $" min="0" step="0.01" style="width:100px;padding:6px 8px;font-size:12px;"
+        <input type="number" draggable="false" id="bhResultInput_${b.id}" class="form-input" placeholder="Payout $" min="0" step="0.01" value="${b.payout != null ? b.payout : ''}" style="width:100px;padding:6px 8px;font-size:12px;"
           onkeydown="if(event.key==='Enter'){event.preventDefault();bhSubmitResult('${b.id}',${b.betSize});}else if(event.key==='Escape'){bhCancelResult();}">
         <button onclick="bhSubmitResult('${b.id}',${b.betSize})" class="btn btn-accent" style="padding:6px 10px;font-size:11px;">✓</button>
         <button onclick="bhCancelResult()" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:16px;line-height:1;">✕</button>
+        ${isPlayed ? `<button onclick="bhClearResult('${b.id}')" title="Clear this result — back to unplayed" style="background:none;border:1px solid var(--border);border-radius:5px;cursor:pointer;color:var(--red);font-size:11px;padding:5px 8px;">Clear</button>` : ''}
       </div>`;
     } else if (isPlayed) {
       const x   = b.multiplier || 0;
       const col = isBest ? 'var(--gold)' : x >= 200 ? 'var(--green)' : x >= 50 ? 'var(--orange)' : x >= 10 ? 'var(--bright)' : 'var(--red)';
-      resultCell = `<span style="color:${col};font-weight:700;">${bhFmt(b.payout)}</span>
-                    <span style="color:var(--text-dim);font-size:11px;margin-left:4px;">${x.toFixed(1)}x</span>
-                    ${isBest ? '<span style="margin-left:4px;font-size:10px;">🥇</span>' : ''}`;
+      // Click the result to edit/fix it (pre-fills the current payout).
+      resultCell = `<button onclick="bhOpenResult('${b.id}')" title="Click to edit result"
+        style="background:none;border:none;cursor:pointer;padding:0;font-family:inherit;text-align:right;">
+        <span style="color:${col};font-weight:700;">${bhFmt(b.payout)}</span>
+        <span style="color:var(--text-dim);font-size:11px;margin-left:4px;">${x.toFixed(1)}x</span>
+        ${isBest ? '<span style="margin-left:4px;font-size:10px;">🥇</span>' : '<span style="margin-left:4px;font-size:10px;opacity:0.45;">✏️</span>'}
+      </button>`;
     } else {
       resultCell = `<button onclick="bhOpenResult('${b.id}')" style="background:none;border:1px solid var(--border);border-radius:5px;color:var(--text-dim);font-size:11px;cursor:pointer;padding:4px 10px;">Enter Result</button>`;
     }
@@ -9209,7 +9214,8 @@ async function bhSubmitResult(id, betSize) {
   const bonuses = (bhHunt.bonuses || []).map(b => {
     if (b.id !== id) return b;
     const multiplier = betSize > 0 ? payout / betSize : 0;
-    return { ...b, payout, multiplier, playedAt: Date.now() };
+    // Editing an existing result keeps the original play time; a first entry stamps now.
+    return { ...b, payout, multiplier, playedAt: b.playedAt || Date.now() };
   });
 
   try {
@@ -9220,6 +9226,23 @@ async function bhSubmitResult(id, betSize) {
     bhRender();
   } catch (e) {
     flash('Failed to save result: ' + e.message, 'error');
+  }
+}
+
+// Revert a result back to unplayed — for when a result was entered on the wrong slot
+// or by mistake. Clears payout/multiplier so the row shows "Enter Result" again.
+async function bhClearResult(id) {
+  const bonuses = (bhHunt.bonuses || []).map(b =>
+    b.id === id ? { ...b, payout: null, multiplier: null, playedAt: null } : b
+  );
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid)
+      .collection('bonus_hunt').doc('current').update({ bonuses, updatedAt: Date.now() });
+    bhHunt.bonuses = bonuses;
+    bhResultRow    = null;
+    bhRender();
+  } catch (e) {
+    flash('Failed to clear result: ' + e.message, 'error');
   }
 }
 
