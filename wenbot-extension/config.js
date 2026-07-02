@@ -15,14 +15,24 @@
     // slots.json is large + static — cache it this long (ms).
     SLOTS_TTL_MS: 24 * 60 * 60 * 1000,
 
-    // Supported casinos. `match` is the manifest content-script match; `detect`
-    // is a best-effort list of CSS selectors whose text is the current game's
-    // title (first hit wins). Detection only ever READS the title — never the
-    // account, balance, or bet controls. If detection misses, the streamer just
-    // picks the game from the autocomplete; nothing breaks.
+    // Supported casinos.
+    //  detect    — CSS selectors whose text is the current game's title (first hit
+    //              wins). Read-only; never touches account/balance/bet controls.
+    //  anchorSel — the stable element the docked panel is inserted AFTER, so it sits
+    //              embedded right below the slot (bonushunt.gg-style). Prefer
+    //              data-testid/id over hashed classes so it survives redesigns.
+    //  gameSel   — the game iframe/canvas, used only to measure position when FLOATING.
+    // A site with no anchorSel simply floats (the panel still works everywhere).
     SITES: [
-      { key: "stake",   host: /(^|\.)stake\.(com|us|bet|games)$/, detect: ['[data-testid="game-title"]', ".game-title", 'h1[class*="title"]'] },
+      { key: "stake",   host: /(^|\.)stake\.(com|us|bet|games)$/,
+        anchorSel: '[data-testid="game-active"]',
+        gameSel:   '[data-testid="game-active"] iframe, [data-testid="game-active"] canvas',
+        detect: ['[class*="game-meta"] h1', '[class*="title-wrap"] h1', '[data-testid="game-title"]', 'h1[class*="ds-heading"]'] },
       { key: "shuffle", host: /(^|\.)shuffle\.com$/,             detect: ['[class*="GameTitle"]', "h1"] },
+      { key: "gambulls", host: /(^|\.)gambulls\.com$/,
+        anchorSel: '.responsive-container',
+        gameSel:   '.responsive-container iframe, .responsive-container canvas',
+        detect: ['h1.font-bold', '[class*="game-title"]', 'main h1', 'h1'] },
       { key: "roobet",  host: /(^|\.)roobet\.com$/,              detect: ['[class*="gameTitle"]', "h1"] },
       { key: "rainbet", host: /(^|\.)rainbet\.com$/,             detect: ['[class*="title"]', "h1"] },
       { key: "gamdom",  host: /(^|\.)gamdom\.com$/,              detect: ['[class*="game-name"]', "h1"] },

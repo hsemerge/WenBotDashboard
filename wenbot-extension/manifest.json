@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WenBot Companion",
-  "version": "0.1.0",
+  "version": "0.4.1",
   "description": "Add bonus-hunt slots to WenBot straight from your casino — live hunt HUD, break-even radar, smart slot autocomplete. Tracking only; never touches your casino account.",
   "permissions": ["storage"],
   "host_permissions": ["https://wenbot.gg/*"],
@@ -19,6 +19,7 @@
         "https://stake.us/*",
         "https://stake.bet/*",
         "https://stake.games/*",
+        "https://gambulls.com/*",
         "https://shuffle.com/*",
         "https://roobet.com/*",
         "https://rainbet.com/*",

@@ -18,6 +18,18 @@
 }
 #wbc-root.wbc-full { width: 312px; }
 
+/* Docked = embedded in the page directly under the slot (normal flow, full width),
+   bonushunt.gg-style. Overrides the floating card's fixed positioning. */
+#wbc-root.wbc-docked {
+  position: static !important;
+  width: 280px; max-width: 100%;
+  bottom: auto; right: auto;
+  margin: 10px 0 6px; box-shadow: none;
+}
+#wbc-root.wbc-docked .wbc-grip  { display: none; }        /* size follows the container */
+#wbc-root.wbc-docked .wbc-stats { display: grid; }        /* room for the HUD when embedded */
+#wbc-root.wbc-docked .wbc-body  { padding: 12px; }
+
 .wbc-head {
   display: flex; align-items: center; gap: 7px; padding: 8px 10px;
   background: linear-gradient(90deg, rgba(59,130,246,.22), rgba(37,99,235,.05));

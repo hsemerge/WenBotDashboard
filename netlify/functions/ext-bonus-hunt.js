@@ -58,7 +58,7 @@ exports.handler = async (event) => {
       playedAt:     null,
       thumbnailUrl: b.thumbnailUrl || null,
       gameId:       b.gameId || null,
-      notes:        "",
+      notes:        String(b.notes || "").slice(0, 120),  // note from the companion (e.g. "super", "5-scat")
       addedAt:      Date.now(),
       source:       "extension",
     };

@@ -509,7 +509,7 @@
         <div class="nav-item" onclick="showPage('leaderboard',this)"><span class="icon">🏆</span> Leaderboard</div>
         <div class="nav-item" onclick="showPage('verified',this)"><span class="icon">✅</span> Verified Users</div>
         <div class="nav-item" onclick="showPage('points',this)"><span class="icon">🪙</span> Points</div>
-        <div class="nav-item" onclick="showPage('store',this)"><span class="icon">🛒</span> Store <span class="nav-badge red" id="storeBadge" style="display:none;">0</span></div>
+        <div class="nav-item" id="nav-store" onclick="showPage('store',this)"><span class="icon">🛒</span> Store <span class="nav-badge red" id="storeBadge" style="display:none;">0</span></div>
         <div class="nav-item" onclick="showPage('raffle',this)"><span class="icon">🎟</span> Raffles</div>
         <div class="nav-item" onclick="showPage('commands',this)"><span class="icon">💬</span> Commands</div>
         <div class="nav-item" onclick="showPage('overlays',this)"><span class="icon">🖥</span> Overlays</div>
@@ -1004,6 +1004,16 @@
 
     <!-- ── POINTS ── -->
     <div class="page" id="page-points">
+      <div class="card" style="margin-bottom:16px;">
+        <label style="display:flex;align-items:center;gap:12px;cursor:pointer;margin:0;">
+          <input type="checkbox" id="pointsEnabledToggle" checked onchange="togglePointsEnabled(this.checked)" style="width:18px;height:18px;accent-color:var(--accent);flex:0 0 auto;">
+          <span>
+            <span style="font-weight:800;display:block;">Enable points &amp; store system</span>
+            <span class="hint" style="margin:0;">When off, viewers earn nothing and every points/store command is silently ignored (in chat &amp; Discord). Existing balances are kept — flip it back on to resume.</span>
+          </span>
+        </label>
+      </div>
+      <div id="pointsSettingsBody">
       <div class="grid-2" style="margin-bottom:16px;">
         <div class="card">
           <div class="card-title">🪙 Currency Settings</div>
@@ -1113,6 +1123,7 @@
           <button class="btn btn-ghost btn-sm" id="pointsNextBtn" onclick="pointsNextPage()">Next →</button>
         </div>
       </div>
+      </div><!-- /pointsSettingsBody -->
     </div>
 
     <!-- ── GTB ── -->
@@ -4050,6 +4061,10 @@ function onAuthReady(user) {
   { const _sc = document.getElementById('statCurrency'); if (_sc) _sc.textContent = (profile?.currencyName || 'points') + ' total'; }
 
   if (profile?.currencyName) document.getElementById('currencyNameInput').value = profile.currencyName;
+  // Points master switch (defaults ON). Reflect it + hide the Store nav when off.
+  { const _pe = profile?.pointsEnabled !== false;
+    const _t = document.getElementById('pointsEnabledToggle'); if (_t) _t.checked = _pe;
+    applyPointsEnabledUI(_pe); }
   // Earn rates — populate with stored values, fall back to defaults
   if (profile?.pointsPerMinute   != null) document.getElementById('earnPerMinute').value        = profile.pointsPerMinute;
   if (profile?.firstVerifyBonus  != null) document.getElementById('earnFirstVerify').value      = profile.firstVerifyBonus;
@@ -5636,6 +5651,26 @@ function exportEntries() {
 }
 
 // ── POINTS ──
+// Master points switch — saves immediately (it gates the whole system) and updates
+// the UI. Existing balances are never touched, so this is fully reversible.
+async function togglePointsEnabled(enabled) {
+  try {
+    await saveStreamerProfile({ pointsEnabled: enabled });
+    if (profile) profile.pointsEnabled = enabled;
+    applyPointsEnabledUI(enabled);
+    flash(enabled ? 'Points system enabled.' : 'Points system disabled — earning + all points/store commands are off.');
+  } catch (e) {
+    flash('Failed to update: ' + e.message, 'error');
+    const t = document.getElementById('pointsEnabledToggle'); if (t) t.checked = !enabled; // revert on failure
+  }
+}
+// Grey out the points settings + hide the Store nav when the system is off.
+function applyPointsEnabledUI(enabled) {
+  const nav = document.getElementById('nav-store'); if (nav) nav.style.display = enabled ? '' : 'none';
+  const body = document.getElementById('pointsSettingsBody');
+  if (body) { body.style.opacity = enabled ? '' : '0.45'; body.style.pointerEvents = enabled ? '' : 'none'; }
+}
+
 async function savePointsConfig() {
   const name = document.getElementById('currencyNameInput').value.trim() || 'points';
   await saveStreamerProfile({ currencyName: name });

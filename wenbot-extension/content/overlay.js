@@ -32,7 +32,19 @@
   let acIndex = -1;
   let chosen = null;   // catalog slot {name, provider, gameId, thumbnailUrl, maxWin, bonusBuy}
   let curHunt = null;  // latest active hunt (for the "already in hunt" check)
-  let manual = false;  // user dragged → stop auto-anchoring
+  let manual = false;  // user dragged → stop auto-anchoring (floating mode)
+  let wantDock = true; // user PREFERENCE (persisted): embed the panel under the slot
+                       // (default). Sites without an anchorSel always fall back to float.
+  let docked = false;  // whether the panel is CURRENTLY embedded in the page
+  let _collapsed = false; // user minimized to the pill
+  // Start hidden and only fade in once we've actually placed it (game rendered) — stops
+  // the "pops in over a still-loading page" tackiness.
+  function reveal() {
+    if (_collapsed || root.style.display !== "none") return;
+    root.style.display = "";
+    root.style.opacity = "0";
+    requestAnimationFrame(() => { root.style.transition = "opacity .2s ease"; root.style.opacity = "1"; });
+  }
 
   // ---- DOM -----------------------------------------------------------------
   const root = document.createElement("div");
@@ -42,29 +54,44 @@
       <span class="wbc-dot" id="wbc-dot"></span>
       <span class="wbc-logo">Wen<span>Bot</span></span>
       <span class="wbc-spacer"></span>
-      <button class="wbc-iconbtn" id="wbc-snap" title="Snap under the game">⌖</button>
-      <button class="wbc-iconbtn" id="wbc-expand" title="Pop out / compact">⤢</button>
+      <button class="wbc-iconbtn" id="wbc-snap" title="Dock under the slot">⤢</button>
+      <button class="wbc-iconbtn" id="wbc-expand" title="Compact / full">⛶</button>
       <button class="wbc-iconbtn" id="wbc-min" title="Collapse">—</button>
     </div>
-    <div class="wbc-body">
-      <div class="wbc-stats">
-        <div class="wbc-stat"><div class="k">Bonuses</div><div class="v" id="wbc-count">—</div></div>
-        <div class="wbc-stat"><div class="k">Break-even</div><div class="v" id="wbc-be">—</div></div>
-        <div class="wbc-stat"><div class="k">Running P/L</div><div class="v" id="wbc-pnl">—</div></div>
+    <div class="wbc-body" id="wbc-body">
+      <div class="wbc-stats" id="wbc-stats">
+        <div class="wbc-stat" id="wbc-stat-count"><div class="k">Bonuses</div><div class="v" id="wbc-count">—</div></div>
+        <div class="wbc-stat" id="wbc-stat-be"><div class="k">Break-even</div><div class="v" id="wbc-be">—</div></div>
+        <div class="wbc-stat" id="wbc-stat-pnl"><div class="k">Running P/L</div><div class="v" id="wbc-pnl">—</div></div>
       </div>
-      <div class="wbc-row">
-        <div class="wbc-ac">
+      <div class="wbc-row" id="wbc-row">
+        <div class="wbc-ac" id="wbc-ac">
           <input class="wbc-input" id="wbc-game" placeholder="Slot name…" autocomplete="off" />
           <div class="wbc-aclist" id="wbc-aclist"></div>
         </div>
         <input class="wbc-input wbc-bet" id="wbc-bet" placeholder="Bet $" inputmode="decimal" />
       </div>
-      <button class="wbc-btn" id="wbc-add">+ Add to Hunt</button>
+      <div id="wbc-extras">
+        <input class="wbc-input" id="wbc-note" placeholder="Note (e.g. super, 5-scat)" autocomplete="off" style="width:100%;margin-top:8px;" />
+        <button class="wbc-btn" id="wbc-add">+ Add to Hunt</button>
+      </div>
       <div class="wbc-detected" id="wbc-detected"></div>
       <div class="wbc-slotmeta" id="wbc-slotmeta"></div>
-      <div class="wbc-toast" id="wbc-toast"></div>
       <div class="wbc-foot">🔒 Never touches your casino account</div>
     </div>
+    <div class="wbc-bar" id="wbc-bar" style="display:none;">
+      <span class="wbc-logo wbc-bar-logo">Wen<span>Bot</span></span>
+      <div class="wbc-bar-cell wbc-bar-slot" id="wbc-bar-slot"></div>
+      <div class="wbc-bar-cell wbc-bar-bet"  id="wbc-bar-bet"></div>
+      <div class="wbc-bar-cell wbc-bar-note" id="wbc-bar-note"></div>
+      <div class="wbc-bar-cell wbc-bar-add"  id="wbc-bar-add"></div>
+      <div class="wbc-bar-cell wbc-bar-stats" id="wbc-bar-stats"></div>
+      <span class="wbc-bar-ctrls">
+        <button class="wbc-iconbtn" id="wbc-bpop" title="Pop out (float)">⤢</button>
+        <button class="wbc-iconbtn" id="wbc-bmin" title="Collapse">—</button>
+      </span>
+    </div>
+    <div class="wbc-toast" id="wbc-toast"></div>
     <div class="wbc-grip" id="wbc-grip"></div>`;
   const pill = document.createElement("button");
   pill.id = "wbc-pill";
@@ -72,25 +99,57 @@
 
   const $ = (id) => root.querySelector(id);
 
+  // The horizontal-bar styles are injected from JS (a fresh <style> each load) rather
+  // than the manifest CSS file — browsers cache content-script CSS hard, which bit us
+  // repeatedly. This guarantees the bar layout is always current.
+  function injectBarCss() {
+    if (document.getElementById("wbc-bar-css")) return;
+    const st = document.createElement("style");
+    st.id = "wbc-bar-css";
+    st.textContent = [
+      "#wbc-root .wbc-bar{display:flex;align-items:center;gap:10px;padding:8px 12px;}",
+      "#wbc-root .wbc-bar-logo{font-weight:800;flex:0 0 auto;white-space:nowrap;}",
+      "#wbc-root .wbc-bar-cell{display:flex;align-items:center;min-width:0;}",
+      "#wbc-root .wbc-bar-slot{flex:1.3 1 0;position:relative;}",
+      "#wbc-root .wbc-bar-bet{flex:0 0 130px;}",
+      "#wbc-root .wbc-bar-note{flex:0.9 1 0;}",
+      "#wbc-root .wbc-bar-add{flex:0 0 auto;}",
+      "#wbc-root .wbc-bar-stats{flex:1 1 0;gap:18px;justify-content:flex-end;}",
+      // flex:1 fills the cell — without it the bet input keeps its old 70px flex-basis
+      // and leaves dead space in the cell.
+      "#wbc-root .wbc-bar .wbc-input{width:100%!important;margin:0!important;flex:1 1 auto!important;}",
+      "#wbc-root .wbc-bar .wbc-ac{width:100%;}",
+      "#wbc-root .wbc-bar .wbc-btn{width:auto;margin:0;white-space:nowrap;padding:9px 16px;}",
+      "#wbc-root .wbc-bar .wbc-stat{background:transparent;border:0;padding:0;text-align:center;}",
+      "#wbc-root .wbc-bar .wbc-stat .k{font-size:10px;}",
+      "#wbc-root .wbc-bar .wbc-stat .v{font-size:15px;}",
+      "#wbc-root .wbc-bar-ctrls{flex:0 0 auto;display:flex;gap:2px;}",
+    ].join("");
+    (document.head || document.documentElement).appendChild(st);
+  }
+
   function mount() {
     document.body.appendChild(root);
     document.body.appendChild(pill);
+    root.style.display = "none"; // stay hidden until placed (see reveal())
+    injectBarCss();
     restoreState();
     wire();
     detectGame();
     refresh();
+    applyPlacement();
     let lastUrl = location.href;
     const stop = () => { clearInterval(t1); clearInterval(t2); };
     const t1 = setInterval(() => { if (!alive()) return stop(); refresh(); }, CFG.POLL_MS);
     const t2 = setInterval(() => {
       if (!alive()) return stop();
-      if (location.href !== lastUrl) { lastUrl = location.href; detectGame(); }
-      anchorToGame(); // game iframe can load/resize late — keep following it
+      if (location.href !== lastUrl) { lastUrl = location.href; detectGame(); } // new slot
+      maintainDock(); // keep embedded as the SPA re-renders (or follow the game if floating)
     }, 1500);
     window.addEventListener("scroll", onReflow, true);
     window.addEventListener("resize", onReflow);
-    // Game iframes load after us — re-anchor a few times early.
-    [300, 900, 2000].forEach((ms) => setTimeout(anchorToGame, ms));
+    // The game/anchor render after us — retry placement a few times early.
+    [300, 900, 2000, 4000].forEach((ms) => setTimeout(applyPlacement, ms));
   }
 
   // ---- auto-anchor under the game -----------------------------------------
@@ -107,8 +166,82 @@
     }
     return el ? el.getBoundingClientRect() : null;
   }
+  // ---- dock (embed in the page under the slot) vs float --------------------
+  // wantDock = the user's PREFERENCE (persisted). docked = whether we're CURRENTLY
+  // embedded. They differ briefly while the SPA is still rendering the game — we keep
+  // retrying (see maintainDock) until the anchor exists, then embed.
+  function findAnchor() {
+    if (!site || !site.anchorSel) return null;
+    try { return document.querySelector(site.anchorSel); } catch { return null; }
+  }
+  function updateDockBtn() {
+    const b = $("#wbc-snap");
+    if (b) { b.textContent = wantDock ? "⤢" : "⌖"; b.title = wantDock ? "Pop out (float)" : "Dock under the slot"; }
+  }
+  // Insert the panel right after the game so it sits embedded below the slot. Returns
+  // false (and floats as a fallback) when the anchor isn't on the page yet.
+  function dock() {
+    const anchor = findAnchor();
+    if (!anchor) { if (docked) floatCard(); return false; }
+    // First embed waits until the GAME has actually rendered (has size), so the bar
+    // doesn't flash in over a still-loading page. Re-docks (already docked) skip this.
+    if (!docked) { const gr = gameRect(); if (!gr || gr.width < 300) return false; }
+    docked = true; manual = false;
+    root.classList.add("wbc-docked");
+    // Move the SHARED controls into the horizontal bar. Ids are preserved, so every
+    // detect/autocomplete/add/refresh function keeps working with no other changes.
+    $("#wbc-bar-slot").appendChild($("#wbc-ac"));
+    $("#wbc-bar-bet").appendChild($("#wbc-bet"));
+    $("#wbc-bar-note").appendChild($("#wbc-note"));
+    $("#wbc-bar-add").appendChild($("#wbc-add"));
+    $("#wbc-bar-stats").appendChild($("#wbc-stat-count"));
+    $("#wbc-bar-stats").appendChild($("#wbc-stat-be"));
+    $("#wbc-bar-stats").appendChild($("#wbc-stat-pnl"));
+    $(".wbc-head").style.display = "none";
+    $("#wbc-body").style.display = "none";
+    $("#wbc-grip").style.display = "none";
+    $("#wbc-bar").style.display = "flex";
+    // Full-width bar under the slot. Every prop !important so it beats any cached CSS.
+    root.style.cssText += ";position:static!important;left:auto!important;top:auto!important;right:auto!important;bottom:auto!important;width:100%!important;max-width:100%!important;margin:10px 0 6px!important;box-shadow:none!important;";
+    if (!root.isConnected || root.previousElementSibling !== anchor) anchor.insertAdjacentElement("afterend", root);
+    updateDockBtn();
+    reveal();
+    console.log("[WenBot] docked — bar embedded under the slot");
+    return true;
+  }
+  function floatCard() {
+    docked = false;
+    root.classList.remove("wbc-docked");
+    // Move the controls back into the vertical card, in their original order.
+    $("#wbc-row").appendChild($("#wbc-ac"));
+    $("#wbc-row").appendChild($("#wbc-bet"));
+    $("#wbc-extras").appendChild($("#wbc-note"));
+    $("#wbc-extras").appendChild($("#wbc-add"));
+    $("#wbc-stats").appendChild($("#wbc-stat-count"));
+    $("#wbc-stats").appendChild($("#wbc-stat-be"));
+    $("#wbc-stats").appendChild($("#wbc-stat-pnl"));
+    $("#wbc-bar").style.display = "none";
+    $(".wbc-head").style.display = "";
+    $("#wbc-body").style.display = "";
+    $("#wbc-grip").style.display = "";
+    ["position", "left", "top", "right", "bottom", "width", "max-width", "margin", "box-shadow"].forEach((p) => root.style.removeProperty(p));
+    if (root.parentElement !== document.body) document.body.appendChild(root);
+    anchorToGame();
+    updateDockBtn();
+    if (!wantDock) reveal(); // explicit float → show; float-as-load-fallback stays hidden
+    console.log("[WenBot] floating");
+  }
+  function applyPlacement() { if (wantDock) dock(); else floatCard(); }
+  // Called on a timer + slot navigation: keep the panel embedded as the SPA re-renders.
+  function maintainDock() {
+    if (!wantDock) { anchorToGame(); return; }
+    const a = findAnchor();
+    if (a) { if (!root.isConnected || root.previousElementSibling !== a) dock(); }
+    else if (docked) floatCard(); // game left the page → float until it returns
+  }
+
   function anchorToGame() {
-    if (manual || root.style.display === "none") return;
+    if (docked || manual || root.style.display === "none") return;
     const w = root.offsetWidth || 280, h = root.offsetHeight || 160;
     const r = gameRect();
     let left = r ? r.left : innerWidth - w - 18;
@@ -228,11 +361,12 @@
     if (!name) return toast("Pick a slot first.", false);
     if (!bet || bet <= 0) return toast("Enter a bet size.", false);
     const match = chosen || slots.find((s) => s.name.toLowerCase() === name.toLowerCase());
-    const bonus = { name: match ? match.name : name, provider: match ? match.provider : "", betSize: bet, gameId: match ? match.gameId : null, thumbnailUrl: match ? match.thumbnailUrl : null };
+    const noteEl = $("#wbc-note"); const note = noteEl ? noteEl.value.trim() : "";
+    const bonus = { name: match ? match.name : name, provider: match ? match.provider : "", betSize: bet, gameId: match ? match.gameId : null, thumbnailUrl: match ? match.thumbnailUrl : null, notes: note };
     const btn = $("#wbc-add"); btn.disabled = true; btn.textContent = "Adding…";
     const r = await bg("addBonus", bonus);
     btn.disabled = false; btn.textContent = "+ Add to Hunt";
-    if (r && r.ok) { toast(`Added ${bonus.name} ($${bet}) ✓`, true); $("#wbc-game").value = ""; $("#wbc-bet").value = ""; chosen = null; refresh(); }
+    if (r && r.ok) { toast(`Added ${bonus.name} ($${bet}) ✓`, true); $("#wbc-game").value = ""; $("#wbc-bet").value = ""; if (noteEl) noteEl.value = ""; chosen = null; refresh(); }
     else toast((r && r.error) || "Failed — is the extension connected?", false);
   }
 
@@ -260,24 +394,33 @@
       const full = !root.classList.contains("wbc-full");
       root.classList.toggle("wbc-full", full);
       store.set({ wbcFull: full });
-      anchorToGame();
+      if (!docked) anchorToGame();
     };
-    $("#wbc-snap").onclick = () => { manual = false; anchorToGame(); }; // re-dock under the slot
+    // Dock ⟷ float toggle (persists the preference).
+    $("#wbc-snap").onclick = () => { wantDock = !wantDock; store.set({ wbcDocked: wantDock }); manual = false; applyPlacement(); };
+    // Bar controls (visible when docked): pop out to float / collapse.
+    $("#wbc-bpop").onclick = () => { wantDock = false; store.set({ wbcDocked: false }); manual = false; applyPlacement(); };
+    $("#wbc-bmin").onclick = () => collapse(true);
     makeDraggable($("#wbc-drag"));
     makeResizable($("#wbc-grip"));
   }
   function collapse(on) {
-    root.style.display = on ? "none" : "block";
+    _collapsed = on;
+    root.style.display = on ? "none" : "";
     pill.style.display = on ? "block" : "none";
     store.set({ wbcCollapsed: on });
-    if (!on) anchorToGame();
+    if (!on) applyPlacement();
   }
   function makeDraggable(handle) {
     let sx, sy, ox, oy, drag = false;
     handle.addEventListener("mousedown", (e) => {
       if (e.target.classList.contains("wbc-iconbtn")) return; // let buttons click
+      // Dragging a docked panel pops it out into a floating card (and remembers that).
+      const r = root.getBoundingClientRect();
+      if (docked) { wantDock = false; store.set({ wbcDocked: false }); floatCard(); }
       drag = true; manual = true; sx = e.clientX; sy = e.clientY;
-      const r = root.getBoundingClientRect(); ox = r.left; oy = r.top;
+      ox = r.left; oy = r.top;
+      root.style.left = ox + "px"; root.style.top = oy + "px";
       root.style.right = "auto"; root.style.bottom = "auto"; e.preventDefault();
     });
     window.addEventListener("mousemove", (e) => {
@@ -296,16 +439,18 @@
     window.addEventListener("mouseup", () => { if (!rz) return; rz = false; store.set({ wbcWidth: root.offsetWidth }); anchorToGame(); });
   }
   function restoreState() {
-    store.get(["wbcFull", "wbcWidth", "wbcCollapsed"], (s) => {
-      if (!s) return;
+    store.get(["wbcFull", "wbcWidth", "wbcCollapsed", "wbcDocked", "wbcDockMig2"], (s) => {
+      s = s || {};
       if (s.wbcWidth) root.style.width = s.wbcWidth + "px";
       if (s.wbcFull) root.classList.add("wbc-full");
-      // Always start DOCKED under the slot on each load. Previously a single drag
-      // persisted "manual" mode and the card NEVER auto-docked again (that was the
-      // "won't place itself under the slot" bug). Dragging still floats it for the
-      // current session; the ⌖ button re-docks it.
+      // One-time reset: earlier builds could leave the dock preference stuck on "float"
+      // (an accidental toggle). Force the docked default once so everyone starts
+      // embedded; the preference is respected on every load after this.
+      if (!s.wbcDockMig2) { wantDock = true; store.set({ wbcDocked: true, wbcDockMig2: true }); }
+      else { wantDock = s.wbcDocked !== false; }
       manual = false;
-      setTimeout(anchorToGame, 300);
+      updateDockBtn();
+      applyPlacement();
       if (s.wbcCollapsed) collapse(true);
     });
   }
