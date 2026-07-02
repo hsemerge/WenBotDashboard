@@ -744,6 +744,7 @@
         .gw-badge-casino  { background: rgba(255,215,0,0.18);  color: #ffd700; border: 1px solid rgba(255,215,0,0.45); }
         .gw-badge-discord { background: rgba(88,101,242,0.18); color: #a5b3f5; border: 1px solid rgba(88,101,242,0.45); }
         .gw-badge-code    { background: rgba(0,255,136,0.18);  color: #00ff88; border: 1px solid rgba(0,255,136,0.45); }
+        .gw-badge-sub     { background: rgba(155,89,255,0.20); color: #c4a0ff; border: 1px solid rgba(155,89,255,0.5); }
         /* Subtle row tint when verified — gives a glanceable signal across the
            list without making it noisy. Under-code > casino > Discord. */
         .gw-entry.gw-verified-casino  { background: linear-gradient(90deg, rgba(255,215,0,0.06), var(--bg-card) 70%); border-color: rgba(255,215,0,0.18); }
@@ -4761,6 +4762,7 @@ function _gwBadgesFor(entry) {
   if (casino)  html += '<span class="gw-badge gw-badge-casino"  title="Casino verified">✓</span>';
   if (discord) html += '<span class="gw-badge gw-badge-discord" title="Discord linked">D</span>';
   if (code)    html += '<span class="gw-badge gw-badge-code"    title="Under your affiliate code">C</span>';
+  if (entry.isSub) html += '<span class="gw-badge gw-badge-sub" title="Subscriber — sub-luck applied">S</span>';
   const rowClass = code ? 'gw-verified-code' : (casino ? 'gw-verified-casino' : (discord ? 'gw-verified-discord' : ''));
   return { html, rowClass };
 }
