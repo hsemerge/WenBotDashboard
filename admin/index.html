@@ -7,39 +7,52 @@
 <title>WenBot Admin</title>
 <style>
   *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
-  :root { --bg:#0a0a0f; --card:#14141d; --border:#26263a; --text:#cdd0e0; --dim:#7d83a0; --bright:#fff; --accent:#5b8cff; --green:#53e077; --red:#ff5b6e; --gold:#f5c518; }
-  body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
-  .wrap { max-width:1280px; margin:0 auto; padding:24px 20px 60px; }
-  h1 { font-size:20px; color:var(--bright); font-weight:800; }
+  :root {
+    --bg:#090910; --card:#14141f; --card2:#191926; --border:#262638; --border2:#333349;
+    --text:#ccd0e2; --dim:#7c82a0; --bright:#fff;
+    --accent:#5b8cff; --accent2:#82a6ff; --green:#53e077; --red:#ff5b6e; --gold:#f5c518; --purple:#a78bfa;
+  }
+  body {
+    font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh;
+    background-image:radial-gradient(1100px 560px at 12% -12%, rgba(91,140,255,.09), transparent 60%),
+                     radial-gradient(1000px 520px at 100% -6%, rgba(167,139,250,.07), transparent 55%);
+    background-attachment:fixed;
+  }
+  .wrap { max-width:1560px; margin:0 auto; padding:26px 34px 90px; }
+  @media (max-width:680px){ .wrap { padding:16px 14px 60px; } }
+  h1 { font-size:21px; color:var(--bright); font-weight:800; letter-spacing:-.01em; }
   .sub { font-size:12px; color:var(--dim); }
   /* Login */
-  .login { max-width:380px; margin:12vh auto; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:28px; }
+  .login { max-width:400px; margin:12vh auto; background:var(--card); border:1px solid var(--border); border-radius:16px; padding:30px; box-shadow:0 26px 70px rgba(0,0,0,.55); }
   .login h1 { margin-bottom:6px; } .login p { font-size:13px; color:var(--dim); margin-bottom:18px; }
   label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); margin:12px 0 5px; }
-  input { width:100%; background:#0c0c14; border:1px solid var(--border); border-radius:8px; padding:11px 12px; color:var(--bright); font-size:14px; }
-  input:focus { outline:none; border-color:var(--accent); }
-  button { background:var(--accent); color:#04122e; font-weight:800; border:none; border-radius:8px; padding:11px 16px; cursor:pointer; font-size:14px; }
-  button:hover { filter:brightness(1.08); } button:disabled { opacity:.5; cursor:not-allowed; }
-  .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--dim); font-weight:600; }
+  input, select { width:100%; background:#0c0c15; border:1px solid var(--border); border-radius:9px; padding:10px 12px; color:var(--bright); font-size:14px; font-family:inherit; transition:border-color .15s, box-shadow .15s; }
+  input:focus, select:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(91,140,255,.13); }
+  button { background:linear-gradient(180deg,var(--accent2),var(--accent)); color:#04122e; font-weight:800; border:none; border-radius:9px; padding:9px 16px; cursor:pointer; font-size:14px; transition:filter .15s, transform .05s; }
+  button:hover { filter:brightness(1.09); } button:active { transform:translateY(1px); } button:disabled { opacity:.5; cursor:not-allowed; }
+  .btn-ghost { background:rgba(255,255,255,.035); border:1px solid var(--border); color:var(--text); font-weight:600; }
+  .btn-ghost:hover { background:rgba(255,255,255,.07); border-color:var(--border2); filter:none; }
   .err { color:var(--red); font-size:13px; margin-top:12px; min-height:18px; }
   .hidden { display:none; }
-  /* Topbar */
-  .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:10px; }
+  /* Topbar + tabs */
+  .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; flex-wrap:wrap; gap:10px; }
   .who { font-size:12px; color:var(--dim); }
+  .tabs button { padding:9px 18px; border-radius:11px; }
   /* Stat cards */
-  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:20px; }
-  .stat { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
-  .stat .n { font-size:24px; font-weight:900; color:var(--bright); }
-  .stat .l { font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.05em; margin-top:2px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:14px; margin-bottom:22px; }
+  .stat { background:linear-gradient(180deg,var(--card2),var(--card)); border:1px solid var(--border); border-radius:14px; padding:16px 18px; box-shadow:0 6px 22px rgba(0,0,0,.28); }
+  .stat .n { font-size:26px; font-weight:900; color:var(--bright); letter-spacing:-.02em; }
+  .stat .l { font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.05em; margin-top:3px; }
   .stat .l small { text-transform:none; letter-spacing:0; }
-  /* Table */
-  .toolbar { display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
-  .toolbar input { max-width:280px; }
-  .tablecard { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  /* Toolbar + table */
+  .toolbar { display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap; align-items:center; }
+  .toolbar input { max-width:300px; }
+  .tablecard { background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:0 12px 34px rgba(0,0,0,.32); }
   table { width:100%; border-collapse:collapse; font-size:13px; }
-  th,td { text-align:left; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,.04); white-space:nowrap; }
-  th { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--dim); position:sticky; top:0; background:var(--card); }
-  tr:hover td { background:rgba(255,255,255,.02); }
+  th,td { text-align:left; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,.05); white-space:nowrap; }
+  th { font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); position:sticky; top:0; background:var(--card2); z-index:2; }
+  tbody tr { transition:background .1s; }
+  tr:hover td { background:rgba(91,140,255,.055); }
   .pill { display:inline-block; font-size:11px; font-weight:700; padding:2px 9px; border-radius:20px; }
   .pill.starter { background:#2a2a3a; color:#aab; } .pill.pro { background:rgba(91,140,255,.15); color:#9bb8ff; }
   .pill.elite { background:rgba(245,197,24,.15); color:var(--gold); } .pill.agency { background:rgba(83,224,119,.15); color:var(--green); }
@@ -78,6 +91,7 @@
 
     <div class="tabs" style="display:flex;gap:8px;margin-bottom:16px;">
       <button id="tabStreamers" onclick="switchTab('streamers')">Streamers</button>
+      <button id="tabBilling" class="btn-ghost" onclick="switchTab('billing')">💳 Billing</button>
       <button id="tabSlots" class="btn-ghost" onclick="switchTab('slots')">Slots</button>
     </div>
 
@@ -104,7 +118,7 @@
         </label>
       </div>
       <div class="tablecard">
-        <div style="overflow-x:auto;max-height:70vh;overflow-y:auto;">
+        <div style="overflow-x:auto;">
           <table>
             <thead><tr>
               <th></th><th>Channel</th><th>Plan</th><th>Sub</th><th>Onboarded</th>
@@ -141,7 +155,7 @@
         <span class="sub" id="shufNote" style="margin-left:10px;"></span>
       </div>
       <div class="tablecard">
-        <div style="overflow-x:auto;max-height:70vh;overflow-y:auto;">
+        <div style="overflow-x:auto;">
           <table>
             <thead><tr><th>Slot (missing thumbnail)</th><th>Provider</th><th class="muted">ID</th></tr></thead>
             <tbody id="slotsTable"><tr><td colspan="3" class="muted" style="text-align:center;padding:24px;">…</td></tr></tbody>
@@ -149,7 +163,40 @@
         </div>
       </div>
     </div>
+
+    <!-- BILLING / RENEWALS -->
+    <div id="billingView" class="hidden">
+      <div id="billingErr" style="display:none;background:#3a1414;border:1px solid var(--red);color:#ffd7d7;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;"></div>
+      <div class="stats" id="billingStatCards"></div>
+      <div class="toolbar">
+        <input id="billingSearch" type="text" placeholder="Search channel / plan…" oninput="renderBilling()">
+        <button class="btn-ghost" onclick="loadUsers()">↻ Refresh</button>
+        <label class="sub" style="display:flex;align-items:center;gap:6px;cursor:pointer;align-self:center;">
+          <input type="checkbox" id="billingDueOnly" onchange="renderBilling()"> Due soon / overdue only
+        </label>
+      </div>
+      <div class="tablecard">
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr><th>Channel</th><th>Plan</th><th>Method</th><th>Next payment</th><th>Status</th><th></th></tr></thead>
+            <tbody id="billingTable"><tr><td colspan="6" class="muted" style="text-align:center;padding:24px;">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="sub" style="margin-top:14px;">💳 Stripe subscriptions auto-renew (dates come from Stripe). 🪙 Crypto subs are manual — send an invoice near the due date. Only streamers with an active billing cycle appear here.</div>
+    </div>
   </div>
+
+<!-- Invoice receipt preview (same branded document the streamer sees) -->
+<div id="admReceiptModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:600;align-items:flex-start;justify-content:center;padding:24px;overflow:auto;">
+  <div style="width:100%;max-width:660px;">
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;">
+      <button class="btn-ghost" onclick="printAdmReceipt()">🖨 Print / PDF</button>
+      <button class="btn-ghost" onclick="closeAdmReceipt()">✕ Close</button>
+    </div>
+    <div id="admReceiptBody"></div>
+  </div>
+</div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -158,8 +205,21 @@
 (function () {
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
-  let _users = [], _adminSecret = '';
-  let _expanded = new Set(), _detail = {}, _slotsLoaded = false;
+  let _users = [], _adminSecret = '', _billingOverview = {};
+
+  // Per-streamer crypto-billing status derived from the actual invoices (source of
+  // truth), so the Billing tab shows anyone with invoices regardless of stale flags.
+  let _billingOverviewErr = '';
+  async function loadBillingOverview() {
+    try {
+      const r = await authedFetch('/api/admin-billing-overview');
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { _billingOverviewErr = 'Billing lookup failed (' + r.status + '): ' + (d.error || 'unknown'); }
+      else { _billingOverview = d.billing || {}; _billingOverviewErr = ''; }
+    } catch (e) { _billingOverviewErr = 'Billing lookup error: ' + e.message; }
+    if (typeof renderBilling === 'function') renderBilling();
+  }
+  let _expanded = new Set(), _detail = {}, _slotsLoaded = false, _billingExpanded = new Set();
 
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -204,6 +264,8 @@
       $('whoami').textContent = d.admin || (auth.currentUser && auth.currentUser.email) || '';
       renderStats(d.stats || {});
       renderTable();
+      loadBillingOverview();
+      if (typeof renderBilling === 'function') renderBilling();
       $('footNote').textContent = `${_users.length} streamers · loaded ${new Date().toLocaleTimeString()}`;
       show('panel');
     } catch (e) {
@@ -246,9 +308,13 @@
       const planSel = `<select onchange="setPlan('${esc(u.uid)}', this.value)" style="background:#0c0c14;border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:12px;padding:3px 6px;">`
         + ['starter','pro','elite','agency'].map(p => `<option value="${p}" ${p === u.plan ? 'selected' : ''}>${p}</option>`).join('')
         + `</select>`;
-      const compTag = u.planManual
-        ? ` <span class="pill comp" title="Comp — overrides Stripe">comp</span> <a href="#" onclick="clearManual('${esc(u.uid)}');return false;" class="muted" style="font-size:11px;">↺ auto</a>`
-        : '';
+      const ovp = _billingOverview[u.uid];
+      const cryptoPaying = u.planManual && ovp && ovp.paidCount > 0;   // manual plan + real payments = paying, not comped
+      const compTag = cryptoPaying
+        ? ` <span class="pill" style="background:rgba(45,212,150,.15);color:#5fe0a8;margin-left:4px;" title="Paying via crypto — plan locked">crypto</span>`
+        : (u.planManual
+          ? ` <span class="pill comp" title="Comp — overrides Stripe">comp</span> <a href="#" onclick="clearManual('${esc(u.uid)}');return false;" class="muted" style="font-size:11px;">↺ auto</a>`
+          : '');
       const open = _expanded.has(u.uid);
       const archTag = u.archived ? ' <span class="pill" style="background:#3a2a2a;color:#d99;">archived</span>' : '';
       const main = `<tr${u.archived ? ' style="opacity:.55;"' : ''}>
@@ -275,11 +341,6 @@
     const refList = (d.referrals && d.referrals.length)
       ? d.referrals.map(r => `${esc(r.kickChannel||'—')} <span class="muted">(${esc(r.plan)}, ${esc(r.status)})</span>`).join(' · ')
       : '<span class="muted">none</span>';
-    const payList = (d.payments && d.payments.length)
-      ? `<table style="margin-top:6px;"><thead><tr><th>Date</th><th>Plan</th><th>Amount</th></tr></thead><tbody>`
-        + d.payments.map(p => `<tr><td class="muted">${date(p.paidAt)}</td><td>${esc(p.plan||'—')}</td><td>${esc(p.currency)} ${Number(p.amount||0).toFixed(2)}</td></tr>`).join('')
-        + `</tbody></table>`
-      : '<span class="muted">no payments</span>';
     const u = _users.find(x => x.uid === uid) || {};
     const ch = esc(u.kickChannel || uid);
     const actions = `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;">`
@@ -289,6 +350,10 @@
           : `<button class="btn-ghost" onclick="archiveStreamer('${esc(uid)}','${ch}')">📦 Archive</button>`)
       + `<button class="btn-ghost" style="border-color:var(--red);color:var(--red);" onclick="deleteStreamer('${esc(uid)}','${ch}')">🗑 Delete permanently</button>`
       + `</div>`;
+    // Billing lives in the Billing tab now — here we show a one-line summary + a deep-link.
+    const billSummary = d.stripeSubscribed
+      ? `💳 Stripe${d.stripePeriodEnd ? ' · renews ' + date(d.stripePeriodEnd) : ''}`
+      : (d.cryptoBillingNextDue ? `🪙 Crypto · next due ${date(d.cryptoBillingNextDue)}` : 'no active billing cycle');
     return `<div style="padding:10px 4px;font-size:12px;line-height:1.6;">
       <div>${refBy}Invited <b>${d.referralCount||0}</b>: ${refList}</div>
       <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -296,10 +361,138 @@
         <input id="refset-${esc(uid)}" placeholder="referrer channel" style="background:#0c0c14;border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:12px;padding:4px 8px;width:170px;">
         <button class="btn-ghost" onclick="setReferrer('${esc(uid)}')">${d.referredByChannel ? 'Change' : 'Set'} referrer</button>
       </div>
-      <div style="margin-top:8px;font-weight:700;color:var(--bright);">Payments (${money(d.totalPaid)} total)</div>${payList}
+      <div style="margin-top:10px;padding:9px 13px;background:rgba(91,140,255,.05);border:1px solid var(--border);border-radius:9px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span><b style="color:var(--bright);">Billing:</b> <span class="muted">${billSummary} · ${money(d.totalPaid)} paid</span></span>
+        <button class="btn-ghost" style="border-color:var(--accent);color:var(--accent);margin-left:auto;" onclick="gotoBilling('${esc(uid)}')">💳 Manage billing →</button>
+      </div>
       ${actions}
     </div>`;
   }
+
+  // Full billing management for one streamer — rendered in the Billing tab's expanded row.
+  function billingSectionHtml(uid, d) {
+    if (!d || d === 'loading') return '<div class="muted" style="padding:10px;">Loading…</div>';
+    if (d.error) return `<div class="warn" style="padding:10px;">${esc(d.error)}</div>`;
+    const IST = 'background:#0c0c14;border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:12px;padding:4px 8px;';
+    const PLAN_PRICE = { starter: 0, pro: 30, elite: 50, agency: 80 };
+    const PLAN_LABEL = { starter: 'Starter', pro: 'Pro', elite: 'Elite', agency: 'Agency' };
+    const plan = d.plan || 'starter';
+    const defAmt = PLAN_PRICE[plan] || '';
+    const defDesc = `WenBot ${PLAN_LABEL[plan] || 'Pro'} Plan — Monthly`;
+    const billLine = d.stripeSubscribed
+      ? `💳 <b style="color:#a78bfa;">Stripe subscription</b>${d.stripePeriodEnd ? ' · renews ' + date(d.stripePeriodEnd) : ''} — auto-renews, receipts sent by Stripe. No manual invoice needed.`
+      : (d.cryptoBillingNextDue ? `🪙 <b style="color:var(--accent);">Crypto</b> · next payment due <b>${date(d.cryptoBillingNextDue)}</b>` : 'No active billing cycle yet — create a crypto invoice below to start one.');
+    const payRows = (d.payments || []).map(p => `<tr><td class="muted">${date(p.paidAt)}</td><td>💳 Stripe · ${esc(p.plan||'—')}</td><td>${esc((p.currency||'').toUpperCase())} ${Number(p.amount||0).toFixed(2)}</td><td><span style="color:#53e077;font-weight:700;">PAID</span></td><td>${p.hostedInvoiceUrl?`<a class="btn-ghost" style="text-decoration:none;" href="${esc(p.hostedInvoiceUrl)}" target="_blank" rel="noopener">Receipt ↗</a>`:''}</td></tr>`).join('');
+    const invR = (d.invoices || []).map(v => {
+      const st = v.status === 'paid' ? '<span style="color:#53e077;font-weight:700;">PAID</span>'
+               : (v.paymentSubmitted ? '<span style="color:#ffb020;font-weight:700;">CLAIMED — confirm?</span>' : '<span style="color:var(--red);">UNPAID</span>');
+      const btn = v.status === 'paid'
+        ? `<button class="btn-ghost" onclick="invAction('${esc(uid)}','${esc(v.id)}','unconfirm')">Unmark</button>`
+        : `<button class="btn-ghost" style="border-color:#53e077;color:#53e077;" onclick="invAction('${esc(uid)}','${esc(v.id)}','confirm')">✓ Confirm paid</button>`;
+      const tx = v.txHash ? `<div class="muted" style="font-size:11px;word-break:break-all;">tx: ${esc(v.txHash)}</div>` : '';
+      return `<tr><td class="muted">${date(v.paidAt||v.createdAt)}</td><td>🪙 ${esc(v.number||'—')} · ${esc(v.description||'')}${tx}</td><td>$${Number(v.amount||0).toFixed(2)}</td><td>${st}</td><td style="white-space:nowrap;"><button class="btn-ghost" onclick="previewReceipt('${esc(uid)}','${esc(v.id)}')">👁 Preview</button> ${btn} <button class="btn-ghost" style="border-color:var(--red);color:var(--red);" onclick="invAction('${esc(uid)}','${esc(v.id)}','delete')">🗑</button></td></tr>`;
+    }).join('');
+    const rows = (payRows + invR) || '<tr><td colspan="5" class="muted" style="padding:14px;">No invoices or receipts yet.</td></tr>';
+    return `
+      <div style="margin:0 0 10px;font-size:12px;">${billLine}</div>
+      <table style="margin-top:2px;"><thead><tr><th>Date</th><th>Item</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border);display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        <span class="muted" style="width:100%;font-size:11px;">New crypto invoice (prefilled from their ${esc(PLAN_LABEL[plan] || plan)} plan):</span>
+        <input id="inv-amt-${esc(uid)}" type="number" value="${defAmt}" placeholder="Amount $" min="0.01" step="0.01" style="${IST}width:90px;">
+        <input id="inv-desc-${esc(uid)}" value="${esc(defDesc)}" placeholder="Description" style="${IST}width:250px;">
+        <input id="inv-due-${esc(uid)}" type="date" title="Due date" style="${IST}">
+        <label class="muted" style="display:flex;gap:4px;align-items:center;cursor:pointer;"><input type="checkbox" id="inv-rec-${esc(uid)}" checked> monthly</label>
+        <label class="muted" style="display:flex;gap:4px;align-items:center;cursor:pointer;"><input type="checkbox" id="inv-paid-${esc(uid)}" onchange="var e=document.getElementById('inv-paiddate-${esc(uid)}');if(e)e.style.display=this.checked?'':'none';"> already paid</label>
+        <input id="inv-paiddate-${esc(uid)}" type="date" title="Paid date (for historical receipts)" style="${IST}display:none;">
+        <button class="btn-ghost" style="border-color:var(--accent);color:var(--accent);" onclick="createInvoice('${esc(uid)}')">+ Create invoice</button>
+      </div>`;
+  }
+
+  // ── Branded receipt preview (mirrors the streamer's dashboard render) ────────
+  const INV_BRAND = { name:'LogicPlayStudios', site:'logicplaystudios.com', email:'info@logicplaystudios.com', discord:'discord.gg/logicplay', logoUrl:'/img/lps-logo.png', accent:'#F26B1F' };
+  const INV_CRYPTO = [
+    { coin:'BTC', network:'Bitcoin', address:'bc1q7zjyfrrttk9phrwe8prj60n88quzvtuhw6z40u' },
+    { coin:'ETH', network:'Ethereum (ERC-20)', address:'0xc33537A3B0eaD6475888ee7255170d056B4aF652' },
+    { coin:'USDT / USDC', network:'Ethereum (ERC-20)', address:'0xc33537A3B0eaD6475888ee7255170d056B4aF652' },
+    { coin:'SOL / USDT / USDC', network:'Solana', address:'M4bhurDJ3PCyxiKCidaDxpaQDgYWwxiHG9HVj9JtGjF' },
+  ];
+  const invMoney = n => '$' + Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const invDate  = ms => { if(!ms) return '—'; try { return new Date(ms).toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'}); } catch { return '—'; } };
+  function invCryptoBoxAdmin(){
+    return `<div style="margin-top:12px;background:#fff7f0;border:1px solid #ffd9bd;border-radius:8px;padding:14px 16px;font-size:12px;color:#7a4a1f;"><div style="font-weight:800;margin-bottom:8px;">Pay by crypto — send the exact USD amount (in coin) to any of these:</div>${INV_CRYPTO.map(c=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #ffe6d1;flex-wrap:wrap;"><span style="font-weight:700;min-width:150px;">${esc(c.coin)} <span style="font-weight:400;color:#a86a3a;">(${esc(c.network)})</span></span><code style="flex:1;min-width:180px;font-family:monospace;word-break:break-all;background:#fff;border:1px solid #ffe0c8;border-radius:5px;padding:5px 8px;">${esc(c.address)}</code></div>`).join('')}</div>`;
+  }
+  function invReceiptHtmlAdmin(inv, channel){
+    const paid = inv.status==='paid', A = INV_BRAND.accent, total = inv.amount||0;
+    return `<div id="admReceiptDoc" style="background:#fff;color:#1a1a1a;border-radius:10px;padding:34px 38px;font-family:'Inter',Arial,sans-serif;">
+      <div style="text-align:center;margin-bottom:16px;"><img src="${INV_BRAND.logoUrl}" style="max-height:120px;max-width:380px;width:auto;object-fit:contain;" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div style="display:none;font-size:22px;font-weight:900;color:${A};">${esc(INV_BRAND.name)}</div></div>
+      <div style="text-align:center;border-top:2px solid ${A};padding-top:14px;"><div style="font-size:26px;font-weight:900;letter-spacing:1px;">${paid?'PAYMENT RECEIPT':'INVOICE'}</div><div style="font-weight:800;margin-top:4px;color:${paid?'#159a4a':'#d64545'};">${paid?'PAID IN FULL':(inv.paymentSubmitted?'PAYMENT SUBMITTED — AWAITING CONFIRMATION':'NOT PAID YET')}</div></div>
+      <div style="display:flex;justify-content:space-between;margin:18px 0;font-size:13px;"><div><b>Invoice #:</b> ${esc(inv.number||'—')}<br><b>Date:</b> ${invDate(inv.createdAt)}${inv.dueAt?`<br><b>Due:</b> ${invDate(inv.dueAt)}`:''}</div><div style="text-align:right;"><b>From:</b> ${esc(INV_BRAND.name)}<br><b>Billed To:</b> ${esc(inv.billedTo||channel||'—')}</div></div>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;"><thead><tr style="background:${A};"><th style="text-align:left;padding:10px 12px;color:#fff;font-weight:800;">Description</th><th style="text-align:right;padding:10px 12px;color:#fff;font-weight:800;">Amount</th></tr></thead><tbody><tr style="border-bottom:1px solid #eee;"><td style="padding:10px 12px;color:#1a1a1a;">${esc(inv.description||'')}</td><td style="padding:10px 12px;text-align:right;color:#1a1a1a;">${invMoney(total)}</td></tr><tr><td style="padding:12px;font-weight:800;color:#111;border-top:2px solid #111;">Total</td><td style="padding:12px;text-align:right;font-weight:800;color:#111;border-top:2px solid #111;">${invMoney(total)}</td></tr></tbody></table>
+      ${paid?`<div style="margin-top:16px;background:#eef9f0;border:1px solid #bfe6c8;border-radius:8px;padding:12px 14px;color:#159a4a;font-weight:700;">✅ Payment received — thank you!${inv.paidAt?' Paid '+invDate(inv.paidAt):''}</div>`:`<div style="margin-top:16px;font-size:13px;"><b>Amount Due:</b> ${invMoney(total)} · <b>Status:</b> <span style="color:#d64545;font-weight:700;">Not Paid Yet</span></div>${invCryptoBoxAdmin()}`}
+      <div style="text-align:center;margin-top:22px;padding-top:14px;border-top:1px solid #eee;font-size:11px;color:#777;">Thank you for your business! · ${esc(INV_BRAND.site)} · ${esc(INV_BRAND.email)} · ${esc(INV_BRAND.discord)}</div>
+    </div>`;
+  }
+  window.previewReceipt = function(uid, invoiceId){
+    const d = _detail[uid]; if(!d||!d.invoices) return;
+    const inv = d.invoices.find(v=>v.id===invoiceId); if(!inv) return;
+    const u = (_users||[]).find(x=>x.uid===uid)||{};
+    $('admReceiptBody').innerHTML = invReceiptHtmlAdmin(inv, u.kickChannel||uid);
+    $('admReceiptModal').style.display = 'flex';
+  };
+  window.closeAdmReceipt = function(){ $('admReceiptModal').style.display = 'none'; };
+  window.printAdmReceipt = function(){ const doc=$('admReceiptDoc'); if(!doc)return; const w=window.open('','_blank'); if(!w)return; w.document.write('<html><head><title>Receipt — WenBot</title></head><body style="margin:20px;">'+doc.outerHTML+'</body></html>'); w.document.close(); w.focus(); setTimeout(()=>w.print(),300); };
+
+  async function fetchDetail(uid) {
+    try {
+      const r = await authedFetch('/api/admin-user-detail?uid=' + encodeURIComponent(uid));
+      const d = await r.json();
+      _detail[uid] = r.ok ? d : { error: d.error || 'Failed' };
+    } catch (e) { _detail[uid] = { error: e.message }; }
+  }
+  async function refreshDetail(uid) { await fetchDetail(uid); renderTable(); renderBilling(); }
+  window.toggleBillingDetail = async function (uid) {
+    if (_billingExpanded.has(uid)) { _billingExpanded.delete(uid); renderBilling(); return; }
+    _billingExpanded.add(uid);
+    if (!_detail[uid] || _detail[uid] === 'loading') { _detail[uid] = 'loading'; renderBilling(); await fetchDetail(uid); }
+    renderBilling();
+  };
+  window.gotoBilling = function (uid) {
+    switchTab('billing');
+    _billingExpanded.add(uid);
+    if (!_detail[uid]) { _detail[uid] = 'loading'; renderBilling(); fetchDetail(uid).then(renderBilling); }
+    else renderBilling();
+    setTimeout(() => { const el = document.getElementById('bill-row-' + uid); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 150);
+  };
+  window.createInvoice = async function (uid) {
+    const amount      = parseFloat(($('inv-amt-' + uid) || {}).value);
+    const description = (($('inv-desc-' + uid) || {}).value || '').trim();
+    const method      = 'crypto'; // manual invoices are crypto-only; card is handled by Stripe
+    const dueVal      = ($('inv-due-' + uid) || {}).value || '';
+    const recurring   = !!(($('inv-rec-' + uid) || {}).checked);
+    const dueAt       = dueVal ? new Date(dueVal + 'T12:00:00').getTime() : null;
+    const markPaid    = !!(($('inv-paid-' + uid) || {}).checked);
+    const paidVal     = (($('inv-paiddate-' + uid) || {}).value) || '';
+    const paidAt      = paidVal ? new Date(paidVal + 'T12:00:00').getTime() : (markPaid ? Date.now() : null);
+    if (!amount || amount <= 0) return alert('Enter a valid amount');
+    if (!description)           return alert('Enter a description');
+    if (markPaid && !paidVal && !confirm('No paid date set — use today?')) return;
+    try {
+      const r = await authedPost('/api/admin-create-invoice', { uid, amount, description, method, dueAt, recurring, markPaid, paidAt });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      await refreshDetail(uid);
+      alert('Invoice ' + d.number + ' sent.');
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+  window.invAction = async function (uid, invoiceId, action) {
+    if (action === 'delete' && !confirm('Delete this invoice permanently?')) return;
+    try {
+      const r = await authedPost('/api/admin-confirm-invoice', { uid, invoiceId, action });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      await refreshDetail(uid);
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
 
   async function streamerAction(uid, action, reason) {
     const r = await authedPost('/api/admin-streamer-action', { uid, action, reason: reason || '' });
@@ -372,12 +565,80 @@
 
   // ── Tabs + Slots ──────────────────────────────────────────────────────────
   window.switchTab = function (tab) {
-    const slots = tab === 'slots';
-    $('usersView').classList.toggle('hidden', slots);
-    $('slotsView').classList.toggle('hidden', !slots);
-    $('tabStreamers').className = slots ? 'btn-ghost' : '';
-    $('tabSlots').className     = slots ? '' : 'btn-ghost';
-    if (slots && !_slotsLoaded) loadSlots();
+    const map = { streamers: 'usersView', billing: 'billingView', slots: 'slotsView' };
+    Object.entries(map).forEach(([t, id]) => { const el = $(id); if (el) el.classList.toggle('hidden', t !== tab); });
+    $('tabStreamers').className = tab === 'streamers' ? '' : 'btn-ghost';
+    const tb = $('tabBilling'); if (tb) tb.className = tab === 'billing' ? '' : 'btn-ghost';
+    $('tabSlots').className     = tab === 'slots' ? '' : 'btn-ghost';
+    if (tab === 'slots' && !_slotsLoaded) loadSlots();
+    if (tab === 'billing') renderBilling();
+  };
+
+  window.renderBilling = function () {
+    const tbody = $('billingTable'); if (!tbody) return;
+    const q = ($('billingSearch') && $('billingSearch').value || '').toLowerCase().trim();
+    const dueOnly = !!($('billingDueOnly') && $('billingDueOnly').checked);
+    const now = Date.now(), DAY = 864e5;
+    const PAID_PLANS = new Set(['pro', 'elite', 'agency']);
+    let rows = (_users || []).map(u => {
+      const ov = _billingOverview[u.uid];   // invoice-derived truth (has invoices?)
+      const hasCrypto = !!ov || !!u.cryptoNextDue || !!u.cryptoBilling;
+      const paidPlan  = PAID_PLANS.has(String(u.plan || '').toLowerCase());
+      let method = null, nextDue = null;
+      if (u.stripeSubscribed) { method = 'stripe'; nextDue = u.stripePeriodEnd; }
+      else if (hasCrypto)     { method = 'crypto'; nextDue = ov ? ov.nextDue : (u.cryptoNextDue || null); }
+      else if (paidPlan)      { method = 'none';   nextDue = null; }   // on a paid plan, no billing set up yet
+      return { u, method, nextDue, ov };
+    }).filter(r => r.method);
+    if (q) rows = rows.filter(r => ((r.u.kickChannel || r.u.uid) + ' ' + r.u.plan).toLowerCase().includes(q));
+    if (dueOnly) rows = rows.filter(r => r.nextDue && (r.nextDue - now) <= 7 * DAY);
+    rows.sort((a, b) => (a.nextDue || Infinity) - (b.nextDue || Infinity));
+
+    // Stat cards
+    const overdue = rows.filter(r => r.nextDue && r.nextDue < now).length;
+    const soon    = rows.filter(r => r.nextDue && r.nextDue >= now && (r.nextDue - now) <= 7 * DAY).length;
+    const crypto  = rows.filter(r => r.method === 'crypto').length;
+    const eb = $('billingErr');
+    if (eb) { eb.style.display = _billingOverviewErr ? 'block' : 'none'; eb.textContent = _billingOverviewErr; }
+    const sc = $('billingStatCards');
+    if (sc) sc.innerHTML =
+      `<div class="stat"><div class="n">${rows.length}</div><div class="l">Billing accounts</div></div>`
+      + `<div class="stat"><div class="n" style="color:${overdue ? 'var(--red)' : 'var(--bright)'};">${overdue}</div><div class="l">Overdue</div></div>`
+      + `<div class="stat"><div class="n" style="color:${soon ? 'var(--gold)' : 'var(--bright)'};">${soon}</div><div class="l">Due within 7 days</div></div>`
+      + `<div class="stat"><div class="n">${crypto}</div><div class="l">Crypto (manual)</div></div>`;
+
+    // Deep-linked streamers without a billing cycle still appear (so you can start one).
+    const inList = new Set(rows.map(r => r.u.uid));
+    _billingExpanded.forEach(uid => { if (!inList.has(uid)) { const u = (_users || []).find(x => x.uid === uid); if (u) rows.push({ u, method: null, nextDue: null }); } });
+
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:24px;">No active billing cycles yet.</td></tr>'; return; }
+    tbody.innerHTML = rows.map(r => {
+      const uid = r.u.uid, ch = esc(r.u.kickChannel || uid), open = _billingExpanded.has(uid);
+      let method = '<span class="muted">—</span>', nextCell = '<span class="muted">—</span>', state = '<span class="muted">—</span>', action = '';
+      if (r.method === 'none') {
+        if (r.u.planManual) { method = '🎁 Comped'; state = '<span class="muted">free / comped</span>'; action = '<span class="muted">no billing</span>'; }
+        else { method = '<span class="muted">—</span>'; state = '<span class="warn">⚠ No invoice yet</span>'; action = '<span style="color:var(--gold);">send one →</span>'; }
+      } else if (r.method) {
+        method = r.method === 'stripe' ? '💳 Stripe' : '🪙 Crypto';
+        action = r.method === 'stripe' ? '<span class="muted">auto-renews</span>' : '<span class="muted">manual</span>';
+        const unpaid = r.method === 'crypto' && r.ov && r.ov.hasUnpaid && !(r.ov.paidCount > 0);
+        if (unpaid) {
+          const sub = r.ov.submittedCount > 0 ? ' · ✋ paid, needs confirm' : '';
+          state  = `<span class="warn">⚠ Unpaid invoice${sub}</span>`;
+          nextCell = r.nextDue ? date(r.nextDue) : '<span class="muted">—</span>';
+        } else if (r.nextDue) {
+          const days = Math.ceil((r.nextDue - now) / DAY);
+          state  = days < 0 ? `<span class="warn">⚠ Overdue ${-days}d</span>` : days <= 7 ? `<span style="color:var(--gold);">Due in ${days}d</span>` : `<span class="ok">in ${days}d</span>`;
+          nextCell = date(r.nextDue);
+        } else { state = '<span class="muted">no confirmed cycle</span>'; }
+      }
+      const head = `<tr id="bill-row-${esc(uid)}" style="cursor:pointer;" onclick="toggleBillingDetail('${esc(uid)}')">
+        <td><span class="muted" style="display:inline-block;width:12px;">${open ? '▾' : '▸'}</span> ${ch}</td>
+        <td><span class="pill ${esc(r.u.plan)}">${esc(r.u.plan)}</span></td>
+        <td>${method}</td><td class="num">${nextCell}</td><td>${state}</td><td>${action}</td></tr>`;
+      const detail = open ? `<tr><td colspan="6" style="background:#0d0d16;padding:16px 20px;border-bottom:2px solid var(--accent);">${billingSectionHtml(uid, _detail[uid])}</td></tr>` : '';
+      return head + detail;
+    }).join('');
   };
 
   window.loadSlots = async function () {
