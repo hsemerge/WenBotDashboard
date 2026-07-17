@@ -51,6 +51,7 @@ service cloud.firestore {
           'paymentCount',
           'lastPaymentAt',
           'planManual',
+          'whiteLabel',
           'archived',
           'archivedAt',
           'archivedPrevOnboarded'
@@ -88,6 +89,7 @@ service cloud.firestore {
           'paymentCount',
           'lastPaymentAt',
           'planManual',
+          'whiteLabel',
           'archived',
           'archivedAt',
           'archivedPrevOnboarded'
@@ -103,6 +105,14 @@ service cloud.firestore {
       // payments — Stripe invoice history (written by the webhook via admin SDK).
       // Owner + mods can read their own; never client-writable.
       match /payments/{doc} {
+        allow read: if isOwnerOrMod(uid);
+        allow create, update, delete: if false;
+      }
+
+      // invoices — manual/crypto invoices issued by the LogicPlayStudios admin
+      // (written server-side via admin SDK). Owner + mods read their own; never
+      // client-writable so an invoice/paid-status can't be forged.
+      match /invoices/{doc} {
         allow read: if isOwnerOrMod(uid);
         allow create, update, delete: if false;
       }
@@ -185,7 +195,7 @@ service cloud.firestore {
         allow read, write: if isOwnerOrMod(uid)
           && !(subcollection in [
             'referrals', 'payments', 'verified_users', 'discord_links', 'audit_logs',
-            'bot_status', 'bb_votes', 'store_redemptions', 'bot_locks'
+            'bot_status', 'bb_votes', 'store_redemptions', 'bot_locks', 'invoices'
           ]);
       }
     }

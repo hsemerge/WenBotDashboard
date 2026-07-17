@@ -114,6 +114,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/invoice-submit-payment"
+  to     = "/.netlify/functions/invoice-submit-payment"
+  status = 200
+
+[[redirects]]
   from   = "/api/recheck-all-verified"
   to     = "/.netlify/functions/recheck-all-verified"
   status = 200
@@ -284,8 +289,23 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/admin-billing-overview"
+  to     = "/.netlify/functions/admin-billing-overview"
+  status = 200
+
+[[redirects]]
   from   = "/api/admin-set-plan"
   to     = "/.netlify/functions/admin-set-plan"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin-create-invoice"
+  to     = "/.netlify/functions/admin-create-invoice"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin-confirm-invoice"
+  to     = "/.netlify/functions/admin-confirm-invoice"
   status = 200
 
 [[redirects]]

@@ -1950,9 +1950,20 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.0.2</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.0.3</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.0.3</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 4, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>💳 <strong>New — Plan &amp; Billing.</strong> Your invoices and payment receipts now live in one place. See what's due, tap <strong>“I've sent payment”</strong> when you pay by crypto, and view or save a clean receipt once it's confirmed. Stripe receipts show up here too.</li>
+            <li>🛡️ <strong>Discord verify role fix.</strong> Fixed an issue where some viewers didn't get your verified role after verifying — the role is now assigned reliably the moment they link Discord.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -2485,9 +2496,18 @@
         <!-- Filters -->
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <input id="spSearchFilter" type="search" class="form-input" placeholder="Search slots…" oninput="spApplyFilters()" style="flex:1;min-width:180px;max-width:260px;">
-          <select id="spProviderFilter" onchange="spApplyFilters()" class="form-input" style="flex:1;min-width:150px;max-width:200px;">
-            <option value="">All Providers</option>
-          </select>
+          <div id="spProvWrap" style="position:relative;flex:1;min-width:170px;max-width:230px;">
+            <button type="button" id="spProviderBtn" class="form-input" onclick="spToggleProvMenu(event)" style="width:100%;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:6px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;font-family:'Inter',sans-serif;padding:8px 12px;">
+              <span id="spProviderBtnLabel" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">All Providers</span><span style="opacity:.6;flex-shrink:0;">▾</span>
+            </button>
+            <div id="spProviderMenu" style="display:none;position:absolute;z-index:60;top:calc(100% + 4px);left:0;right:0;min-width:220px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.5);">
+              <div style="position:sticky;top:0;background:var(--bg-card);padding:7px;border-bottom:1px solid var(--border);display:flex;gap:6px;border-radius:8px 8px 0 0;">
+                <input id="spProvSearch" type="search" placeholder="Filter providers…" oninput="spRenderProvMenu()" class="form-input" style="flex:1;font-size:12px;padding:6px 8px;">
+                <button type="button" class="btn btn-ghost btn-sm" onclick="spClearProviders()">Clear</button>
+              </div>
+              <div id="spProvOptions" style="max-height:260px;overflow-y:auto;padding:4px;"></div>
+            </div>
+          </div>
           <select id="spExclusiveFilter" onchange="spApplyFilters()" class="form-input" style="width:160px;">
             <option value="">All Slots</option>
             <option value="stake">Stake Exclusives</option>
@@ -3425,6 +3445,13 @@
             </table>
           </div>
         </div>
+
+        <!-- Invoices — manual / crypto invoices issued by LogicPlayStudios -->
+        <div class="card" style="margin-top:16px;">
+          <div class="card-title"><span>📄 Invoices &amp; Receipts</span></div>
+          <div id="invUnpaidBanner" style="display:none;background:rgba(242,107,31,0.1);border:1px solid rgba(242,107,31,0.4);border-radius:10px;padding:12px 16px;margin-bottom:14px;color:#ffb47a;font-size:13px;"></div>
+          <div id="invList"><div style="text-align:center;color:var(--text-dim);padding:18px;font-size:13px;">Loading…</div></div>
+        </div>
       </div>
     </div>
 
@@ -3432,6 +3459,17 @@
   <!-- Mobile sidebar backdrop -->
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 </div><!-- end app -->
+
+<!-- Invoice receipt modal (branded document) -->
+<div id="invReceiptModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:600;align-items:flex-start;justify-content:center;padding:24px;overflow:auto;">
+  <div style="width:100%;max-width:660px;">
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;">
+      <button onclick="invPrintReceipt()" class="btn btn-ghost btn-sm">🖨 Print / Save PDF</button>
+      <button onclick="closeInvoiceReceipt()" class="btn btn-ghost btn-sm">✕ Close</button>
+    </div>
+    <div id="invReceiptBody"></div>
+  </div>
+</div>
 
 <!-- Bonus Battle result modal -->
 <div id="bbResultModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:500;align-items:center;justify-content:center;">
@@ -3595,6 +3633,200 @@ function initSettingsCollapse() {
 }
 
 // ── Payment history (streamer's own, in Plan & Billing) ──────────────────────
+// ── Invoices (manual / crypto invoices issued by LogicPlayStudios) ──────────
+// Streamer view of the invoices/receipts an admin sends. Card payers get Stripe
+// receipts (Payment History above); this covers crypto + any manual billing.
+const INV_BRAND = {
+  name:   'LogicPlayStudios',
+  site:   'logicplaystudios.com',
+  email:  'info@logicplaystudios.com',
+  discord:'discord.gg/logicplay',
+  logoUrl:'/img/lps-logo.png',
+  accent: '#F26B1F',
+};
+// Admin receive-only crypto addresses shown on crypto invoices (public receive addresses).
+const INV_CRYPTO = [
+  { coin: 'BTC',              network: 'Bitcoin',           address: 'bc1q7zjyfrrttk9phrwe8prj60n88quzvtuhw6z40u' },
+  { coin: 'ETH',              network: 'Ethereum (ERC-20)', address: '0xc33537A3B0eaD6475888ee7255170d056B4aF652' },
+  { coin: 'USDT / USDC',      network: 'Ethereum (ERC-20)', address: '0xc33537A3B0eaD6475888ee7255170d056B4aF652' },
+  { coin: 'SOL / USDT / USDC',network: 'Solana',            address: 'M4bhurDJ3PCyxiKCidaDxpaQDgYWwxiHG9HVj9JtGjF' },
+];
+function invCopy(text, btn) {
+  try { navigator.clipboard.writeText(text); const o = btn.textContent; btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = o, 1200); } catch {}
+}
+function invCryptoBoxHtml() {
+  return `<div style="margin-top:12px;background:#fff7f0;border:1px solid #ffd9bd;border-radius:8px;padding:14px 16px;font-size:12px;color:#7a4a1f;">
+    <div style="font-weight:800;margin-bottom:8px;">Pay by crypto — send the exact USD amount (in coin) to any of these:</div>
+    ${INV_CRYPTO.map(c => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #ffe6d1;flex-wrap:wrap;">
+      <span style="font-weight:700;min-width:150px;">${escHtml(c.coin)} <span style="font-weight:400;color:#a86a3a;">(${escHtml(c.network)})</span></span>
+      <code style="flex:1;min-width:180px;font-family:monospace;word-break:break-all;background:#fff;border:1px solid #ffe0c8;border-radius:5px;padding:5px 8px;">${escHtml(c.address)}</code>
+      <button onclick="invCopy('${escHtml(c.address)}',this)" style="background:${INV_BRAND.accent};color:#fff;border:0;border-radius:5px;padding:6px 10px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap;">Copy</button>
+    </div>`).join('')}
+    <div style="margin-top:9px;color:#a86a3a;">After sending, reply to <b>${escHtml(INV_BRAND.email)}</b> (or your admin) with your <b>transaction hash</b> so payment can be confirmed.</div>
+  </div>`;
+}
+let invInvoices = [];
+let invStripePayments = [];
+let invUnsub = null;
+
+function loadInvoices() {
+  if (!fb.activeUid) return;
+  if (invUnsub) { invUnsub(); invUnsub = null; }
+  // Stripe receipts (card) — one-time pull (they change ~monthly), merged into the
+  // same list so a streamer sees ALL their billing/receipts in one place.
+  fb.db.collection('streamers').doc(fb.activeUid).collection('payments').orderBy('paidAt', 'desc').limit(50).get()
+    .then(snap => { invStripePayments = snap.docs.map(d => ({ id: 'stripe_' + d.id, ...d.data() })); renderInvoices(); })
+    .catch(() => {});
+  invUnsub = fb.db.collection('streamers').doc(fb.activeUid).collection('invoices')
+    .onSnapshot(snap => {
+      invInvoices = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      renderInvoices();
+      updateInvoiceFlag();
+    }, () => {});
+}
+function invFmtMoney(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function invFmtDate(ms) { if (!ms) return '—'; try { return new Date(ms).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }); } catch { return '—'; } }
+function invIsPaid(inv) { return inv.status === 'paid'; }
+
+function updateInvoiceFlag() {
+  const unpaid = invInvoices.filter(i => !invIsPaid(i)).length;
+  const nav = document.querySelector('.nav-item[onclick*="billing"]');
+  if (!nav) return;
+  let dot = nav.querySelector('.inv-flag-dot');
+  if (unpaid > 0) {
+    if (!dot) { dot = document.createElement('span'); dot.className = 'inv-flag-dot'; dot.style.cssText = 'margin-left:6px;display:inline-flex;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--red);color:#fff;font-size:10px;font-weight:800;align-items:center;justify-content:center;'; nav.appendChild(dot); }
+    dot.textContent = unpaid;
+  } else if (dot) dot.remove();
+}
+
+function renderInvoices() {
+  const list = document.getElementById('invList');
+  const banner = document.getElementById('invUnpaidBanner');
+  if (!list) return;
+  const unpaid = invInvoices.filter(i => !invIsPaid(i));
+  if (banner) {
+    if (unpaid.length) { banner.style.display = ''; banner.textContent = `You have ${unpaid.length} unpaid invoice${unpaid.length > 1 ? 's' : ''} — total ${invFmtMoney(unpaid.reduce((s, i) => s + (i.amount || 0), 0))}.`; }
+    else banner.style.display = 'none';
+  }
+  // Merge crypto invoices + Stripe receipts into one date-sorted list.
+  const stripeRows = invStripePayments.map(p => {
+    const pAt = (p.paidAt && p.paidAt.toMillis) ? p.paidAt.toMillis() : (Number(p.paidAt) || 0);
+    return { kind: 'stripe', id: p.id, amount: p.amount || 0, plan: p.plan || '', paidAt: pAt, url: p.hostedInvoiceUrl || null, _t: pAt };
+  });
+  const cryptoRows = invInvoices.map(v => ({ kind: 'inv', v, _t: v.createdAt || 0 }));
+  const combined = [...cryptoRows, ...stripeRows].sort((a, b) => (b._t || 0) - (a._t || 0));
+
+  if (!combined.length) {
+    list.innerHTML = `<div style="text-align:center;color:var(--text-dim);padding:16px;font-size:13px;">No invoices or receipts yet.<br><button onclick="invPreviewSample()" class="btn btn-ghost btn-sm" style="margin-top:10px;">👀 Preview a sample receipt</button></div>`;
+    return;
+  }
+  list.innerHTML = combined.map(row => {
+    if (row.kind === 'stripe') {
+      return `<div style="display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--border);">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;color:var(--bright);">Stripe · ${escHtml(row.plan || 'Subscription')} · ${invFmtMoney(row.amount)}</div>
+          <div style="font-size:12px;color:var(--text-dim);">💳 Card payment · ${invFmtDate(row.paidAt)}</div>
+        </div>
+        <span style="color:#53e077;font-weight:700;font-size:12px;">PAID</span>
+        ${row.url ? `<a href="${escHtml(row.url)}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Receipt ↗</a>` : '<span style="width:1px;"></span>'}
+      </div>`;
+    }
+    const inv = row.v, paid = invIsPaid(inv);
+    const badge = paid ? `<span style="color:#53e077;font-weight:700;font-size:12px;">PAID</span>`
+                : (inv.paymentSubmitted ? `<span style="color:#ffb020;font-weight:700;font-size:12px;">SUBMITTED</span>`
+                : `<span style="color:var(--red);font-weight:700;font-size:12px;">UNPAID</span>`);
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--border);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;color:var(--bright);">${escHtml(inv.number || 'Invoice')} · ${invFmtMoney(inv.amount)}</div>
+        <div style="font-size:12px;color:var(--text-dim);">🪙 ${escHtml(inv.description || '')} · ${invFmtDate(inv.createdAt)}</div>
+      </div>
+      ${badge}
+      <button onclick="openInvoiceReceipt('${inv.id}')" class="btn ${paid ? 'btn-ghost' : 'btn-accent'} btn-sm">${paid ? 'View' : 'View / Pay'}</button>
+    </div>`;
+  }).join('');
+}
+
+function invReceiptHtml(inv) {
+  const paid = invIsPaid(inv);
+  const A = INV_BRAND.accent;
+  const rows = (inv.items && inv.items.length ? inv.items : [{ description: inv.description || '—', amount: inv.amount }]);
+  const total = inv.amount || rows.reduce((s, r) => s + (r.amount || 0), 0);
+  const isCard = inv.method && String(inv.method).toLowerCase().includes('card');
+  const submitArea = inv.paymentSubmitted
+    ? `<div style="margin-top:12px;background:#eef4ff;border:1px solid #cddcff;border-radius:8px;padding:11px 14px;color:#2b4a8a;font-size:12px;">⏳ <b>Payment submitted</b> — awaiting confirmation from LogicPlayStudios${inv.txHash ? ' · tx: ' + escHtml(inv.txHash) : ''}.</div>`
+    : `<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <input id="invTxHash" placeholder="Transaction hash (optional, but speeds up confirmation)" style="flex:1;min-width:210px;padding:9px 11px;border:1px solid #ddd;border-radius:6px;color:#111;font-size:12px;">
+        <button onclick="invSubmitPayment('${escHtml(inv.id || 'sample')}')" style="background:${A};color:#fff;border:0;border-radius:6px;padding:10px 18px;font-weight:800;cursor:pointer;font-size:13px;white-space:nowrap;">✅ I've sent payment</button>
+      </div>`;
+  const cryptoPay = isCard
+    ? `<div style="margin-top:12px;font-size:12px;color:#777;">Card subscribers are billed automatically via Stripe. Questions? ${escHtml(INV_BRAND.email)}</div>`
+    : invCryptoBoxHtml() + submitArea;
+  return `<div id="invReceiptDoc" style="background:#fff;color:#1a1a1a;border-radius:10px;padding:34px 38px;font-family:'Inter',Arial,sans-serif;">
+    <div style="text-align:center;margin-bottom:16px;">
+      <img src="${INV_BRAND.logoUrl}" alt="${escHtml(INV_BRAND.name)}" style="max-height:120px;max-width:380px;width:auto;object-fit:contain;" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
+      <div style="display:none;font-size:22px;font-weight:900;color:${A};">${escHtml(INV_BRAND.name)}</div>
+    </div>
+    <div style="text-align:center;border-top:2px solid ${A};padding-top:14px;">
+      <div style="font-size:26px;font-weight:900;letter-spacing:1px;">${paid ? 'PAYMENT RECEIPT' : 'INVOICE'}</div>
+      <div style="font-weight:800;margin-top:4px;color:${paid ? '#159a4a' : '#d64545'};">${paid ? 'PAID IN FULL' : (inv.paymentSubmitted ? 'PAYMENT SUBMITTED — AWAITING CONFIRMATION' : 'NOT PAID YET')}</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin:18px 0;font-size:13px;">
+      <div><b>Invoice #:</b> ${escHtml(inv.number || '—')}<br><b>Date:</b> ${invFmtDate(inv.createdAt)}${inv.dueAt ? `<br><b>Due:</b> ${invFmtDate(inv.dueAt)}` : ''}</div>
+      <div style="text-align:right;"><b>From:</b> ${escHtml(INV_BRAND.name)}<br><b>Billed To:</b> ${escHtml(inv.billedTo || profile?.displayName || (fb.currentUser && fb.currentUser.email) || '—')}</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <thead><tr style="background:${A};"><th style="text-align:left;padding:10px 12px;color:#fff;font-weight:800;">Description</th><th style="text-align:right;padding:10px 12px;color:#fff;font-weight:800;">Amount</th></tr></thead>
+      <tbody>${rows.map(r => `<tr style="border-bottom:1px solid #eee;"><td style="padding:10px 12px;color:#1a1a1a;">${escHtml(r.description || '')}</td><td style="padding:10px 12px;text-align:right;color:#1a1a1a;">${invFmtMoney(r.amount)}</td></tr>`).join('')}
+        <tr><td style="padding:12px;font-weight:800;color:#111;border-top:2px solid #111;">Total</td><td style="padding:12px;text-align:right;font-weight:800;color:#111;border-top:2px solid #111;">${invFmtMoney(total)}</td></tr>
+      </tbody>
+    </table>
+    ${paid
+      ? `<div style="margin-top:16px;background:#eef9f0;border:1px solid #bfe6c8;border-radius:8px;padding:12px 14px;color:#159a4a;font-weight:700;">✅ Payment received — thank you!${inv.paidAt ? ' Paid ' + invFmtDate(inv.paidAt) : ''}</div>`
+      : `<div style="margin-top:16px;font-size:13px;"><b>Amount Due:</b> ${invFmtMoney(total)} &nbsp;·&nbsp; <b>Status:</b> <span style="color:#d64545;font-weight:700;">Not Paid Yet</span></div>${cryptoPay}`}
+    <div style="text-align:center;margin-top:22px;padding-top:14px;border-top:1px solid #eee;font-size:11px;color:#777;">Thank you for your business! · ${escHtml(INV_BRAND.site)} · ${escHtml(INV_BRAND.email)} · ${escHtml(INV_BRAND.discord)}</div>
+  </div>`;
+}
+
+function openInvoiceReceipt(id) {
+  const inv = invInvoices.find(i => i.id === id);
+  if (!inv) return;
+  document.getElementById('invReceiptBody').innerHTML = invReceiptHtml(inv);
+  document.getElementById('invReceiptModal').style.display = 'flex';
+}
+function invPreviewSample() {
+  const sample = { number: 'LPS-0005', createdAt: Date.now(), dueAt: Date.now() + 7 * 864e5, billedTo: 'SK Slots', amount: 50, description: 'WenBot Elite Monthly Plan', method: 'crypto', status: 'unpaid' };
+  document.getElementById('invReceiptBody').innerHTML = invReceiptHtml(sample);
+  document.getElementById('invReceiptModal').style.display = 'flex';
+}
+function closeInvoiceReceipt() { document.getElementById('invReceiptModal').style.display = 'none'; }
+// Streamer signals they've sent a (crypto) payment → admin gets notified + confirms.
+// Does NOT mark paid; only the admin's Confirm flips it to a receipt.
+async function invSubmitPayment(id) {
+  if (!id || id === 'sample') { flash('This is a sample preview — the button works on a real invoice.'); return; }
+  const tx = (document.getElementById('invTxHash')?.value || '').trim();
+  try {
+    const token = await fb.currentUser.getIdToken();
+    const r = await fetch('/api/invoice-submit-payment', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid: fb.activeUid, invoiceId: id, txHash: tx }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Failed');
+    flash('✅ Marked as sent — LogicPlayStudios will confirm your payment shortly.');
+    closeInvoiceReceipt();
+  } catch (e) { flash('Could not submit: ' + e.message, 'error'); }
+}
+function invPrintReceipt() {
+  const doc = document.getElementById('invReceiptDoc');
+  if (!doc) return;
+  const w = window.open('', '_blank');
+  if (!w) return;
+  w.document.write('<html><head><title>Invoice — WenBot</title></head><body style="margin:20px;">' + doc.outerHTML + '</body></html>');
+  w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
+}
+
 async function loadBillingHistory() {
   const totalEl = document.getElementById('billingTotalPaid');
   const tbody   = document.getElementById('billingHistoryTable');
@@ -3674,7 +3906,7 @@ function showPage(id, el) {
   if (id === 'bonusbattle') loadBonusBattle();
   if (id === 'tournament')  loadTournament();
   if (id === 'overlays')    loadOverlayStudio();
-  if (id === 'billing')     { renderBillingPage(); loadBillingHistory(); }
+  if (id === 'billing')     { renderBillingPage(); loadBillingHistory(); loadInvoices(); }
   if (id === 'raffle')      loadRafflePage();
   if (id === 'activity')    loadActivityLog();
   if (id === 'overview')    loadOverviewStats();
@@ -5990,7 +6222,7 @@ function renderGTBGuesses(actualBalance) {
     const name = g.kickUsername || g.id;
     return `<tr ${isWinner ? 'style="background:rgba(255,215,0,0.05);"' : ''}>
       <td style="color:var(--text-dim);">${i+1}</td>
-      <td class="${isWinner ? 'td-gold' : 'td-highlight'}">${isWinner ? '🏆 ' : ''}${name}</td>
+      <td class="${isWinner ? 'td-gold' : 'td-highlight'}">${isWinner ? '🏆 ' : ''}${escHtml(name)}</td>
       <td class="${isWinner ? 'td-gold' : ''}" style="font-weight:600;">$${Number(g.guess).toLocaleString()}</td>
       <td style="color:var(--text-dim);">${time}</td>
       <td>${diff != null ? '<span class="badge '+(isWinner?'badge-accent':'badge-orange')+'">±$'+diff.toLocaleString()+'</span>' : '—'}</td>
@@ -6009,7 +6241,7 @@ function pickGTBWinner() {
   document.getElementById('gtbWinnerDisplay').innerHTML = `
     <div style="background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.25);border-radius:8px;padding:12px;text-align:center;">
       <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">CLOSEST GUESS</div>
-      <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:800;color:var(--gold);">🏆 ${wName}</div>
+      <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:800;color:var(--gold);">🏆 ${escHtml(wName)}</div>
       <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">Guessed $${Number(w.guess).toLocaleString()} — off by $${diff.toLocaleString()}</div>
     </div>`;
   document.getElementById('gtbAnnounce').value = `🎰 GTB Winner: @${wName} with a guess of $${Number(w.guess).toLocaleString()}! Actual balance was $${actual.toLocaleString()} (±$${diff.toLocaleString()}) 🏆`;
@@ -6175,7 +6407,7 @@ function renderVerifiedFromCache() {
       <td style="color:var(--text-dim);font-size:12px;">${escHtml(casinoName)}</td>
       <td>${statusBadge}</td>
       <td>${discordCell}</td>
-      <td class="td-green">${v.wagerAmount ? '$'+Number(v.wagerAmount).toLocaleString() : '—'}</td>
+      <td class="td-green">${v.wagerAmount ? '$'+Number(v.wagerAmount).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>
       <td style="color:var(--text-dim);">${ts}</td>
       <td style="display:flex;gap:4px;justify-content:flex-end;">
         <button class="btn btn-ghost btn-sm" onclick="recheckVerified('${id}', this)" title="Re-check this user's affiliate status against the current leaderboard">↻</button>
@@ -6875,9 +7107,15 @@ function _lbYmd(ms) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Cached SAVED snapshots (the authoritative standings viewers saw + prizes were paid
+// on), keyed by the dropdown's "<from>:<to>" value. Rendering a past period from this
+// makes the dashboard match the public leaderboard to the cent — a live Gambulls
+// date-range re-query counts the boundary day by full calendar days and won't match.
+const _lbPeriodSnapshots = {};
+
 // Fill the Wager Rankings period dropdown with the streamer's OWN finished periods
-// (from leaderboard_periods — including custom-length ones). Each option carries the
-// period's real from:to dates, queried live via Gambulls' date-range endpoint.
+// (from leaderboard_periods — including custom-length ones). Each past option renders
+// the SAVED snapshot, so the dashboard shows exactly what the public leaderboard did.
 async function _populateLbPeriods() {
   const sel = document.getElementById('lbPeriodSelect');
   if (!sel || sel.dataset.filled) return;
@@ -6895,7 +7133,9 @@ async function _populateLbPeriods() {
       const from  = _lbYmd(p.startDate);
       const to    = _lbYmd(p.endDate - 1);   // endDate is the exclusive boundary
       const label = p.period || `${from} – ${to}`;
-      html += `<option value="${from}:${to}">${escHtml(label)}</option>`;
+      const val   = `${from}:${to}`;
+      _lbPeriodSnapshots[val] = Array.isArray(p.winners) ? p.winners : [];
+      html += `<option value="${val}">${escHtml(label)}</option>`;
     }
   } catch (e) { /* leave just "Current" */ }
   sel.innerHTML = html;
@@ -6913,13 +7153,25 @@ async function loadWagerRankings() {
   const isPast    = !!periodVal;
   wrap.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Loading...</div>';
   try {
-    let url = `/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1`;
+    let data;
     if (isPast) {
-      // Past period option value is "<from>:<to>" (YYYY-MM-DD) → Gambulls date-range.
-      const [from, to] = periodVal.split(':');
-      url += `&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+      // Past period → render the SAVED snapshot (the exact standings viewers saw and
+      // prizes were paid on) so it matches the public leaderboard to the cent. A live
+      // Gambulls date-range would count the boundary day by full calendar days and
+      // never line up. Fall back to the date-range only if no snapshot was stored.
+      const winners = _lbPeriodSnapshots[periodVal];
+      if (winners && winners.length) {
+        data = { rankings: winners.map((w) => ({ rank: w.rank, username: w.username, wagered: w.wagered })) };
+      } else {
+        const [from, to] = periodVal.split(':');
+        const url = `/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+        data = await (await fetch(url)).json();
+      }
+    } else {
+      // Current period → the live baselined board, identical to the public leaderboard.
+      const url = `/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1`;
+      data = await (await fetch(url)).json();
     }
-    const data = await (await fetch(url)).json();
     if (!data.rankings || !data.rankings.length) {
       wrap.innerHTML = `<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">${data.error || 'No wager data for this period.'}</div>`;
       return;
@@ -8394,7 +8646,16 @@ function _applySlots(slots, source) {
   const extras = (_UNUSED_LEGACY || [])
     .filter(s => !liveNames.has(s.name.toLowerCase().trim()))
     .map(s => ({ id: null, name: s.name, provider: s.provider, gameId: null, bonusBuy: false, maxWin: null, exclusive: null }));
-  BH_SLOTS = [...slots, ...extras];
+  // De-dupe: the same name+provider can appear twice after the live+legacy merge.
+  // Keep the richer row (prefer one that has a thumbnail / gameId).
+  const _byKey = new Map();
+  for (const s of [...slots, ...extras]) {
+    const k = (s.name || '').toLowerCase().trim() + '|' + (s.provider || '').toLowerCase().trim();
+    const prev = _byKey.get(k);
+    if (!prev) { _byKey.set(k, s); continue; }
+    if ((s.thumbnailUrl && !prev.thumbnailUrl) || (s.gameId && !prev.gameId)) _byKey.set(k, s);
+  }
+  BH_SLOTS = [..._byKey.values()];
   BH_SLOTS_SOURCE = source;
   const el = document.getElementById('spCatalogSource');
   if (el) el.textContent = source === 'live' ? '🟢 Live catalog' : source === 'cache' ? '🟡 Cached catalog' : '⚪ Static list';
@@ -12672,10 +12933,12 @@ function spPrettyProvider(p) {
 // this key; spApplyFilters matches s.provider on it, so every variant is included.
 function spProvKey(p) { return spPrettyProvider(p || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
 
+let spSelectedProviders = new Set(); // normalized provider keys; empty = All Providers
+let spProvGroups = [];               // [{key, display}] deduped + sorted
+
 function spBuildProviderFilter() {
-  const sel = document.getElementById('spProviderFilter');
-  if (!sel) return;
-  // Group raw providers by normalized key; keep the nicest-cased display per group.
+  // Group raw providers by normalized key; keep the nicest-cased display per group
+  // (this is what de-dupes studio-name variants into one entry).
   const groups = new Map();
   for (const s of BH_SLOTS) {
     const key = spProvKey(s.provider);
@@ -12685,11 +12948,57 @@ function spBuildProviderFilter() {
     const g = groups.get(key);
     if (!g || score > g.score) groups.set(key, { display: disp, score });
   }
-  const entries = [...groups.entries()].sort((a, b) => a[1].display.localeCompare(b[1].display));
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">All Providers</option>' +
-    entries.map(([key, g]) => `<option value="${escHtml(key)}"${key === cur ? ' selected' : ''}>${escHtml(g.display)}</option>`).join('');
+  spProvGroups = [...groups.entries()].map(([key, g]) => ({ key, display: g.display }))
+    .sort((a, b) => a.display.localeCompare(b.display));
+  // Drop any selected keys that no longer exist in the (re)loaded catalog.
+  spSelectedProviders = new Set([...spSelectedProviders].filter(k => groups.has(k)));
+  spRenderProvMenu();
+  spUpdateProvLabel();
 }
+
+function spRenderProvMenu() {
+  const box = document.getElementById('spProvOptions');
+  if (!box) return;
+  const q = (document.getElementById('spProvSearch')?.value || '').toLowerCase().trim();
+  const list = q ? spProvGroups.filter(g => g.display.toLowerCase().includes(q)) : spProvGroups;
+  box.innerHTML = list.map(g => `
+    <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:13px;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background=''">
+      <input type="checkbox" value="${escHtml(g.key)}" ${spSelectedProviders.has(g.key) ? 'checked' : ''} onchange="spToggleProvider(this)" style="width:14px;height:14px;accent-color:var(--accent);flex-shrink:0;">
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(g.display)}</span>
+    </label>`).join('') || '<div style="padding:10px;color:var(--text-dim);font-size:12px;">No providers match.</div>';
+}
+
+function spToggleProvider(cb) {
+  if (cb.checked) spSelectedProviders.add(cb.value); else spSelectedProviders.delete(cb.value);
+  spUpdateProvLabel();
+  spApplyFilters();
+}
+function spClearProviders() {
+  spSelectedProviders.clear();
+  spRenderProvMenu(); spUpdateProvLabel(); spApplyFilters();
+}
+function spUpdateProvLabel() {
+  const el = document.getElementById('spProviderBtnLabel');
+  if (!el) return;
+  const n = spSelectedProviders.size;
+  if (n === 0) el.textContent = 'All Providers';
+  else if (n === 1) { const g = spProvGroups.find(x => x.key === [...spSelectedProviders][0]); el.textContent = g ? g.display : '1 provider'; }
+  else el.textContent = `${n} providers`;
+}
+function spToggleProvMenu(ev) {
+  if (ev) ev.stopPropagation();
+  const menu = document.getElementById('spProviderMenu');
+  if (!menu) return;
+  const open = menu.style.display !== 'none';
+  menu.style.display = open ? 'none' : 'block';
+  if (!open) { const s = document.getElementById('spProvSearch'); if (s) { s.value = ''; spRenderProvMenu(); setTimeout(() => s.focus(), 0); } }
+}
+// Close the provider menu on an outside click.
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('spProvWrap');
+  const menu = document.getElementById('spProviderMenu');
+  if (wrap && menu && menu.style.display !== 'none' && !wrap.contains(e.target)) menu.style.display = 'none';
+});
 
 let spSpinning = false;
 
@@ -12698,13 +13007,12 @@ const SP_REEL_LEN = 20;
 const SP_WIN_IDX  = 16; // winner lands here; a few decoys trail it to fill the right side
 
 function spApplyFilters() {
-  const provider  = document.getElementById('spProviderFilter')?.value  || '';
   const mode      = document.getElementById('spExclusiveFilter')?.value || ''; // '' | 'stake' | 'stakeengine'
   const bonusBuy  = document.getElementById('spBonusBuyFilter')?.checked || false;
   const search    = (document.getElementById('spSearchFilter')?.value || '').trim().toLowerCase();
 
   spPool = BH_SLOTS.filter(s => {
-    if (provider && spProvKey(s.provider) !== provider) return false;
+    if (spSelectedProviders.size && !spSelectedProviders.has(spProvKey(s.provider))) return false;
     if (mode === 'stake'       && s.exclusive !== 'stake')   return false;
     if (mode === 'stakeengine' && !spIsStakeEngine(s.provider)) return false;
     if (mode === 'shuffle'     && !(s.thumbnailUrl || '').includes('shuffle-com')) return false;

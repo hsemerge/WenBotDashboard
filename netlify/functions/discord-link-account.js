@@ -168,10 +168,14 @@ exports.handler = async (event) => {
       linkedAt: Date.now(),
     });
 
-  // Assign the verified role now that they're a member (idempotent). Needs the
-  // bot to have Manage Roles + a higher role than the target; non-fatal on fail.
+  // Assign the verified role (idempotent). We attempt it regardless of our own
+  // membership detection: reading /users/@me/guilds is unreliable for users in
+  // many servers (it can wrongly report "not a member"), which used to make us
+  // skip the role for people who ARE in the server. The role PUT itself is the
+  // source of truth — it succeeds if they're a member and harmlessly 404s if not.
+  // Needs the bot to have Manage Roles + a higher role than the target.
   let roleAssigned = false;
-  if (verifyCfg.assignRole && verifyCfg.roleId && isMember) {
+  if (verifyCfg.assignRole && verifyCfg.roleId) {
     try {
       const roleResp = await fetch(
         `https://discord.com/api/v10/guilds/${guildId}/members/${discordUserId}/roles/${verifyCfg.roleId}`,

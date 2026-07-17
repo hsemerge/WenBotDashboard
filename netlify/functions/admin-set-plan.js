@@ -45,8 +45,13 @@ exports.handler = async (event) => {
   } else {
     // Release back to Stripe: clear the manual lock. Reflect the current real
     // subscription state (active sub keeps its plan; otherwise drop to starter).
+    // Exception: a crypto-paying customer (has paid invoices) keeps their plan —
+    // they aren't on Stripe, so "starter" would wrongly strip a plan they pay for.
     update.planManual = false;
-    if (!cur.stripeSubscriptionActive) update.plan = "starter";
+    if (!cur.stripeSubscriptionActive) {
+      const paidInv = await ref.collection("invoices").where("status", "==", "paid").limit(1).get();
+      if (paidInv.empty) update.plan = "starter";
+    }
   }
 
   await ref.set(update, { merge: true });

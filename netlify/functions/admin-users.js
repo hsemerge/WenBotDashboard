@@ -46,6 +46,12 @@ exports.handler = async (event) => {
       paymentCount:       s.paymentCount || 0,
       lastPaymentAt:      ms(s.lastPaymentAt),
       kickConnectedAt:    ms(s.kickConnectedAt),
+      // Billing/renewals: next payment date. Stripe subs come from the webhook;
+      // crypto subs advance on admin-confirm. Either drives the "Due Soon" view.
+      stripeSubscribed:   !!s.stripeSubscriptionId,
+      stripePeriodEnd:    ms(s.stripePeriodEnd),
+      cryptoNextDue:      ms(s.cryptoBillingNextDue),
+      cryptoBilling:      !!s.cryptoBilling,
     };
   });
 

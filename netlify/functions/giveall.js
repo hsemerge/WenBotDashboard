@@ -7,6 +7,9 @@
 // Requires the Netlify env var WENBOT_SERVER_URL = the WenBot server base URL
 // (e.g. https://wenbot-production.up.railway.app).
 
+const { getDb }          = require("./_lib/firebase");
+const { checkRateLimit } = require("./_lib/http");
+
 function res(statusCode, body) {
   return {
     statusCode,
@@ -24,6 +27,10 @@ exports.handler = async (event) => {
 
   const base = process.env.WENBOT_SERVER_URL;
   if (!base) return res(500, { error: "Webhook not configured (WENBOT_SERVER_URL missing)" });
+
+  // Throttle by IP so the per-streamer token can't be brute-forced through the proxy.
+  const ip = event.headers["x-forwarded-for"]?.split(",")[0].trim() || "unknown";
+  if (!(await checkRateLimit(getDb(), ip, "giveall_proxy", 20, 60))) return res(429, { error: "Too many requests" });
 
   const token  = (event.queryStringParameters?.token  || "").trim();
   const amount = (event.queryStringParameters?.amount || "").trim();

@@ -55,6 +55,22 @@ exports.handler = async (event) => {
     });
   } catch { payments = []; }
 
+  // Manual/crypto invoices issued to this streamer (newest first).
+  let invoices = [];
+  try {
+    const is = await ref.collection("invoices").orderBy("createdAt", "desc").limit(100).get();
+    invoices = is.docs.map((d) => {
+      const v = d.data();
+      return {
+        id: d.id, number: v.number || null, amount: v.amount || 0, description: v.description || "",
+        method: v.method || "crypto", status: v.status || "unpaid", createdAt: ms(v.createdAt),
+        dueAt: ms(v.dueAt), paidAt: ms(v.paidAt), recurring: !!v.recurring,
+        paymentSubmitted: !!v.paymentSubmitted, txHash: v.txHash || null,
+        paymentSubmittedAt: ms(v.paymentSubmittedAt),
+      };
+    });
+  } catch { invoices = []; }
+
   // Who referred them (resolve channel for display).
   let referredByChannel = null;
   if (data.referredBy) {
@@ -72,5 +88,10 @@ exports.handler = async (event) => {
     totalPaid:         data.totalPaid || 0,
     referrals,
     payments,
+    invoices,
+    plan:                 data.plan || "starter",
+    stripeSubscribed:     !!data.stripeSubscriptionId,
+    stripePeriodEnd:      ms(data.stripePeriodEnd),
+    cryptoBillingNextDue: ms(data.cryptoBillingNextDue),
   });
 };

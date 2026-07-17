@@ -7,15 +7,17 @@
 // adds show instantly on the overlay, portal, and Guess-the-Balance. The token
 // (from /api/extension-pair) maps to the streamer's uid; tokens are revocable.
 
-const { getDb, admin } = require("./_lib/firebase");
-const { res }          = require("./_lib/http");
+const { getDb, admin }        = require("./_lib/firebase");
+const { res, checkRateLimit } = require("./_lib/http");
 
 function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
 async function resolveToken(db, token) {
-  if (!token) return null;
+  // Validate format before hitting Firestore: a token containing "/" makes an
+  // odd-segment doc path (throws → 500), and junk lengths are never valid tokens.
+  if (!token || token.length < 8 || token.length > 128 || /[^A-Za-z0-9_-]/.test(token)) return null;
   const snap = await db.collection("extension_tokens").doc(token).get();
   if (!snap.exists) return null;
   snap.ref.update({ lastUsedAt: Date.now() }).catch(() => {}); // best-effort
@@ -27,6 +29,10 @@ exports.handler = async (event) => {
   if (event.httpMethod !== "POST")    return res(405, { error: "Method not allowed" }, "*");
 
   const db = getDb();
+  // Throttle by IP so the token endpoint can't be brute-forced unmetered.
+  const ip = event.headers["x-forwarded-for"]?.split(",")[0].trim() || "unknown";
+  if (!(await checkRateLimit(db, ip, "ext_bonus_hunt", 60, 60))) return res(429, { error: "Too many requests" }, "*");
+
   const token = (event.headers["x-wenbot-ext-token"] || "").trim();
   const auth = await resolveToken(db, token);
   if (!auth) return res(401, { error: "Extension not connected. Re-pair in the popup." }, "*");

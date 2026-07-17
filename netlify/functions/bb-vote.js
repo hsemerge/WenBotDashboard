@@ -63,50 +63,52 @@ exports.handler = async (event) => {
     if (pointsNum < (battle.minBet || 1))    return res(400, { error: `Minimum bet is ${battle.minBet} pts` });
     if (pointsNum > (battle.maxBet || 99999)) return res(400, { error: `Maximum bet is ${battle.maxBet} pts` });
 
-    // 6. Existing vote check
-    const voteId      = `${matchId}_${userKey}`;
-    const existingDoc = await db.collection("streamers").doc(uid).collection("bb_votes").doc(voteId).get();
-    if (existingDoc.exists) return res(400, { error: "You already voted on this match" });
+    // 6-8. Do the existing-vote check, balance check, point deduction, vote
+    // record, and pool update ATOMICALLY in one transaction. A plain read-then-
+    // batch let two concurrent votes both pass a stale balance check and both
+    // deduct (double-spend → negative balance); the transaction re-reads inside
+    // and only one can win.
+    const voteId    = `${matchId}_${userKey}`;
+    const viewerRef = db.collection("streamers").doc(uid).collection("viewers").doc(userKey);
+    const voteRef   = db.collection("streamers").doc(uid).collection("bb_votes").doc(voteId);
+    const battleRef = db.collection("streamers").doc(uid).collection("bonus_battles").doc("current");
+    const poolKey   = choiceNum === 1 ? "slot1Pool"  : "slot2Pool";
+    const votesKey  = choiceNum === 1 ? "slot1Votes" : "slot2Votes";
 
-    // 7. Points check
-    const viewerDoc    = await db.collection("streamers").doc(uid).collection("viewers").doc(userKey).get();
-    const currentPoints = viewerDoc.exists ? (viewerDoc.data().points || 0) : 0;
-    if (currentPoints < pointsNum) return res(400, { error: `Not enough points. You have ${currentPoints.toLocaleString()} pts` });
+    let newBalance;
+    try {
+      newBalance = await db.runTransaction(async (txn) => {
+        const [voteSnap, viewerSnap, bSnap] = await Promise.all([
+          txn.get(voteRef), txn.get(viewerRef), txn.get(battleRef),
+        ]);
+        if (voteSnap.exists) throw new Error("ALREADY_VOTED");
+        const cur = viewerSnap.exists ? (viewerSnap.data().points || 0) : 0;
+        if (cur < pointsNum) throw new Error("INSUFFICIENT");
+        const b  = bSnap.exists ? bSnap.data() : battle;
+        const mt = (b.matches || []).find(m => m.id === matchId);
+        if (!mt || mt.status !== "voting") throw new Error("MATCH_CLOSED");
+        const matches = (b.matches || []).map(m => m.id === matchId ? {
+          ...m,
+          [poolKey]:  (m[poolKey]  || 0) + pointsNum,
+          [votesKey]: (m[votesKey] || 0) + 1,
+        } : m);
+        txn.update(viewerRef, { points: admin.firestore.FieldValue.increment(-pointsNum) });
+        txn.set(voteRef, {
+          kickUsername, kickUsernameKey: userKey,
+          matchId, choice: choiceNum, points: pointsNum,
+          paid: false, payout: null, createdAt: Date.now(),
+        });
+        txn.update(battleRef, { matches, updatedAt: Date.now() });
+        return cur - pointsNum;
+      });
+    } catch (e) {
+      if (e.message === "ALREADY_VOTED") return res(400, { error: "You already voted on this match" });
+      if (e.message === "INSUFFICIENT")  return res(400, { error: "Not enough points" });
+      if (e.message === "MATCH_CLOSED")  return res(400, { error: "Voting is not open for this match" });
+      throw e;
+    }
 
-    // 8. Batch: deduct points + record vote + update match pools
-    const batch = db.batch();
-
-    batch.update(
-      db.collection("streamers").doc(uid).collection("viewers").doc(userKey),
-      { points: admin.firestore.FieldValue.increment(-pointsNum) }
-    );
-
-    batch.set(
-      db.collection("streamers").doc(uid).collection("bb_votes").doc(voteId),
-      {
-        kickUsername, kickUsernameKey: userKey,
-        matchId, choice: choiceNum, points: pointsNum,
-        paid: false, payout: null, createdAt: Date.now(),
-      }
-    );
-
-    const poolKey  = choiceNum === 1 ? "slot1Pool"  : "slot2Pool";
-    const votesKey = choiceNum === 1 ? "slot1Votes" : "slot2Votes";
-    const matches  = (battle.matches || []).map(m => m.id === matchId ? {
-      ...m,
-      [poolKey]:  (m[poolKey]  || 0) + pointsNum,
-      [votesKey]: (m[votesKey] || 0) + 1,
-    } : m);
-
-    batch.update(
-      db.collection("streamers").doc(uid).collection("bonus_battles").doc("current"),
-      { matches, updatedAt: Date.now() }
-    );
-
-    await batch.commit();
-
-    const slotName   = choiceNum === 1 ? match.slot1.name : match.slot2.name;
-    const newBalance = currentPoints - pointsNum;
+    const slotName = choiceNum === 1 ? match.slot1.name : match.slot2.name;
 
     logAudit(uid, "bb_vote", {
       kickUsername, matchId, choice: choiceNum, points: pointsNum, slotName,
