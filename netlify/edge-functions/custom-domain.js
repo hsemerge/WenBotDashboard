@@ -56,6 +56,30 @@ export default async (request, context) => {
   if (bespoke) {
     if (path.startsWith("/portals/")) return; // already the page itself
     url.pathname = bespoke;
+
+    // Shareable board deep links (megrewards.com/csgobig, /degen). The page reads
+    // the path on load and opens that board. For /csgobig we also rewrite the
+    // OpenGraph/Twitter tags so link-unfurls (Discord/X) show the GOLD CSGOBig
+    // artwork + title instead of the default purple MegRewards card — the URL
+    // fragment (#csgobig) can't do this because crawlers never receive it.
+    const CSGOBIG_OG = {
+      slugs: new Set(["irishqueenoftheslots"]),
+    };
+    if (path === "/csgobig" && CSGOBIG_OG.slugs.has(slug)) {
+      const res  = await context.rewrite(url.toString());
+      let   html = await res.text();
+      const origin = `${url.protocol}//${host}`;
+      html = html
+        .split(`${origin}/portals/${slug}/assets/megrewards-poster.jpg`)
+        .join(`${origin}/portals/${slug}/assets/csgobig-og.png`)
+        .split("MegRewards — Wager Race")
+        .join("MegRewards × CSGOBig — Monthly Coin Race");
+      const headers = new Headers(res.headers);
+      headers.delete("content-length");   // body length changed
+      headers.delete("content-encoding"); // body is now decoded text
+      return new Response(html, { status: res.status, headers });
+    }
+
     return context.rewrite(url.toString());
   }
 

@@ -343,10 +343,10 @@
 <body>
 <canvas id="starfield"></canvas>
 <script>
-  // Deep-linked #csgobig must paint gold from the FIRST frame — apply the theme
-  // class before the hero/nav markup below ever renders, so there's no purple
-  // flash while the data request is in flight.
-  if (location.hash === '#csgobig') {
+  // Deep-linked CSGOBig — either the /csgobig path (shareable, unfurl-friendly)
+  // or the #csgobig hash — must paint gold from the FIRST frame, before the
+  // hero/nav markup renders, so there's no purple flash during the data fetch.
+  if (location.pathname.replace(/\/+$/, '') === '/csgobig' || location.hash === '#csgobig') {
     document.body.classList.add('theme-csgobig');
     window.__activeBoard = 'csgobig';
   }
@@ -615,7 +615,12 @@
   window.navBoard = function (which) {
     renderBoard(which);
     showView('main');
-    history.replaceState(null, '', which === 'csgobig' ? '#csgobig' : '#degen');
+    // Keep the URL shareable + consistent on reload. If we arrived via a path
+    // deep link (/csgobig or /degen — custom domain), update the PATH so a reload
+    // stays on the same board; otherwise use the hash (works on any origin).
+    const onPathRoute = /^\/(csgobig|degen)\/?$/.test(location.pathname);
+    if (onPathRoute) history.replaceState(null, '', '/' + which);
+    else history.replaceState(null, '', which === 'csgobig' ? '#csgobig' : '#degen');
     window.scrollTo(0, 0); // instant — no scroll animation, just show the page from the top
     return false;
   };
@@ -1174,9 +1179,12 @@
     // Store both and let the viewer switch tabs; renderBoard() owns the countdown,
     // hero prize, heading, podium + table for whichever board is active.
     window.__boards = { degen: s.leaderboard || null, csgobig: s.leaderboard2 || null };
-    // Deep link: megrewards.com/#csgobig (or #degen) lands directly on that board.
-    if (!window.__routedOnce && (location.hash === '#csgobig' || location.hash === '#degen')) {
-      window.__activeBoard = location.hash.slice(1);
+    // Deep link: /csgobig or /degen (shareable paths) and #csgobig / #degen both
+    // land directly on that board.
+    if (!window.__routedOnce) {
+      const p = location.pathname.replace(/\/+$/, '');
+      if (p === '/csgobig' || location.hash === '#csgobig') window.__activeBoard = 'csgobig';
+      else if (p === '/degen' || location.hash === '#degen') window.__activeBoard = 'degen';
     }
     renderLinks(s);
     // Default to Degen on first load; keep the viewer's chosen tab across refreshes.
