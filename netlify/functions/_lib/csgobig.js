@@ -38,6 +38,9 @@ async function fetchCsgobigRace(code, fromMs, toMs) {
     rankings,
     totalWagered: rankings.reduce((s, e) => s + e.wagered, 0),
     totalUsers:   rankings.length,
+    // First raw entry, untouched — kept in cache so we can see every field
+    // CSGOBig actually sends (their docs don't enumerate them).
+    raw0: data.results[0] || null,
   };
 }
 

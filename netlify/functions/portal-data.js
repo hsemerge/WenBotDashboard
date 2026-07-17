@@ -514,6 +514,7 @@ exports.handler = async (event) => {
             leaderboard2.rankings     = (cb.rankings || []).map((r) => ({ rank: r.rank, name: r.username, wagerAmount: r.wagered, avatarUrl: r.avatarUrl, prize: 0 }));
             leaderboard2.totalUsers   = cb.totalUsers;
             leaderboard2.totalWagered = cb.totalWagered;
+            leaderboard2.raw0         = cb.raw0 || null; // full field set of the top entry (diagnostics)
           }
         } catch (err) { console.warn("[portal-data] csgobig fetch failed:", err.message); }
       }

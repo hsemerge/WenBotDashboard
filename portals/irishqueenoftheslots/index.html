@@ -280,6 +280,8 @@
   body.theme-csgobig .hero .prize { text-shadow:0 0 30px rgba(232,179,60,.5); }
   /* The CSGOBig hero video is 1280×694 — keep its native ratio (no banner crop). */
   #heroBannerCsgo { aspect-ratio:1280/694; max-height:640px; margin:0 auto; }
+  /* Inline CSGOBig coin icon next to wager amounts (CSGOBig board only). */
+  .coin-ic { width:22px; height:22px; vertical-align:-5px; border-radius:50%; }
   /* Soften the theme swap. */
   body, .cd-cell, .pod, .linkbar, .linkbar a, .lb-row, nav, footer { transition:background-color .35s, border-color .35s, color .35s; }
 
@@ -458,8 +460,10 @@
   const money = n => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   // Wager formatter for the leaderboard: Degen wagers are USD; CSGOBig's
   // wagerTotal is in site COINS (confirmed by their devs) — never show a $.
+  // Coin icon is Meg's CSGOBig chip art (csgocoin.png).
+  const COIN_IMG = '<img class="coin-ic" src="/portals/irishqueenoftheslots/assets/csgocoin.png" alt="coins">';
   const fmtWager = n => (window.__activeBoard === 'csgobig')
-    ? '🪙 ' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })
+    ? COIN_IMG + ' ' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })
     : money(n);
   const initials = s => (s || '?').slice(0, 2).toUpperCase();
   // Privacy mask for viewer-facing names: first 2 + asterisks + last 1
@@ -573,11 +577,15 @@
     ).join('');
   }
 
-  // Nav-tab click: switch the board (which also re-themes the site) and jump to
-  // the leaderboard section.
+  // Nav-tab click: switch the board (which also re-themes the site), make the
+  // URL shareable (#degen / #csgobig deep links), and jump to the leaderboard.
   window.navBoard = function (which) {
     renderBoard(which);
-    return goTo('#leaderboard');
+    showView('main');
+    history.replaceState(null, '', which === 'csgobig' ? '#csgobig' : '#degen');
+    const el = document.getElementById('leaderboard');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return false;
   };
 
   // Hash router. Each id in PAGE_VIEWS is a standalone full-page view (its own
@@ -1115,6 +1123,10 @@
     // Store both and let the viewer switch tabs; renderBoard() owns the countdown,
     // hero prize, heading, podium + table for whichever board is active.
     window.__boards = { degen: s.leaderboard || null, csgobig: s.leaderboard2 || null };
+    // Deep link: megrewards.com/#csgobig (or #degen) lands directly on that board.
+    if (!window.__routedOnce && (location.hash === '#csgobig' || location.hash === '#degen')) {
+      window.__activeBoard = location.hash.slice(1);
+    }
     renderLinks(s);
     // Default to Degen on first load; keep the viewer's chosen tab across refreshes.
     renderBoard(window.__boards[window.__activeBoard] ? window.__activeBoard : 'degen');
