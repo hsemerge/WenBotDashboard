@@ -36,7 +36,19 @@
   let wantDock = true; // user PREFERENCE (persisted): embed the panel under the slot
                        // (default). Sites without an anchorSel always fall back to float.
   let docked = false;  // whether the panel is CURRENTLY embedded in the page
-  let _collapsed = false; // user minimized to the pill
+  let _collapsed = false; // user minimized to the pill (persisted)
+  let _offSlot = null;    // null=unknown · true=off a slot (auto corner pill) · false=on a slot
+  let _mountedAt = 0;     // load time — brief grace before auto-pilling so it never flashes on a slot page
+
+  // Show the small corner pill (auto-minimized, e.g. off a slot). Distinct from the
+  // user's manual minimize (_collapsed); doesn't persist.
+  function goPill() {
+    docked = false;
+    root.classList.remove("wbc-docked");
+    ["position", "left", "top", "right", "bottom", "width", "max-width", "margin", "box-shadow"].forEach((p) => root.style.removeProperty(p));
+    root.style.display = "none";
+    pill.style.display = "block";
+  }
   // Start hidden and only fade in once we've actually placed it (game rendered) — stops
   // the "pops in over a still-loading page" tackiness.
   function reveal() {
@@ -129,6 +141,7 @@
   }
 
   function mount() {
+    _mountedAt = Date.now();
     document.body.appendChild(root);
     document.body.appendChild(pill);
     root.style.display = "none"; // stay hidden until placed (see reveal())
@@ -153,25 +166,43 @@
   }
 
   // ---- auto-anchor under the game -----------------------------------------
-  function gameRect() {
+  function gameEl() {
     let el = site && site.gameSel ? document.querySelector(site.gameSel) : null;
     if (!el) {
       let best = null, area = 0;
       document.querySelectorAll("iframe, canvas").forEach((n) => {
         const r = n.getBoundingClientRect();
         const a = r.width * r.height;
-        if (a > area && r.width >= 260 && r.height >= 180 && r.top < innerHeight && r.bottom > 0) { best = n; area = a; }
+        if (a > area && r.width >= 220 && r.height >= 150 && r.bottom > -200 && r.top < innerHeight + 200) { best = n; area = a; }
       });
       el = best;
     }
-    return el ? el.getBoundingClientRect() : null;
+    return el;
   }
+  function gameRect() { const el = gameEl(); return el ? el.getBoundingClientRect() : null; }
   // ---- dock (embed in the page under the slot) vs float --------------------
   // wantDock = the user's PREFERENCE (persisted). docked = whether we're CURRENTLY
   // embedded. They differ briefly while the SPA is still rendering the game — we keep
   // retrying (see maintainDock) until the anchor exists, then embed.
   function findAnchor() {
-    if (!site || !site.anchorSel) return null;
+    if (!site || !site.anchorSel) return null;   // float-only sites intentionally have no anchor
+    // Prefer anchoring to the game element's own context — querySelector(anchorSel)
+    // alone can match an unrelated element with the same class (bar in the wrong spot
+    // or missed entirely). Detecting the game first is what makes "dock under the slot"
+    // work reliably across site variants.
+    const g = gameEl();
+    if (g) {
+      try { const c = g.closest(site.anchorSel); if (c) return c; } catch {}
+      // else the game's own reasonably-sized block container
+      let el = g;
+      for (let i = 0; i < 4 && el.parentElement && el.parentElement !== document.body; i++) {
+        const r = el.getBoundingClientRect();
+        if (r.width >= 260 && r.height >= 150) return el;
+        el = el.parentElement;
+      }
+      return g;
+    }
+    // Game not detected yet (still loading) — try the raw selector as an early hint.
     try { return document.querySelector(site.anchorSel); } catch { return null; }
   }
   function updateDockBtn() {
@@ -182,11 +213,11 @@
   // false (and floats as a fallback) when the anchor isn't on the page yet.
   function dock() {
     const anchor = findAnchor();
-    if (!anchor) { if (docked) floatCard(); return false; }
+    if (!anchor) return false;   // no slot on the page → maintainDock() shows the corner pill
     // First embed waits until the GAME has actually rendered (has size), so the bar
     // doesn't flash in over a still-loading page. Re-docks (already docked) skip this.
-    if (!docked) { const gr = gameRect(); if (!gr || gr.width < 300) return false; }
-    docked = true; manual = false;
+    if (!docked) { const gr = gameRect(); if (!gr || gr.width < 220) return false; }
+    docked = true; manual = false; _offSlot = false; pill.style.display = "none";
     root.classList.add("wbc-docked");
     // Move the SHARED controls into the horizontal bar. Ids are preserved, so every
     // detect/autocomplete/add/refresh function keeps working with no other changes.
@@ -231,13 +262,31 @@
     if (!wantDock) reveal(); // explicit float → show; float-as-load-fallback stays hidden
     console.log("[WenBot] floating");
   }
-  function applyPlacement() { if (wantDock) dock(); else floatCard(); }
+  function applyPlacement() {
+    if (_collapsed) { root.style.display = "none"; pill.style.display = "block"; return; }
+    if (!wantDock) { pill.style.display = "none"; floatCard(); return; }
+    const a = findAnchor();
+    if (a) { if (dock()) { _offSlot = false; pill.style.display = "none"; } }
+    else if (_offSlot !== null || (Date.now() - _mountedAt) >= 4000) { _offSlot = true; goPill(); }
+    // else: still within the first-load grace → stay hidden; maintainDock() pills/docks shortly.
+  }
   // Called on a timer + slot navigation: keep the panel embedded as the SPA re-renders.
   function maintainDock() {
-    if (!wantDock) { anchorToGame(); return; }
+    if (_collapsed) return;                    // user minimized → leave the pill alone
+    if (!wantDock) { if (pill.style.display === "block") pill.style.display = "none"; anchorToGame(); return; }
     const a = findAnchor();
-    if (a) { if (!root.isConnected || root.previousElementSibling !== a) dock(); }
-    else if (docked) floatCard(); // game left the page → float until it returns
+    if (a) {
+      // Slot present → embed under it. Only hide the corner pill once we've ACTUALLY
+      // docked (the game may still be sizing up behind a splash screen), so it can
+      // never get stuck showing the pill on a slot page.
+      const need = !docked || !root.isConnected || root.previousElementSibling !== a;
+      if (!need || dock()) { _offSlot = false; pill.style.display = "none"; }
+    } else {
+      // Off a slot (home page, lobby, or a layout we can't anchor) → small corner pill.
+      // Brief first-load grace so we never flash the pill before the slot's game renders.
+      if (_offSlot === null && (Date.now() - _mountedAt) < 4000) return;
+      if (_offSlot !== true) { _offSlot = true; goPill(); }
+    }
   }
 
   function anchorToGame() {
@@ -406,10 +455,14 @@
   }
   function collapse(on) {
     _collapsed = on;
-    root.style.display = on ? "none" : "";
-    pill.style.display = on ? "block" : "none";
     store.set({ wbcCollapsed: on });
-    if (!on) applyPlacement();
+    if (on) { root.style.display = "none"; pill.style.display = "block"; return; }
+    // Expanding from the pill: dock if we're on a slot, otherwise show a floating card
+    // so the user can still see the HUD off a slot (don't just bounce back to the pill).
+    pill.style.display = "none";
+    const a = wantDock ? findAnchor() : null;
+    if (a) { _offSlot = false; dock(); }
+    else { _offSlot = wantDock ? true : null; floatCard(); root.style.display = ""; }
   }
   function makeDraggable(handle) {
     let sx, sy, ox, oy, drag = false;
