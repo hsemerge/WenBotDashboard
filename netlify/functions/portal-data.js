@@ -146,6 +146,8 @@ const PORTAL_PRESETS = {
     // Window defaults to the current calendar month; set csgobigFrom/csgobigTo (ms) to
     // pin a fixed race window instead.
     csgobigRefCode:    "MEG74637HDKOCUR8464",
+    // Monthly CSGOBig prize ladder, in COINS, rank-indexed (1st → 13th; 5,000 total).
+    csgobigPrizes:     [2000, 1000, 500, 400, 300, 250, 200, 150, 100, 50, 25, 15, 10],
     theme: {
       accent:     "#c43bff",
       accent2:    "#ff4fd8",
@@ -429,6 +431,30 @@ exports.handler = async (event) => {
                 totalUsers:   race.totalUsers,
                 totalWagered: race.totalWagered,
               };
+              // Archive finished races into leaderboard_periods (Winners page).
+              // Degen's API only serves the CURRENT race, so we keep the last-seen
+              // standings in _cache and snapshot them when the race identity flips.
+              try {
+                const dRef = db.collection("_cache").doc(`degen_race_${code}`);
+                const dSnap = await dRef.get();
+                const prev = dSnap.exists ? dSnap.data() : null;
+                const raceChanged = prev && prev.endAt &&
+                  (prev.endAt !== leaderboard.endAt || prev.period !== leaderboard.period);
+                if (raceChanged && Array.isArray(prev.rankings) && prev.rankings.length) {
+                  await db.collection("streamers").doc(uid).collection("leaderboard_periods")
+                    .doc(`degen_${prev.endAt}`).set({
+                      casino: "degen", casinoName: "Degen",
+                      period:  prev.period || "Degen Race",
+                      endDate: prev.endAt,
+                      winners: prev.rankings.slice(0, 10).map((r) => ({
+                        rank: r.rank, username: r.name, wagered: r.wagerAmount || 0,
+                        prize: r.prize || 0, avatarUrl: r.avatarUrl || null,
+                      })),
+                    }, { merge: true });
+                }
+                await dRef.set({ period: leaderboard.period, endAt: leaderboard.endAt,
+                  rankings: leaderboard.rankings, cachedAt: Date.now() });
+              } catch (err) { console.warn("[portal-data] degen archive failed:", err.message); }
             }
           } catch (err) {
             console.warn("[portal-data] degen fetch failed:", err.message);
@@ -493,40 +519,76 @@ exports.handler = async (event) => {
         // Race END for the countdown = end of the calendar month (last ms), which
         // is distinct from `to` (the up-to-now query window for current standings).
         const raceEnd = presetMain.csgobigTo || (Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0) - 1);
+        // Rank-indexed prize ladder (coins) from the preset.
+        const cbPrizes = Array.isArray(presetMain.csgobigPrizes) ? presetMain.csgobigPrizes : [];
+        const cbPrizeFor = (rank) => (Number(cbPrizes[rank - 1]) > 0 ? Number(cbPrizes[rank - 1]) : 0);
         // Base (empty) board — keeps the switch visible regardless of the fetch.
         leaderboard2 = {
           key: "csgobig", label: "CSGOBig", casinoName: "CSGOBig", period: "Monthly Race",
           startAt: from, endAt: raceEnd, rankings: [], totalUsers: 0, totalWagered: 0,
+          prizePool: cbPrizes.reduce((s, v) => s + (Number(v) || 0), 0), // coins
         };
         try {
           const key = `csgobig_${presetMain.csgobigRefCode}_${now.getUTCFullYear()}-${now.getUTCMonth() + 1}`;
           const cacheRef = db.collection("_cache").doc(key);
-          let cb = null;
           // 20-min TTL: CSGOBig's rate limit is keyed PER REF CODE (not per IP), so
-          // every consumer of her code shares one quota — poll as gently as possible.
-          try { const c = await cacheRef.get(); if (c.exists && c.data().data && (Date.now() - c.data().cachedAt) < 20 * 60 * 1000) cb = c.data().data; } catch {}
+          // every consumer of her code shares one quota. Their 429 penalty appears
+          // to RESET on each blocked attempt — so on a stale cache we must not let
+          // every page hit retry upstream (that starves the quota forever). One
+          // attempt per 16 min, tracked via lastAttemptAt; everyone else gets stale.
+          let cb = null, cdoc = null;
+          try { const c = await cacheRef.get(); if (c.exists) cdoc = c.data(); } catch {}
+          if (cdoc && cdoc.data && (Date.now() - cdoc.cachedAt) < 20 * 60 * 1000) cb = cdoc.data;
           if (!cb) {
-            const race = await fetchCsgobigRace(presetMain.csgobigRefCode, from, to);
-            if (race) { cb = race; try { await cacheRef.set({ cachedAt: Date.now(), data: race }); } catch {} }
-            else { try { const c = await cacheRef.get(); if (c.exists && c.data().data) cb = c.data().data; } catch {} } // serve stale
+            const lastTry = (cdoc && cdoc.lastAttemptAt) || 0;
+            if (Date.now() - lastTry > 16 * 60 * 1000) {
+              try { await cacheRef.set({ lastAttemptAt: Date.now() }, { merge: true }); } catch {}
+              const race = await fetchCsgobigRace(presetMain.csgobigRefCode, from, to);
+              if (race) { cb = race; try { await cacheRef.set({ cachedAt: Date.now(), data: race }, { merge: true }); } catch {} }
+            }
+            if (!cb && cdoc && cdoc.data) cb = cdoc.data; // serve stale
           }
           if (cb) {
-            leaderboard2.rankings     = (cb.rankings || []).map((r) => ({ rank: r.rank, name: r.username, wagerAmount: r.wagered, avatarUrl: r.avatarUrl, prize: 0 }));
+            leaderboard2.rankings     = (cb.rankings || []).map((r) => ({ rank: r.rank, name: r.username, wagerAmount: r.wagered, avatarUrl: r.avatarUrl, prize: cbPrizeFor(r.rank) }));
             leaderboard2.totalUsers   = cb.totalUsers;
             leaderboard2.totalWagered = cb.totalWagered;
             leaderboard2.raw0         = cb.raw0 || null; // full field set of the top entry (diagnostics)
           }
         } catch (err) { console.warn("[portal-data] csgobig fetch failed:", err.message); }
+
+        // Archive last month's final CSGOBig standings once (Winners page). The
+        // per-month cache doc naturally holds the last standings seen before the
+        // month rolled; `archived` marks it done so this runs exactly once.
+        try {
+          const pm = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+          const pRef = db.collection("_cache")
+            .doc(`csgobig_${presetMain.csgobigRefCode}_${pm.getUTCFullYear()}-${pm.getUTCMonth() + 1}`);
+          const pSnap = await pRef.get();
+          const pd = pSnap.exists ? pSnap.data() : null;
+          if (pd && !pd.archived && pd.data && (pd.data.rankings || []).length) {
+            const monthName = pm.toLocaleString("en-US", { month: "long", timeZone: "UTC" }) + " " + pm.getUTCFullYear();
+            await db.collection("streamers").doc(uid).collection("leaderboard_periods")
+              .doc(`csgobig_${pm.getUTCFullYear()}-${pm.getUTCMonth() + 1}`).set({
+                casino: "csgobig", casinoName: "CSGOBig",
+                period:  monthName + " Monthly Race",
+                endDate: Date.UTC(pm.getUTCFullYear(), pm.getUTCMonth() + 1, 1) - 1,
+                winners: pd.data.rankings.slice(0, 13).map((r) => ({
+                  rank: r.rank, username: r.username, wagered: r.wagered,
+                  prize: cbPrizeFor(r.rank), avatarUrl: r.avatarUrl || null,
+                })),
+              }, { merge: true });
+            await pRef.set({ archived: true }, { merge: true });
+          }
+        } catch (err) { console.warn("[portal-data] csgobig archive failed:", err.message); }
       }
 
       // Past leaderboard periods (same data /api/leaderboard-winners exposes).
-      // Filter by casino only (single-field, auto-indexed) and sort/slice in JS —
-      // `where(casino==).orderBy(endDate)` needs a composite index that isn't
-      // deployed, which would otherwise throw and silently empty Past Winners.
+      // ALL casinos, not just the primary provider — a streamer can run multiple
+      // boards (e.g. Meg's Degen + CSGOBig) and every finished period belongs on
+      // the Winners page. Sort/slice in JS (no where → no index needed).
       try {
         const periodsSnap = await db.collection("streamers").doc(uid)
           .collection("leaderboard_periods")
-          .where("casino", "==", provider)
           .get();
         leaderboardPeriods = periodsSnap.docs
           .map(d => d.data())
@@ -534,7 +596,8 @@ exports.handler = async (event) => {
           .slice(0, 12)
           .map(p => ({
             period:     p.period || null,
-            casinoName: p.casinoName || CASINO_NAMES[provider] || provider,
+            casino:     p.casino || provider,
+            casinoName: p.casinoName || CASINO_NAMES[p.casino || provider] || p.casino || provider,
             winners:    Array.isArray(p.winners) ? p.winners.map(w => ({
               rank:      w.rank,
               username:  w.username,

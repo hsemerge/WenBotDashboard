@@ -8,6 +8,13 @@
 
 function num(v) { const n = Number(v); return Number.isFinite(n) ? n : 0; }
 
+// CSGOBig returns avatar paths relative to their own site (e.g.
+// "/assets/img/censored_avatar.png") — resolve them so they load on our domain.
+function absUrl(u) {
+  if (!u) return null;
+  return /^https?:\/\//i.test(u) ? u : "https://csgobig.com" + (u.startsWith("/") ? u : "/" + u);
+}
+
 async function fetchCsgobigRace(code, fromMs, toMs) {
   if (!code || !fromMs || !toMs) return null;
   const url = `https://csgobig.com/api/partners/getRefDetails/${encodeURIComponent(code)}?from=${fromMs}&to=${toMs}`;
@@ -28,7 +35,7 @@ async function fetchCsgobigRace(code, fromMs, toMs) {
       username:  e.name || e.username || e.user || "Anonymous",
       // CSGOBig field naming has varied; accept the common spellings defensively.
       wagered:   num(e.wagerTotal ?? e.wagered ?? e.wager ?? e.totalWager ?? e.totalWagered),
-      avatarUrl: e.img || e.avatar || e.imageUrl || e.avatarUrl || null,
+      avatarUrl: absUrl(e.img || e.avatar || e.imageUrl || e.avatarUrl || null),
     }))
     .filter((e) => e.wagered > 0)
     .sort((a, b) => b.wagered - a.wagered)
