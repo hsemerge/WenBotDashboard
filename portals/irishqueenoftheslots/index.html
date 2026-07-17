@@ -609,14 +609,14 @@
     ).join('');
   }
 
-  // Nav-tab click: switch the board (which also re-themes the site), make the
-  // URL shareable (#degen / #csgobig deep links), and jump to the leaderboard.
+  // Nav-tab click: switch the board (which also re-themes the site) and make the
+  // URL shareable (#degen / #csgobig deep links). Land at the TOP of the page —
+  // hero, countdown and podium first — not scrolled down to the table.
   window.navBoard = function (which) {
     renderBoard(which);
     showView('main');
     history.replaceState(null, '', which === 'csgobig' ? '#csgobig' : '#degen');
-    const el = document.getElementById('leaderboard');
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.scrollTo(0, 0); // instant — no scroll animation, just show the page from the top
     return false;
   };
 
