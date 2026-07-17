@@ -18,6 +18,8 @@ const HOST_TO_SLUG = {
   "www.skslots.co.uk": "skslots",
   "irishqueenoftheslots.com":     "irishqueenoftheslots",
   "www.irishqueenoftheslots.com": "irishqueenoftheslots",
+  "megrewards.com":     "irishqueenoftheslots",
+  "www.megrewards.com": "irishqueenoftheslots",
 };
 
 // Bespoke (Agency-tier) portals: a slug here is served from its own hand-built

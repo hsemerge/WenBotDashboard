@@ -8,6 +8,7 @@ const { CASINO_NAMES }       = require("./_lib/casinos");
 const { lookupAffiliate }    = require("./_lib/affiliate");
 const { normalizeGambulls, applyPeriod } = require("./_lib/leaderboard");
 const { fetchDegenRace }     = require("./_lib/degen");
+const { fetchCsgobigRace }   = require("./_lib/csgobig");
 
 const API_CASINOS = new Set(["gambulls"]);
 
@@ -82,13 +83,13 @@ const PORTAL_PRESETS = {
           type: "tiers", title: "Wager Rewards",
           columns: ["Wager", "Reward"],
           tiers: [
+            { wager: "$500",    reward: "$3"  },
             { wager: "$1,000",  reward: "$5"  },
             { wager: "$2,500",  reward: "$10" },
             { wager: "$5,000",  reward: "$15" },
-            { wager: "$7,500",  reward: "$20" },
-            { wager: "$10,000", reward: "$25" },
-            { wager: "$15,000", reward: "$30" },
-            { wager: "$20,000", reward: "$50" },
+            { wager: "$10,000", reward: "$20" },
+            { wager: "$15,000", reward: "$25" },
+            { wager: "$20,000", reward: "SKSlots VIP Access (open a ticket for details)" },
           ],
           note: "Not valid on Blackjack or Baccarat this applies to live & originals. Low-risk originals are recommended.",
         },
@@ -141,6 +142,10 @@ const PORTAL_PRESETS = {
   irishqueenoftheslots: {
     provider:          "degen",
     degenReferralCode: "meg",
+    // Second (switchable) leaderboard: CSGOBig partner API, keyless (ref code in URL).
+    // Window defaults to the current calendar month; set csgobigFrom/csgobigTo (ms) to
+    // pin a fixed race window instead.
+    csgobigRefCode:    "MEG74637HDKOCUR8464",
     theme: {
       accent:     "#c43bff",
       accent2:    "#ff4fd8",
@@ -393,6 +398,7 @@ exports.handler = async (event) => {
 
     // Elite+ features: live leaderboard, bonus battle / tournament state
     let leaderboard = null;
+    let leaderboard2 = null; // secondary switchable board (e.g. CSGOBig)
     let leaderboardPeriods = null; // past monthly winners
     if (tier >= TIER_RANK.elite) {
       // Degen passthrough — the live race (period + per-rank prizes) comes straight
@@ -474,6 +480,44 @@ exports.handler = async (event) => {
         }
       }
 
+      // Secondary, switchable leaderboard: CSGOBig (keyless partner API; ref code in
+      // the preset). Whenever the ref code is configured we ALWAYS expose this board
+      // — even empty — so the portal's Degen/CSGOBig switch is permanent and never
+      // flickers with API availability. CSGOBig rate-limits hard (~15 min), so cache
+      // 10 min in _cache and serve the last good copy on any failure; if there's no
+      // data at all the board simply shows "no wager data yet" under a live toggle.
+      if (presetMain.csgobigRefCode) {
+        const now  = new Date();
+        const from = presetMain.csgobigFrom || Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0);
+        const to   = presetMain.csgobigTo   || Date.now();
+        // Race END for the countdown = end of the calendar month (last ms), which
+        // is distinct from `to` (the up-to-now query window for current standings).
+        const raceEnd = presetMain.csgobigTo || (Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0) - 1);
+        // Base (empty) board — keeps the switch visible regardless of the fetch.
+        leaderboard2 = {
+          key: "csgobig", label: "CSGOBig", casinoName: "CSGOBig", period: "Monthly Race",
+          startAt: from, endAt: raceEnd, rankings: [], totalUsers: 0, totalWagered: 0,
+        };
+        try {
+          const key = `csgobig_${presetMain.csgobigRefCode}_${now.getUTCFullYear()}-${now.getUTCMonth() + 1}`;
+          const cacheRef = db.collection("_cache").doc(key);
+          let cb = null;
+          // 20-min TTL: CSGOBig's rate limit is keyed PER REF CODE (not per IP), so
+          // every consumer of her code shares one quota — poll as gently as possible.
+          try { const c = await cacheRef.get(); if (c.exists && c.data().data && (Date.now() - c.data().cachedAt) < 20 * 60 * 1000) cb = c.data().data; } catch {}
+          if (!cb) {
+            const race = await fetchCsgobigRace(presetMain.csgobigRefCode, from, to);
+            if (race) { cb = race; try { await cacheRef.set({ cachedAt: Date.now(), data: race }); } catch {} }
+            else { try { const c = await cacheRef.get(); if (c.exists && c.data().data) cb = c.data().data; } catch {} } // serve stale
+          }
+          if (cb) {
+            leaderboard2.rankings     = (cb.rankings || []).map((r) => ({ rank: r.rank, name: r.username, wagerAmount: r.wagered, avatarUrl: r.avatarUrl, prize: 0 }));
+            leaderboard2.totalUsers   = cb.totalUsers;
+            leaderboard2.totalWagered = cb.totalWagered;
+          }
+        } catch (err) { console.warn("[portal-data] csgobig fetch failed:", err.message); }
+      }
+
       // Past leaderboard periods (same data /api/leaderboard-winners exposes).
       // Filter by casino only (single-field, auto-indexed) and sort/slice in JS —
       // `where(casino==).orderBy(endDate)` needs a composite index that isn't
@@ -536,6 +580,7 @@ exports.handler = async (event) => {
       portal:      buildPortalConfig(channel, profile, canBrand),
       active,
       leaderboard,
+      leaderboard2,
       leaderboardPeriods,
       // Countdown config set from the dashboard (weekly / bi-weekly / monthly).
       // Distinct from leaderboard.period (a string label) to avoid collision.

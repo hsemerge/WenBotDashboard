@@ -3,20 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Irish Queen of the Slots — Wager Race</title>
-<meta name="description" content="Irish Queen of the Slots — live wager leaderboard, giveaways & rewards. Join the community!">
+<title>MegRewards — Wager Race</title>
+<meta name="description" content="MegRewards — live wager leaderboards, giveaways & rewards. Join the community!">
 <!-- Social / link-unfurl preview (OpenGraph + Twitter). Crawlers don't run JS,
-     so these MUST be Meg's branding — not the skslots defaults the page was cloned from. -->
+     so these MUST be Meg's MegRewards branding — not the skslots defaults the page was cloned from. -->
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Irish Queen of the Slots">
-<meta property="og:title" content="Irish Queen of the Slots — Wager Race">
-<meta property="og:description" content="Live wager leaderboard, giveaways & rewards. Join the community!">
-<meta property="og:url" content="https://irishqueenoftheslots.com/">
-<meta property="og:image" content="https://irishqueenoftheslots.com/portals/irishqueenoftheslots/assets/hero-banner.jpg">
+<meta property="og:site_name" content="MegRewards">
+<meta property="og:title" content="MegRewards — Wager Race">
+<meta property="og:description" content="Live wager leaderboards, giveaways & rewards. Join the community!">
+<meta property="og:url" content="https://megrewards.com/">
+<meta property="og:image" content="https://megrewards.com/portals/irishqueenoftheslots/assets/hero-banner.jpg">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Irish Queen of the Slots — Wager Race">
-<meta name="twitter:description" content="Live wager leaderboard, giveaways & rewards. Join the community!">
-<meta name="twitter:image" content="https://irishqueenoftheslots.com/portals/irishqueenoftheslots/assets/hero-banner.jpg">
+<meta name="twitter:title" content="MegRewards — Wager Race">
+<meta name="twitter:description" content="Live wager leaderboards, giveaways & rewards. Join the community!">
+<meta name="twitter:image" content="https://megrewards.com/portals/irishqueenoftheslots/assets/hero-banner.jpg">
 <link rel="icon" href="/portals/irishqueenoftheslots/assets/logo.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,7 +31,7 @@
 <style>
   *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
   :root {
-    /* Irish Queen of the Slots — deep purple + gold + diamond-pink glam */
+    /* MegRewards (Irish Queen of the Slots) — deep purple + gold + diamond-pink glam */
     --accent:#c43bff; --accent2:#ff4fd8; --gold:#ffd84d;
     --bg:#0b0613; --bg-card:#19102e; --border:#3a2a5c;
     --text:#e8ddff; --dim:#a392c9; --bright:#ffffff;
@@ -246,6 +246,43 @@
   footer { text-align:center; padding:40px 0 30px; color:var(--dim); font-size:12px; }
   footer a { color:var(--accent2); text-decoration:none; }
   .loading,.empty { text-align:center; color:var(--dim); padding:30px; font-size:14px; }
+
+  /* ── LEADERBOARD NAV TABS (Degen ⇄ CSGOBig, live in the top link bar) ────── */
+  .linkbar a.lk-board { font-family:'Exo 2',sans-serif; font-weight:800; letter-spacing:.3px; }
+  .linkbar a.lk-active {
+    color:var(--bright); border-color:var(--accent);
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    box-shadow:0 4px 18px rgba(0,0,0,.45); text-shadow:0 1px 2px rgba(0,0,0,.35);
+  }
+  .linkbar a.lk-active:hover { transform:none; }
+
+  /* ── CSGOBIG THEME — black + gold tactical. Toggled on <body> while the
+        CSGOBig board is active; everything var-driven re-skins automatically,
+        the rules below catch the hard-coded purple bits. ── */
+  body.theme-csgobig {
+    --accent:#e8b33c; --accent2:#f7cf6b; --gold:#ffd76a;
+    --bg:#070502; --bg-card:#171106; --border:#4a3a16;
+    --text:#f0e6cf; --dim:#b3a071; --bright:#ffffff;
+  }
+  body.theme-csgobig .hero-banner {
+    background:#070502; border-color:rgba(232,179,60,.5);
+    animation:bannerPulseGold 6s ease-in-out infinite;
+  }
+  @keyframes bannerPulseGold {
+    0%,100% { box-shadow:0 0 50px rgba(232,179,60,.28), 0 0 110px rgba(255,215,106,.12); }
+    50%     { box-shadow:0 0 82px rgba(232,179,60,.5),  0 0 150px rgba(255,215,106,.24); }
+  }
+  body.theme-csgobig .linkbar a:hover { border-color:var(--accent); background:rgba(232,179,60,.12); }
+  body.theme-csgobig .bonus {
+    color:#1a1206; background:linear-gradient(90deg,var(--accent2),var(--accent));
+    box-shadow:0 0 26px rgba(232,179,60,.45);
+  }
+  body.theme-csgobig .hero .prize { text-shadow:0 0 30px rgba(232,179,60,.5); }
+  /* The CSGOBig hero video is 1280×694 — keep its native ratio (no banner crop). */
+  #heroBannerCsgo { aspect-ratio:1280/694; max-height:640px; margin:0 auto; }
+  /* Soften the theme swap. */
+  body, .cd-cell, .pod, .linkbar, .linkbar a, .lb-row, nav, footer { transition:background-color .35s, border-color .35s, color .35s; }
+
   .hidden { display:none; }
 
   /* ── MOBILE / RESPONSIVE ─────────────────────────────────────────────────
@@ -302,8 +339,8 @@
 <div class="wrap">
   <nav>
     <a class="brand" href="/" id="brandLink">
-      <img id="brandLogo" src="/portals/irishqueenoftheslots/assets/logo.jpg" alt="Irish Queen of the Slots">
-      <div><div class="brand-name" id="brandName">Irish Queen of the Slots</div><div class="brand-sub" id="brandSub">kick.com/irishqueenoftheslots</div></div>
+      <img id="brandLogo" src="/portals/irishqueenoftheslots/assets/logo.jpg" alt="MegRewards">
+      <div><div class="brand-name" id="brandName">MegRewards</div><div class="brand-sub" id="brandSub">kick.com/irishqueenoftheslots</div></div>
     </a>
     <div class="nav-links" id="navLinks"></div>
     <div class="viewer-bar" id="viewerBar">
@@ -327,12 +364,18 @@
   <div id="mainView">
   <div class="hero">
     <div class="hero-banner-wrap">
-      <video class="hero-banner" autoplay loop muted playsinline poster="/portals/irishqueenoftheslots/assets/hero-banner.jpg">
+      <video class="hero-banner" id="heroBannerVideo" autoplay loop muted playsinline poster="/portals/irishqueenoftheslots/assets/hero-banner.jpg">
         <source src="/portals/irishqueenoftheslots/assets/video-banner.mp4" type="video/mp4">
         <source src="/portals/irishqueenoftheslots/assets/video-banner.mov" type="video/quicktime">
       </video>
+      <!-- CSGOBig hero video — shown in place of the Degen video while that board
+           is active. Poster = her CSGOBig artwork, so it looks right while loading. -->
+      <video class="hero-banner hidden" id="heroBannerCsgo" loop muted playsinline preload="metadata"
+             poster="/portals/irishqueenoftheslots/assets/csgobig-hero.png">
+        <source src="/portals/irishqueenoftheslots/assets/csgobig-video.mp4" type="video/mp4">
+      </video>
     </div>
-    <h1 id="heroTitle"><span class="h-emoji">👑</span> IRISH QUEEN OF THE SLOTS</h1>
+    <h1 id="heroTitle"><span class="h-emoji">👑</span> MEGREWARDS</h1>
     <div class="prize" id="heroPrize"></div>
     <div id="heroCtaWrap"></div>
     <div class="countdown" id="countdown" style="display:none;">
@@ -413,6 +456,11 @@
   let viewer = null; // { kickUsername, kickUserId, accessToken } from kick-auth.js session
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const money = n => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Wager formatter for the leaderboard: Degen wagers are USD; CSGOBig's
+  // wagerTotal is in site COINS (confirmed by their devs) — never show a $.
+  const fmtWager = n => (window.__activeBoard === 'csgobig')
+    ? '🪙 ' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })
+    : money(n);
   const initials = s => (s || '?').slice(0, 2).toUpperCase();
   // Privacy mask for viewer-facing names: first 2 + asterisks + last 1
   // (e.g. "Robertc" -> "Ro****c"). "Anonymous" and very short names pass through.
@@ -426,7 +474,9 @@
   // -- Glam sparkle field: drifting, twinkling diamonds in her brand colors --
   (function sparkles() {
     const c = document.getElementById('starfield'), x = c.getContext('2d');
-    const COLORS = ['#c43bff', '#ff4fd8', '#ffd84d', '#e9b8ff', '#ffffff'];
+    // Exposed so the board/theme switcher can recolor the sparkles (it mutates
+    // this array in place, then fires a resize to regenerate the points).
+    const COLORS = window.__starColors = ['#c43bff', '#ff4fd8', '#ffd84d', '#e9b8ff', '#ffffff'];
     const rnd = (a, b) => a + Math.random() * (b - a);
     let w, h, pts;
     function size() {
@@ -488,8 +538,11 @@
     const soc = s.streamer.socials || {};
     const items = []; // [emote, label, href, isExternal]
 
-    // In-page section routes (emote + label).
-    items.push(['🏆', 'Leaderboard', '#leaderboard', false]);
+    // In-page section routes (emote + label). With a second wager race live, the
+    // single "Leaderboard" entry becomes two nav tabs — Degen + CSGOBig — that
+    // switch the active board (and the whole site theme with it).
+    const twoBoards = !!(window.__boards && window.__boards.csgobig);
+    if (!twoBoards) items.push(['🏆', 'Leaderboard', '#leaderboard', false]);
     if (s.features && s.features.store && (s.store?.items || []).length) items.push(['🛒', 'Store', '#store', false]);
     (s.portal?.pages || []).forEach(p => items.push(['🎁', p.label, '#' + p.id, false]));
     if (s.pastWinners && s.pastWinners.length) items.push(['👑', 'Winners', '#winners', false]);
@@ -504,7 +557,13 @@
     // Dedupe by href so a page never shows twice (e.g. Wager Rewards).
     const seen = new Set();
     const bar = document.getElementById('linkbar');
-    bar.innerHTML = items.filter(([, , href]) => {
+    // Board nav tabs go first — highlighted state is kept in sync by renderBoard().
+    const active = window.__activeBoard || 'degen';
+    const boardTabs = twoBoards
+      ? `<a href="#leaderboard" class="lk-board ${active === 'degen' ? 'lk-active' : ''}" data-board="degen" onclick="return navBoard('degen')"><span class="lk-emote">🎰</span>Degen Leaderboard</a>` +
+        `<a href="#leaderboard" class="lk-board ${active === 'csgobig' ? 'lk-active' : ''}" data-board="csgobig" onclick="return navBoard('csgobig')"><span class="lk-emote">🔫</span>CSGOBig Leaderboard</a>`
+      : '';
+    bar.innerHTML = boardTabs + items.filter(([, , href]) => {
       const key = String(href).toLowerCase();
       if (seen.has(key)) return false; seen.add(key); return true;
     }).map(([emote, label, href, ext]) =>
@@ -513,6 +572,13 @@
         : `<a href="${esc(href)}" onclick="return goTo('${esc(href)}')"><span class="lk-emote">${emote}</span>${esc(label)}</a>`
     ).join('');
   }
+
+  // Nav-tab click: switch the board (which also re-themes the site) and jump to
+  // the leaderboard section.
+  window.navBoard = function (which) {
+    renderBoard(which);
+    return goTo('#leaderboard');
+  };
 
   // Hash router. Each id in PAGE_VIEWS is a standalone full-page view (its own
   // <div id="<id>View">); 'main' is the leaderboard home. Anything else is an
@@ -609,7 +675,7 @@
         <div class="nm">${esc(maskName(e.username))}</div>
         <div class="wg-box">
           <div class="wg-lab">Total Wagered</div>
-          <div class="wg">${money(e.wagered)}</div>
+          <div class="wg">${fmtWager(e.wagered)}</div>
         </div>
         ${prize ? `<div class="pod-prize">🏆 ${esc(prize)}</div>` : ''}
       </div>`;
@@ -637,9 +703,94 @@
         ${av}
         <div class="n">${esc(maskName(e.username))}</div>
         ${prize ? `<div class="lb-prize">${esc(prize)}</div>` : ''}
-        <div class="w">${money(e.wagered)}</div>
+        <div class="w">${fmtWager(e.wagered)}</div>
       </div>`;
     }).join('');
+  }
+
+  // ── Leaderboard board switcher ────────────────────────────────────────────
+  // Meg runs two wager races: Degen (primary) and CSGOBig (new). Both come down
+  // in the same portal-data payload (s.leaderboard + s.leaderboard2). We keep both
+  // client-side and re-render podium+table+countdown for whichever tab is active.
+  window.switchBoard = function (which) { renderBoard(which); };
+
+  function renderBoard(which) {
+    const s = window.__S || {};
+    const boards = window.__boards || {};
+    if (!boards[which]) which = 'degen';
+    window.__activeBoard = which;
+    const isCsgobig = which === 'csgobig';
+    const portal = s.portal || {};
+    const hero = portal.hero || {};
+    const lb = boards[which] || {};
+
+    // ── Full site re-theme: CSGOBig = black + gold tactical, Degen = purple glam.
+    document.body.classList.toggle('theme-csgobig', isCsgobig);
+
+    // Nav tab highlight (tabs live in the top link bar).
+    document.querySelectorAll('.lk-board').forEach(b =>
+      b.classList.toggle('lk-active', b.getAttribute('data-board') === which));
+
+    // Hero video: each board has its own — only the active one shows and plays.
+    const vid = document.getElementById('heroBannerVideo');
+    const art = document.getElementById('heroBannerCsgo');
+    if (vid) { vid.classList.toggle('hidden', isCsgobig); if (isCsgobig) vid.pause(); else vid.play().catch(() => {}); }
+    if (art) { art.classList.toggle('hidden', !isCsgobig); if (isCsgobig) art.play().catch(() => {}); else art.pause(); }
+
+    // Brand chip follows the theme too (round CSGOBig art vs her main logo).
+    const logoEl = document.getElementById('brandLogo');
+    if (logoEl) logoEl.src = isCsgobig
+      ? '/portals/irishqueenoftheslots/assets/csgobig-logo-round.jpg'
+      : (portal.logoUrl || s.streamer?.logoUrl || '/portals/irishqueenoftheslots/assets/logo.jpg');
+
+    // Per-board CTA. CSGOBig promo code is MEG (per her artwork).
+    const ctaWrap = document.getElementById('heroCtaWrap');
+    if (ctaWrap) {
+      const ctaHref  = isCsgobig ? 'https://csgobig.com/r/meg' : (hero.ctaHref || '');
+      const ctaLabel = isCsgobig ? 'Play on CSGOBig — code MEG' : (hero.ctaLabel || 'Play now');
+      ctaWrap.innerHTML = ctaHref ? `<a class="bonus" href="${esc(ctaHref)}" target="_blank" rel="noopener">${esc(ctaLabel)}</a>` : '';
+    }
+
+    // Recolor the starfield to match — only when the theme actually flips (this
+    // runs on every 60s data refresh; regenerating points then would look jumpy).
+    if (window.__starTheme !== which) {
+      window.__starTheme = which;
+      const sc = window.__starColors;
+      if (sc) {
+        const set = isCsgobig
+          ? ['#e8b33c', '#f7cf6b', '#ffd76a', '#c9974a', '#ffffff']
+          : ['#c43bff', '#ff4fd8', '#ffd84d', '#e9b8ff', '#ffffff'];
+        sc.splice(0, sc.length, ...set);
+        dispatchEvent(new Event('resize'));
+      }
+    }
+
+    // Countdown + hero prize follow the active board's race window.
+    const _lbEnd = lb.endAt || (s.leaderboardTimer && s.leaderboardTimer.active ? s.leaderboardTimer.endAt : null);
+    startCountdown(_lbEnd);
+    const _pool = lb.prizePool || 0;
+    document.getElementById('heroPrize').textContent = isCsgobig
+      ? (lb.period || 'Monthly Race')
+      : (hero.prize || (_pool ? ('$' + Number(_pool).toLocaleString() + ' Prize Pool') : ''));
+
+    // Heading: "<cadence> <Casino> Leaderboard".
+    const cadence = isCsgobig ? '' : (hero.cadence ? hero.cadence + ' ' : '');
+    document.getElementById('lbHeading').textContent =
+      cadence + (lb.casinoName || (isCsgobig ? 'CSGOBig' : (s.streamer.providerName || 'Wager'))) + ' Leaderboard';
+
+    // portal-data returns rows as { rank, name, wagerAmount } — normalize to the
+    // { rank, username, wagered } shape the renderers expect. Top 10 only.
+    const ranks = (lb.rankings || []).map(r => ({
+      rank: r.rank, username: r.name || r.username,
+      wagered: r.wagerAmount != null ? r.wagerAmount : r.wagered,
+      avatarUrl: r.avatarUrl || null, prize: r.prize || 0,
+    })).slice(0, 10);
+    // Degen ships a per-rank prize on each row; other casinos use portal-config prizes.
+    const isDegen = (lb.casinoName === 'Degen') || ranks.some(r => r.prize > 0);
+    const prizes = isDegen ? ranks.map(r => r.prize) : ((portal.prizes) || []);
+    const hasPodium = ranks.length >= 3;
+    renderPodium(ranks, prizes);
+    renderTable(hasPodium ? ranks.slice(3) : ranks, prizes, hasPodium);
   }
 
   // Active-now status chips. Bonus Battle & Tournament link out to their existing
@@ -941,58 +1092,32 @@
     const portal = s.portal || {};
     applyTheme(portal.theme);
 
-    document.title = `${s.streamer.displayName} — Wager Race`;
-    const logo = portal.logoUrl || s.streamer.logoUrl || '/portals/irishqueenoftheslots/assets/hero-banner.jpg';
-    document.getElementById('brandLogo').src = logo;
-    const _hc = document.getElementById('heroChip'); if (_hc) _hc.src = logo;
-    document.getElementById('brandName').textContent = s.streamer.displayName;
+    // Meg rebranded her whole portal to "MegRewards" — keep the site name fixed
+    // regardless of the streamer displayName stored in the DB.
+    const BRAND = 'MegRewards';
+    document.title = `${BRAND} — Wager Race`;
+    // Brand logo is board-aware — renderBoard() below sets it (Degen logo vs CSGOBig art).
+    const _hc = document.getElementById('heroChip');
+    if (_hc) _hc.src = portal.logoUrl || s.streamer.logoUrl || '/portals/irishqueenoftheslots/assets/logo.jpg';
+    document.getElementById('brandName').textContent = BRAND;
     document.getElementById('brandSub').textContent = 'kick.com/' + s.streamer.kickChannel;
     document.getElementById('brandLink').href = s.streamer.socials?.kick || '/';
 
-    const hero = portal.hero || {};
-    if (hero.title) document.getElementById('heroTitle').textContent = hero.title;
-    // Degen race prize pool drives the hero prize; otherwise the portal-config prize.
-    const _pool = (s.leaderboard && s.leaderboard.prizePool) || 0;
-    document.getElementById('heroPrize').textContent = hero.prize || (_pool ? ('$' + Number(_pool).toLocaleString() + ' Prize Pool') : '');
-    // "Play on Gambulls — code SKSlots" CTA. (The separate "Code SKSlots" line was
-    // removed — the code is already in the CTA label, so it was redundant.)
-    const cta = hero.ctaHref ? `<a class="bonus" href="${esc(hero.ctaHref)}" target="_blank" rel="noopener">${esc(hero.ctaLabel || 'Play now')}</a>` : '';
-    document.getElementById('heroCtaWrap').innerHTML = cta;
+    // Hero title stays "MEGREWARDS" (rebrand) — ignore any DB hero.title.
+    // Hero prize + CTA are per-board, set by renderBoard() below.
+    document.getElementById('heroTitle').innerHTML = '<span class="h-emoji">👑</span> ' + BRAND.toUpperCase();
 
     if (portal.bgImage) {
       document.body.style.background = `linear-gradient(rgba(8,7,13,.88),rgba(8,7,13,.95)), url("${portal.bgImage}") center/cover fixed no-repeat`;
     }
 
-    // Degen owns its race timing — the race end drives the countdown. Falls back to
-    // a WenBot-managed period (other casinos) when there's no live race end.
-    const _lbEnd = (s.leaderboard && s.leaderboard.endAt) || (s.leaderboardTimer && s.leaderboardTimer.active ? s.leaderboardTimer.endAt : null);
-    startCountdown(_lbEnd);
-
-    const lb = s.leaderboard || {};
-    const cadence = hero.cadence ? hero.cadence + ' ' : '';
-    document.getElementById('lbHeading').textContent =
-      cadence + (lb.casinoName || s.streamer.providerName || 'Wager') + ' Leaderboard';
-    // portal-data returns rows as { rank, name, wagerAmount } — normalize to the
-    // { rank, username, wagered } shape the podium/table renderers expect.
-    // SKSlots only wants the TOP 10 shown (podium 1-3 + table 4-10); the rest
-    // are hidden from the public board.
-    const ranks = (lb.rankings || []).map(r => ({
-      rank: r.rank, username: r.name || r.username, wagered: r.wagerAmount != null ? r.wagerAmount : r.wagered, avatarUrl: r.avatarUrl || null, prize: r.prize || 0,
-    })).slice(0, 10);
-    // Degen returns a per-rank prize on each row — map it into the rank-indexed
-    // prizes array the podium/table expect. Other casinos use portal-config prizes.
-    const isDegen = (lb.casinoName === 'Degen') || ranks.some(r => r.prize > 0);
-    const prizes = isDegen ? ranks.map(r => r.prize) : ((portal.prizes) || []);
+    // Two wager races: Degen (primary) + CSGOBig (secondary, from s.leaderboard2).
+    // Store both and let the viewer switch tabs; renderBoard() owns the countdown,
+    // hero prize, heading, podium + table for whichever board is active.
+    window.__boards = { degen: s.leaderboard || null, csgobig: s.leaderboard2 || null };
     renderLinks(s);
-    // The podium shows the top 3 — so when it's displayed, the table starts at
-    // rank 4 to avoid repeating them. With fewer than 3 entries there's no
-    // podium, so the table shows everyone.
-    const hasPodium = ranks.length >= 3;
-    renderPodium(ranks, prizes);
-    // Below-podium rows: ranks 4+ when a podium shows; everyone otherwise.
-    // `belowPodium` flag tells the table whether an empty list means "all on the
-    // podium" (hide) vs. "genuinely no data" (show a message).
-    renderTable(hasPodium ? ranks.slice(3) : ranks, prizes, hasPodium);
+    // Default to Degen on first load; keep the viewer's chosen tab across refreshes.
+    renderBoard(window.__boards[window.__activeBoard] ? window.__activeBoard : 'degen');
     renderActive(s);
     renderStore(s);
     renderWinners(s);
@@ -1008,7 +1133,7 @@
     }
 
     document.getElementById('footCredit').innerHTML = portal.brandCredit === false
-      ? `&copy; ${new Date().getFullYear()} ${esc(s.streamer.displayName)}`
+      ? `&copy; ${new Date().getFullYear()} ${esc(BRAND)}`
       : `Powered by <a href="https://wenbot.gg" target="_blank" rel="noopener">WenBot</a>`;
   }
 
