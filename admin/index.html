@@ -309,12 +309,14 @@
       const onTrial    = u.planTrial && u.trialEndsAt && u.trialEndsAt > Date.now();
       const trialEnded = u.planTrial && u.trialEndsAt && u.trialEndsAt <= Date.now(); // expired, awaiting the daily sweep
       const trialDays  = onTrial ? Math.max(0, Math.ceil((u.trialEndsAt - Date.now()) / 86400000)) : 0;
-      const planSel = `<select onchange="onPlanSelect('${esc(u.uid)}', this.value)" style="width:130px;flex:0 0 auto;background:#0c0c14;border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:12px;padding:3px 6px;">`
+      const _tp = u.trialPlan || 'elite';
+      const planSel = `<select onchange="onPlanSelect('${esc(u.uid)}', this.value)" style="width:140px;flex:0 0 auto;background:#0c0c14;border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:12px;padding:3px 6px;">`
         + ['starter','pro','elite','agency'].map(p => {
-            const label = (p === 'elite' && onTrial) ? 'elite (trial)' : p;
+            const label = (onTrial && p === _tp) ? `${p} (trial)` : p;
             return `<option value="${p}" ${p === u.plan ? 'selected' : ''}>${label}</option>`;
           }).join('')
-        + `<option value="__trial__">🎁 Elite trial…</option>`
+        + `<option value="__trial_pro__">🎁 Pro trial…</option>`
+        + `<option value="__trial_elite__">🎁 Elite trial…</option>`
         + `</select>`;
       const ovp = _billingOverview[u.uid];
       const cryptoPaying = u.planManual && ovp && ovp.paidCount > 0;   // manual plan + real payments = paying, not comped
@@ -323,9 +325,17 @@
         : (u.planManual
           ? ` <span class="pill comp" title="Comp — overrides Stripe">comp</span> <a href="#" onclick="clearManual('${esc(u.uid)}');return false;" class="muted" style="font-size:11px;">↺ auto</a>`
           : '');
+      // Recently-expired trial (post-sweep): trialExpiredAt set within the last 30
+      // days and no longer on a trial — so you can see who just lapsed.
+      const expiredAgo = (u.trialExpiredAt && !onTrial) ? Math.floor((Date.now() - u.trialExpiredAt) / 86400000) : -1;
+      const recentlyExpired = expiredAgo >= 0 && expiredAgo <= 30;
       const trialTag = onTrial
-        ? ` <span class="pill" style="background:rgba(255,215,0,.15);color:#ffd700;" title="Free ${esc(u.trialPlan || 'elite')} trial — auto-drops to starter ${esc(date(u.trialEndsAt))}">🎁 trial · ${trialDays}d</span>`
-        : (trialEnded ? ` <span class="pill" style="background:rgba(150,150,150,.15);color:#aaa;" title="Trial expired ${esc(date(u.trialEndsAt))} — reverts to starter on the next daily sweep">trial ended</span>` : '');
+        ? ` <span class="pill" style="background:rgba(255,215,0,.15);color:#ffd700;" title="Free ${esc(_tp)} trial — auto-drops to starter ${esc(date(u.trialEndsAt))}">🎁 ${esc(_tp)} trial · ${trialDays}d</span>`
+        : (trialEnded
+            ? ` <span class="pill" style="background:rgba(255,140,140,.16);color:#ff9b9b;" title="${esc(_tp)} trial expired ${esc(date(u.trialEndsAt))} — reverts to starter on the next daily sweep">⌛ ${esc(_tp)} trial ended</span>`
+            : (recentlyExpired
+                ? ` <span class="pill" style="background:rgba(255,140,140,.16);color:#ff9b9b;" title="Free ${esc(u.trialPlan || '')} trial ended ${esc(date(u.trialExpiredAt))} — now on ${esc(u.plan)}">⌛ trial ended · ${expiredAgo}d ago</span>`
+                : ''));
       // Note preview under the channel name — visible without expanding the row.
       // Wraps + clamps to 2 lines INSIDE the channel column (no fixed pixel width)
       // so it can never overflow into the next column.
@@ -361,7 +371,8 @@
     const ch = esc(u.kickChannel || uid);
     const actions = `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;">`
       + `<button class="btn-ghost" style="border-color:var(--accent);color:var(--accent);" onclick="manageStreamer('${esc(uid)}','${ch}')">🎛 Manage account (switch in)</button>`
-      + `<button class="btn-ghost" style="border-color:#ffd700;color:#ffd700;" onclick="giveTrial('${esc(uid)}')">🎁 Give Elite trial</button>`
+      + `<button class="btn-ghost" style="border-color:#a78bfa;color:#a78bfa;" onclick="giveTrial('${esc(uid)}','pro')">🎁 Give Pro trial</button>`
+      + `<button class="btn-ghost" style="border-color:#ffd700;color:#ffd700;" onclick="giveTrial('${esc(uid)}','elite')">🎁 Give Elite trial</button>`
       + (u.archived
           ? `<button class="btn-ghost" onclick="unarchiveStreamer('${esc(uid)}','${ch}')">♻ Unarchive</button>`
           : `<button class="btn-ghost" onclick="archiveStreamer('${esc(uid)}','${ch}')">📦 Archive</button>`)
@@ -797,24 +808,28 @@
   // else is a normal comp. (Selecting the trial option then cancelling re-renders
   // to reset the dropdown back to the real plan.)
   window.onPlanSelect = function (uid, value) {
-    if (value === '__trial__') { giveTrial(uid); return; }
+    if (value === '__trial_pro__')   { giveTrial(uid, 'pro');   return; }
+    if (value === '__trial_elite__') { giveTrial(uid, 'elite'); return; }
     setPlan(uid, value);
   };
 
-  // Grant a FREE Elite trial — comps Elite now, auto-drops to starter after N days.
-  window.giveTrial = async function (uid) {
-    const daysStr = prompt('Give a FREE Elite trial for how many days?\n(Auto-drops to Starter after — they must subscribe to keep Elite.)', '30');
+  // Grant a FREE Pro or Elite trial — comps that tier now, auto-drops to starter
+  // after N days (they must subscribe to keep it).
+  window.giveTrial = async function (uid, tier) {
+    tier = (tier === 'pro') ? 'pro' : 'elite';
+    const label = tier.charAt(0).toUpperCase() + tier.slice(1);
+    const daysStr = prompt(`Give a FREE ${label} trial for how many days?\n(Auto-drops to Starter after — they must subscribe to keep ${label}.)`, '30');
     if (daysStr === null) { renderTable(); return; }
     const days = Math.max(1, Math.min(365, parseInt(daysStr, 10) || 30));
-    const reason = prompt('Optional audit note:', 'First month Elite free');
+    const reason = prompt('Optional audit note:', `First month ${label} free`);
     if (reason === null) { renderTable(); return; }
     try {
-      const r = await authedPost('/api/admin-set-plan', { uid, plan: 'elite', manual: true, trial: true, trialDays: days, reason });
+      const r = await authedPost('/api/admin-set-plan', { uid, plan: tier, manual: true, trial: true, trialDays: days, reason });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       await loadUsers();
       await refreshDetail(uid);          // re-fetch so the new trial fields show
-      alert(`✅ Elite trial granted — expires in ${days} day(s).`);
+      alert(`✅ ${label} trial granted — expires in ${days} day(s).`);
     } catch (e) { alert('Failed: ' + e.message); }
   };
 

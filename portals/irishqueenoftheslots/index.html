@@ -879,7 +879,14 @@
     // Visibility is handled by the router (#store view). Here we just populate.
     const labelEl = document.getElementById('storeCurrencyLabel');
     if (labelEl) labelEl.textContent = s.streamer.currency;
-    document.getElementById('storeGrid').innerHTML = items.map(it => {
+
+    const hasRaffle = items.some(it => it.isRaffleItem);
+    // Only rebuild the grid when something structural changed — otherwise the 60s
+    // data refresh flashes the whole store. Raffle counts refresh in place below.
+    const _sig = JSON.stringify({ v: !!viewer, cur: _currency, items: items.map(it => [it.id, it.name, it.price, it.stock, it.enabled, it.isRaffleItem, it.imageUrl, it.description]) });
+    if (_sig !== window.__storeSig) {
+      window.__storeSig = _sig;
+      document.getElementById('storeGrid').innerHTML = items.map(it => {
       let stock = '';
       if (it.stock !== null && it.stock !== undefined) {
         if (it.stock === 0)      stock = `<span class="store-stock out">Out of stock</span>`;
@@ -915,11 +922,11 @@
         ${buyBtn}
         <div class="store-buycmd" title="Copy command" onclick="navigator.clipboard&&navigator.clipboard.writeText('${cmd.replace(/'/g,"\\'")}');this.textContent='✓ Copied — paste in chat';">📋 ${esc(cmd)}</div>
       </div>`;
-    }).join('');
-    const hasRaffle = items.some(it => it.isRaffleItem);
-    document.getElementById('storeNote').innerHTML =
-      `🛒 Click <strong>Buy</strong> to spend your ${esc(_currency)} (sign in with Kick), or use <code>!buy &lt;item&gt;</code> in Kick chat / Discord.` +
-      (hasRaffle ? ` &nbsp; 🎟 <strong style="color:var(--gold)">Raffle</strong> items enter you into a draw — the streamer picks the winner.` : '');
+      }).join('');
+      document.getElementById('storeNote').innerHTML =
+        `🛒 Click <strong>Buy</strong> to spend your ${esc(_currency)} (sign in with Kick), or use <code>!buy &lt;item&gt;</code> in Kick chat / Discord.` +
+        (hasRaffle ? ` &nbsp; 🎟 <strong style="color:var(--gold)">Raffle</strong> items enter you into a draw — the streamer picks the winner.` : '');
+    }
     if (hasRaffle) fetchRaffleCounts();
   }
 

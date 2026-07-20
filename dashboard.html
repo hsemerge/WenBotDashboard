@@ -535,7 +535,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.0.4</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.0.5</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -1967,9 +1967,20 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.0.4</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.0.5</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.0.5</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 20, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>⚡ <strong>Much faster raffles &amp; store.</strong> Raffle and store pages with lots of entries now load almost instantly — even with tens of thousands of tickets. Big behind-the-scenes efficiency pass; every ticket and entry is exactly where it was.</li>
+            <li>⚔️ <strong>Bonus Battles &amp; Tournaments now included in Pro.</strong> Both moved down from Elite — run head-to-head battles and bracket tournaments on the Pro plan.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -4049,6 +4060,21 @@ function trialEndMs(p) {
 const STREAM_SAFE_HIDE = new Set(['giveaway']);
 let _activePage = 'overview';
 
+// Record "last active on the dashboard" so the admin panel's Last Login is
+// accurate (Firebase lastSignInTime only bumps on a fresh sign-in). Owner only
+// (not while moderating someone else), throttled to ~hourly per browser.
+function pingActive() {
+  try {
+    if (!fb.currentUser || fb.activeUid !== fb.currentUser.uid) return;
+    const k = 'wb_lastactive_' + fb.activeUid;
+    if (Date.now() - Number(localStorage.getItem(k) || 0) > 3600000) {
+      fb.db.collection('streamers').doc(fb.activeUid).set({ lastActiveAt: Date.now() }, { merge: true }).catch(() => {});
+      localStorage.setItem(k, String(Date.now()));
+    }
+  } catch {}
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) pingActive(); });
+
 // Top-of-dashboard notice while a free trial is active — shows the tier, days
 // left, and expiry date, with a shortcut to Plan & Billing to subscribe.
 function applyTrialBanner() {
@@ -4430,19 +4456,11 @@ function onAuthReady(user) {
   // global "new invoice" banner can appear on any page the moment one is issued.
   loadInvoices();
 
-  // Track last dashboard activity. Firebase's lastSignInTime only updates on a
-  // FRESH sign-in — a streamer who returns with a saved session never bumps it,
-  // so the admin panel's "last login" looked stale. Record our own timestamp on
-  // the streamer doc (owner only, not while moderating), throttled to ~hourly.
-  if (fb.currentUser && fb.activeUid === fb.currentUser.uid) {
-    try {
-      const _k = 'wb_lastactive_' + fb.activeUid;
-      if (Date.now() - Number(localStorage.getItem(_k) || 0) > 3600000) {
-        fb.db.collection('streamers').doc(fb.activeUid).set({ lastActiveAt: Date.now() }, { merge: true }).catch(() => {});
-        localStorage.setItem(_k, String(Date.now()));
-      }
-    } catch {}
-  }
+  // Track last dashboard activity (see pingActive). Firebase's lastSignInTime only
+  // updates on a FRESH sign-in — a streamer who returns with a saved session never
+  // bumps it, so the admin "last login" looked stale. We record our own timestamp
+  // on load AND when the tab is refocused (catches long-open tabs).
+  pingActive();
   document.getElementById('channelPillName').textContent = profile?.kickChannel || '—';
   document.getElementById('statChannel').textContent = profile?.kickChannel || '—';
   // Wire My Portal link if the channel is set
@@ -9453,11 +9471,22 @@ async function loadPointsEconomy() {
     const out = Math.round(outstanding).toLocaleString();
     const outEl = document.getElementById('ovPointsOut'); if (outEl) outEl.textContent = out;
 
-    const rSnap = await fb.db.collection('streamers').doc(uid).collection('store_redemptions').get();
-    let redeemed = 0, pending = 0, sales = 0;
-    rSnap.forEach(d => { const r = d.data(); redeemed += (r.pointsSpent || 0); sales++; if (r.status === 'pending') pending++; });
+    // Counts via aggregation (~1 read per 1000 docs) instead of downloading every
+    // redemption — a raffle channel has tens of thousands. The redeemed-points SUM
+    // needs the docs, so only compute it when the volume is modest (else skip it).
+    const redRef = fb.db.collection('streamers').doc(uid).collection('store_redemptions');
+    let sales = 0, pending = 0, redeemed = null;
+    try { sales   = (await redRef.count().get()).data().count; } catch {}
+    try { pending = (await redRef.where('status', '==', 'pending').count().get()).data().count; } catch {}
+    if (sales > 0 && sales <= 3000) {
+      try {
+        const rSnap = await redRef.get();
+        redeemed = 0;
+        rSnap.forEach(d => { redeemed += (d.data().pointsSpent || 0); });
+      } catch {}
+    }
     const subEl = document.getElementById('ovPointsSub');
-    if (subEl) subEl.textContent = `${Math.round(redeemed).toLocaleString()} redeemed · ${pending} pending`;
+    if (subEl) subEl.textContent = (redeemed != null ? `${Math.round(redeemed).toLocaleString()} redeemed · ` : '') + `${pending} pending`;
     const actEl = document.getElementById('ovActivity'); if (actEl) actEl.textContent = sales.toLocaleString();
 
     let winners = 0;
@@ -12042,6 +12071,9 @@ let raffleMode = 'point';
 let raffleAnimating = false;
 let wagerRaffleEntries = [];
 let pointRaffleEntries = [];
+// Set before loadPointRaffleEntries() after a clear/remove so the cached aggregate
+// is rebuilt fresh (bypasses the 60s cache) — keeps the entrant counts exact.
+let _prForceFresh = false;
 let rafWheelAngle = 0;
 
 const RAF_SIZE    = 420;
@@ -12349,25 +12381,21 @@ async function loadPointRaffleEntries() {
   tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:16px;">Loading…</td></tr>';
 
   try {
-    const snap = await fb.db.collection('streamers').doc(uid).collection('store_redemptions')
-      .where('itemId', '==', selectedRaffleItemId)
-      .where('status', '==', 'raffle_entry').get();
+    // Entrants are aggregated server-side + cached (/api/raffle-detail) so the
+    // browser never downloads every ticket doc — a big raffle has tens of
+    // thousands, which is what made this take ~a minute. Read-only; tickets are
+    // untouched. fresh=1 (set by clear/remove) rebuilds so counts stay exact.
+    const idToken = await fb.currentUser.getIdToken();
+    const url = `/api/raffle-detail?uid=${encodeURIComponent(uid)}&itemId=${encodeURIComponent(selectedRaffleItemId)}${_prForceFresh ? '&fresh=1' : ''}`;
+    _prForceFresh = false;
+    const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + idToken } });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed to load entries');
 
-    const map = {};
-    snap.docs.forEach(doc => {
-      const d   = doc.data();
-      const key = (d.kickUsername || '').toLowerCase();
-      if (!key) return;
-      if (!map[key]) map[key] = { username: d.kickUsername, tickets: 0, lastTs: null };
-      map[key].tickets++;
-      const ts = d.redeemedAt?.toMillis?.() ?? 0;
-      if (!map[key].lastTs || ts > map[key].lastTs) map[key].lastTs = ts;
-    });
-
-    const entries = Object.values(map).sort((a, b) => b.tickets - a.tickets);
+    const entries = data.entrants || [];
     pointRaffleEntries = entries;
 
-    const totalTix = entries.reduce((s, e) => s + e.tickets, 0);
+    const totalTix = data.totalTickets != null ? data.totalTickets : entries.reduce((s, e) => s + e.tickets, 0);
     const selItem  = raffleItemsList.find(i => i.id === selectedRaffleItemId);
     const itemName = selItem?.name || 'item';
 
@@ -12426,6 +12454,7 @@ async function clearPointRaffleEntries() {
     }
     pointRaffleEntries = [];
     flash(`${snap.size} entries cleared.`);
+    _prForceFresh = true;
     loadPointRaffleEntries();
   } catch(e) {
     flash('Error: ' + e.message, 'error');
@@ -12456,6 +12485,7 @@ async function removePointRaffleTicket(username) {
     const n = await _fulfillRaffleTickets(uid, selectedRaffleItemId, username.toLowerCase(), 1);
     flash(n ? `Removed 1 ticket from @${username}.` : `No tickets to remove for @${username}.`, n ? 'success' : 'error');
     if (n) logAction('raffle_ticket_removed', { kickUsername: username, itemId: selectedRaffleItemId, count: n });
+    _prForceFresh = true;
     loadPointRaffleEntries();
     return n;
   } catch (e) { flash('Error: ' + e.message, 'error'); }
@@ -12469,6 +12499,7 @@ async function removePointRaffleEntrant(username) {
     const n = await _fulfillRaffleTickets(uid, selectedRaffleItemId, username.toLowerCase(), null);
     flash(`Removed @${username} from the raffle (${n} ticket${n !== 1 ? 's' : ''}).`);
     logAction('raffle_entrant_removed', { kickUsername: username, itemId: selectedRaffleItemId, count: n });
+    _prForceFresh = true;
     loadPointRaffleEntries();
     return n;
   } catch (e) { flash('Error: ' + e.message, 'error'); }

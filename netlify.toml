@@ -325,6 +325,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/raffle-detail"
+  to     = "/.netlify/functions/raffle-detail"
+  status = 200
+
+[[redirects]]
   from   = "/api/admin-backfill-notes"
   to     = "/.netlify/functions/admin-backfill-notes"
   status = 200

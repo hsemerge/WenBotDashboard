@@ -38,6 +38,7 @@ exports.handler = async (event) => {
       planTrial:          s.planTrial === true,         // comped plan with an expiry
       trialPlan:          s.trialPlan || null,
       trialEndsAt:        ms(s.trialEndsAt),
+      trialExpiredAt:     ms(s.trialExpiredAt),          // set by the daily sweep when a trial lapses
       hasNote:            !!(s.adminNotes && String(s.adminNotes).trim()),
       noteSnippet:        s.adminNotes ? String(s.adminNotes).replace(/\s+/g, " ").trim().slice(0, 80) : null,
       provider:           s.activeProvider || s.casino || null,
