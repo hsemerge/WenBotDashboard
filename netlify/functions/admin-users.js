@@ -35,6 +35,11 @@ exports.handler = async (event) => {
       email:              s.email || null,
       plan:               s.plan || "starter",
       planManual:         s.planManual === true,       // admin comp (survives Stripe)
+      planTrial:          s.planTrial === true,         // comped plan with an expiry
+      trialPlan:          s.trialPlan || null,
+      trialEndsAt:        ms(s.trialEndsAt),
+      hasNote:            !!(s.adminNotes && String(s.adminNotes).trim()),
+      noteSnippet:        s.adminNotes ? String(s.adminNotes).replace(/\s+/g, " ").trim().slice(0, 80) : null,
       provider:           s.activeProvider || s.casino || null,
       subscriptionActive: !!s.stripeSubscriptionActive,
       paymentFailed:      !!s.stripePaymentFailed,

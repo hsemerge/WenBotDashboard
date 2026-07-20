@@ -90,8 +90,16 @@ exports.handler = async (event) => {
     payments,
     invoices,
     plan:                 data.plan || "starter",
+    planManual:           data.planManual === true,
     stripeSubscribed:     !!data.stripeSubscriptionId,
     stripePeriodEnd:      ms(data.stripePeriodEnd),
     cryptoBillingNextDue: ms(data.cryptoBillingNextDue),
+    // Trial (comped plan with an expiry) + internal admin note.
+    planTrial:            data.planTrial === true,
+    trialPlan:            data.trialPlan || null,
+    trialEndsAt:          ms(data.trialEndsAt),
+    adminNotes:           data.adminNotes || "",
+    adminNotesUpdatedBy:  data.adminNotesUpdatedBy || null,
+    adminNotesUpdatedAt:  ms(data.adminNotesUpdatedAt),
   });
 };

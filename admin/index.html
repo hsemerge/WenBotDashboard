@@ -116,6 +116,7 @@
         <label class="sub" style="display:flex;align-items:center;gap:6px;cursor:pointer;align-self:center;">
           <input type="checkbox" id="showArchived" onchange="renderTable()"> Show archived
         </label>
+        <button class="btn-ghost" onclick="backfillNotes()" title="One-time: import each user's most recent comp reason from the audit log into their Notes field (skips users who already have a note)">🔄 Import old comp notes</button>
       </div>
       <div class="tablecard">
         <div style="overflow-x:auto;">
@@ -305,8 +306,15 @@
       const sub = u.subscriptionActive
         ? '<span class="ok">active</span>' + (u.paymentFailed ? ' <span class="warn">(failed)</span>' : '')
         : '<span class="no">—</span>';
-      const planSel = `<select onchange="setPlan('${esc(u.uid)}', this.value)" style="background:#0c0c14;border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:12px;padding:3px 6px;">`
-        + ['starter','pro','elite','agency'].map(p => `<option value="${p}" ${p === u.plan ? 'selected' : ''}>${p}</option>`).join('')
+      const onTrial    = u.planTrial && u.trialEndsAt && u.trialEndsAt > Date.now();
+      const trialEnded = u.planTrial && u.trialEndsAt && u.trialEndsAt <= Date.now(); // expired, awaiting the daily sweep
+      const trialDays  = onTrial ? Math.max(0, Math.ceil((u.trialEndsAt - Date.now()) / 86400000)) : 0;
+      const planSel = `<select onchange="onPlanSelect('${esc(u.uid)}', this.value)" style="width:130px;flex:0 0 auto;background:#0c0c14;border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:12px;padding:3px 6px;">`
+        + ['starter','pro','elite','agency'].map(p => {
+            const label = (p === 'elite' && onTrial) ? 'elite (trial)' : p;
+            return `<option value="${p}" ${p === u.plan ? 'selected' : ''}>${label}</option>`;
+          }).join('')
+        + `<option value="__trial__">🎁 Elite trial…</option>`
         + `</select>`;
       const ovp = _billingOverview[u.uid];
       const cryptoPaying = u.planManual && ovp && ovp.paidCount > 0;   // manual plan + real payments = paying, not comped
@@ -315,12 +323,20 @@
         : (u.planManual
           ? ` <span class="pill comp" title="Comp — overrides Stripe">comp</span> <a href="#" onclick="clearManual('${esc(u.uid)}');return false;" class="muted" style="font-size:11px;">↺ auto</a>`
           : '');
+      const trialTag = onTrial
+        ? ` <span class="pill" style="background:rgba(255,215,0,.15);color:#ffd700;" title="Free ${esc(u.trialPlan || 'elite')} trial — auto-drops to starter ${esc(date(u.trialEndsAt))}">🎁 trial · ${trialDays}d</span>`
+        : (trialEnded ? ` <span class="pill" style="background:rgba(150,150,150,.15);color:#aaa;" title="Trial expired ${esc(date(u.trialEndsAt))} — reverts to starter on the next daily sweep">trial ended</span>` : '');
+      // Note preview under the channel name — visible without expanding the row.
+      // Wraps + clamps to 2 lines INSIDE the channel column (no fixed pixel width)
+      // so it can never overflow into the next column.
+      const noteRow = u.noteSnippet
+        ? `<div class="muted" title="${esc(u.noteSnippet)}" style="font-size:10px;line-height:1.35;margin-top:2px;white-space:normal;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">📝 ${esc(u.noteSnippet)}</div>` : '';
       const open = _expanded.has(u.uid);
       const archTag = u.archived ? ' <span class="pill" style="background:#3a2a2a;color:#d99;">archived</span>' : '';
       const main = `<tr${u.archived ? ' style="opacity:.55;"' : ''}>
         <td><span onclick="toggleDetail('${esc(u.uid)}')" style="cursor:pointer;user-select:none;color:var(--accent);">${open ? '▾' : '▸'}</span></td>
-        <td>${esc(u.kickChannel || u.displayName || u.uid)}${archTag}</td>
-        <td>${planSel}${compTag}</td>
+        <td>${esc(u.kickChannel || u.displayName || u.uid)}${archTag}${noteRow}</td>
+        <td><div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;max-width:250px;white-space:normal;">${planSel}${compTag}${trialTag}</div></td>
         <td>${sub}</td>
         <td>${u.onboarded ? '<span class="ok">yes</span>' : '<span class="no">no</span>'}</td>
         <td class="num">${u.referralCount || 0}</td>
@@ -345,11 +361,29 @@
     const ch = esc(u.kickChannel || uid);
     const actions = `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;">`
       + `<button class="btn-ghost" style="border-color:var(--accent);color:var(--accent);" onclick="manageStreamer('${esc(uid)}','${ch}')">🎛 Manage account (switch in)</button>`
+      + `<button class="btn-ghost" style="border-color:#ffd700;color:#ffd700;" onclick="giveTrial('${esc(uid)}')">🎁 Give Elite trial</button>`
       + (u.archived
           ? `<button class="btn-ghost" onclick="unarchiveStreamer('${esc(uid)}','${ch}')">♻ Unarchive</button>`
           : `<button class="btn-ghost" onclick="archiveStreamer('${esc(uid)}','${ch}')">📦 Archive</button>`)
       + `<button class="btn-ghost" style="border-color:var(--red);color:var(--red);" onclick="deleteStreamer('${esc(uid)}','${ch}')">🗑 Delete permanently</button>`
       + `</div>`;
+
+    // Free-trial status (comped plan with an expiry).
+    const _now = Date.now();
+    const trialActive = d.planTrial && d.trialEndsAt && d.trialEndsAt > _now;
+    const trialLine = trialActive
+      ? `<div style="margin-top:8px;padding:8px 12px;background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.3);border-radius:8px;color:#ffe07a;">`
+        + `<b>🎁 ${esc(d.trialPlan || 'elite')} trial</b> — ${Math.max(0, Math.ceil((d.trialEndsAt - _now) / 86400000))} day(s) left · auto-drops to starter ${esc(date(d.trialEndsAt))}</div>`
+      : '';
+
+    // Internal admin note (only admins ever see this).
+    const noteMeta = d.adminNotesUpdatedBy
+      ? `<span class="muted" style="font-size:11px;">last edited by ${esc(d.adminNotesUpdatedBy)}${d.adminNotesUpdatedAt ? ' · ' + esc(date(d.adminNotesUpdatedAt)) : ''}</span>` : '';
+    const notesBlock = `<div style="margin-top:12px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;"><b style="color:var(--bright);">📝 Admin notes</b> ${noteMeta}</div>
+        <textarea id="note-${esc(uid)}" placeholder="Internal note — e.g. 'comped Elite for launch help, revisit Aug'…" style="width:100%;min-height:58px;background:#0c0c14;border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:12px;padding:8px 10px;font-family:inherit;resize:vertical;box-sizing:border-box;">${esc(d.adminNotes || '')}</textarea>
+        <button id="noteSave-${esc(uid)}" class="btn-ghost" style="margin-top:6px;" onclick="saveNote('${esc(uid)}')">Save note</button>
+      </div>`;
     // Billing lives in the Billing tab now — here we show a one-line summary + a deep-link.
     const billSummary = d.stripeSubscribed
       ? `💳 Stripe${d.stripePeriodEnd ? ' · renews ' + date(d.stripePeriodEnd) : ''}`
@@ -365,6 +399,8 @@
         <span><b style="color:var(--bright);">Billing:</b> <span class="muted">${billSummary} · ${money(d.totalPaid)} paid</span></span>
         <button class="btn-ghost" style="border-color:var(--accent);color:var(--accent);margin-left:auto;" onclick="gotoBilling('${esc(uid)}')">💳 Manage billing →</button>
       </div>
+      ${trialLine}
+      ${notesBlock}
       ${actions}
     </div>`;
   }
@@ -755,6 +791,71 @@
       if (!r.ok) throw new Error(d.error || 'Failed');
       await loadUsers();
     } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  // Plan dropdown router: the "🎁 Elite trial…" option grants a trial; anything
+  // else is a normal comp. (Selecting the trial option then cancelling re-renders
+  // to reset the dropdown back to the real plan.)
+  window.onPlanSelect = function (uid, value) {
+    if (value === '__trial__') { giveTrial(uid); return; }
+    setPlan(uid, value);
+  };
+
+  // Grant a FREE Elite trial — comps Elite now, auto-drops to starter after N days.
+  window.giveTrial = async function (uid) {
+    const daysStr = prompt('Give a FREE Elite trial for how many days?\n(Auto-drops to Starter after — they must subscribe to keep Elite.)', '30');
+    if (daysStr === null) { renderTable(); return; }
+    const days = Math.max(1, Math.min(365, parseInt(daysStr, 10) || 30));
+    const reason = prompt('Optional audit note:', 'First month Elite free');
+    if (reason === null) { renderTable(); return; }
+    try {
+      const r = await authedPost('/api/admin-set-plan', { uid, plan: 'elite', manual: true, trial: true, trialDays: days, reason });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      await loadUsers();
+      await refreshDetail(uid);          // re-fetch so the new trial fields show
+      alert(`✅ Elite trial granted — expires in ${days} day(s).`);
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  // One-time: import old comp reasons (from the audit log) into the Notes field.
+  window.backfillNotes = async function () {
+    if (!confirm('Import each user\'s most recent comp reason (from the audit log) into their Notes?\n\nUsers who already have a note are left untouched.')) return;
+    try {
+      const r = await authedPost('/api/admin-backfill-notes', {});
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      await loadUsers();
+      alert(`✅ Imported ${d.imported} note(s). ${d.skipped} skipped (already had a note or no reason on file).`);
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  // Save the internal admin note for a streamer.
+  window.saveNote = async function (uid) {
+    const ta = document.getElementById('note-' + uid);
+    if (!ta) return;
+    const note = ta.value;
+    const btn = document.getElementById('noteSave-' + uid);
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    try {
+      const r = await authedPost('/api/admin-user-note', { uid, note });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      // Keep local state in sync so the pill + prefill are right without a full reload.
+      if (_detail[uid] && typeof _detail[uid] === 'object') {
+        _detail[uid].adminNotes = note;
+        _detail[uid].adminNotesUpdatedBy = d.adminNotesUpdatedBy;
+        _detail[uid].adminNotesUpdatedAt = d.adminNotesUpdatedAt;
+      }
+      const uu = _users.find(x => x.uid === uid);
+      if (uu) { uu.hasNote = !!note.trim(); uu.noteSnippet = note ? note.replace(/\s+/g, ' ').trim().slice(0, 80) : null; }
+      renderTable(); // reflect the note preview next to the name immediately
+      const b2 = document.getElementById('noteSave-' + uid);
+      if (b2) { b2.textContent = '✓ Saved'; setTimeout(() => { const b3 = document.getElementById('noteSave-' + uid); if (b3) b3.textContent = 'Save note'; }, 1500); }
+    } catch (e) {
+      alert('Failed: ' + e.message);
+      if (btn) { btn.textContent = 'Save note'; btn.disabled = false; }
+    }
   };
 
   window.adminSignOut = function () { auth.signOut(); _users = []; _adminSecret = ''; };

@@ -59,14 +59,26 @@ exports.handler = async (event) => {
     if (uid && plan) {
       const ref  = db.collection("streamers").doc(uid);
       const cur  = await ref.get();
-      const manual = cur.exists && cur.data().planManual === true;
+      const data = cur.exists ? cur.data() : {};
+      // A trial is NOT a permanent comp: a trial user who pays converts to a real
+      // Stripe customer — clear the trial + manual lock so their paid plan takes
+      // over and the expire-trials sweep never downgrades them.
+      const onTrial = data.planTrial === true;
+      const manual  = data.planManual === true && !onTrial;
       const update = {
         stripeSubscriptionActive: true,
         stripeCustomerId:         session.customer,
         stripeSubscriptionId:     session.subscription,
         stripeActivatedAt: Date.now(),
       };
-      if (!manual) update.plan = plan; // admin comp overrides Stripe's plan
+      if (onTrial) {
+        update.plan = plan;
+        update.planTrial = false;
+        update.planManual = false;
+        update.trialConvertedAt = Date.now();
+      } else if (!manual) {
+        update.plan = plan; // admin comp overrides Stripe's plan
+      }
       await ref.set(update, { merge: true });
     }
   }
@@ -82,8 +94,15 @@ exports.handler = async (event) => {
     const snap = await db.collection("streamers")
       .where("stripeSubscriptionId", "==", sub.id).limit(1).get();
     if (!snap.empty) {
-      const manual = snap.docs[0].data().planManual === true;
-      const update = { stripeSubscriptionActive: isActive };
+      const d       = snap.docs[0].data();
+      const onTrial = d.planTrial === true;
+      const manual  = d.planManual === true && !onTrial;
+      const update  = { stripeSubscriptionActive: isActive };
+      if (onTrial && isActive) {           // trial converted to a paid sub
+        update.planTrial = false;
+        update.planManual = false;
+        update.trialConvertedAt = Date.now();
+      }
       if (!manual) {                       // don't touch a comped plan
         if (newPlan) update.plan = newPlan;
         if (!isActive) update.plan = "starter";

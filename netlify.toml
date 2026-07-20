@@ -5,6 +5,12 @@
   command = "npm run build"
   publish = "dist"
 
+# Daily sweep: downgrade expired Elite trials to starter (keeps stored plan
+# truthful for the bot/admin; web surfaces guard live too). The handler is
+# idempotent — portable to any external cron hitting /.netlify/functions/expire-trials.
+[functions."expire-trials"]
+  schedule = "@daily"
+
 [[headers]]
   for = "/*"
   [headers.values]
@@ -311,6 +317,16 @@
 [[redirects]]
   from   = "/api/admin-user-detail"
   to     = "/.netlify/functions/admin-user-detail"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin-user-note"
+  to     = "/.netlify/functions/admin-user-note"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin-backfill-notes"
+  to     = "/.netlify/functions/admin-backfill-notes"
   status = 200
 
 [[redirects]]

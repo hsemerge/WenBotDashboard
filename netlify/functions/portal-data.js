@@ -305,7 +305,13 @@ exports.handler = async (event) => {
       || PORTAL_PRESETS[channel] != null
       || profile.whiteLabel === true
       || tierOf(profile.plan) >= TIER_RANK.agency;
-    const plan = (isOwner || whiteLabel) ? "agency" : (profile.plan || "starter");
+    // An expired Elite trial reverts to starter for entitlements. The daily
+    // expire-trials sweep flips the stored plan; this guards the window before it runs.
+    const _trialEnd = profile.trialEndsAt && profile.trialEndsAt.toMillis
+      ? profile.trialEndsAt.toMillis() : Number(profile.trialEndsAt) || 0;
+    const trialExpired = profile.planTrial === true && _trialEnd > 0 && _trialEnd <= Date.now();
+    const basePlan = trialExpired ? "starter" : (profile.plan || "starter");
+    const plan = (isOwner || whiteLabel) ? "agency" : basePlan;
     const tier = tierOf(plan);
 
     // Portal branding (palette/logo/hero/bg) is an Elite+ perk, also unlocked by

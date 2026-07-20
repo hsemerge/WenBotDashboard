@@ -36,18 +36,36 @@ exports.handler = async (event) => {
   if (!snap.exists) return res(404, { error: "Streamer not found" });
   const cur = snap.data();
 
+  // Trial mode: comp a plan (usually elite) for a limited time, then it auto-drops
+  // to starter. Enforced by the expire-trials sweep + effective-plan guards; the
+  // dashboard shows a "trial — expires X" banner while active.
+  const trial = body.trial === true;
+
   const update = {};
   if (manual) {
     const plan = String(body.plan || "").trim();
     if (!VALID_PLANS.includes(plan)) return res(400, { error: `Invalid plan. One of: ${VALID_PLANS.join(", ")}` });
     update.plan       = plan;
     update.planManual = true;
+    if (trial) {
+      const days = Math.max(1, Math.min(365, parseInt(body.trialDays, 10) || 30));
+      update.planTrial     = true;
+      update.trialPlan     = plan;
+      update.trialEndsAt   = Date.now() + days * 86400000;
+      update.trialGrantedAt = Date.now();
+      update.trialGrantedBy = adminUser.uid;
+    } else {
+      // Setting a normal (permanent) comp clears any prior trial so it doesn't
+      // later auto-expire out from under them.
+      update.planTrial = false;
+    }
   } else {
-    // Release back to Stripe: clear the manual lock. Reflect the current real
-    // subscription state (active sub keeps its plan; otherwise drop to starter).
-    // Exception: a crypto-paying customer (has paid invoices) keeps their plan —
-    // they aren't on Stripe, so "starter" would wrongly strip a plan they pay for.
+    // Release back to Stripe: clear the manual lock (and any trial). Reflect the
+    // current real subscription state (active sub keeps its plan; otherwise drop
+    // to starter). Exception: a crypto-paying customer (has paid invoices) keeps
+    // their plan — they aren't on Stripe, so "starter" would wrongly strip it.
     update.planManual = false;
+    update.planTrial  = false;
     if (!cur.stripeSubscriptionActive) {
       const paidInv = await ref.collection("invoices").where("status", "==", "paid").limit(1).get();
       if (paidInv.empty) update.plan = "starter";
@@ -62,8 +80,16 @@ exports.handler = async (event) => {
     oldPlan: cur.plan || "starter",
     newPlan: update.plan != null ? update.plan : (cur.plan || "starter"),
     manual,
+    trial,
+    trialEndsAt: update.trialEndsAt || null,
     reason,
   });
 
-  return res(200, { ok: true, plan: update.plan != null ? update.plan : cur.plan, planManual: update.planManual });
+  return res(200, {
+    ok: true,
+    plan: update.plan != null ? update.plan : cur.plan,
+    planManual: update.planManual,
+    planTrial: update.planTrial === true,
+    trialEndsAt: update.trialEndsAt || null,
+  });
 };

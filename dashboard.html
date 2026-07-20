@@ -535,7 +535,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.0.2</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.0.4</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -572,6 +572,23 @@
         <span id="botStatusPillDot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--text-dim);vertical-align:middle;margin-right:6px;"></span><span id="botStatusPillText">Checking…</span>
       </div>
       <div class="topbar-pill live" id="giveawayPill" style="display:none;">🔴 Giveaway Live</div>
+    </div>
+
+    <!-- Free-trial notice — persistent across pages (sits under the topbar, outside
+         any .page). Populated by applyTrialBanner(); hidden unless a trial is active. -->
+    <div id="trialBanner" role="status" style="display:none;background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.4);border-radius:10px;padding:12px 16px;margin-bottom:16px;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span style="font-size:18px;line-height:1;flex-shrink:0;">🎁</span>
+      <span id="trialBannerText" style="flex:1;min-width:220px;font-weight:600;color:#ffe07a;font-size:14px;"></span>
+      <button onclick="showPage('billing')" style="background:rgba(255,215,0,0.18);border:1px solid rgba(255,215,0,0.5);color:#ffd700;font-weight:800;font-size:13px;padding:7px 14px;border-radius:8px;cursor:pointer;white-space:nowrap;">Upgrade to keep it →</button>
+    </div>
+
+    <!-- New-invoice notice — persistent across pages, dismissible. Shown when an
+         unpaid invoice exists (and hasn't been dismissed); links to billing to pay. -->
+    <div id="invoiceBanner" role="status" style="display:none;background:rgba(242,107,31,0.1);border:1px solid rgba(242,107,31,0.45);border-radius:10px;padding:12px 16px;margin-bottom:16px;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span style="font-size:18px;line-height:1;flex-shrink:0;">🧾</span>
+      <span id="invoiceBannerText" style="flex:1;min-width:220px;font-weight:600;color:#ffb47a;font-size:14px;"></span>
+      <button onclick="goToInvoices()" style="background:rgba(242,107,31,0.2);border:1px solid rgba(242,107,31,0.55);color:#ff8c42;font-weight:800;font-size:13px;padding:7px 14px;border-radius:8px;cursor:pointer;white-space:nowrap;">View &amp; pay →</button>
+      <button onclick="dismissInvoiceBanner()" title="Dismiss" aria-label="Dismiss" style="background:none;border:none;color:#ffb47a;font-size:16px;line-height:1;cursor:pointer;padding:4px 6px;opacity:.75;">✕</button>
     </div>
 
     <!-- ── OVERVIEW ── -->
@@ -1950,9 +1967,22 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.0.3</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.0.4</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.0.4</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 19, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🎟️ <strong>Slot Requests are now free on every plan.</strong> The slot-request queue + OBS overlay are included on Starter and up — no upgrade needed.</li>
+            <li>🎁 <strong>Free Elite trials, made clear.</strong> If you're on a free Elite trial, your dashboard now shows how many days are left, and you can subscribe in one click from <a href="#" onclick="showPage('billing');return false;" style="color:var(--accent);">Plan &amp; Billing</a> to keep your Elite features when it ends.</li>
+            <li>🧾 <strong>New — invoice alerts.</strong> When we issue you an invoice, you'll get a dismissible heads-up at the top of your dashboard with a quick link to pay (crypto supported).</li>
+            <li>🏆 <strong>Wager Rankings — see the full board again.</strong> Past leaderboard periods can once more show <strong>Top 15 / 50 / All</strong>, not just the top 10 — while the paid positions still match your public board to the cent.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -3683,8 +3713,44 @@ function loadInvoices() {
         .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       renderInvoices();
       updateInvoiceFlag();
+      applyInvoiceBanner();
     }, () => {});
 }
+
+// Global, dismissible "new invoice" banner (top of every page). Shows when an
+// unpaid, not-yet-submitted invoice exists that the user hasn't dismissed. A newly
+// issued invoice (new id) re-surfaces the banner even after a prior dismiss.
+let _invDismissed = null;
+function invDismissKey() { return 'wb_inv_dismissed_' + (fb.activeUid || ''); }
+function loadInvDismissed() {
+  if (_invDismissed) return _invDismissed;
+  try { _invDismissed = new Set(JSON.parse(localStorage.getItem(invDismissKey()) || '[]')); }
+  catch { _invDismissed = new Set(); }
+  return _invDismissed;
+}
+function applyInvoiceBanner() {
+  const el = document.getElementById('invoiceBanner');
+  const txt = document.getElementById('invoiceBannerText');
+  if (!el || !txt) return;
+  const dis = loadInvDismissed();
+  const unpaid = (invInvoices || []).filter(i => !invIsPaid(i) && !i.paymentSubmitted);
+  const fresh  = unpaid.filter(i => !dis.has(i.id));
+  if (!fresh.length) { el.style.display = 'none'; return; }
+  const total = fresh.reduce((s, i) => s + (i.amount || 0), 0);
+  const n = fresh.length;
+  txt.innerHTML = `New invoice${n > 1 ? 's' : ''}: <strong>${n}</strong> awaiting payment · total <strong>${invFmtMoney(total)}</strong>. Pay securely by crypto in your billing area.`;
+  el.style.display = 'flex';
+}
+window.dismissInvoiceBanner = function () {
+  const dis = loadInvDismissed();
+  (invInvoices || []).filter(i => !invIsPaid(i)).forEach(i => dis.add(i.id));
+  try { localStorage.setItem(invDismissKey(), JSON.stringify([...dis])); } catch {}
+  applyInvoiceBanner();
+};
+window.goToInvoices = function () {
+  showPage('billing');
+  setTimeout(() => { const el = document.getElementById('invList') || document.getElementById('page-billing'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80);
+};
 function invFmtMoney(n) { return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function invFmtDate(ms) { if (!ms) return '—'; try { return new Date(ms).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }); } catch { return '—'; } }
 function invIsPaid(inv) { return inv.status === 'paid'; }
@@ -3928,7 +3994,8 @@ const PLAN_RANK = { starter: 0, pro: 1, elite: 2, agency: 3 };
 // Which plan is required to access each page (pages not listed are always accessible)
 const PAGE_PLAN = {
   slotpicker:  'pro',
-  slotrequest: 'pro',
+  // Slot requests are free for everyone (Starter+) — not gated. (Left out of this
+  // map = always accessible.) The bot honors the sr_settings.enabled toggle only.
   gtb:         'pro',
   points:      'pro',
   store:       'pro',
@@ -3942,11 +4009,11 @@ const PAGE_PLAN = {
 const PLAN_INFO = {
   starter: {
     label: 'Starter', color: '#53e077', price: 'Free',
-    features: ['Giveaway bot', 'Casino verification (!verify)', 'Bonus hunt tracker + OBS overlay', 'Spin picker + winner overlay', 'Up to 50 verified viewers'],
+    features: ['Giveaway bot', 'Casino verification (!verify)', 'Bonus hunt tracker + OBS overlay', 'Spin picker + winner overlay', 'Slot request queue + OBS overlay', 'Up to 50 verified viewers'],
   },
   pro: {
     label: 'Pro', color: '#a78bfa', price: '$30/mo',
-    features: ['Everything in Starter', 'Points system + custom currency', 'Viewer store & redemptions', 'Guess the Balance + OBS overlay', 'Slot request queue + OBS overlay', 'Custom commands'],
+    features: ['Everything in Starter', 'Points system + custom currency', 'Viewer store & redemptions', 'Guess the Balance + OBS overlay', 'Custom commands'],
   },
   elite: {
     label: 'Elite', color: '#ffd700', price: '$50/mo',
@@ -3961,6 +4028,36 @@ const PLAN_INFO = {
 let userPlan      = 'starter';
 let isOwnerAcct   = false;
 var upgradeTarget = null;
+
+// Trial end as ms epoch (handles number or Firestore Timestamp).
+function trialEndMs(p) {
+  if (!p || p.trialEndsAt == null) return 0;
+  const t = p.trialEndsAt;
+  if (typeof t === 'number') return t;
+  if (t.toMillis) return t.toMillis();
+  if (t.seconds != null) return t.seconds * 1000;
+  return Number(t) || 0;
+}
+
+// Top-of-dashboard notice while a free trial is active — shows the tier, days
+// left, and expiry date, with a shortcut to Plan & Billing to subscribe.
+function applyTrialBanner() {
+  const el  = document.getElementById('trialBanner');
+  const txt = document.getElementById('trialBannerText');
+  if (!el || !txt) return;
+  const end = trialEndMs(profile);
+  // Keyed off the ACTIVE account's profile (not who's viewing) — so an owner/admin
+  // who switches into a trial streamer previews the same banner the streamer sees.
+  // Owners viewing their OWN account have no planTrial, so it stays hidden there.
+  const active = profile?.planTrial === true && end > Date.now();
+  if (!active) { el.style.display = 'none'; return; }
+  const days    = Math.max(0, Math.ceil((end - Date.now()) / 86400000));
+  const dateStr = new Date(end).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const tp    = (profile.trialPlan || 'elite');
+  const label = tp.charAt(0).toUpperCase() + tp.slice(1);
+  txt.innerHTML = `You're on a <strong>free ${label} trial</strong> — ${days} day${days === 1 ? '' : 's'} left (expires ${dateStr}). Subscribe before then to keep your ${label} features.`;
+  el.style.display = 'flex';
+}
 
 function isPageLocked(pageId) {
   if (isOwnerAcct) return false;
@@ -4063,12 +4160,19 @@ function renderBillingPage() {
   const isActive = p.stripeSubscriptionActive === true;
   const isFailed = p.stripePaymentFailed === true;
   const isStarter= plan === 'starter';
+  // Free-trial state: comped plan with an expiry, not yet paid.
+  const trialEnd    = trialEndMs(p);
+  const onTrial     = p.planTrial === true && trialEnd > Date.now() && !isActive;
+  const trialPlan   = p.trialPlan || 'elite';
+  const trialInfo   = PLAN_INFO[trialPlan] || PLAN_INFO.elite;
+  const trialDays   = onTrial ? Math.max(0, Math.ceil((trialEnd - Date.now()) / 86400000)) : 0;
+  const fmtTrialEnd = onTrial ? new Date(trialEnd).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '';
   const periodEnd= p.stripePeriodEnd ? new Date(p.stripePeriodEnd) : null;
   const fmtDate  = d => d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
 
   // Plan name + color
   const planEl = document.getElementById('billingCurrentPlan');
-  planEl.textContent = info.label;
+  planEl.textContent = info.label + (onTrial ? ' (Trial)' : '');
   planEl.style.color = info.color;
 
   // Status badge
@@ -4076,6 +4180,9 @@ function renderBillingPage() {
   if (isOwnerAcct) {
     badge.textContent = 'Owner';
     badge.style.cssText = 'font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;margin-top:4px;background:rgba(0,229,255,0.1);color:var(--accent);border:1px solid rgba(0,229,255,0.25);';
+  } else if (onTrial) {
+    badge.textContent = `Free Trial · ${trialDays}d left`;
+    badge.style.cssText = 'font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;margin-top:4px;background:rgba(255,215,0,0.12);color:#ffd700;border:1px solid rgba(255,215,0,0.35);';
   } else if (isFailed) {
     badge.textContent = 'Past Due';
     badge.style.cssText = 'font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;margin-top:4px;background:rgba(255,71,87,0.12);color:var(--red);border:1px solid rgba(255,71,87,0.3);';
@@ -4095,7 +4202,9 @@ function renderBillingPage() {
 
   // Next billing / period end info
   const nextBillEl = document.getElementById('billingNextBill');
-  if (isStarter && !isActive) {
+  if (onTrial) {
+    nextBillEl.innerHTML = `<div style="font-size:10px;color:#ffd700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">Trial Ends</div><div style="font-size:15px;font-weight:700;color:#ffe07a;">${fmtTrialEnd}</div>`;
+  } else if (isStarter && !isActive) {
     nextBillEl.innerHTML = '';
   } else if (isFailed && periodEnd) {
     nextBillEl.innerHTML = `<div style="font-size:10px;color:var(--red);letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">Grace Period Ends</div><div style="font-size:15px;font-weight:700;color:var(--red);">${fmtDate(periodEnd)}</div>`;
@@ -4123,6 +4232,21 @@ function renderBillingPage() {
   if (isOwnerAcct) {
     document.getElementById('billingUpgradeSection').innerHTML =
       '<div class="card" style="text-align:center;padding:24px;color:var(--text-dim);">Full access — owner account</div>';
+  } else if (onTrial) {
+    // Trial user: offer to subscribe to their trial plan so they keep it when the
+    // trial ends. (Their stored plan already reads as the trial tier, so the normal
+    // "upgradable" list would be empty — this is the path that lets them convert.)
+    const pi = trialInfo;
+    document.getElementById('billingUpgradeSection').innerHTML =
+      `<div style="background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.3);border-radius:12px;padding:14px 16px;margin-bottom:14px;color:#ffe07a;font-size:13px;font-weight:600;">🎁 You're on a free ${pi.label} trial — ${trialDays} day${trialDays===1?'':'s'} left. Subscribe now to keep ${pi.label} when your trial ends on ${fmtTrialEnd}.</div>`
+      + `<div class="card" style="margin-bottom:12px;border-color:${pi.color}55;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div style="font-family:'Exo 2',sans-serif;font-size:18px;font-weight:900;color:${pi.color};">${pi.label}</div>
+            <div style="font-size:16px;font-weight:700;color:var(--bright);">${pi.price}</div>
+          </div>
+          <div style="font-size:13px;color:var(--text-dim);margin-bottom:14px;line-height:2;">${pi.features.map(f=>`<div>✓ ${f}</div>`).join('')}</div>
+          <button onclick="upgradeTarget='${trialPlan}';upgradeNow(this)" class="btn btn-accent" style="width:100%;padding:11px;font-size:14px;">Subscribe to ${pi.label} — ${pi.price}</button>
+        </div>`;
   } else if (upgradable.length) {
     document.getElementById('billingUpgradeSection').innerHTML =
       `<div style="font-family:'Exo 2',sans-serif;font-size:11px;font-weight:700;color:var(--text-dim);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px;">Upgrade Your Plan</div>` +
@@ -4264,8 +4388,13 @@ function onAuthReady(user) {
   const OWNER_CHANNELS = ['emergeonkick'];
   isOwnerAcct = OWNER_EMAILS.includes(user.email?.toLowerCase()) ||
                 OWNER_CHANNELS.includes((profile?.kickChannel || '').toLowerCase());
-  userPlan    = isOwnerAcct ? 'agency' : (profile?.plan || 'starter');
+  // An expired Elite trial reverts to starter for entitlements (the daily sweep
+  // flips the stored plan; this guards the window before it runs).
+  const _trialEnd     = trialEndMs(profile);
+  const _trialExpired = profile?.planTrial === true && _trialEnd > 0 && _trialEnd <= Date.now();
+  userPlan    = isOwnerAcct ? 'agency' : (_trialExpired ? 'starter' : (profile?.plan || 'starter'));
   applyTierLocks();
+  applyTrialBanner();
   document.getElementById('sidebarUser').textContent = user.email;
   document.getElementById('botStatusChannel').textContent = profile?.kickChannel || '—';
 
@@ -4281,6 +4410,9 @@ function onAuthReady(user) {
   // sees the streamer they're moderating, not their own bot status.
   startBotStatusListener(fb.activeUid);
   startLiveBadgeListeners(fb.activeUid);
+  // Start the invoice listener at login (not just on the Billing page) so the
+  // global "new invoice" banner can appear on any page the moment one is issued.
+  loadInvoices();
   document.getElementById('channelPillName').textContent = profile?.kickChannel || '—';
   document.getElementById('statChannel').textContent = profile?.kickChannel || '—';
   // Wire My Portal link if the channel is set
@@ -7158,14 +7290,34 @@ async function loadWagerRankings() {
       // Past period → render the SAVED snapshot (the exact standings viewers saw and
       // prizes were paid on) so it matches the public leaderboard to the cent. A live
       // Gambulls date-range would count the boundary day by full calendar days and
-      // never line up. Fall back to the date-range only if no snapshot was stored.
-      const winners = _lbPeriodSnapshots[periodVal];
-      if (winners && winners.length) {
-        data = { rankings: winners.map((w) => ({ rank: w.rank, username: w.username, wagered: w.wagered })) };
+      // never line up.
+      //
+      // BUT the snapshot only stores the PAID winners (top ~10). When the streamer
+      // asks to see more names than the snapshot holds, pull the full date-range
+      // board and extend BELOW the snapshot — keeping the exact paid top-N, adding
+      // everyone else beneath it. (Ranks past the prizes don't need cent-accuracy.)
+      const snapRows = (_lbPeriodSnapshots[periodVal] || [])
+        .map((w) => ({ rank: w.rank, username: w.username, wagered: w.wagered }));
+      const wantCount = countSel === 'all' ? Infinity : (parseInt(countSel, 10) || 15);
+      if (snapRows.length && wantCount <= snapRows.length) {
+        data = { rankings: snapRows };                // snapshot covers the request → exact
       } else {
         const [from, to] = periodVal.split(':');
         const url = `/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
-        data = await (await fetch(url)).json();
+        let dr = {};
+        try { dr = await (await fetch(url)).json(); } catch {}
+        if (Array.isArray(dr.rankings) && dr.rankings.length) {
+          if (snapRows.length) {
+            // Exact paid top-N + everyone below it from the date range (deduped).
+            const seen  = new Set(snapRows.map((t) => String(t.username || '').toLowerCase()));
+            const extra = dr.rankings.filter((r) => r.rank > snapRows.length && !seen.has(String(r.username || '').toLowerCase()));
+            data = { rankings: snapRows.concat(extra) };
+          } else {
+            data = dr;                                // no snapshot at all → full date-range
+          }
+        } else {
+          data = snapRows.length ? { rankings: snapRows } : dr;  // date-range failed → snapshot (or its error)
+        }
       }
     } else {
       // Current period → the live baselined board, identical to the public leaderboard.
