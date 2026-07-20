@@ -3732,6 +3732,7 @@ function applyInvoiceBanner() {
   const el = document.getElementById('invoiceBanner');
   const txt = document.getElementById('invoiceBannerText');
   if (!el || !txt) return;
+  if (STREAM_SAFE_HIDE.has(_activePage)) { el.style.display = 'none'; return; }
   const dis = loadInvDismissed();
   const unpaid = (invInvoices || []).filter(i => !invIsPaid(i) && !i.paymentSubmitted);
   const fresh  = unpaid.filter(i => !dis.has(i.id));
@@ -3947,6 +3948,10 @@ function showPage(id, el) {
   if (el) el.classList.add('active');
   const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotpicker:'Slot Picker', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', settings:'Settings', activity:'Activity Log', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade', referrals:'Invite & Earn', extension:'Companion Extension', whatsnew:"What's New" };
   document.getElementById('topbarTitle').textContent = titles[id] || id;
+  // Re-evaluate the top billing banners for this page (hidden on stream-shown pages).
+  _activePage = id;
+  applyTrialBanner();
+  applyInvoiceBanner();
   // Tear down SR listeners when leaving their pages
   if (id !== 'slotrequest' && srUnsub)        { srUnsub(); srUnsub = null; }
   if (id !== 'bonushunt') { unsubBhSr(); if (bhHistoryUnsub) { bhHistoryUnsub(); bhHistoryUnsub = null; } if (bhUnsub) { bhUnsub(); bhUnsub = null; } }
@@ -4002,8 +4007,8 @@ const PAGE_PLAN = {
   raffle:      'pro',
   commands:    'pro',
   leaderboard: 'elite',
-  bonusbattle: 'elite',
-  tournament:  'elite',
+  bonusbattle: 'pro',
+  tournament:  'pro',
 };
 
 const PLAN_INFO = {
@@ -4013,11 +4018,11 @@ const PLAN_INFO = {
   },
   pro: {
     label: 'Pro', color: '#a78bfa', price: '$30/mo',
-    features: ['Everything in Starter', 'Points system + custom currency', 'Viewer store & redemptions', 'Guess the Balance + OBS overlay', 'Custom commands'],
+    features: ['Everything in Starter', 'Points system + custom currency', 'Viewer store & redemptions', 'Guess the Balance + OBS overlay', 'Bonus Battles — viewer betting', 'Tournaments — viewer bracket', 'Custom commands'],
   },
   elite: {
     label: 'Elite', color: '#ffd700', price: '$50/mo',
-    features: ['Everything in Pro', 'Wager leaderboard (public page)', 'Bonus Battles — viewer betting', 'Tournaments — viewer bracket', 'Discord integration', 'Priority support'],
+    features: ['Everything in Pro', 'Wager leaderboard (public page)', 'Custom portal theme & branding', 'Discord integration', 'Priority support'],
   },
   agency: {
     label: 'Agency', color: '#00e5ff', price: '$80+/mo',
@@ -4039,12 +4044,18 @@ function trialEndMs(p) {
   return Number(t) || 0;
 }
 
+// Pages a streamer typically shows ON STREAM — keep billing notices (trial /
+// invoice) off these so they're never captured on their broadcast.
+const STREAM_SAFE_HIDE = new Set(['giveaway']);
+let _activePage = 'overview';
+
 // Top-of-dashboard notice while a free trial is active — shows the tier, days
 // left, and expiry date, with a shortcut to Plan & Billing to subscribe.
 function applyTrialBanner() {
   const el  = document.getElementById('trialBanner');
   const txt = document.getElementById('trialBannerText');
   if (!el || !txt) return;
+  if (STREAM_SAFE_HIDE.has(_activePage)) { el.style.display = 'none'; return; }
   const end = trialEndMs(profile);
   // Keyed off the ACTIVE account's profile (not who's viewing) — so an owner/admin
   // who switches into a trial streamer previews the same banner the streamer sees.
@@ -4170,10 +4181,15 @@ function renderBillingPage() {
   const periodEnd= p.stripePeriodEnd ? new Date(p.stripePeriodEnd) : null;
   const fmtDate  = d => d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
 
+  // On a trial, the CURRENT PLAN card reflects the TRIAL tier (e.g. Elite) — not
+  // the viewer's own plan. This matters when an owner/admin previews a moderated
+  // trial account (their owner-bypass would otherwise mislabel it "Agency").
+  const dispInfo = onTrial ? trialInfo : info;
+
   // Plan name + color
   const planEl = document.getElementById('billingCurrentPlan');
-  planEl.textContent = info.label + (onTrial ? ' (Trial)' : '');
-  planEl.style.color = info.color;
+  planEl.textContent = dispInfo.label + (onTrial ? ' (Trial)' : '');
+  planEl.style.color = dispInfo.color;
 
   // Status badge
   const badge = document.getElementById('billingStatusBadge');
@@ -4198,7 +4214,7 @@ function renderBillingPage() {
   }
 
   // Price
-  document.getElementById('billingPrice').textContent = info.price;
+  document.getElementById('billingPrice').textContent = dispInfo.price;
 
   // Next billing / period end info
   const nextBillEl = document.getElementById('billingNextBill');
@@ -4222,7 +4238,7 @@ function renderBillingPage() {
 
   // Features list
   document.getElementById('billingCurrentFeatures').innerHTML =
-    info.features.map(f => `<div>✓ ${f}</div>`).join('');
+    dispInfo.features.map(f => `<div>✓ ${f}</div>`).join('');
 
   // Manage button — shown for any active paid subscription
   document.getElementById('billingManageRow').style.display = isActive && !isStarter ? '' : 'none';
@@ -4413,6 +4429,20 @@ function onAuthReady(user) {
   // Start the invoice listener at login (not just on the Billing page) so the
   // global "new invoice" banner can appear on any page the moment one is issued.
   loadInvoices();
+
+  // Track last dashboard activity. Firebase's lastSignInTime only updates on a
+  // FRESH sign-in — a streamer who returns with a saved session never bumps it,
+  // so the admin panel's "last login" looked stale. Record our own timestamp on
+  // the streamer doc (owner only, not while moderating), throttled to ~hourly.
+  if (fb.currentUser && fb.activeUid === fb.currentUser.uid) {
+    try {
+      const _k = 'wb_lastactive_' + fb.activeUid;
+      if (Date.now() - Number(localStorage.getItem(_k) || 0) > 3600000) {
+        fb.db.collection('streamers').doc(fb.activeUid).set({ lastActiveAt: Date.now() }, { merge: true }).catch(() => {});
+        localStorage.setItem(_k, String(Date.now()));
+      }
+    } catch {}
+  }
   document.getElementById('channelPillName').textContent = profile?.kickChannel || '—';
   document.getElementById('statChannel').textContent = profile?.kickChannel || '—';
   // Wire My Portal link if the channel is set

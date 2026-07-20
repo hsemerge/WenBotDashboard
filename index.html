@@ -874,13 +874,13 @@
         <div class="feature-card">
           <div class="feature-icon">🏆</div>
           <div class="feature-title">Wager Leaderboard</div>
-          <div class="feature-desc">Live monthly wager rankings pulled directly from your casino affiliate API. Public shareable page with a podium, full rankings table, and archived past winners.</div>
+          <div class="feature-desc">Live wager rankings pulled straight from your casino affiliate API — <strong>Gambulls, Degen, and CSGOBig</strong> supported, with switchable boards if you run more than one. Public shareable page with a podium, full rankings, and an archive of past winners.</div>
           <span class="feature-tag tag-elite">Elite</span>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🌐</div>
           <div class="feature-title">Streamer Portal</div>
-          <div class="feature-desc">Your own public hub at <strong>wenbot.gg/yourchannel</strong> — bio, socials, active giveaway, store, and past raffle winners on one shareable page. <strong>Elite</strong> unlocks Full Portal Access: the live wager leaderboard and a custom theme color.</div>
+          <div class="feature-desc">Your own public hub at <strong>wenbot.gg/yourchannel</strong> — bio, socials, active giveaway, store, and past raffle winners on one shareable page. <strong>Elite</strong> adds your live wager leaderboard plus custom theme &amp; branding.</div>
           <span class="feature-tag tag-pro">Pro</span>
         </div>
         <div class="feature-card">
@@ -904,14 +904,26 @@
         <div class="feature-card">
           <div class="feature-icon">💣</div>
           <div class="feature-title">Bonus Hunt Tracker</div>
-          <div class="feature-desc">Track every bonus slot during a hunt — open count, total cost, results. Live OBS overlay shows your hunt in real time. Viewers can submit slot requests with <strong>!sr</strong> and you add them to the hunt in one click.</div>
-          <span class="feature-tag tag-pro">Pro</span>
+          <div class="feature-desc">Track every bonus slot during a hunt — open count, total cost, results, and running break-even. A live OBS overlay shows your hunt in real time, and finished hunts are saved to your history.</div>
+          <span class="feature-tag tag-free">Free</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📋</div>
+          <div class="feature-title">Slot Requests</div>
+          <div class="feature-desc">Viewers request slots with <strong>!sr</strong> — you manage the queue from the dashboard, add them straight into a bonus hunt, and show it live in OBS. Set eligibility, cooldowns, and per-viewer limits. <strong>Now free on every plan.</strong></div>
+          <span class="feature-tag tag-free">Free</span>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🖥️</div>
           <div class="feature-title">OBS Overlays</div>
           <div class="feature-desc">Browser-source widgets for your stream — giveaway entry counter, winner spin animation, live bonus hunt tracker, and slot request queue. No plugins required, just paste the URL into OBS.</div>
-          <span class="feature-tag tag-pro">Pro</span>
+          <span class="feature-tag tag-free">Free</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🧩</div>
+          <div class="feature-title">WenBot Companion</div>
+          <div class="feature-desc">A browser extension that adds bonus-hunt slots straight from the casino page — no alt-tabbing. Live hunt HUD, break-even radar, and smart slot autocomplete. Tracking only; never touches your casino account.</div>
+          <span class="feature-tag tag-free">Free</span>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🎯</div>
@@ -1087,8 +1099,9 @@
             <li><span class="check">✓</span> Casino verification (!verify)</li>
             <li><span class="check">✓</span> Up to 50 verified viewers</li>
             <li><span class="check">✓</span> Spin picker + winner overlay</li>
-            <li><span class="check">✓</span> Wheel OBS overlay</li>
-            <li><span class="check">✓</span> Bonus hunt tracker</li>
+            <li><span class="check">✓</span> Bonus hunt tracker + OBS overlay</li>
+            <li><span class="check">✓</span> <strong>Slot request queue + overlay</strong></li>
+            <li><span class="check">✓</span> WenBot Companion browser extension</li>
             <li><span class="check">✓</span> WenBot added in your Kick channel</li>
           </ul>
           <a href="signup.html?plan=starter" class="btn btn-ghost pricing-cta">Get Started</a>
@@ -1108,9 +1121,8 @@
             <li><span class="check">✓</span> Bonus Battles — viewer betting</li>
             <li><span class="check">✓</span> Tournaments — bracket system</li>
             <li><span class="check">✓</span> Guess the Balance (GTB)</li>
-            <li><span class="check">✓</span> Slot request queue</li>
+            <li><span class="check">✓</span> Slot picker</li>
             <li><span class="check">✓</span> Streamer Portal — your public hub (store + winners)</li>
-            <li><span class="check">✓</span> All OBS Overlays</li>
             <li><span class="check">✓</span> Custom commands</li>
           </ul>
           <a href="signup.html?plan=pro" class="btn btn-accent pricing-cta">Start Pro</a>
@@ -1123,14 +1135,13 @@
           <div class="pricing-divider"></div>
           <ul class="pricing-features">
             <li><span class="check">✓</span> Everything in Pro</li>
-            <li><span class="check">✓</span> <strong>Full Portal Access</strong> — live leaderboard + theme color</li>
+            <li><span class="check">✓</span> Wager leaderboard</li>
+            <li><span class="check">✓</span> Custom portal theme &amp; branding</li>
             <li><span class="check">✓</span> Discord integration + bot commands</li>
-            <li><span class="check">✓</span> Wager leaderboard (public page)</li>
             <li><span class="check">✓</span> Past winners archive</li>
             <li><span class="check">✓</span> Team — up to 2 dashboard moderators</li>
             <li><span class="check">✓</span> Unlimited verified viewers</li>
             <li><span class="check">✓</span> Priority support</li>
-            <li><span class="check">✓</span> Early access to new features</li>
           </ul>
           <a href="signup.html?plan=elite" class="btn btn-outline pricing-cta">Start Elite</a>
         </div>
@@ -1138,18 +1149,21 @@
         <div class="pricing-card">
           <div class="pricing-tier">Agency</div>
           <div class="pricing-price">$80<span>/mo</span></div>
-          <div class="pricing-sub">Starting price · custom scope</div>
+          <div class="pricing-sub">Ongoing — after your custom build</div>
           <div class="pricing-divider"></div>
           <ul class="pricing-features">
             <li><span class="check">✓</span> Everything in Elite</li>
+            <li><span class="check">✓</span> <strong>Bespoke website on your own domain</strong></li>
             <li><span class="check">✓</span> Multi-channel dashboard</li>
-            <li><span class="check">✓</span> White-label overlays</li>
+            <li><span class="check">✓</span> White-label — no WenBot branding</li>
             <li><span class="check">✓</span> Custom feature development</li>
             <li><span class="check">✓</span> Dedicated account manager</li>
             <li><span class="check">✓</span> Direct priority support line</li>
-            <li><span class="check">✓</span> Custom integrations & API access</li>
           </ul>
-          <a href="signup.html?plan=agency" class="btn btn-ghost pricing-cta">Contact Us</a>
+          <div style="font-size:12px;color:var(--text-dim);line-height:1.6;margin:2px 0 16px;padding:10px 12px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;">
+            💬 Your custom white-label site is a <strong>one-time design project</strong>, quoted per streamer. The $80/mo begins once it's live and covers ongoing tools, hosting &amp; support. Email us for a quote.
+          </div>
+          <a href="mailto:support@wenbot.gg?subject=Agency%20%2F%20Custom%20Website%20Inquiry" class="btn btn-ghost pricing-cta">Email Us</a>
         </div>
 
       </div>

@@ -51,6 +51,9 @@ exports.handler = async (event) => {
       paymentCount:       s.paymentCount || 0,
       lastPaymentAt:      ms(s.lastPaymentAt),
       kickConnectedAt:    ms(s.kickConnectedAt),
+      // Baseline "last login" from our own activity ping (dashboard load). The
+      // Firebase lastSignInTime below is max'd in — whichever is newer wins.
+      lastLoginAt:        ms(s.lastActiveAt),
       // Billing/renewals: next payment date. Stripe subs come from the webhook;
       // crypto subs advance on admin-confirm. Either drives the "Due Soon" view.
       stripeSubscribed:   !!s.stripeSubscriptionId,
@@ -71,7 +74,7 @@ exports.handler = async (event) => {
         const t = rec.metadata && rec.metadata.lastSignInTime;
         if (t) m[rec.uid] = new Date(t).getTime();
       });
-      for (const u of users.slice(i, i + 100)) u.lastLoginAt = m[u.uid] || null;
+      for (const u of users.slice(i, i + 100)) u.lastLoginAt = Math.max(m[u.uid] || 0, u.lastLoginAt || 0) || null;
     }
   } catch (e) {
     console.warn("[admin-users] last-login lookup failed:", e.message);

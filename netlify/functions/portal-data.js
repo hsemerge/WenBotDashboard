@@ -615,9 +615,11 @@ exports.handler = async (event) => {
       } catch (err) {
         console.warn("[portal-data] leaderboard_periods fetch failed:", err.message);
       }
+    } // end Elite-only leaderboard block
 
-      // Active Bonus Battle and Tournament statuses (no entries, no votes — just status)
-      const [bhDoc, bbDoc, tnDoc] = await Promise.all([
+    // Active statuses. Bonus hunt is free; bonus battles + tournaments are Pro —
+    // populate for any portal (portals are Pro+ anyway) so these "live" chips show.
+    const [bhDoc, bbDoc, tnDoc] = await Promise.all([
         db.collection("streamers").doc(uid).collection("bonus_hunt").doc("current").get(),
         db.collection("streamers").doc(uid).collection("bonus_battles").doc("current").get(),
         db.collection("streamers").doc(uid).collection("tournaments").doc("current").get(),
@@ -641,7 +643,6 @@ exports.handler = async (event) => {
           participants: (tnDoc.data().participants || []).length,
         };
       }
-    }
 
     const payload = {
       streamer:    publicProfile,
@@ -663,8 +664,8 @@ exports.handler = async (event) => {
         leaderboard: tier >= TIER_RANK.elite,
         store:       tier >= TIER_RANK.pro,
         raffles:     tier >= TIER_RANK.pro,
-        battle:      tier >= TIER_RANK.elite,
-        tournament:  tier >= TIER_RANK.elite,
+        battle:      tier >= TIER_RANK.pro,
+        tournament:  tier >= TIER_RANK.pro,
       },
     };
     try { await cacheRef.set({ cachedAt: Date.now(), data: payload }); } catch { /* cache write failed — non-fatal */ }
