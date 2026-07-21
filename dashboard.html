@@ -4057,7 +4057,10 @@ function trialEndMs(p) {
 
 // Pages a streamer typically shows ON STREAM — keep billing notices (trial /
 // invoice) off these so they're never captured on their broadcast.
-const STREAM_SAFE_HIDE = new Set(['giveaway']);
+// Pages where the top billing banners (trial / invoice) are hidden: ones a
+// streamer shows on stream (giveaway), and the Overlays page — it doesn't scroll
+// (fixed height), so a banner there would clip the Copy-URL button off the bottom.
+const STREAM_SAFE_HIDE = new Set(['giveaway', 'overlays']);
 let _activePage = 'overview';
 
 // Record "last active on the dashboard" so the admin panel's Last Login is
