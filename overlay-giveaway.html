@@ -313,7 +313,7 @@ function render(data) {
 
 async function poll() {
   render(await fetchData());
-  setTimeout(poll, 5000); // refresh every 5s
+  setTimeout(poll, 1500); // refresh every 1.5s
 }
 
 poll();

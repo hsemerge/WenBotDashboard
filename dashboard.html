@@ -1097,7 +1097,7 @@
             <div class="earn-icon">🔁</div>
             <div class="earn-info">
               <div class="name">Allow Viewers to Give Points</div>
-              <div class="desc">Lets viewers transfer points to each other with <code>!pgive</code>. Turn this OFF if it's being abused. Saves instantly.</div>
+              <div class="desc">Lets viewers transfer points to each other with <code>!give</code> or <code>!pgive</code>. Turn this OFF if it's being abused. Saves instantly.</div>
             </div>
             <input type="checkbox" id="allowPointGiving" checked onchange="savePointGiving()" style="width:20px;height:20px;cursor:pointer;flex:none;">
           </div>
@@ -1335,7 +1335,7 @@
             <input type="text" id="alias_prank" placeholder="rank" maxlength="20">
           </div>
           <div class="field">
-            <label style="font-size:11px;">Slot request <span style="color:var(--text-dim);font-weight:400;">(default: !request, !r always works)</span></label>
+            <label style="font-size:11px;">Slot request <span style="color:var(--text-dim);font-weight:400;">(default: !request, !r + !sr always work)</span></label>
             <input type="text" id="alias_request" placeholder="request" maxlength="20">
           </div>
           <div class="field">
@@ -2109,7 +2109,7 @@
             <div class="cmd-list">
               <div class="cmd-row"><div class="cmd-name">!points</div><div class="cmd-desc">Check your own balance.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!points @user</div><div class="cmd-desc">Check another viewer's balance.</div><div class="cmd-who who-all">ALL</div></div>
-              <div class="cmd-row"><div class="cmd-name">!pgive @user [amount]</div><div class="cmd-desc">Gift points to another viewer.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!give / !pgive @user [amount]</div><div class="cmd-desc">Gift points to another viewer.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!top</div><div class="cmd-desc">Show the top 5 by points.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!rank</div><div class="cmd-desc">See your current rank.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!addpoints @user [n]</div><div class="cmd-desc">Add points to a viewer.</div><div class="cmd-who who-mod">MOD</div></div>
@@ -2125,7 +2125,7 @@
           <div class="card help-section" style="margin-bottom:0;">
             <h3>🛒 Store &amp; Raffles</h3>
             <div class="cmd-list">
-              <div class="cmd-row"><div class="cmd-name">!store</div><div class="cmd-desc">List items currently for sale.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!store</div><div class="cmd-desc">List items for sale + a direct link to your public store page.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!buy [item name]</div><div class="cmd-desc">Spend points on an item. Partial match works.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!redeem [item name]</div><div class="cmd-desc">Alias for !buy.</div><div class="cmd-who who-all">ALL</div></div>
             </div>
@@ -2150,7 +2150,7 @@
           <div class="card help-section" style="margin-bottom:0;">
             <h3>🎲 Slot Requests &amp; Verify</h3>
             <div class="cmd-list">
-              <div class="cmd-row"><div class="cmd-name">!r [slot name]</div><div class="cmd-desc">Request a slot for the current Bonus Hunt.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!r / !sr [slot name]</div><div class="cmd-desc">Request a slot for the current Bonus Hunt.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!verify</div><div class="cmd-desc">Get a link to verify with Kick OAuth.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!verify [username]</div><div class="cmd-desc">Quick-verify with a specific casino username.</div><div class="cmd-who who-all">ALL</div></div>
             </div>
@@ -7788,7 +7788,10 @@ async function loadStoreItems() {
   if (channel) {
     const linkEl = document.getElementById('storePublicLink');
     linkEl.style.display = '';
-    linkEl.innerHTML = `<a href="store.html?channel=${channel}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:11px;">🔗 View public store</a>`;
+    const storeUrl = `${location.origin.replace(/\/$/, '')}/store.html?channel=${channel}`;
+    linkEl.innerHTML = `<a href="store.html?channel=${channel}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:11px;">🔗 View public store</a>`
+      + `<button onclick="navigator.clipboard&&navigator.clipboard.writeText('${storeUrl}');this.textContent='✓ Copied';setTimeout(()=>this.textContent='📋 Copy store link',1500);" style="margin-left:10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:11px;padding:2px 8px;cursor:pointer;">📋 Copy store link</button>`
+      + `<div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Share this anywhere — viewers also get it automatically when they type <code style="color:var(--accent);">!store</code> in chat.</div>`;
   }
 
   if (snap.empty) {
