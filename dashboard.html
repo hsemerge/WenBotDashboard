@@ -7968,8 +7968,13 @@ function onStoreModeChange() {
 async function saveStoreLink() {
   const mode = document.querySelector('input[name="storeMode"]:checked')?.value === 'link' ? 'link' : 'items';
   const el   = document.getElementById('storeLinkInput');
-  const val  = (el?.value || '').trim().slice(0, 300);
+  let   val  = (el?.value || '').trim().slice(0, 300);
   if (mode === 'link' && !val) { flash('Add a link, or switch back to "Item list".', true); return; }
+  // Make sure link mode always stores a clickable URL — add https:// if the
+  // streamer didn't type a scheme (so "www.site.com" becomes a real link on Kick).
+  if (mode === 'link' && val && !/^[a-z][a-z0-9+.-]*:\/\//i.test(val)) {
+    val = 'https://' + val.replace(/^\/+/, '');
+  }
   await saveStreamerProfile({ storeReplyMode: mode, storeLink: val });
   if (profile) { profile.storeReplyMode = mode; profile.storeLink = val; }
   updateStoreModeLabel();
