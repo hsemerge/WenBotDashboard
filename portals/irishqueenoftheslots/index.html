@@ -415,12 +415,14 @@
 
   <!-- Latest Videos — auto-pulled from her YouTube channel feed (/api/yt-feed) -->
   <div id="videosSection">
-    <h2 class="section-title" id="videos">🎥 <span>Latest Videos</span></h2>
-    <div id="ytMain" style="position:relative;width:100%;max-width:900px;margin:0 auto;aspect-ratio:16/9;border-radius:16px;overflow:hidden;border:1px solid var(--border);box-shadow:0 0 44px rgba(196,59,255,.22);background:var(--bg-card);"></div>
-    <div id="ytThumbs" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:900px;margin:14px auto 0;"></div>
-    <div style="text-align:center;margin-top:16px;">
-      <a class="bonus" href="https://youtube.com/@irishqueenoftheslots" target="_blank" rel="noopener">▶ Subscribe on YouTube</a>
+    <!-- 💰 Biggest Wins — curated clips straight from her Kick channel.
+         Thumbnails hotlink from clips.kick.com (allowed in the site CSP);
+         each card opens the clip on Kick in a new tab. -->
+    <h2 class="section-title" id="videos">💰 <span>Biggest Wins</span></h2>
+    <div id="bigWinsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;max-width:900px;margin:0 auto 34px;">
+      <!-- populated by renderBigWins() below -->
     </div>
+
   </div>
 
   <!-- About -->
@@ -842,7 +844,7 @@
       rank: r.rank, username: r.name || r.username,
       wagered: r.wagerAmount != null ? r.wagerAmount : r.wagered,
       avatarUrl: r.avatarUrl || null, prize: r.prize || 0,
-    })).slice(0, isCsgobig ? 13 : 10);
+    })).slice(0, isCsgobig ? 13 : 20);
     // Degen ships a per-rank prize on each row; other casinos use portal-config prizes.
     const isDegen = (lb.casinoName === 'Degen') || ranks.some(r => r.prize > 0);
     const prizes = isDegen ? ranks.map(r => r.prize) : ((portal.prizes) || []);
@@ -1122,6 +1124,39 @@
       (links.length ? `<p style="margin-top:10px">${links.join(' · ')}</p>` : '');
   }
 
+  // -- 💰 Biggest Wins — curated Kick clips (title, clip id, duration secs).
+  // Thumbnails follow Kick's clip CDN pattern; each card links to the clip on
+  // Kick. To feature a new win: grab the clip id from its kick.com URL and add
+  // a row here (newest/biggest first).
+  const BIG_WINS = [
+    { id: 'clip_01KW2077G1JBQV6SK0KY72JHTC', sub: 'b7', title: '$25K HIT!!! 💜',            dur: 100 },
+    { id: 'clip_01KWPMYCNHTAYNBDRYWTCDDW7N', sub: 'c6', title: '500x KENO for $10K HOLYYY', dur: 59 },
+    { id: 'clip_01K5VZPD7NHKAEWGRAXTHA5621', sub: '70', title: 'MAX WIN',                   dur: 40 },
+    { id: 'clip_01K5VZPCJGB2WB30CYZJCSDJ91', sub: '97', title: 'Mental GOES MENTAL!!!$$$',  dur: 50 },
+    { id: 'clip_01K8RN9KG27ERCE3ZGQJHS5XKR', sub: 'ad', title: 'MAX WIN on Brick Snake 2000', dur: 30 },
+    { id: 'clip_01KWPQEWEWJ64Y9WE0D4A13229', sub: 'd6', title: 'Keno 500x',                 dur: 41 },
+    { id: 'clip_01KW20T82T9VTCAG9MJ6XZ6WRN', sub: '7d', title: '$25K Hit — the replay',     dur: 87 },
+    { id: 'clip_01K5VZP4727A3VPNTZ566W3PS8', sub: '1d', title: 'BANGGG 💥',                 dur: 30 },
+  ];
+  function renderBigWins() {
+    const grid = document.getElementById('bigWinsGrid');
+    if (!grid) return;
+    const fmtDur = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+    grid.innerHTML = BIG_WINS.map(c => `
+      <a href="https://kick.com/irishqueenoftheslots/clips/${c.id}" target="_blank" rel="noopener"
+         style="display:block;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;text-decoration:none;transition:transform .12s,border-color .12s;"
+         onmouseover="this.style.transform='translateY(-3px)';this.style.borderColor='var(--accent)';"
+         onmouseout="this.style.transform='';this.style.borderColor='var(--border)';">
+        <div style="position:relative;aspect-ratio:16/9;background:#120a22;">
+          <img src="https://clips.kick.com/clips/${c.sub}/${c.id}/thumbnail.webp" alt="" loading="lazy"
+               style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display='none';">
+          <span style="position:absolute;right:7px;bottom:7px;background:rgba(0,0,0,0.75);color:#fff;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;">▶ ${fmtDur(c.dur)}</span>
+        </div>
+        <div style="padding:9px 11px;font-size:12.5px;font-weight:700;color:var(--bright);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.title}</div>
+      </a>`).join('');
+  }
+  renderBigWins();
+
   // -- Latest Videos (auto from her YouTube channel feed) --
   const YT_CHANNEL = 'UCGmo_HIu2_gjViIxTF393Rg';
   function _ytEmbed(id, auto) {
@@ -1247,7 +1282,8 @@
   (async () => {
     await initViewer();
     load();
-    loadVideos();
+    // loadVideos() retired — the Videos section now shows curated Biggest Wins
+    // Kick clips (renderBigWins) instead of the YouTube feed.
     setInterval(load, 60000); // refresh live data each minute
   })();
 })();
