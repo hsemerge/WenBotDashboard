@@ -171,7 +171,11 @@
       <div class="drum-list" id="drumList"></div>
     </div>
     <div class="winner-banner" id="winnerBanner">
-      <span class="trophy">🏆</span>
+      <span class="trophy" id="winnerTrophy">🏆</span>
+      <!-- Winner's Kick avatar — shown in place of the trophy when we have one -->
+      <div id="winnerAvatar" style="display:none;width:64px;height:64px;border-radius:50%;margin:0 auto 6px;overflow:hidden;border:2px solid rgba(255,215,0,0.7);box-shadow:0 0 18px rgba(255,215,0,0.45);">
+        <img id="winnerAvatarImg" src="" alt="" style="width:100%;height:100%;object-fit:cover;">
+      </div>
       <div class="label">Winner</div>
       <div class="name" id="winnerName"></div>
       <div class="sub" id="winnerSub"></div>
@@ -186,6 +190,10 @@ const demoMode    = params.get('demo') === '1';
 // Embed mode is used by the dashboard preview iframe. Skips polling and
 // listens for postMessage triggers from the parent window instead.
 const isEmbed     = params.get('embed') === '1';
+// Hold mode (dashboard preview only): the reveal stays on screen until the
+// streamer acts on the winner, instead of auto-hiding. OBS URLs never carry
+// this flag, so the on-stream overlay still fades on its own as always.
+const holdMode    = params.get('hold') === '1';
 let lastTriggerAt   = 0;
 let lastClear       = null;
 let animating       = false;
@@ -236,7 +244,11 @@ async function poll() {
         lastTriggerAt = triggeredAt;
         document.getElementById('winnerBanner').style.display = 'none';
         showMachine();
-        runSpin(winner, wager || 0);
+        // Surface the winner's avatar in the reveal when the entry list has it.
+        const wLower = String(winner).toLowerCase();
+        const wEntry = (data.entries || []).find(e =>
+          String(e.kickKey || e.kickName || '').toLowerCase() === wLower);
+        runSpin(winner, wager || 0, wEntry?.avatarUrl || null);
       }
     } else {
       initialized = true;
@@ -249,7 +261,7 @@ function showMachine() {
   document.getElementById('machine').classList.add('visible');
 }
 
-function runSpin(winnerName, wager) {
+function runSpin(winnerName, wager, avatarUrl) {
   // Cancel any in-flight callbacks from a previous spin and bump the gen so
   // older rAF / setTimeout callbacks bail. Lets a rapid reroll cancel-and-
   // restart instead of being dropped by `if (animating) return`.
@@ -258,6 +270,12 @@ function runSpin(winnerName, wager) {
   if (bannerHideTimer) { clearTimeout(bannerHideTimer);  bannerHideTimer  = null; }
   const myGen = ++_spinGen;
   animating = true;
+
+  // Clear any held reveal from the PREVIOUS draw the moment a new spin starts —
+  // with hold mode keeping reveals up until the streamer acts, the old winner
+  // banner would otherwise sit visible through the whole next spin and spoil
+  // the surprise. The new winner only appears when this spin lands.
+  document.getElementById('winnerBanner').style.display = 'none';
 
   const ITEM_H   = 40;
   const PAD      = 1;
@@ -318,6 +336,19 @@ function runSpin(winnerName, wager) {
 
     document.getElementById('winnerName').textContent = winnerName;
     document.getElementById('winnerSub').textContent  = wager ? `$${Number(wager).toLocaleString()} wagered` : '';
+    // Winner's avatar takes the trophy's place when we have one.
+    const avWrap = document.getElementById('winnerAvatar');
+    const avImg  = document.getElementById('winnerAvatarImg');
+    const trophy = document.getElementById('winnerTrophy');
+    if (avatarUrl && avWrap && avImg) {
+      avImg.onerror = () => { avWrap.style.display = 'none'; if (trophy) trophy.style.display = ''; };
+      avImg.src = avatarUrl;
+      avWrap.style.display = '';
+      if (trophy) trophy.style.display = 'none';
+    } else {
+      if (avWrap) avWrap.style.display = 'none';
+      if (trophy) trophy.style.display = '';
+    }
     document.getElementById('winnerBanner').style.display = 'block';
 
     spawnParticles();
@@ -325,15 +356,19 @@ function runSpin(winnerName, wager) {
 
     if (window.parent !== window) {
       try {
-        window.parent.postMessage({ type: 'spin-landed', winner: winnerName, wager }, '*');
+        window.parent.postMessage({ type: 'spin-landed', winner: winnerName, wager, avatarUrl: avatarUrl || null }, '*');
       } catch {}
     }
 
-    hideMachineTimer = setTimeout(() => {
-      hideMachineTimer = null;
-      if (myGen !== _spinGen) return;
-      hideMachine();
-    }, 12000);
+    // Hold mode (dashboard preview) keeps the reveal up until the streamer
+    // acts; OBS (no hold flag) auto-hides after 12s exactly as before.
+    if (!holdMode) {
+      hideMachineTimer = setTimeout(() => {
+        hideMachineTimer = null;
+        if (myGen !== _spinGen) return;
+        hideMachine();
+      }, 12000);
+    }
   }, 4000);
 }
 
@@ -369,8 +404,13 @@ function _runWinnerEmbedSpin(msgData) {
   const winner = String(msgData.winner || '');
   if (!winner) return;
   const wager = Number(msgData.wager) || 0;
+  // The dashboard's spin message carries the full entry list with avatars —
+  // find the winner's picture for the reveal.
+  const wLower = winner.toLowerCase();
+  const wEntry = (msgData.entries || []).find(e =>
+    String(e.kickKey || e.kickName || '').toLowerCase() === wLower);
   showMachine();
-  runSpin(winner, wager);
+  runSpin(winner, wager, wEntry?.avatarUrl || null);
 }
 
 function initEmbed() {

@@ -206,7 +206,7 @@ function render(s) {
   const verBanner = document.getElementById('verifyBanner');
   if (viewerSession && s && !s.isVerified) {
     verBanner.style.display = '';
-    document.getElementById('verifyLink').href = `/verify.html?channel=${encodeURIComponent(channel)}`;
+    document.getElementById('verifyLink').href = `/verify.html?channel=${encodeURIComponent(channel)}&ret=tournament`;
   } else {
     verBanner.style.display = 'none';
   }

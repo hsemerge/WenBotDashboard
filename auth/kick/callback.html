@@ -218,6 +218,7 @@
               kick:    "connected",
             });
             if (statePayload.dtoken) vp.set("dtoken", statePayload.dtoken);
+            if (statePayload.ret)    vp.set("ret",    statePayload.ret);
             setTimeout(() => window.location.href = `/verify.html?${vp}`, 1200);
           } else {
             const channel = statePayload.channel || "";
@@ -290,6 +291,7 @@
         if (typeof statePayload === 'object' && statePayload) {
           const q = new URLSearchParams({ channel: statePayload.channel||"", casino: statePayload.casino||"gambulls" });
           if (statePayload.dtoken) q.set("dtoken", statePayload.dtoken);
+          if (statePayload.ret)    q.set("ret",    statePayload.ret);
           dest = `/verify.html?${q}`;
         } else {
           dest = "/verify.html";

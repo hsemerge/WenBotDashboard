@@ -195,6 +195,13 @@
         </button>
         <p id="discordLinked" style="display:none; color:#00ff88; font-size:13px; margin-top:10px; font-weight:600;">✅ Discord linked!</p>
       </div>
+      <!-- Where next — back to the page they verified for, or wenbot.gg for
+           viewers who came from a chat link and would otherwise just sit here. -->
+      <div id="vfNextSteps" style="display:none; margin-top:18px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.08);">
+        <a id="vfReturnBtn" href="#" style="display:none; margin-bottom:10px; text-align:center; background:rgba(0,229,255,0.12); border:1px solid rgba(0,229,255,0.4); border-radius:8px; color:#00e5ff; font-size:14px; font-weight:800; padding:11px 18px; text-decoration:none; font-family:'Exo 2',sans-serif;"></a>
+        <a id="vfDiscordBtn" href="#" target="_blank" rel="noopener" style="display:none; margin-bottom:10px; text-align:center; background:rgba(88,101,242,0.15); border:1px solid rgba(88,101,242,0.5); border-radius:8px; color:#a5b3f5; font-size:13px; font-weight:700; padding:10px 18px; text-decoration:none;">Open the Discord server ↗</a>
+        <a id="vfWenbotBtn" href="https://wenbot.gg" style="display:none; text-align:center; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.14); border-radius:8px; color:#c9d1d9; font-size:13px; font-weight:700; padding:10px 18px; text-decoration:none;">Explore wenbot.gg →</a>
+      </div>
     </div>
 
     <div class="status-box error" id="errorBox">
@@ -224,6 +231,17 @@
   let casinoName = casino ? (CASINO_NAMES[casino] || casino) : '';
   const discordMode   = !!dtoken;
   const kickConnected = params.get('kick') === 'connected';
+  // Where the viewer came from — whitelisted keys only (never a raw URL, so
+  // this can't be abused as an open redirect). Carried through the Kick OAuth
+  // round-trip via the state payload.
+  const RET_TARGETS = {
+    tournament:  { label: '🏅 Back to the Tournament',  path: '/tournament.html' },
+    bb:          { label: '⚔️ Back to Bonus Battles',   path: '/bonus-battle.html' },
+    leaderboard: { label: '🏆 Back to the Leaderboard', path: '/leaderboard.html' },
+    store:       { label: '🛒 Back to the Store',       path: '/store.html' },
+  };
+  const retKey = (params.get('ret') || '').toLowerCase();
+  const retTarget = RET_TARGETS[retKey] || null;
   // Came from the Discord verify gate → they're already in the server, so the
   // Discord step is just "link" (no "join the server?" question), and linking
   // is what assigns their role.
@@ -371,7 +389,7 @@
   }
 
   function connectKick() {
-    initiateKickAuth('verify', { channel: channel.toLowerCase(), casino, dtoken: dtoken || undefined });
+    initiateKickAuth('verify', { channel: channel.toLowerCase(), casino, dtoken: dtoken || undefined, ret: retKey || undefined });
   }
 
   function switchKickAccount() {
@@ -441,6 +459,26 @@
     document.getElementById('successBox').classList.add('show');
     document.getElementById('errorBox').classList.remove('show');
     document.getElementById('tryAgainLink').style.display = 'none';
+    // Offer the next step: back to the page they verified for (tournament /
+    // bonus battle / …), or wenbot.gg for chat-link arrivals. Both elements
+    // are anchors — display:block makes them full-width buttons.
+    const steps = document.getElementById('vfNextSteps');
+    if (steps) steps.style.display = 'block';
+    const backBtn = document.getElementById('vfReturnBtn');
+    if (backBtn && retTarget && channel) {
+      backBtn.textContent = retTarget.label;
+      backBtn.href = `${retTarget.path}?channel=${encodeURIComponent(channel)}`;
+      backBtn.style.display = 'block';
+    }
+    const wbBtn = document.getElementById('vfWenbotBtn');
+    if (wbBtn && !(retTarget && channel)) wbBtn.style.display = 'block';
+    // Straight into the streamer's Discord server (they're joined as part of
+    // the Connect-Discord step; members deep-link right in).
+    const dcBtn = document.getElementById('vfDiscordBtn');
+    if (dcBtn && guildInfo && guildInfo.guildId) {
+      dcBtn.href = `https://discord.com/channels/${encodeURIComponent(guildInfo.guildId)}`;
+      dcBtn.style.display = 'block';
+    }
   }
 
   function showError(msg) {

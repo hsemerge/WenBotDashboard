@@ -260,6 +260,7 @@
   <p>Powered by <a href="/">WenBot</a> — Streamer tools for Kick</p>
 </footer>
 
+<script src="/js/portal-branding.js"></script>
 <script>
   const CASINO_NAMES = {
     gambulls: 'Gambulls', stake: 'Stake', rainbet: 'Rainbet',
@@ -271,6 +272,9 @@
 
   const params  = new URLSearchParams(window.location.search);
   const channel = params.get('channel') || '';
+  // Reflect the streamer's portal customization (palette / logo) on this
+  // standalone page too — same cached payload the portal renders from.
+  if (channel) applyPortalBranding(channel);
   const casino  = (params.get('casino') || 'gambulls').toLowerCase();
   const casinoName = CASINO_NAMES[casino] || casino;
 

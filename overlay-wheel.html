@@ -124,6 +124,9 @@ const demoMode = params.get('demo') === '1';
 // Embed mode is used by the dashboard preview iframe. Skips polling and
 // listens for postMessage triggers from the parent window instead.
 const isEmbed  = params.get('embed') === '1';
+// Hold mode (dashboard preview only): keep the winner banner up until the
+// streamer acts. OBS URLs never carry this flag — on-stream fade unchanged.
+const holdMode = params.get('hold') === '1';
 
 const COLORS = [
   '#00e5ff','#a78bfa','#ffd700','#00ff88','#ff4757',
@@ -327,12 +330,16 @@ function spinToWinner(winnerName) {
         } catch {}
       }
 
-      // Auto-hide banner after 12s. Track the handle so a reroll can cancel.
-      bannerHideTimer = setTimeout(() => {
-        bannerHideTimer = null;
-        if (myGen !== _spinGen) return;
-        document.getElementById('winnerBanner').classList.remove('show');
-      }, 12000);
+      // Auto-hide banner after 12s (skipped in hold mode — the dashboard
+      // preview keeps it up until the streamer acts). Track the handle so a
+      // reroll can cancel.
+      if (!holdMode) {
+        bannerHideTimer = setTimeout(() => {
+          bannerHideTimer = null;
+          if (myGen !== _spinGen) return;
+          document.getElementById('winnerBanner').classList.remove('show');
+        }, 12000);
+      }
     }
   }
 

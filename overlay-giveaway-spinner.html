@@ -136,6 +136,9 @@
   // window — this avoids the 1.5s poll latency and the staleness/race
   // bugs that plagued the preview when triggers were carried via Firestore.
   const isEmbed = params.get('embed') === '1';
+  // Hold mode (dashboard preview only): keep the reveal up until the streamer
+  // acts on the winner. OBS URLs never carry this flag — on-stream fade unchanged.
+  const holdMode = params.get('hold') === '1';
   const POLL_MS = 1500;
   const REVEAL_MS = Math.max(0, parseInt(params.get('duration'), 10) || 10) * 1000;
   let winnerColor = params.get('winner');
@@ -307,7 +310,7 @@
               }, '*');
             } catch {}
           }
-          if (REVEAL_MS > 0) {
+          if (REVEAL_MS > 0 && !holdMode) {
             _revealTimer = setTimeout(() => {
               if (myGen !== _spinGen) return;
               rp.classList.remove('show');

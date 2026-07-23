@@ -143,6 +143,14 @@
 <nav>
   <div class="nav-logo">WenBot</div>
   <div class="nav-channel">Viewing store for <span id="navChannel">...</span></div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+    <button id="viewerLoginBtn" onclick="viewerLogin()" style="display:none;background:#53FC18;color:#0d1117;font-weight:800;font-size:13px;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;white-space:nowrap;">🟢 Sign in with Kick</button>
+    <span id="viewerInfo" style="display:none;font-size:13px;white-space:nowrap;">
+      <span id="viewerName" style="color:var(--bright);font-weight:600;"></span> ·
+      <span id="viewerPts" style="color:#ffd700;font-weight:700;font-family:'Exo 2',sans-serif;">…</span> ·
+      <span onclick="viewerLogout()" style="color:#8b949e;cursor:pointer;text-decoration:underline;">Log out</span>
+    </span>
+  </div>
 </nav>
 
 <div class="store-hero">
@@ -186,9 +194,15 @@
   <p>Powered by <a href="/">WenBot</a> — Streamer tools for Kick</p>
 </footer>
 
+<script src="/js/kick-auth.js"></script>
+<script src="/js/portal-branding.js"></script>
 <script>
   let allItems = [];
   let currencyName = 'points';
+  // Kick viewer session — same unified session the portal store uses, so
+  // signing in on either page signs you in on both.
+  let viewer = null;
+  try { viewer = (typeof getKickViewerSession === 'function') ? getKickViewerSession() : null; } catch { viewer = null; }
 
   const channel = new URLSearchParams(window.location.search).get('channel') || '';
 
@@ -197,6 +211,65 @@
   } else {
     document.getElementById('navChannel').textContent = channel;
     loadStore();
+    // Reflect the streamer's portal customization (palette / logo) here too.
+    applyPortalBranding(channel);
+    refreshViewerUI();
+  }
+
+  function refreshViewerUI() {
+    const loginBtn = document.getElementById('viewerLoginBtn');
+    const info     = document.getElementById('viewerInfo');
+    if (viewer) {
+      loginBtn.style.display = 'none'; info.style.display = '';
+      document.getElementById('viewerName').textContent = '@' + viewer.kickUsername;
+      fetchBalance();
+    } else {
+      loginBtn.style.display = ''; info.style.display = 'none';
+    }
+    if (allItems.length) filterItems(); // re-render buy buttons for sign-in state
+  }
+  async function fetchBalance() {
+    if (!viewer) return;
+    try {
+      const r = await fetch(`/api/bb-state?channel=${encodeURIComponent(channel)}&kick=${encodeURIComponent(viewer.kickUsername)}`);
+      const d = await r.json();
+      const pts = d && d.viewerPoints != null ? d.viewerPoints : 0;
+      document.getElementById('viewerPts').textContent = Number(pts).toLocaleString() + ' ' + currencyName;
+    } catch { document.getElementById('viewerPts').textContent = '—'; }
+  }
+  function viewerLogin()  { initiateKickAuth('viewer', channel); }
+  function viewerLogout() { clearKickViewerSession(); viewer = null; refreshViewerUI(); }
+
+  // In-page purchase — same endpoint + behavior as the portal store.
+  async function buyItem(itemId) {
+    if (!viewer) { viewerLogin(); return; }
+    const item = allItems.find(i => i.id === itemId);
+    if (!item) return;
+    const qtyEl = document.getElementById('qty-' + itemId);
+    const qty   = item.isRaffleItem ? Math.max(1, Math.min(100, parseInt(qtyEl?.value, 10) || 1)) : 1;
+    const total = Number(item.price) * qty;
+    const verb  = item.isRaffleItem
+      ? (qty > 1 ? `buy ${qty} tickets for the ${item.name} raffle` : `enter the ${item.name} raffle`)
+      : 'buy ' + item.name;
+    if (!confirm(`Spend ${total.toLocaleString()} ${currencyName} to ${verb}?`)) return;
+    const btn = document.getElementById('buy-' + itemId);
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    try {
+      const r = await fetch('/api/store-buy', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel, kickUsername: viewer.kickUsername, accessToken: viewer.accessToken, itemId, quantity: qty }),
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        if (r.status === 401) { clearKickViewerSession(); viewer = null; refreshViewerUI(); }
+        alert(d.error || 'Purchase failed.');
+      } else {
+        if (d.newBalance != null) document.getElementById('viewerPts').textContent = Number(d.newBalance).toLocaleString() + ' ' + currencyName;
+        alert(d.message || 'Success!');
+        loadStore(); // refresh stock
+      }
+    } catch { alert('Purchase failed — try again.'); }
+    if (btn) { btn.disabled = false; btn.textContent = item.isRaffleItem ? '🎟 Buy tickets' : 'Buy'; }
   }
 
   async function loadStore() {
@@ -251,6 +324,23 @@
         : `<div class="item-img-placeholder">🎁</div>`;
 
       const cmd = `!redeem ${item.name}`;
+      // Signed-in viewers buy right here (same endpoint as the portal store);
+      // signed-out viewers keep the copy-the-chat-command flow.
+      let actionHtml;
+      if (viewer && !outOfStock) {
+        const qtyHtml = item.isRaffleItem
+          ? `<input type="number" id="qty-${escHtml(item.id)}" value="1" min="1" max="100" style="width:52px;background:var(--bg-card,#161b22);border:1px solid var(--border,#30363d);border-radius:7px;color:var(--bright,#f0f6fc);font-weight:700;font-size:13px;padding:7px;text-align:center;">`
+          : '';
+        actionHtml = `<div style="display:flex;gap:8px;margin-top:10px;">${qtyHtml}
+          <button id="buy-${escHtml(item.id)}" onclick="buyItem('${escHtml(item.id)}')" style="flex:1;background:linear-gradient(90deg,var(--accent),#7b5cff);color:#fff;font-weight:800;border:none;border-radius:8px;padding:9px;cursor:pointer;font-size:13px;">${item.isRaffleItem ? '🎟 Buy tickets' : 'Buy'}</button>
+        </div>`;
+      } else {
+        actionHtml = `<div class="redeem-cmd">
+          <code id="cmd-${escHtml(item.id)}">${escHtml(cmd)}</code>
+          <button class="copy-btn" onclick="copyCmd('${escHtml(item.id)}', '${escHtml(cmd)}')">Copy</button>
+        </div>`
+        + (!viewer && !outOfStock ? `<div style="font-size:11px;color:#8b949e;margin-top:6px;">or <span onclick="viewerLogin()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">sign in with Kick</span> to buy right here</div>` : '');
+      }
       return `
         <div class="item-card" ${outOfStock ? 'style="opacity:0.5;"' : ''}>
           ${imgHtml}
@@ -261,10 +351,7 @@
               <div class="item-price">${item.price.toLocaleString()} <span>${currencyName}</span></div>
               ${stockText}
             </div>
-            <div class="redeem-cmd">
-              <code id="cmd-${escHtml(item.id)}">${escHtml(cmd)}</code>
-              <button class="copy-btn" onclick="copyCmd('${escHtml(item.id)}', '${escHtml(cmd)}')">Copy</button>
-            </div>
+            ${actionHtml}
           </div>
         </div>`;
     }).join('');

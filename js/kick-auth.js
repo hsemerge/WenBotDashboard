@@ -141,6 +141,9 @@ async function initiateKickAuth(purpose = "streamer", payload = "") {
       channel:   (p.channel || "").toLowerCase(),
       casino:    p.casino || "gambulls",
       dtoken:    p.dtoken || null,
+      // Where the viewer came from (tournament / bb / …) — carried through the
+      // OAuth round-trip so verify.html can offer a "back to where you were".
+      ret:       p.ret || null,
       createdAt: Date.now(),
     }));
     state  = `verify_${nonce}`;

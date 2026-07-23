@@ -206,7 +206,7 @@
     document.getElementById('logoutBtn').style.display     = '';
     document.getElementById('viewerName').textContent      = '@' + viewer.kickUsername;
     document.getElementById('viewerPts').textContent       = '…';
-    document.getElementById('verifyLink').href             = `/verify.html?channel=${encodeURIComponent(channel)}`;
+    document.getElementById('verifyLink').href             = `/verify.html?channel=${encodeURIComponent(channel)}&ret=bb`;
   }
 
   // ── STATE FETCH ───────────────────────────────────────────────────────────────
