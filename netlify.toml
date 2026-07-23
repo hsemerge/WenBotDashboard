@@ -35,6 +35,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/grant-raffle-ticket"
+  to     = "/.netlify/functions/grant-raffle-ticket"
+  status = 200
+
+[[redirects]]
   from   = "/api/kick-streamer-finalize"
   to     = "/.netlify/functions/kick-streamer-finalize"
   status = 200
