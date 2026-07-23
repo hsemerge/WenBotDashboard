@@ -537,7 +537,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.1.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.1.1</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -787,8 +787,32 @@
            so Participants + Winners visually align to it. The 78vh max-height
            on .gw-col still caps any column from getting absurdly tall when
            there are many participants. */
-        .gw-stage { display: grid; grid-template-columns: 320px minmax(0,1fr) 460px; gap: 16px; margin-top: 14px; }
+        /* Three EQUAL wells: A Settings · B Control · C People (tabs). */
+        .gw-stage { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; margin-top: 14px; }
         @media (max-width: 1100px) { .gw-stage { grid-template-columns: 1fr; } }
+
+        /* Well B — the control column */
+        .gw-status-strip { display:flex; align-items:center; gap:9px; flex-wrap:wrap; border:1px solid var(--border); background:var(--bg-card); border-radius:10px; padding:10px 12px; }
+        .gw-status-strip.live { border-color:rgba(83,224,119,0.3); background:rgba(83,224,119,0.05); }
+        .gw-bigcount { text-align:center; margin:16px 0 6px; }
+        .gw-bigcount .n { font-family:'Exo 2',sans-serif; font-size:42px; font-weight:900; color:var(--bright); line-height:1; }
+        .gw-bigcount .l { font-size:10px; letter-spacing:.15em; text-transform:uppercase; color:var(--text-dim); margin-top:4px; }
+
+        /* Well C — Participants / Winners tabs */
+        .gw-people-tabs { display:flex; border-bottom:1px solid rgba(255,255,255,0.06); flex-shrink:0; }
+        .gw-ptab { flex:1; text-align:center; font-family:'Exo 2',sans-serif; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; padding:13px 8px; cursor:pointer; color:var(--text-dim); border-bottom:2px solid transparent; user-select:none; }
+        .gw-ptab.on { color:var(--accent); border-bottom-color:var(--accent); }
+        .gw-ptab .gw-count-sm { font-size:11px; background:var(--bg-card); border:1px solid var(--border); border-radius:100px; padding:1px 8px; margin-left:5px; color:var(--bright); }
+        .gw-people-pane { flex:1; min-height:0; display:flex; flex-direction:column; padding:13px 16px; overflow-y:auto; }
+        /* Columns scroll INSIDE their card when content is taller than the
+           78vh cap — fixes settings content spilling out through the card
+           border on short/zoomed windows. */
+        .gw-col { overflow-y: auto; }
+        /* (Launch bar retired — actions live in Well B now.) */
+        #page-giveaway { padding-bottom: 24px; }
+        /* Bounded + centered like the Bonus Hunt console — fills smaller
+           windows, caps at 1560px so ultrawides don't stretch the stage. */
+        #page-giveaway > * { max-width: 1560px; margin-left: auto; margin-right: auto; }
         .gw-col { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; min-height: 420px; max-height: 74vh; }
         .gw-col-title { font-family:'Exo 2',sans-serif;font-size:13px;font-weight:900;color:var(--bright);letter-spacing:.05em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px; }
         .gw-col-title .gw-count { color:var(--accent);font-size:18px;margin-left:auto; }
@@ -835,7 +859,11 @@
            dimensions (560×380 carousel, 800×800 wheel, 1920×1080 winner) fit
            cleanly. overflow:hidden clips anything outside the overlay box. */
         #gwColParticipants { position: relative; }
-        .gw-spinner-overlay { position: absolute; inset: 0; background: rgba(13,17,23,0.96); border-radius: 14px; display: none; overflow: hidden; z-index: 5; }
+        /* Draw moment: the reveal floats centered over the 3-pane stage (JS
+           centers it on the stage, not the viewport, so the sidebar doesn't
+           skew it) and holds until the streamer acts. No backdrop, no extra
+           frame — the reveal graphic provides its own chrome. */
+        .gw-spinner-overlay { position: fixed; top: 36%; transform: translate(-50%, -50%); width: min(680px, 92vw); height: min(420px, 56vh); background: rgba(13,17,23,0.92); border: 1px solid var(--border); border-radius: 14px; display: none; overflow: hidden; z-index: 650; box-shadow: 0 24px 80px rgba(0,0,0,0.7); }
         .gw-spinner-overlay.active { display: block; }
         .gw-spinner-overlay #gwSpinnerFrame {
           position: absolute;
@@ -980,15 +1008,7 @@
         </div>
       </div>
 
-      <!-- Status bar -->
-      <div class="giveaway-status-bar" id="giveawayStatusBar">
-        <div class="status-dot" id="giveawayDot"></div>
-        <span id="giveawayStatusText" style="font-size:13px;color:var(--text-dim);">No active giveaway</span>
-        <span id="gwCountdown" style="display:none;margin-left:12px;font-size:13px;font-weight:700;color:var(--gold);font-family:'Exo 2',sans-serif;"></span>
-        <span style="margin-left:auto;font-size:12px;color:var(--text-dim);">Type <strong id="gwKeywordDisplay" style="color:var(--accent);">!join</strong> · Entries: <strong id="entryCountBadge" style="color:var(--bright);">0</strong></span>
-      </div>
-
-      <!-- 3-column stage -->
+      <!-- 3-well stage: A Settings · B Control · C People -->
       <div class="gw-stage">
 
         <!-- LEFT: Settings -->
@@ -1140,8 +1160,36 @@
         </div>
 
         <!-- MIDDLE: Participants (with pop-in animation; spinner overlays during spin) -->
-        <div class="gw-col" id="gwColParticipants">
-          <div class="gw-col-title">👥 Participants <span class="gw-count" id="entryCountLabel">0</span></div>
+        <!-- MIDDLE: Well B — Giveaway Control (status, summary, count, actions) -->
+        <div class="gw-col" id="gwColControl">
+          <div class="gw-col-title">🎛 Giveaway Control</div>
+          <div class="gw-status-strip" id="giveawayStatusBar">
+            <div class="status-dot" id="giveawayDot"></div>
+            <span id="giveawayStatusText" style="font-size:13px;color:var(--text-dim);">No active giveaway</span>
+            <span id="gwCountdown" style="display:none;margin-left:auto;font-size:13px;font-weight:700;color:var(--gold);font-family:'Exo 2',sans-serif;"></span>
+          </div>
+          <div style="font-size:11.5px;color:var(--text-dim);margin-top:8px;">Viewers type <strong id="gwKeywordDisplay" style="color:var(--accent);">!join</strong> to enter</div>
+          <div class="gw-summary" id="gwSummaryLine" style="margin-top:10px;"></div>
+          <div class="gw-bigcount">
+            <div class="n" id="entryCountBadge">0</div>
+            <div class="l">Entries</div>
+          </div>
+          <button class="gw-main-cta" id="gwMainBtn" onclick="gwMainAction()" style="width:100%;margin-top:12px;">🎉 Start Giveaway</button>
+          <div style="display:flex;gap:8px;margin-top:9px;">
+            <button class="gw-ghost-cta pause" id="gwPauseBtn" onclick="gwTogglePause()" style="display:none;flex:1;">⏸ Pause Entries</button>
+            <button class="gw-ghost-cta danger" id="gwFinishBtn" onclick="gwClearAndEnd()" style="display:none;flex:1;">⏹ Finish &amp; Clear</button>
+          </div>
+          <div style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:10px;line-height:1.4;">Draw as many winners as you like — entries stay in the pool.</div>
+        </div>
+
+        <!-- RIGHT: Well C — People (Participants / Winners tabs) -->
+        <div class="gw-col" id="gwColPeople" style="padding:0;overflow:hidden;">
+          <div class="gw-people-tabs">
+            <div class="gw-ptab on" id="gwTabP" onclick="gwSetPeopleTab('p')">👥 Participants <span class="gw-count-sm" id="entryCountLabel">0</span></div>
+            <div class="gw-ptab" id="gwTabW" onclick="gwSetPeopleTab('w')">🏆 Winners <span class="gw-count-sm" id="gwWinnerCount">0</span></div>
+          </div>
+
+          <div class="gw-people-pane" id="gwColParticipants">
           <div class="gw-list" id="gwParticipantsList">
             <div class="gw-empty">Entries appear here as viewers join.</div>
           </div>
@@ -1155,55 +1203,40 @@
             <div id="gwBlockedRow" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
           </div>
 
-          <!-- Spinner overlay — embeds the chosen OBS overlay (Carousel / Wheel /
-               Winner Reveal) in an iframe so the dashboard preview matches OBS
-               pixel-for-pixel. The dashboard writes spinTrigger to Firestore;
-               the iframe polls /api/overlay-data and animates the same as OBS.
-               Some styles (Winner Reveal at 1920x1080) are full-scene and won't
-               preview well in this small column — for those, gwSyncSpinnerFrame
-               swaps in a placeholder explaining they're best viewed in OBS. -->
-          <div class="gw-spinner-overlay" id="gwSpinnerOverlay">
-            <iframe id="gwSpinnerFrame" title="Giveaway spinner preview"
-              style="border:none;background:transparent;transform-origin:center center;"></iframe>
-            <!-- Legacy reveal elements kept for backward-compat with code paths
-                 that reference them. The iframe handles the visible reveal. -->
-            <div id="winnerReveal" style="display:none;">
-              <div id="winnerRevealName"></div>
-              <div id="winnerRevealDetail"></div>
+          </div>
+
+          <!-- Winners pane (tab) -->
+          <div class="gw-people-pane" id="gwPaneWinners" style="display:none;">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+              <button type="button" class="gw-clear-btn" id="gwClearWinnersBtn" onclick="clearWinners()" title="Clear winners list" style="display:none;">Clear</button>
             </div>
+            <div class="gw-list" id="gwWinnersList">
+              <div class="gw-empty">No winners drawn yet.</div>
+            </div>
+            <!-- Legacy spin button — hidden; Well B's Draw Winner CTA is the
+                 visible action (both call spinPicker, and code paths still
+                 toggle this button's disabled state). -->
+            <button class="btn btn-accent" id="pickWinnerBtn" onclick="spinPicker()" disabled style="display:none;">🎲 Spin to Pick Winner</button>
           </div>
-        </div>
-
-        <!-- RIGHT: Winners + Spin -->
-        <div class="gw-col">
-          <div class="gw-col-title">🏆 Winners <span class="gw-count" id="gwWinnerCount">0</span>
-            <button type="button" class="gw-clear-btn" id="gwClearWinnersBtn" onclick="clearWinners()" title="Clear winners list" style="display:none;">Clear</button>
-          </div>
-          <div class="gw-list" id="gwWinnersList">
-            <div class="gw-empty">No winners drawn yet.</div>
-          </div>
-          <!-- Legacy spin button — hidden; the launch bar's Draw Winner CTA is the
-               visible action now (both call spinPicker, and code paths still
-               toggle this button's disabled state). -->
-          <button class="btn btn-accent" id="pickWinnerBtn" onclick="spinPicker()" disabled style="display:none;">🎲 Spin to Pick Winner</button>
-          <div style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:6px;line-height:1.4;">Draw as many winners as you like — entries stay in the pool.</div>
         </div>
       </div>
 
-      <!-- Launch bar — summary of what's configured/running + ONE morphing
-           primary action (Start → Draw Winner), with Pause/Reopen and
-           Finish & Clear alongside once live. -->
-      <div class="gw-launchbar">
-        <div class="gw-summary" id="gwSummaryLine"></div>
-        <button class="gw-ghost-cta pause" id="gwPauseBtn" onclick="gwTogglePause()" style="display:none;">⏸ Pause Entries</button>
-        <button class="gw-ghost-cta danger" id="gwFinishBtn" onclick="gwClearAndEnd()" style="display:none;">⏹ Finish &amp; Clear</button>
-        <button class="gw-main-cta" id="gwMainBtn" onclick="gwMainAction()">🎉 Start Giveaway</button>
+      <!-- Spinner reveal — centered over the stage during a draw. Embeds the chosen OBS
+           overlay (Carousel / Wheel / Winner Reveal) in an iframe so the
+           dashboard preview matches OBS pixel-for-pixel; the iframe scales to
+           this box. Held up (hold mode) until the streamer acts. -->
+      <div class="gw-spinner-overlay" id="gwSpinnerOverlay">
+        <iframe id="gwSpinnerFrame" title="Giveaway spinner preview"
+          style="border:none;background:transparent;transform-origin:center center;"></iframe>
+        <!-- Legacy reveal elements kept for backward-compat with code paths
+             that reference them. The iframe handles the visible reveal. -->
+        <div id="winnerReveal" style="display:none;">
+          <div id="winnerRevealName"></div>
+          <div id="winnerRevealDetail"></div>
+        </div>
       </div>
 
-      <!-- Winner action card — floats directly under the visible spinner/wheel
-           graphic the moment a winner is drawn, with a one-click "remove from
-           pool so they can't win again". Anchored to the scaled spinner iframe
-           so it tracks the graphic and never drops onto the chat below. -->
+      <!-- Winner decision card — docks under the centered reveal. -->
 
       <!-- Winner chat watcher — wrapped in the same 3-col grid as the stage so it
            lines up directly under the middle Participants column instead of
@@ -1224,8 +1257,7 @@
            (which HOLDS on the dashboard until the streamer acts; the on-stream
            OBS overlays still fade on their own). Compact: name row, the
            winner's live chat (re-parented in while open), actions below. -->
-      <div id="gwWinnerDecision" style="display:none;position:fixed;z-index:665;background:var(--bg-card);border:1px solid rgba(255,215,0,0.45);border-radius:12px;padding:12px 16px;box-shadow:0 14px 44px rgba(0,0,0,0.55);width:400px;max-width:94vw;">
-        <span style="position:absolute;top:-6px;left:50%;transform:translateX(-50%) rotate(45deg);width:10px;height:10px;background:var(--bg-card);border-left:1px solid rgba(255,215,0,0.45);border-top:1px solid rgba(255,215,0,0.45);"></span>
+      <div id="gwWinnerDecision" style="display:none;position:fixed;z-index:665;background:var(--bg-card);border:1px solid rgba(255,215,0,0.45);border-radius:12px;padding:12px 16px;box-shadow:0 20px 60px rgba(0,0,0,0.65);width:400px;max-width:94vw;">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
           <span style="font-size:20px;">🏆</span>
           <div><span id="gwWinnerName" style="color:var(--gold);font-weight:800;font-size:16px;"></span> <span style="color:var(--text-dim);font-size:13px;">won the giveaway</span></div>
@@ -2266,9 +2298,22 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.1.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.1.1</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.1.1</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 23, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🎁 <strong>Giveaway page: three clean wells.</strong> Settings on the left, a <em>Giveaway Control</em> column in the middle (status, entry count, and the Start / Draw / Pause / Finish buttons — no more floating bar), and Participants &amp; Winners as tabs on the right. When you draw, the Winners tab shows the new winner; make your Keep/Remove call and you're back on Participants for the next draw.</li>
+            <li>🎲 <strong>The draw takes center stage.</strong> The spinner reveal now plays front-and-center over the panel with the winner card docked right beneath it — and both stay up until you choose Keep or Remove.</li>
+            <li>🎰 <strong>Bonus Hunt console.</strong> One header strip with all your stats (including a new P/L number), an <em>Up next</em> card with quick result entry that auto-advances slot to slot, Add Slot attached to the bonus list, and Slot Requests / GTB / Hunt Controls as draggable, collapsible cards.</li>
+            <li>📐 <strong>Steadier layouts.</strong> Giveaway and Bonus Hunt pages stay centered at a comfortable width on big monitors, columns share space evenly when the window shrinks, and tall settings scroll inside their panel instead of spilling out.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -3174,7 +3219,7 @@
               <span style="font-size:12px;font-weight:700;color:var(--bright);" id="bhProgressPct">0%</span>
             </div>
           </div>
-          <div style="display:flex;gap:26px;flex-wrap:wrap;margin-top:12px;">
+          <div style="display:flex;justify-content:space-between;gap:26px;flex-wrap:wrap;margin-top:12px;padding-right:4%;">
             <div style="position:relative;">
               <div style="display:flex;align-items:center;gap:6px;">
                 <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:var(--bright);" id="bhStatCost">$0</div>
@@ -5474,6 +5519,7 @@ async function startGiveaway() {
   _gwShownKeys = new Set();
   gwBlockedKeys = [];       // fresh round — blocks never carry over
   gwRenderBlocked();
+  gwSetPeopleTab('p');      // fresh round — back to the Participants tab
   renderEntries();
   stopWinnerChatWatch();   // clear any leftover winner panel from a prior round
   document.getElementById('winnerReveal').style.display = 'none';
@@ -5570,10 +5616,21 @@ function gwSetEntryMode(mode) {
   gwUpdateUI();
 }
 
-// The launch bar's single morphing action: Start when idle, Draw once live.
+// Well B's single morphing action: Start when idle, Draw once live.
 function gwMainAction() {
   if (!giveawayActive) startGiveaway();
   else spinPicker();
+}
+
+// Well C tabs — Participants / Winners share the column. A draw auto-flips to
+// Winners (see the spin-landed handler); a new giveaway flips back.
+function gwSetPeopleTab(t) {
+  document.getElementById('gwTabP')?.classList.toggle('on', t === 'p');
+  document.getElementById('gwTabW')?.classList.toggle('on', t === 'w');
+  const p = document.getElementById('gwColParticipants');
+  const w = document.getElementById('gwPaneWinners');
+  if (p) p.style.display = t === 'p' ? '' : 'none';
+  if (w) w.style.display = t === 'w' ? '' : 'none';
 }
 
 function gwTogglePause() {
@@ -5824,6 +5881,8 @@ function updateGiveawayStatus(active) {
   // Sidebar LIVE badge — same treatment as Bonus Hunt / Bonus Battles.
   const gwBadge = document.getElementById('gwLiveBadge');
   if (gwBadge) gwBadge.style.display = active ? '' : 'none';
+  // Well B status strip tint follows the live state.
+  document.getElementById('giveawayStatusBar')?.classList.toggle('live', active);
   if (active) {
     dot.classList.add('online'); dot.classList.remove('offline');
     txt.textContent = `Giveaway LIVE — ${typeLabel} — collecting entries`;
@@ -6147,6 +6206,7 @@ async function spinPicker() {
   gwSyncSpinnerFrame();
   const overlay = document.getElementById('gwSpinnerOverlay');
   overlay.classList.add('active');
+  gwCenterSpinnerOverlay();
   requestAnimationFrame(gwResizeSpinnerFrame);
 
   // Tell the preview iframe to spin. The iframe queues messages internally
@@ -6210,6 +6270,7 @@ window.addEventListener('message', (e) => {
   flash('🏆 Winner: ' + pickedWinner.username);
   addRecentWinner(pickedWinner);
   showWinnerActionPopup(pickedWinner);
+  gwSetPeopleTab('w');   // surface the Winners tab the moment a draw lands
   if (gwTarget === 'discord') {
     discordNotify('giveaway_winner', { winner: pickedWinner.username, totalEntries: entries.length });
   }
@@ -7029,36 +7090,36 @@ function showWinnerActionPopup(winner) {
 }
 
 // Float the card directly under the visible wheel/carousel. We anchor to the
-// Float the decision card directly under the visible wheel/carousel. We anchor
-// to the spinner IFRAME's rect, which already reflects its CSS scale transform,
-// so the card hugs the bottom of the graphic the streamer actually sees. When
-// the preview fades on its own (rect collapsed), the card stays where it last
-// sat instead of jumping.
+// Dock the winner decision card centered UNDER the reveal box (which sits
+// fixed at center screen during a draw). If the reveal isn't up, fall back to
+// plain viewport center. Re-runs on resize.
 function _positionWinnerPopup() {
   const card = document.getElementById('gwWinnerDecision');
   if (!card || card.style.display === 'none') return;
-  const frame = document.getElementById('gwSpinnerFrame');
-  const ov    = document.getElementById('gwSpinnerOverlay');
-  let r = frame && frame.getBoundingClientRect();
-  if (!r || r.width < 2 || r.height < 2) r = ov && ov.getBoundingClientRect();
-  if (!r || r.width < 2) return;
-  const pw = card.offsetWidth  || 470;
-  const ph = card.offsetHeight || 160;
-  let left = r.left + r.width / 2 - pw / 2;
-  left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
-  let top = r.bottom + 2;  // hug the reveal graphic so the card reads as attached
-  // Keep the card fully on screen even when the spinner sits low or the chat
-  // inside grows — pull it up rather than letting it run off the bottom.
-  const maxTop = window.innerHeight - ph - 8;
-  if (top > maxTop) top = maxTop;
-  top = Math.max(8, top);
+  const pw = card.offsetWidth  || 400;
+  const ph = card.offsetHeight || 200;
+  const ov = document.getElementById('gwSpinnerOverlay');
+  let left, top;
+  if (ov && ov.classList.contains('active')) {
+    // Re-center the reveal FIRST — on window resizes this runs before the
+    // overlay's own handler, and docking to its stale rect stranded the card
+    // in a corner after shrink-then-grow.
+    gwCenterSpinnerOverlay();
+    const r = ov.getBoundingClientRect();
+    left = r.left + r.width / 2 - pw / 2;
+    top  = r.bottom + 14;
+  } else {
+    left = (window.innerWidth  - pw) / 2;
+    top  = (window.innerHeight - ph) / 2 - 30;
+  }
+  left = Math.max(8, Math.min(left, window.innerWidth  - pw - 8));
+  top  = Math.max(60, Math.min(top,  window.innerHeight - ph - 8));
   card.style.left   = left + 'px';
   card.style.top    = top + 'px';
   card.style.bottom = 'auto';
   card.style.transform = 'none';
 }
 window.addEventListener('resize', _positionWinnerPopup);
-window.addEventListener('scroll', _positionWinnerPopup, true);
 
 // The streamer picked Keep (or Remove finished) — close the card, hand the
 // chat panel back to its under-stage home so the claim-watch continues there.
@@ -7067,6 +7128,8 @@ function closeWinnerPopup() {
   const card = document.getElementById('gwWinnerDecision');
   const wasOpen = card && card.style.display === 'block';
   if (card) card.style.display = 'none';
+  // Decision made — flip Well C back to Participants, ready for the next draw.
+  if (wasOpen) gwSetPeopleTab('p');
   // Chat is DISMISSED with the card — no more dropping to the under-stage spot.
   // To see the winner's chat again, the streamer clicks their name in the
   // Winners list (which opens the viewer profile). The panel is parked back in
@@ -7086,6 +7149,23 @@ function closeWinnerPopup() {
 // Tell every giveaway spin overlay (OBS poll mode) to disappear, and hide the
 // in-dashboard preview immediately. The overlays watch giveaway_state/snapshot
 // and hide when they see a clearSpin newer than the spin they last played.
+// Center the floating reveal on the STAGE (the 3 wells), not the raw viewport —
+// the sidebar otherwise skews it left of the panels.
+function gwCenterSpinnerOverlay() {
+  const ov = document.getElementById('gwSpinnerOverlay');
+  if (!ov) return;
+  const stage = document.querySelector('#page-giveaway .gw-stage');
+  const r = stage?.getBoundingClientRect();
+  const cx = (r && r.width > 0) ? r.left + r.width / 2 : window.innerWidth / 2;
+  ov.style.left = cx + 'px';
+}
+window.addEventListener('resize', () => {
+  if (document.getElementById('gwSpinnerOverlay')?.classList.contains('active')) {
+    gwCenterSpinnerOverlay();
+    _positionWinnerPopup(); // keep the decision card docked under the recentered reveal
+  }
+});
+
 function gwClearOverlay() {
   if (_gwOverlayHideTimer) { clearTimeout(_gwOverlayHideTimer); _gwOverlayHideTimer = null; }
   document.getElementById('gwSpinnerOverlay')?.classList.remove('active');
