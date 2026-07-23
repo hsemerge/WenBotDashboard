@@ -17,6 +17,7 @@
 
 const { getDb, admin }        = require("./_lib/firebase");
 const { res, checkRateLimit } = require("./_lib/http");
+const { logAudit }            = require("./_lib/audit");
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
@@ -86,6 +87,15 @@ exports.handler = async (event) => {
       });
     }
     await batch.commit();
+
+    // Activity Log entry — same audit trail as bot-side ticket buys.
+    await logAudit(uid, "raffle_ticket_granted", {
+      kickUsername: username,
+      itemName,
+      quantity:  qty,
+      newRaffle: !!createName,
+      grantedBy: decoded.uid === uid ? "owner" : "mod",
+    });
 
     return res(200, { ok: true, itemId, itemName, qty });
   } catch (err) {
