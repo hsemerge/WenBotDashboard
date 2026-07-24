@@ -281,6 +281,45 @@ service cloud.firestore {
       allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
     }
 
+    // community/dms/threads — creator-to-creator DMs. A thread doc's id is the
+    // two uids sorted and joined with '_'; only its two participants can read
+    // or touch it, and the participant list can never change. Starting a
+    // thread is a paid-creator perk (same gate as chat). Messages are
+    // append-only and server-stamped; the bot server prunes each thread to
+    // its newest ~100 messages.
+    match /community/dms/threads/{threadId} {
+      function dmEligible() {
+        return request.auth != null
+          && get(/databases/$(database)/documents/streamers/$(request.auth.uid)).data.onboarded == true
+          && get(/databases/$(database)/documents/streamers/$(request.auth.uid)).data.plan in ['pro', 'elite', 'agency'];
+      }
+      allow read: if request.auth != null && request.auth.uid in resource.data.participants;
+      allow create: if dmEligible()
+        && request.resource.data.participants is list
+        && request.resource.data.participants.size() == 2
+        && request.auth.uid in request.resource.data.participants;
+      allow update: if request.auth != null
+        && request.auth.uid in resource.data.participants
+        && request.resource.data.participants == resource.data.participants;
+      allow delete: if false;
+
+      match /messages/{msgId} {
+        function inThread() {
+          return request.auth != null
+            && request.auth.uid in get(/databases/$(database)/documents/community/dms/threads/$(threadId)).data.participants;
+        }
+        allow read: if inThread();
+        allow create: if inThread()
+          && request.resource.data.from == request.auth.uid
+          && request.resource.data.keys().hasOnly(['from', 'text', 'ts'])
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 500
+          && request.resource.data.ts == request.time;
+        allow update, delete: if false;
+      }
+    }
+
     // System tokens (WenBot's master Kick credentials) — admin SDK only
     match /system/{doc} {
       allow read, write: if false;

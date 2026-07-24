@@ -541,7 +541,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.3.1</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.4.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -1900,6 +1900,19 @@
         .cc-field input { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--bright);
                           font-size:13px; padding:9px 12px; outline:none; }
         .cc-field input:focus { border-color:rgba(0,229,255,0.45); }
+        /* Live styling — green, like a proper "on air" light */
+        .cc-card.cc-live { border-color:rgba(49,215,108,0.45); box-shadow:0 0 18px rgba(49,215,108,0.08) inset; }
+        .cc-card.cc-live .cc-ava { border-color:#31d76c; box-shadow:0 0 0 2px rgba(49,215,108,0.25); }
+        .cc-live-badge { color:#31d76c; }
+        .cc-live-badge .dot { background:#31d76c; }
+        .cc-meta { font-size:11px; color:var(--text-dim); }
+        .cc-watch.live { background:#1da84f; color:#fff; }
+        .cc-btn2 { display:block; text-align:center; text-decoration:none; font-weight:800; font-size:12.5px; padding:9px 12px;
+                   border-radius:8px; background:transparent; color:var(--text-dim); border:1px solid var(--border); transition:all .15s; }
+        .cc-btn2:hover { color:var(--bright); border-color:rgba(255,255,255,0.3); }
+        .cc-edit-btn { position:absolute; top:10px; right:10px; background:rgba(0,229,255,0.10); border:1px solid rgba(0,229,255,0.3);
+                       color:var(--accent); font-size:10.5px; font-weight:800; border-radius:999px; padding:3px 10px; cursor:pointer; }
+        .cc-edit-btn:hover { background:rgba(0,229,255,0.2); }
       </style>
       <div style="max-width:1200px;margin:0 auto;">
         <div class="card cc-hero" style="margin-bottom:16px;">
@@ -1971,6 +1984,28 @@
       <!-- Creator profile modal -->
       <div id="ccCreatorModal" style="display:none;position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.65);align-items:center;justify-content:center;" onclick="if(event.target===this)ccCloseCreator()">
         <div class="card" style="width:min(480px, 92vw);max-height:90vh;overflow-y:auto;" id="ccCreatorModalBody"></div>
+      </div>
+
+      <!-- Edit-my-card modal -->
+      <div id="ccBlurbModal" style="display:none;position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.65);align-items:center;justify-content:center;" onclick="if(event.target===this)ccCloseBlurbModal()">
+        <div class="card" style="width:min(440px, 92vw);">
+          <div class="card-title">✏️ Edit your creator card</div>
+          <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">
+            This message shows on your card in the Creators directory and on the wenbot.gg front page —
+            pitch your stream, plug your schedule, hype tonight's hunt. Keep it punchy.
+          </p>
+          <div class="cc-field" style="margin-bottom:6px;">
+            <label>CARD MESSAGE</label>
+            <textarea id="ccBlurbInput" maxlength="140" rows="3" oninput="document.getElementById('ccBlurbCount').textContent = (140 - this.value.length) + ' left'"
+              style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:13px;padding:9px 12px;outline:none;resize:none;font-family:inherit;"
+              placeholder="e.g. 🔥 $2000 BONUS HUNT + viewer battles all night!"></textarea>
+          </div>
+          <div id="ccBlurbCount" style="font-size:10.5px;color:var(--text-dim);text-align:right;margin-bottom:12px;">140 left</div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <button class="btn btn-ghost" onclick="ccCloseBlurbModal()">Cancel</button>
+            <button class="btn btn-accent" onclick="ccSaveBlurb()">Save card</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2437,9 +2472,22 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.3.1</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.4.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.4.0 — Creator DMs &amp; card makeover</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 23, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>✉️ <strong>NEW: Creator DMs.</strong> Message any creator privately — open their profile and hit <em>Message</em>. The chat dock now has two tabs: <em>Community</em> and <em>DMs</em>, with unread badges on the dock button and a "New DM from…" flag right in the community chat so you never miss one.</li>
+            <li>🃏 <strong>Creator cards, remade.</strong> Live cards now glow green with a viewer count, what they're streaming, and how long they've been live — plus two buttons: <em>Watch on Kick</em> and <em>Portal</em> (straight to their WenBot store &amp; leaderboard page).</li>
+            <li>✏️ <strong>Your card, your pitch.</strong> Hit <em>Edit card</em> on your own card and write the message everyone sees — tonight's hunt, your schedule, whatever sells the stream. Shows in the directory and on the wenbot.gg front page.</li>
+            <li>🕐 <strong>Chat times, humbled.</strong> Messages are now stamped by the server clock — no more shuffled order or "1s ago" on everything when someone's PC clock is off. Ages tick every 30 seconds too.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -4117,6 +4165,28 @@
     .cc-dock-input button { background:var(--accent); color:#04141a; border:none; border-radius:8px; font-weight:900; font-size:13px;
                             padding:0 16px; cursor:pointer; }
     .cc-locked { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:24px; text-align:center; color:var(--text-dim); font-size:12.5px; }
+    .cc-tabs { display:flex; gap:6px; padding:8px 12px 0; border-bottom:1px solid var(--border); }
+    .cc-tabs button { background:none; border:none; border-bottom:2px solid transparent; color:var(--text-dim); font-size:12px;
+                      font-weight:800; padding:6px 10px 8px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+    .cc-tabs button.on { color:var(--accent); border-bottom-color:var(--accent); }
+    .cc-dm-badge { display:none; background:var(--red); color:#fff; font-size:9.5px; font-weight:900; min-width:16px; height:16px;
+                   border-radius:999px; align-items:center; justify-content:center; padding:0 4px; }
+    #ccDmList { flex:1; overflow-y:auto; display:none; flex-direction:column; }
+    .cc-dm-row { display:flex; align-items:center; gap:10px; padding:11px 14px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.04); }
+    .cc-dm-row:hover { background:rgba(255,255,255,0.03); }
+    .cc-dm-row .a, .cc-dm-row .af { width:34px; height:34px; border-radius:50%; object-fit:cover; flex:0 0 auto; }
+    .cc-dm-row .af { display:flex; align-items:center; justify-content:center; font-weight:900; color:var(--accent); background:rgba(0,229,255,0.10); font-size:14px; }
+    .cc-dm-row .who { font-size:12.5px; font-weight:800; color:var(--bright); }
+    .cc-dm-row .prev { font-size:11.5px; color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:190px; }
+    .cc-dm-row.unread .who { color:var(--accent); }
+    .cc-dm-row .dot { width:8px; height:8px; border-radius:50%; background:var(--red); margin-left:auto; flex:0 0 auto; }
+    #ccDmConvo { flex:1; display:none; flex-direction:column; min-height:0; }
+    .cc-dm-convo-head { display:flex; align-items:center; gap:9px; padding:9px 12px; border-bottom:1px solid var(--border); }
+    .cc-dm-convo-head .back { cursor:pointer; color:var(--text-dim); font-size:16px; padding:2px 6px; }
+    .cc-dm-convo-head .back:hover { color:var(--bright); }
+    #ccDmNotice { display:none; margin:10px 14px 0; padding:8px 12px; background:rgba(255,70,90,0.08); border:1px solid rgba(255,70,90,0.25);
+                  border-radius:8px; font-size:11.5px; color:var(--bright); cursor:pointer; }
+    #ccDmNotice:hover { background:rgba(255,70,90,0.14); }
   </style>
   <div id="ccDock">
     <div id="ccDockPanel">
@@ -4126,10 +4196,28 @@
         <span class="sub" id="ccDockLiveNote"></span>
         <span onclick="ccToggleDock()" title="Minimize" style="cursor:pointer;color:var(--text-dim);font-size:16px;line-height:1;padding:2px 4px;">─</span>
       </div>
+      <div class="cc-tabs" id="ccTabs" style="display:none;">
+        <button id="ccTabChat" class="on" onclick="ccSetDockView('chat')">💬 Community</button>
+        <button id="ccTabDms" onclick="ccSetDockView('dms')">✉️ DMs <span class="cc-dm-badge" id="ccDmBadge">0</span></button>
+      </div>
+      <div id="ccDmNotice" onclick="ccDmNoticeClick()"></div>
       <div id="ccMsgs"></div>
       <div class="cc-dock-input" id="ccInputRow">
         <input type="text" id="ccInput" maxlength="300" placeholder="Message the creator community…" onkeydown="if(event.key==='Enter')ccSend()">
         <button onclick="ccSend()">Send</button>
+      </div>
+      <div id="ccDmList"></div>
+      <div id="ccDmConvo">
+        <div class="cc-dm-convo-head">
+          <span class="back" onclick="ccSetDockView('dms')" title="Back to DMs">←</span>
+          <span id="ccDmConvoAva"></span>
+          <span class="t" id="ccDmConvoName" style="font-size:13px;"></span>
+        </div>
+        <div id="ccDmMsgs" style="flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px;"></div>
+        <div class="cc-dock-input">
+          <input type="text" id="ccDmInput" maxlength="500" placeholder="Send a DM…" onkeydown="if(event.key==='Enter')ccDmSend()">
+          <button onclick="ccDmSend()">Send</button>
+        </div>
       </div>
     </div>
     <button id="ccDockPill" onclick="ccToggleDock()">💬 Creator Chat <span id="ccUnread">0</span></button>
@@ -15295,6 +15383,11 @@ const cc = {
   chatUnsub: null,
   chatReady: false,
   lastSeenTs: Number(localStorage.getItem('cc_lastseen') || 0),
+  clockSkew: 0,        // ms this PC's clock lags the server (see ccNow)
+  wins: null,
+  dockView: 'chat',    // 'chat' | 'dms' | 'dm'
+  dmThreads: [], dmUnsub: null, dmActive: null, dmMsgUnsub: null, dmMsgs: [],
+  ageTicker: null,
 };
 
 // Normalize a message timestamp to millis. New messages carry a Firestore
@@ -15308,13 +15401,25 @@ function ccTs(v) {
   return 0;
 }
 
+// If this PC's clock runs behind the server, server-stamped messages sit "in
+// the future" and every age clamps to seconds. Track the worst skew we've seen
+// (newest server stamp vs local now, capped at 5 min) and correct for it.
+function ccNow() { return Date.now() + (cc.clockSkew || 0); }
+
 function ccAgo(ts) {
   if (!ts) return '';
-  const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));
+  const s = Math.floor((ccNow() - ts) / 1000);
+  if (s < 5)     return 'now';
   if (s < 60)    return s + 's ago';
   if (s < 3600)  return Math.floor(s / 60) + 'm ago';
   if (s < 86400) return Math.floor(s / 3600) + 'h ago';
   return Math.floor(s / 86400) + 'd ago';
+}
+
+function ccDur(ms) {
+  const m = Math.max(1, Math.floor(ms / 60000));
+  if (m < 60) return m + 'm';
+  return Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + 'm';
 }
 
 async function ccFetch() {
@@ -15421,17 +15526,26 @@ function ccRenderPage() {
          <div class="cc-ava-fallback" style="display:none;">${initial}</div>`
       : `<div class="cc-ava-fallback">${initial}</div>`;
     const status = c.isLive
-      ? `<span class="cc-live-badge"><span class="dot"></span>LIVE · ${(c.viewers || 0).toLocaleString()} watching</span>`
+      ? `<span class="cc-live-badge"><span class="dot"></span>LIVE · ${(c.viewers || 0).toLocaleString()} viewers</span>`
       : `<span style="font-size:11px;color:var(--text-dim);">${c.lastLiveAt ? 'Last live ' + ccAgo(c.lastLiveAt) : 'Offline'}</span>`;
-    const title = c.isLive && c.title ? escHtml(c.title) : (c.isLive ? 'Live on Kick right now' : 'Drop a follow so you catch the next stream.');
-    const btn = c.isLive
-      ? `<div style="display:flex;gap:8px;">
-           <a class="cc-watch live" style="flex:1;" href="https://kick.com/${channel}" target="_blank" rel="noopener">▶ Watch live</a>
-           ${isMe ? '' : `<button class="cc-shout" onclick="ccShoutout('${channel}')" title="Shoutout ${name} in YOUR chat — WenBot posts it for your viewers">📣</button>`}
-         </div>`
-      : `<a class="cc-watch off"  href="https://kick.com/${channel}" target="_blank" rel="noopener">Visit channel</a>`;
+    // Middle of the card: the creator's own pitch first, then the live stream
+    // title, then a friendly default.
+    const middle = c.blurb ? escHtml(c.blurb)
+      : (c.isLive && c.title) ? escHtml(c.title)
+      : (c.isLive ? 'Live on Kick right now' : 'Drop a follow so you catch the next stream.');
+    const meta = c.isLive && c.lastLiveAt
+      ? `<div class="cc-meta">${c.category ? escHtml(c.category) + ' · ' : ''}live for ${ccDur(ccNow() - c.lastLiveAt)}</div>`
+      : '';
+    const watch = c.isLive
+      ? `<a class="cc-watch live" style="flex:1;" href="https://kick.com/${channel}" target="_blank" rel="noopener">▶ Watch on Kick</a>`
+      : `<a class="cc-watch off" style="flex:1;" href="https://kick.com/${channel}" target="_blank" rel="noopener">Visit channel</a>`;
+    const btn = `<div style="display:flex;gap:8px;">
+        ${watch}
+        <a class="cc-btn2" style="flex:1;" href="/${channel}" target="_blank" rel="noopener">Portal</a>
+        ${(c.isLive && !isMe) ? `<button class="cc-shout" onclick="ccShoutout('${channel}')" title="Shoutout ${name} in YOUR chat — WenBot posts it for your viewers">📣</button>` : ''}
+      </div>`;
     return `<div class="cc-card ${c.isLive ? 'cc-live' : ''}" style="position:relative;cursor:pointer;" onclick="if(!event.target.closest('a,button'))ccOpenCreator('${channel}')" title="View creator profile">
-      ${isMe ? '<span class="cc-you">YOU</span>' : ''}
+      ${isMe ? '<button class="cc-edit-btn" onclick="ccOpenBlurbModal()" title="Edit the message on your card">✏️ Edit card</button>' : ''}
       <div style="display:flex;align-items:center;gap:12px;min-width:0;">
         ${ava}
         <div style="min-width:0;flex:1;">
@@ -15442,7 +15556,8 @@ function ccRenderPage() {
           <div style="margin-top:3px;">${status}</div>
         </div>
       </div>
-      <div class="cc-title">${title}</div>
+      <div class="cc-title">${middle}</div>
+      ${meta}
       ${btn}
     </div>`;
   }).join('');
@@ -15464,6 +15579,16 @@ function ccInitDock() {
 
   if (!ccEligibleForChat()) { ccLockedState('Creator Chat is where WenBot creators hang out, share wins, and help each other.<br><br>It unlocks on any paid plan — upgrade to join the conversation.'); return; }
 
+  document.getElementById('ccTabs').style.display = 'flex';
+  ccDmInit();
+  // Tick the "Xs ago" labels every 30s while the panel is open
+  if (!cc.ageTicker) cc.ageTicker = setInterval(() => {
+    if (!document.getElementById('ccDockPanel')?.classList.contains('open')) return;
+    if (cc.dockView === 'chat') ccRenderMsgs();
+    else if (cc.dockView === 'dms') ccRenderDmList();
+    else if (cc.dockView === 'dm') ccRenderDmMsgs();
+  }, 30000);
+
   cc.chatUnsub = fb.db.collection('community').doc('chat').collection('messages')
     .orderBy('ts', 'desc').limit(50)
     .onSnapshot(snap => {
@@ -15475,6 +15600,9 @@ function ccInitDock() {
         m.ts = ccTs(m.ts);
         return m;
       }).reverse();
+      // Calibrate clock skew from the newest server stamp (see ccNow)
+      const newest = cc.msgs.reduce((x, m) => Math.max(x, m.ts || 0), 0);
+      cc.clockSkew = Math.min(5 * 60 * 1000, Math.max(cc.clockSkew || 0, newest - Date.now()));
       ccRenderMsgs();
     }, err => {
       console.warn('[CreatorChat]', err.message);
@@ -15516,23 +15644,18 @@ function ccRenderMsgs() {
   : `<div class="cc-locked"><div style="font-size:30px;">👋</div><div>It's quiet in here… say hi and get the creator community talking!</div></div>`;
 
   const open = document.getElementById('ccDockPanel').classList.contains('open');
-  if (open) {
+  if (open && cc.dockView === 'chat') {
     box.scrollTop = box.scrollHeight;
     ccMarkSeen(items);
-  } else {
-    const unread = items.filter(m => (m.ts || 0) > cc.lastSeenTs && m.uid !== myUid).length;
-    const u = document.getElementById('ccUnread');
-    u.textContent = unread > 9 ? '9+' : unread;
-    u.style.display = unread ? 'inline-flex' : 'none';
   }
+  ccUpdatePill();
 }
 
 function ccMarkSeen(items) {
   const maxTs = (items || [...cc.msgs, ...cc.pings]).reduce((m, x) => Math.max(m, x.ts || 0), cc.lastSeenTs);
   cc.lastSeenTs = maxTs;
   localStorage.setItem('cc_lastseen', String(maxTs));
-  const u = document.getElementById('ccUnread');
-  if (u) u.style.display = 'none';
+  ccUpdatePill();
 }
 
 function ccToggleDock() {
@@ -15540,11 +15663,12 @@ function ccToggleDock() {
   const open  = panel.classList.toggle('open');
   localStorage.setItem('cc_dock_open', open ? '1' : '0');
   if (open) {
-    ccRenderMsgs();
-    ccMarkSeen();
-    const box = document.getElementById('ccMsgs');
-    if (box) box.scrollTop = box.scrollHeight;
-    document.getElementById('ccInput')?.focus();
+    ccSetDockView(cc.dockView === 'dm' ? 'dms' : (cc.dockView || 'chat'));
+    if (cc.dockView === 'chat') {
+      ccRenderMsgs();
+      ccMarkSeen();
+      document.getElementById('ccInput')?.focus();
+    }
   }
 }
 
@@ -15568,6 +15692,232 @@ async function ccSend() {
     input.value = text; // give their message back
     flash('Message didn\'t send — try again', 'error');
   }
+}
+
+// ── Creator card blurb (Edit my card) ────────────────────────────────────────
+function ccOpenBlurbModal() {
+  document.getElementById('ccBlurbInput').value = profile?.communityBlurb || '';
+  document.getElementById('ccBlurbCount').textContent = (140 - (profile?.communityBlurb || '').length) + ' left';
+  document.getElementById('ccBlurbModal').style.display = 'flex';
+  document.getElementById('ccBlurbInput').focus();
+}
+function ccCloseBlurbModal() { document.getElementById('ccBlurbModal').style.display = 'none'; }
+async function ccSaveBlurb() {
+  const text = document.getElementById('ccBlurbInput').value.trim().slice(0, 140);
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid).set({ communityBlurb: text }, { merge: true });
+    if (profile) profile.communityBlurb = text;
+    ccCloseBlurbModal();
+    flash('✏️ Card saved — the directory refreshes within ~2 minutes');
+  } catch (e) { flash('Could not save — try again', 'error'); }
+}
+
+// ── Creator DMs ──────────────────────────────────────────────────────────────
+// community/dms/threads/{uidA_uidB} (sorted uids) + messages subcollection.
+// Rules restrict every thread to its two participants; the dock shows a DMs
+// tab with unread badges, and a new DM flags the pill + a banner in chat view.
+function ccThreadId(a, b) { return [a, b].sort().join('_'); }
+function ccDmCol() { return fb.db.collection('community').doc('dms').collection('threads'); }
+
+function ccDmInit() {
+  if (!ccEligibleForChat() || cc.dmUnsub) return;
+  cc.dmUnsub = ccDmCol().where('participants', 'array-contains', fb.currentUser.uid)
+    .onSnapshot(snap => {
+      cc.dmThreads = snap.docs.map(d => {
+        const t = { id: d.id, ...d.data({ serverTimestamps: 'estimate' }) };
+        t.lastTs = ccTs(t.lastTs);
+        return t;
+      }).sort((a, b) => (b.lastTs || 0) - (a.lastTs || 0));
+      ccRenderDmBadge();
+      if (cc.dockView === 'dms') ccRenderDmList();
+      // Live thread open? Mark it read as messages arrive.
+      if (cc.dockView === 'dm' && cc.dmActive) {
+        const act = cc.dmThreads.find(t => t.id === cc.dmActive);
+        if (act && act.lastFrom !== fb.currentUser.uid) ccDmMarkRead(cc.dmActive);
+      }
+    }, err => console.warn('[DMs]', err.message));
+}
+
+function ccDmOther(t) {
+  const me = fb.currentUser?.uid;
+  const other = (t.participants || []).find(p => p !== me);
+  const info = (t.info || {})[other] || {};
+  return { uid: other, name: info.name || info.channel || 'creator', channel: info.channel || '', avatarUrl: info.avatarUrl || null };
+}
+
+function ccDmUnreadThreads() {
+  const me = fb.currentUser?.uid;
+  return (cc.dmThreads || []).filter(t =>
+    t.lastFrom && t.lastFrom !== me && (t.lastTs || 0) > ccTs((t.read || {})[me]));
+}
+
+function ccRenderDmBadge() {
+  const unread = ccDmUnreadThreads();
+  const b = document.getElementById('ccDmBadge');
+  if (b) { b.textContent = unread.length; b.style.display = unread.length ? 'inline-flex' : 'none'; }
+  // Flag in the community-chat view: "New DM from X"
+  const n = document.getElementById('ccDmNotice');
+  if (n) {
+    if (unread.length && cc.dockView !== 'dm') {
+      const who = ccDmOther(unread[0]).name;
+      n.textContent = `✉️ New DM from ${who}${unread.length > 1 ? ` (+${unread.length - 1} more)` : ''} — tap to open`;
+      n.style.display = cc.dockView === 'chat' ? 'block' : 'none';
+      n._tid = unread[0].id;
+    } else n.style.display = 'none';
+  }
+  ccUpdatePill();
+}
+function ccDmNoticeClick() {
+  const n = document.getElementById('ccDmNotice');
+  if (n?._tid) ccOpenThread(n._tid);
+}
+
+function ccSetDockView(v) {
+  cc.dockView = v;
+  document.getElementById('ccTabChat')?.classList.toggle('on', v === 'chat');
+  document.getElementById('ccTabDms') ?.classList.toggle('on', v !== 'chat');
+  const show = (id, on, flex) => { const el = document.getElementById(id); if (el) el.style.display = on ? (flex || 'flex') : 'none'; };
+  show('ccMsgs', v === 'chat');
+  show('ccInputRow', v === 'chat');
+  show('ccDmList', v === 'dms');
+  show('ccDmConvo', v === 'dm');
+  if (v !== 'dm' && cc.dmMsgUnsub) { cc.dmMsgUnsub(); cc.dmMsgUnsub = null; cc.dmActive = null; }
+  if (v === 'chat') { ccRenderMsgs(); const box = document.getElementById('ccMsgs'); if (box) box.scrollTop = box.scrollHeight; }
+  if (v === 'dms') ccRenderDmList();
+  ccRenderDmBadge();
+}
+
+function ccRenderDmList() {
+  const box = document.getElementById('ccDmList');
+  if (!box) return;
+  const me = fb.currentUser?.uid;
+  const threads = cc.dmThreads || [];
+  if (!threads.length) {
+    box.innerHTML = `<div class="cc-locked"><div style="font-size:28px;">✉️</div><div>No DMs yet. Open any creator's profile on the Creators page and hit <strong>Message</strong>.</div></div>`;
+    return;
+  }
+  box.innerHTML = threads.map(t => {
+    const o = ccDmOther(t);
+    const unread = t.lastFrom && t.lastFrom !== me && (t.lastTs || 0) > ccTs((t.read || {})[me]);
+    const initial = escHtml((o.name || '?').charAt(0).toUpperCase());
+    const ava = o.avatarUrl
+      ? `<img class="a" src="${escHtml(o.avatarUrl)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><span class="af" style="display:none;">${initial}</span>`
+      : `<span class="af">${initial}</span>`;
+    return `<div class="cc-dm-row ${unread ? 'unread' : ''}" onclick="ccOpenThread('${escHtml(t.id)}')">
+      ${ava}
+      <div style="min-width:0;">
+        <div class="who">${escHtml(o.name)}</div>
+        <div class="prev">${t.lastFrom === me ? 'You: ' : ''}${escHtml(t.lastMsg || '')}</div>
+      </div>
+      ${unread ? '<span class="dot"></span>' : `<span style="margin-left:auto;font-size:10px;color:var(--text-dim);flex:0 0 auto;">${ccAgo(t.lastTs)}</span>`}
+    </div>`;
+  }).join('');
+}
+
+// Open (or start) a DM with a creator from their profile modal.
+async function ccOpenDmWith(otherUid, channel) {
+  if (!ccEligibleForChat()) { flash('DMs are a paid-plan perk', 'error'); return; }
+  const me = fb.currentUser.uid;
+  if (otherUid === me) return;
+  const c = (cc.data?.creators || []).find(x => x.uid === otherUid) || {};
+  const tid = ccThreadId(me, otherUid);
+  try {
+    await ccDmCol().doc(tid).set({
+      participants: [me, otherUid].sort(),
+      info: {
+        [me]: { name: profile?.displayName || profile?.kickChannel || 'creator', channel: (profile?.kickChannel || '').toLowerCase(), avatarUrl: profile?.kickAvatar || null },
+        [otherUid]: { name: c.name || channel || 'creator', channel: c.channel || channel || '', avatarUrl: c.avatarUrl || null },
+      },
+    }, { merge: true });
+    // Seed a local stub so the convo header has a name before the listener catches up
+    if (!(cc.dmThreads || []).find(t => t.id === tid)) {
+      cc.dmThreads.unshift({
+        id: tid,
+        participants: [me, otherUid].sort(),
+        info: { [otherUid]: { name: c.name || channel || 'creator', channel: c.channel || channel || '', avatarUrl: c.avatarUrl || null } },
+      });
+    }
+    ccCloseCreator();
+    const panel = document.getElementById('ccDockPanel');
+    if (!panel.classList.contains('open')) ccToggleDock();
+    ccOpenThread(tid);
+  } catch (e) { flash('Could not open DM — try again', 'error'); }
+}
+
+function ccOpenThread(tid) {
+  cc.dmActive = tid;
+  const t = (cc.dmThreads || []).find(x => x.id === tid);
+  const o = t ? ccDmOther(t) : { name: 'creator', avatarUrl: null };
+  const initial = escHtml((o.name || '?').charAt(0).toUpperCase());
+  document.getElementById('ccDmConvoName').textContent = o.name;
+  document.getElementById('ccDmConvoAva').innerHTML = o.avatarUrl
+    ? `<img src="${escHtml(o.avatarUrl)}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;display:block;" onerror="this.outerHTML='<span class=af style=&quot;width:26px;height:26px;font-size:11px;&quot;>${initial}</span>'">`
+    : `<span class="af" style="width:26px;height:26px;font-size:11px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:var(--accent);background:rgba(0,229,255,0.10);font-weight:900;">${initial}</span>`;
+  ccSetDockView('dm');
+  if (cc.dmMsgUnsub) cc.dmMsgUnsub();
+  cc.dmMsgUnsub = ccDmCol().doc(tid).collection('messages')
+    .orderBy('ts', 'desc').limit(50)
+    .onSnapshot(snap => {
+      cc.dmMsgs = snap.docs.map(d => {
+        const m = d.data({ serverTimestamps: 'estimate' });
+        m.ts = ccTs(m.ts);
+        return m;
+      }).reverse();
+      ccRenderDmMsgs();
+    }, err => console.warn('[DMs]', err.message));
+  ccDmMarkRead(tid);
+  setTimeout(() => document.getElementById('ccDmInput')?.focus(), 50);
+}
+
+function ccRenderDmMsgs() {
+  const box = document.getElementById('ccDmMsgs');
+  if (!box) return;
+  const me = fb.currentUser?.uid;
+  box.innerHTML = (cc.dmMsgs || []).map(m => `
+    <div style="display:flex;flex-direction:column;align-items:${m.from === me ? 'flex-end' : 'flex-start'};">
+      <div style="max-width:82%;background:${m.from === me ? 'rgba(0,229,255,0.14)' : 'rgba(255,255,255,0.06)'};border:1px solid ${m.from === me ? 'rgba(0,229,255,0.25)' : 'var(--border)'};border-radius:10px;padding:7px 11px;font-size:12.5px;color:var(--bright);line-height:1.5;overflow-wrap:anywhere;">${escHtml(m.text || '')}</div>
+      <div style="font-size:9.5px;color:var(--text-dim);margin-top:2px;">${ccAgo(m.ts)}</div>
+    </div>`).join('')
+    || `<div class="cc-locked"><div style="font-size:26px;">👋</div><div>Say hi — this conversation is just between you two.</div></div>`;
+  box.scrollTop = box.scrollHeight;
+}
+
+async function ccDmSend() {
+  const input = document.getElementById('ccDmInput');
+  const text = (input.value || '').trim();
+  if (!text || !cc.dmActive) return;
+  input.value = '';
+  try {
+    const tref = ccDmCol().doc(cc.dmActive);
+    const mref = tref.collection('messages').doc();
+    const batch = fb.db.batch();
+    batch.set(mref, { from: fb.currentUser.uid, text, ts: firebase.firestore.FieldValue.serverTimestamp() });
+    batch.update(tref, {
+      lastMsg: text.slice(0, 80),
+      lastTs: firebase.firestore.FieldValue.serverTimestamp(),
+      lastFrom: fb.currentUser.uid,
+    });
+    await batch.commit();
+  } catch (e) {
+    input.value = text;
+    flash('DM didn\'t send — try again', 'error');
+  }
+}
+
+function ccDmMarkRead(tid) {
+  ccDmCol().doc(tid).update({ ['read.' + fb.currentUser.uid]: firebase.firestore.FieldValue.serverTimestamp() }).catch(() => {});
+}
+
+// Pill badge = community-chat unread + DM unread
+function ccUpdatePill() {
+  const u = document.getElementById('ccUnread');
+  if (!u) return;
+  const open = document.getElementById('ccDockPanel')?.classList.contains('open');
+  const myUid = fb.currentUser?.uid;
+  const chatUnread = open ? 0 : [...(cc.msgs || []), ...(cc.pings || [])].filter(m => (m.ts || 0) > cc.lastSeenTs && m.uid !== myUid).length;
+  const total = chatUnread + ccDmUnreadThreads().length;
+  u.textContent = total > 9 ? '9+' : total;
+  u.style.display = total ? 'inline-flex' : 'none';
 }
 
 // ── Community stat counters ──────────────────────────────────────────────────
@@ -15597,7 +15947,7 @@ function ccOpenCreator(channel) {
        <div class="cc-ava-fallback" style="display:none;width:72px;height:72px;font-size:28px;">${initial}</div>`
     : `<div class="cc-ava-fallback" style="width:72px;height:72px;font-size:28px;">${initial}</div>`;
   const status = c.isLive
-    ? `<span class="cc-live-badge"><span class="dot"></span>LIVE · ${(c.viewers || 0).toLocaleString()} watching${c.title ? ' — ' + escHtml(c.title) : ''}</span>`
+    ? `<span class="cc-live-badge"><span class="dot"></span>LIVE · ${(c.viewers || 0).toLocaleString()} viewers${c.lastLiveAt ? ' · ' + ccDur(ccNow() - c.lastLiveAt) : ''}${c.category ? ' · ' + escHtml(c.category) : ''}</span>`
     : `<span style="font-size:12px;color:var(--text-dim);">${c.lastLiveAt ? 'Last live ' + ccAgo(c.lastLiveAt) : 'Offline'}</span>`;
 
   const hours = c.hoursStreamed || 0;
@@ -15633,10 +15983,16 @@ function ccOpenCreator(channel) {
       ${stat('🎰', (c.huntsRun || 0).toLocaleString(), 'Bonus hunts')}
     </div>
     <div style="font-size:10.5px;color:var(--text-dim);margin-bottom:14px;text-align:center;">Stats count from the launch of the WenBot community (July 2026).</div>
-    <div style="display:flex;gap:8px;">
-      <a class="cc-watch ${c.isLive ? 'live' : 'off'}" style="flex:1;" href="https://kick.com/${chan}" target="_blank" rel="noopener">${c.isLive ? '▶ Watch live' : 'Visit channel'}</a>
-      ${(!isMe && c.isLive) ? `<button class="cc-shout" onclick="ccShoutout('${chan}')" title="Shoutout ${name} in YOUR chat">📣 Shoutout</button>` : ''}
-    </div>`;
+    ${c.isLive && c.title ? `<div style="font-size:12px;color:var(--bright);margin-bottom:12px;"><span style="color:var(--text-dim);">Now streaming:</span> ${escHtml(c.title)}</div>` : ''}
+    ${c.blurb ? `<div style="font-size:12.5px;color:var(--text-dim);line-height:1.6;margin-bottom:14px;border-left:2px solid var(--border);padding-left:10px;">${escHtml(c.blurb)}</div>` : ''}
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <a class="cc-watch ${c.isLive ? 'live' : 'off'}" style="flex:1;" href="https://kick.com/${chan}" target="_blank" rel="noopener">${c.isLive ? '▶ Watch on Kick' : 'Visit channel'}</a>
+      <a class="cc-btn2" style="flex:1;" href="/${chan}" target="_blank" rel="noopener">Portal</a>
+    </div>
+    ${!isMe ? `<div style="display:flex;gap:8px;">
+      ${(c.uid && ccEligibleForChat()) ? `<button class="cc-btn2" style="flex:1;color:var(--accent);border-color:rgba(0,229,255,0.35);" onclick="ccOpenDmWith('${escHtml(c.uid)}','${chan}')">✉️ Message</button>` : ''}
+      ${c.isLive ? `<button class="cc-shout" style="flex:1;" onclick="ccShoutout('${chan}')" title="Shoutout ${name} in YOUR chat">📣 Shoutout</button>` : ''}
+    </div>` : `<button class="cc-btn2" style="width:100%;color:var(--accent);border-color:rgba(0,229,255,0.35);" onclick="ccCloseCreator();ccOpenBlurbModal()">✏️ Edit my card message</button>`}`;
   document.getElementById('ccCreatorModal').style.display = 'flex';
 }
 function ccCloseCreator() { document.getElementById('ccCreatorModal').style.display = 'none'; }

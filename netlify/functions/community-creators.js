@@ -37,9 +37,13 @@ exports.handler = async (event) => {
       updatedAt: d.updatedAt || null,
       totals:    d.totals || { creators: 0, live: 0, viewers: 0 },
       creators:  (Array.isArray(d.creators) ? d.creators : []).map((c) => ({
+        // uid is needed client-side to open DM threads (it grants nothing on
+        // its own — every community collection is rules-gated by auth).
+        uid: c.uid || null,
         channel: c.channel, name: c.name, avatarUrl: c.avatarUrl || null,
         plan: c.plan, trial: !!c.trial,
         isLive: !!c.isLive, viewers: c.viewers || 0, title: c.title || "",
+        category: c.category || "", blurb: c.blurb || "",
         lastLiveAt: c.lastLiveAt || null,
         hoursStreamed: c.hoursStreamed || 0, sessions: c.sessions || 0,
         giveawaysRun: c.giveawaysRun || 0, winnersDrawn: c.winnersDrawn || 0,
