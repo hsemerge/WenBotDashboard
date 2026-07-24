@@ -38,6 +38,12 @@ function initFirebase() {
   fb.app = firebase.initializeApp(firebaseConfig);
   fb.auth = firebase.auth();
   fb.db = firebase.firestore();
+  // Some networks (AV HTTPS scanning, VPNs, certain ISPs/routers) silently
+  // break Firestore's streaming channel — realtime listeners then degrade to
+  // ~20-30s batched updates. Auto-detect switches those clients to proper
+  // long-polling, restoring sub-second delivery. No effect on healthy
+  // connections. MUST be set before the first Firestore call.
+  try { fb.db.settings({ experimentalAutoDetectLongPolling: true, merge: true }); } catch (e) {}
   if (typeof firebase.storage === 'function') fb.storage = firebase.storage();
 
   // Listen for auth state changes
