@@ -18,6 +18,7 @@
 const { getDb, admin }        = require("./_lib/firebase");
 const { res, checkRateLimit } = require("./_lib/http");
 const { logAudit }            = require("./_lib/audit");
+const { addTickets, bustRaffleCaches } = require("./_lib/raffle");
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
@@ -70,23 +71,16 @@ exports.handler = async (event) => {
       itemName = doc.data().name || "Raffle";
     }
 
-    // One redemption doc per ticket (tickets = doc count), matching the bot's
-    // !buy shape so the Raffles page treats grants like any bought ticket.
-    const redeemCol = db.collection("streamers").doc(uid).collection("store_redemptions");
-    const batch = db.batch();
-    for (let i = 0; i < qty; i++) {
-      batch.set(redeemCol.doc(), {
-        itemId, itemName,
-        kickUsername:    username,
-        kickUsernameKey: username.toLowerCase(),
-        pointsSpent:     0,
-        redeemedAt:      new Date(),
-        status:          "raffle_entry",
-        source:          "giveaway_grant",
-        grantedBy:       decoded.uid,
-      });
-    }
-    await batch.commit();
+    // Coalesced ticket doc (one per viewer per item, qty counter) + the
+    // raffleTickets running total on the item — see _lib/raffle.js.
+    await addTickets(db, {
+      uid, itemId, itemName,
+      kickUsername: username,
+      qty, pointsSpent: 0,
+      source: "giveaway_grant",
+      extra: { grantedBy: decoded.uid },
+    });
+    await bustRaffleCaches(db, uid, itemId);
 
     // Activity Log entry — same audit trail as bot-side ticket buys.
     await logAudit(uid, "raffle_ticket_granted", {

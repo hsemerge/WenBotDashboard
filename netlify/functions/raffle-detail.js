@@ -58,19 +58,21 @@ exports.handler = async (event) => {
       .get();
 
     const map = {};
+    let legacyDocs = 0; // one-doc-per-ticket docs (no qty) — triggers the dashboard's auto-compaction
     snap.forEach((doc) => {
       const d   = doc.data();
-      const key = (d.kickUsername || "").toLowerCase();
+      const key = (d.kickUsernameKey || d.kickUsername || "").toLowerCase();
       if (!key) return;
-      if (!map[key]) map[key] = { username: d.kickUsername, tickets: 0, lastTs: 0 };
-      map[key].tickets++;
+      if (typeof d.qty !== "number") legacyDocs++;
+      if (!map[key]) map[key] = { username: d.kickUsername || key, tickets: 0, lastTs: 0 };
+      map[key].tickets += d.qty || 1;
       const ts = d.redeemedAt && d.redeemedAt.toMillis ? d.redeemedAt.toMillis() : (Number(d.redeemedAt) || 0);
       if (ts > map[key].lastTs) map[key].lastTs = ts;
     });
 
     const entrants     = Object.values(map).sort((a, b) => b.tickets - a.tickets);
     const totalTickets = entrants.reduce((s, e) => s + e.tickets, 0);
-    const payload      = { entrants, totalTickets, entrantCount: entrants.length };
+    const payload      = { entrants, totalTickets, entrantCount: entrants.length, legacyDocs };
 
     // Cache it. If the entrant list is huge (>1MB doc), the write throws and we
     // just skip caching — the data still returns correctly, uncached.

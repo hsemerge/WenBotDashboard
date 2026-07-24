@@ -14,6 +14,7 @@
 const { getDb, admin }        = require("./_lib/firebase");
 const { res, checkRateLimit } = require("./_lib/http");
 const { logAudit }            = require("./_lib/audit");
+const { addTickets }          = require("./_lib/raffle");
 const { getKickUser }         = require("./_lib/kick");
 
 exports.handler = async (event) => {
@@ -94,9 +95,14 @@ exports.handler = async (event) => {
 
         tx.set(viewerRef, { points: admin.firestore.FieldValue.increment(-totalCost) }, { merge: true });
         if (tracked) tx.update(itemRef, { stock: admin.firestore.FieldValue.increment(-qty) });
-        // One redemption doc per ticket — keeps tickets = doc count, so the draw,
-        // dashboard counts, and portal "you have N" all work unchanged.
-        for (let i = 0; i < qty; i++) {
+        if (isRaffleItem) {
+          // Coalesced ticket doc (one per viewer per item, qty counter) + the
+          // raffleTickets running total on the item — see _lib/raffle.js.
+          addTickets(db, {
+            uid, itemId, itemName: item.name,
+            kickUsername, qty, pointsSpent: totalCost, source: "web",
+          }, tx);
+        } else {
           tx.set(redeemCol.doc(), {
             kickUsername,
             kickUsernameKey: userKey,

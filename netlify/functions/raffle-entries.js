@@ -35,11 +35,19 @@ exports.handler = async (event) => {
     const uid = snap.docs[0].id;
     const redemptions = db.collection("streamers").doc(uid).collection("store_redemptions");
 
-    // ── PRIMARY: count() with itemId + status=="raffle_entry" (exact + cheap) ──
+    // ── PRIMARY: raffleTickets counter on the item doc (free — it rides the
+    //    store_items read we already do). Items without the counter yet (not
+    //    migrated / never had a coalesced write) fall back to count(), which is
+    //    exact for pure-legacy one-doc-per-ticket storage. ──
     try {
       const itemsSnap = await db.collection("streamers").doc(uid)
         .collection("store_items").where("isRaffleItem", "==", true).get();
       const raffleItemIds = itemsSnap.docs.map((d) => d.id);
+      const counterById = {};
+      itemsSnap.docs.forEach((d) => {
+        const rt = d.data().raffleTickets;
+        if (typeof rt === "number") counterById[d.id] = Math.max(0, rt);
+      });
 
       const cacheRef = db.collection("_cache").doc(`raffle_${uid}`);
       let totals = null;
@@ -51,6 +59,7 @@ exports.handler = async (event) => {
       if (!totals) {
         totals = {};
         await Promise.all(raffleItemIds.map(async (id) => {
+          if (counterById[id] != null) { totals[id] = counterById[id]; return; }
           const agg = await redemptions
             .where("itemId", "==", id)
             .where("status", "==", "raffle_entry")
@@ -60,30 +69,32 @@ exports.handler = async (event) => {
         try { await cacheRef.set({ cachedAt: Date.now(), totals }); } catch { /* skip cache */ }
       }
 
-      // Viewer's own per-item count — count() per raffle item (kickUsernameKey +
-      // itemId + status, all equality → zigzag merge, no composite index). This
-      // was the #1 read source: the old `.get()` downloaded EVERY one of the
-      // viewer's tickets (hundreds for a big raffle) on every portal poll. Now
-      // it's ~1 read per raffle item. Isolated try/catch so a count() failure
-      // degrades to a CAPPED scan of just this viewer's docs — never the full
-      // channel scan in the outer fallback.
+      // Viewer's own per-item count: read their coalesced ticket doc (1 read,
+      // exact qty) + count() any legacy per-ticket docs (excluded via the
+      // coalesced doc's own id being counted once — subtract it back out).
       const mine = {};
       if (kick) {
         try {
           await Promise.all(raffleItemIds.map(async (id) => {
-            const agg = await redemptions
-              .where("kickUsernameKey", "==", kick)
-              .where("itemId", "==", id)
-              .where("status", "==", "raffle_entry")
-              .count().get();
-            mine[id] = agg.data().count || 0;
+            const [tDoc, agg] = await Promise.all([
+              redemptions.doc(`t_${id}_${kick}`).get(),
+              redemptions
+                .where("kickUsernameKey", "==", kick)
+                .where("itemId", "==", id)
+                .where("status", "==", "raffle_entry")
+                .count().get(),
+            ]);
+            const qty       = tDoc.exists ? (tDoc.data().qty || 1) : 0;
+            const docCount  = agg.data().count || 0;
+            const legacyCnt = Math.max(0, docCount - (tDoc.exists ? 1 : 0));
+            mine[id] = qty + legacyCnt;
           }));
         } catch (mineErr) {
-          console.warn("[raffle-entries] mine count() failed, capped scan:", mineErr.message);
+          console.warn("[raffle-entries] mine lookup failed, capped scan:", mineErr.message);
           const mySnap = await redemptions.where("kickUsernameKey", "==", kick).limit(2000).get();
           mySnap.forEach((d) => {
             const x = d.data();
-            if (x.status === "raffle_entry" && x.itemId) mine[x.itemId] = (mine[x.itemId] || 0) + 1;
+            if (x.status === "raffle_entry" && x.itemId) mine[x.itemId] = (mine[x.itemId] || 0) + (x.qty || 1);
           });
         }
       }
@@ -109,10 +120,11 @@ exports.handler = async (event) => {
           const d = doc.data();
           const id = d.itemId;
           if (!id) return;
+          const n = d.qty || 1; // coalesced docs carry qty; legacy docs are 1 each
           if (!agg[id]) agg[id] = { total: 0, users: {} };
-          agg[id].total += 1;
+          agg[id].total += n;
           const who = (d.kickUsernameKey || d.kickUsername || "").toLowerCase();
-          if (who) agg[id].users[who] = (agg[id].users[who] || 0) + 1;
+          if (who) agg[id].users[who] = (agg[id].users[who] || 0) + n;
         });
         try { await cacheRef.set({ cachedAt: Date.now(), agg }); } catch { /* skip cache */ }
       }

@@ -541,7 +541,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.4.1</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.4.2</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -2472,9 +2472,21 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.4.1</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.4.2</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.4.2 — Raffles built for six figures</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 24, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🎟 <strong>Monster raffles, instant everything.</strong> Ticket storage was rebuilt from the ground up — a 100,000-ticket raffle now behaves exactly like a 100-ticket one. Removing a winner's ticket, removing an entrant, and resetting an entire raffle are all instant now (previously a huge raffle could freeze the page for 30+ seconds).</li>
+            <li>⚙️ <strong>Existing big raffles upgrade themselves.</strong> The first time you open the Raffles page, any large raffle is automatically compacted to the new format — you'll see a quick "optimizing raffle storage" note, then it's permanent.</li>
+            <li>💸 <strong>Massively cheaper behind the scenes.</strong> Ticket operations that used to touch every single ticket now touch one record per viewer — the same raffle costs a fraction of the database usage at any size.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -14198,6 +14210,9 @@ async function loadPointRaffleEntries() {
     const entries = data.entrants || [];
     pointRaffleEntries = entries;
 
+    // Legacy one-doc-per-ticket storage detected → compact it in the background
+    _prMaybeMigrate(selectedRaffleItemId, data.legacyDocs || 0);
+
     const totalTix = data.totalTickets != null ? data.totalTickets : entries.reduce((s, e) => s + e.tickets, 0);
     const selItem  = raffleItemsList.find(i => i.id === selectedRaffleItemId);
     const itemName = selItem?.name || 'item';
@@ -14237,26 +14252,38 @@ async function loadPointRaffleEntries() {
   }
 }
 
+// All ticket mutations run SERVER-SIDE via /api/raffle-ops. The old client code
+// downloaded every ticket doc into the browser first — on a 60-80k-ticket
+// raffle that froze the page for 15-30s per click and billed 80k reads a time.
+async function _prRaffleOp(action, extra = {}) {
+  const idToken = await fb.currentUser.getIdToken();
+  const resp = await fetch('/api/raffle-ops', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
+    body: JSON.stringify({ uid: fb.activeUid, itemId: selectedRaffleItemId, action, ...extra }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.error || 'Operation failed');
+  return data;
+}
+
 async function clearPointRaffleEntries() {
-  const uid = fb.activeUid;
   if (!selectedRaffleItemId) return;
   const selItem = raffleItemsList.find(i => i.id === selectedRaffleItemId);
   const itemName = selItem?.name || 'item';
   if (!confirm(`Reset all entries for "${itemName}"? This removes everyone from the draw pool. Past draw winners and history are unaffected.`)) return;
   try {
-    const snap = await fb.db.collection('streamers').doc(uid).collection('store_redemptions')
-      .where('itemId', '==', selectedRaffleItemId)
-      .where('status', '==', 'raffle_entry').get();
-    // Use a chunked batch in case there are >500 docs (Firestore batch limit)
-    const chunks = [];
-    for (let i = 0; i < snap.docs.length; i += 400) chunks.push(snap.docs.slice(i, i + 400));
-    for (const chunk of chunks) {
-      const batch = fb.db.batch();
-      chunk.forEach(doc => batch.update(doc.ref, { status: 'fulfilled', fulfilledAt: new Date() }));
-      await batch.commit();
+    // Paged server-side clear — big raffles are wiped in chunks, no browser hang.
+    let total = 0, done = false, guard = 0;
+    flash('Clearing entries…');
+    while (!done && guard++ < 200) {
+      const r = await _prRaffleOp('clear_item');
+      total += r.removed || 0;
+      done = r.done !== false;
+      if (!done) flash(`Clearing… ${total.toLocaleString()} tickets removed so far`);
     }
     pointRaffleEntries = [];
-    flash(`${snap.size} entries cleared.`);
+    flash(`${total.toLocaleString()} tickets cleared.`);
     _prForceFresh = true;
     loadPointRaffleEntries();
   } catch(e) {
@@ -14264,30 +14291,12 @@ async function clearPointRaffleEntries() {
   }
 }
 
-// Mark a viewer's raffle_entry redemptions for the selected item as fulfilled
-// (i.e. pull them out of the draw pool). `limitCount` null removes all of that
-// viewer's tickets; a number removes up to that many. Returns how many were removed.
-async function _fulfillRaffleTickets(uid, itemId, usernameLower, limitCount) {
-  const snap = await fb.db.collection('streamers').doc(uid).collection('store_redemptions')
-    .where('itemId', '==', itemId)
-    .where('status', '==', 'raffle_entry').get();
-  const mine = snap.docs.filter(d => (d.data().kickUsername || '').toLowerCase() === usernameLower);
-  const targets = limitCount == null ? mine : mine.slice(0, limitCount);
-  for (let i = 0; i < targets.length; i += 400) {
-    const batch = fb.db.batch();
-    targets.slice(i, i + 400).forEach(d => batch.update(d.ref, { status: 'fulfilled', fulfilledAt: new Date() }));
-    await batch.commit();
-  }
-  return targets.length;
-}
-
 async function removePointRaffleTicket(username) {
-  const uid = fb.activeUid;
-  if (!uid || !selectedRaffleItemId) return;
+  if (!fb.activeUid || !selectedRaffleItemId) return;
   try {
-    const n = await _fulfillRaffleTickets(uid, selectedRaffleItemId, username.toLowerCase(), 1);
+    const r = await _prRaffleOp('remove_ticket', { username });
+    const n = r.removed || 0;
     flash(n ? `Removed 1 ticket from @${username}.` : `No tickets to remove for @${username}.`, n ? 'success' : 'error');
-    if (n) logAction('raffle_ticket_removed', { kickUsername: username, itemId: selectedRaffleItemId, count: n });
     _prForceFresh = true;
     loadPointRaffleEntries();
     return n;
@@ -14295,17 +14304,40 @@ async function removePointRaffleTicket(username) {
 }
 
 async function removePointRaffleEntrant(username) {
-  const uid = fb.activeUid;
-  if (!uid || !selectedRaffleItemId) return;
+  if (!fb.activeUid || !selectedRaffleItemId) return;
   if (!confirm(`Remove @${username} entirely from this raffle? All of their tickets for this item are pulled from the draw pool.`)) return;
   try {
-    const n = await _fulfillRaffleTickets(uid, selectedRaffleItemId, username.toLowerCase(), null);
-    flash(`Removed @${username} from the raffle (${n} ticket${n !== 1 ? 's' : ''}).`);
-    logAction('raffle_entrant_removed', { kickUsername: username, itemId: selectedRaffleItemId, count: n });
+    const r = await _prRaffleOp('remove_entrant', { username });
+    const n = r.removed || 0;
+    flash(`Removed @${username} from the raffle (${n.toLocaleString()} ticket${n !== 1 ? 's' : ''}).`);
     _prForceFresh = true;
     loadPointRaffleEntries();
     return n;
   } catch (e) { flash('Error: ' + e.message, 'error'); }
+}
+
+// One-time storage compaction: when raffle-detail reports legacy
+// one-doc-per-ticket storage, compact it into coalesced qty docs so every
+// later operation (draw counts, clears, removals, portal totals) is instant.
+const _prMigrated = new Set();
+async function _prMaybeMigrate(itemId, legacyDocs) {
+  if (!legacyDocs || _prMigrated.has(itemId)) return;
+  _prMigrated.add(itemId);
+  try {
+    flash('⚙️ Optimizing raffle storage — one moment…');
+    let after = null, done = false, guard = 0;
+    while (!done && guard++ < 200) {
+      const r = await _prRaffleOp('migrate_item', after ? { after } : {});
+      after = r.after || null;
+      done  = r.done !== false;
+    }
+    flash('✅ Raffle storage optimized — everything is snappy now.');
+    _prForceFresh = true;
+    loadPointRaffleEntries();
+  } catch (e) {
+    _prMigrated.delete(itemId); // retry on next open
+    console.warn('[raffle-migrate]', e.message);
+  }
 }
 
 async function deactivateRaffleItem() {
@@ -14399,10 +14431,15 @@ async function drawRaffleWinner(mode) {
   const entries = mode === 'wager' ? wagerRaffleEntries : pointRaffleEntries;
   if (!entries.length) { flash('No entries to draw from.', 'error'); return; }
 
-  // Weighted random pick
-  const pool = [];
-  entries.forEach(e => { for (let i = 0; i < (e.tickets || 1); i++) pool.push(e.username); });
-  const winner = pool[Math.floor(Math.random() * pool.length)];
+  // Weighted random pick — cumulative walk, no giant expanded array (a 100k
+  // ticket raffle used to build a 100k-element array here).
+  const totalWeight = entries.reduce((s, e) => s + (e.tickets || 1), 0);
+  let _r = Math.random() * totalWeight;
+  let winner = entries[entries.length - 1].username;
+  for (const e of entries) {
+    _r -= (e.tickets || 1);
+    if (_r < 0) { winner = e.username; break; }
+  }
 
   // For point raffles, capture which item the draw was for (the prize name)
   let itemName = null;
