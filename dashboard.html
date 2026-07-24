@@ -541,7 +541,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.4.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.4.1</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -2472,9 +2472,20 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.4.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.4.1</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.4.1 — Typing bubbles &amp; bulletproof delivery</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 23, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>💬 <strong>● ● ● typing…</strong> DMs now show when the other creator is typing, live.</li>
+            <li>📡 <strong>Messages can't go quiet anymore.</strong> If a chat or DM connection ever drops (network blip, permissions race), it now reconnects itself within seconds — previously it could silently stop delivering until you refreshed the page.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -4214,8 +4225,9 @@
           <span class="t" id="ccDmConvoName" style="font-size:13px;"></span>
         </div>
         <div id="ccDmMsgs" style="flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px;"></div>
+        <div id="ccDmTyping" style="display:none;padding:0 16px 6px;font-size:11px;color:var(--text-dim);"><span style="letter-spacing:2px;animation:ccPulse 1.2s infinite;">●●●</span> <span id="ccDmTypingWho">typing</span>…</div>
         <div class="cc-dock-input">
-          <input type="text" id="ccDmInput" maxlength="500" placeholder="Send a DM…" onkeydown="if(event.key==='Enter')ccDmSend()">
+          <input type="text" id="ccDmInput" maxlength="500" placeholder="Send a DM…" oninput="ccDmTyping()" onkeydown="if(event.key==='Enter')ccDmSend()">
           <button onclick="ccDmSend()">Send</button>
         </div>
       </div>
@@ -15589,9 +15601,18 @@ function ccInitDock() {
     else if (cc.dockView === 'dm') ccRenderDmMsgs();
   }, 30000);
 
+  ccAttachChat();
+}
+
+// Community-chat listener with self-healing: if it errors (e.g. it attached
+// during a rules publish and got denied), retry every 10s instead of dying
+// silently — no more "hard refresh to fix the chat".
+function ccAttachChat() {
+  if (cc.chatUnsub) { cc.chatUnsub(); cc.chatUnsub = null; }
   cc.chatUnsub = fb.db.collection('community').doc('chat').collection('messages')
     .orderBy('ts', 'desc').limit(50)
     .onSnapshot(snap => {
+      const wasLocked = !cc.chatReady;
       cc.chatReady = true;
       // serverTimestamps:'estimate' — your own just-sent message renders
       // instantly with an estimated time instead of a null timestamp.
@@ -15603,10 +15624,13 @@ function ccInitDock() {
       // Calibrate clock skew from the newest server stamp (see ccNow)
       const newest = cc.msgs.reduce((x, m) => Math.max(x, m.ts || 0), 0);
       cc.clockSkew = Math.min(5 * 60 * 1000, Math.max(cc.clockSkew || 0, newest - Date.now()));
+      if (wasLocked) ccSetDockView(cc.dockView === 'dm' ? 'dms' : cc.dockView); // restore input row after a locked state
       ccRenderMsgs();
     }, err => {
       console.warn('[CreatorChat]', err.message);
-      ccLockedState('Creator Chat is unlocking soon — hang tight!');
+      cc.chatUnsub = null;
+      if (!cc.chatReady) ccLockedState('Creator Chat is unlocking soon — hang tight!');
+      setTimeout(() => { if (!cc.chatUnsub && ccEligibleForChat()) ccAttachChat(); }, 10000);
     });
 }
 
@@ -15730,12 +15754,17 @@ function ccDmInit() {
       }).sort((a, b) => (b.lastTs || 0) - (a.lastTs || 0));
       ccRenderDmBadge();
       if (cc.dockView === 'dms') ccRenderDmList();
-      // Live thread open? Mark it read as messages arrive.
+      // Live thread open? Mark it read as messages arrive + refresh typing.
       if (cc.dockView === 'dm' && cc.dmActive) {
         const act = cc.dmThreads.find(t => t.id === cc.dmActive);
         if (act && act.lastFrom !== fb.currentUser.uid) ccDmMarkRead(cc.dmActive);
+        ccDmUpdateTyping();
       }
-    }, err => console.warn('[DMs]', err.message));
+    }, err => {
+      console.warn('[DMs]', err.message);
+      cc.dmUnsub = null;
+      setTimeout(() => { if (!cc.dmUnsub && ccEligibleForChat()) ccDmInit(); }, 10000);
+    });
 }
 
 function ccDmOther(t) {
@@ -15864,9 +15893,41 @@ function ccOpenThread(tid) {
         return m;
       }).reverse();
       ccRenderDmMsgs();
-    }, err => console.warn('[DMs]', err.message));
+    }, err => {
+      // Self-heal: a listener that attached mid-rules-publish (or right as the
+      // thread was created) gets denied once — re-attach instead of going deaf.
+      console.warn('[DMs]', err.message);
+      cc.dmMsgUnsub = null;
+      setTimeout(() => { if (cc.dmActive === tid && cc.dockView === 'dm' && !cc.dmMsgUnsub) ccOpenThread(tid); }, 5000);
+    });
   ccDmMarkRead(tid);
+  ccDmUpdateTyping();
+  if (!cc.typingTicker) cc.typingTicker = setInterval(() => { if (cc.dockView === 'dm') ccDmUpdateTyping(); }, 2000);
   setTimeout(() => document.getElementById('ccDmInput')?.focus(), 50);
+}
+
+// ── Typing indicator ────────────────────────────────────────────────────────
+// Throttled presence stamp on the thread doc (typing.<uid> = server time);
+// the other side shows "● ● ● typing…" while the stamp is <6s old. The stamp
+// rides the thread listener, so no extra reads.
+let _ccTypingLastWrite = 0;
+function ccDmTyping() {
+  if (!cc.dmActive || Date.now() - _ccTypingLastWrite < 2500) return;
+  _ccTypingLastWrite = Date.now();
+  ccDmCol().doc(cc.dmActive).update({ ['typing.' + fb.currentUser.uid]: firebase.firestore.FieldValue.serverTimestamp() }).catch(() => {});
+}
+
+function ccDmUpdateTyping() {
+  const row = document.getElementById('ccDmTyping');
+  if (!row) return;
+  const t = (cc.dmThreads || []).find(x => x.id === cc.dmActive);
+  if (!t) { row.style.display = 'none'; return; }
+  const o = ccDmOther(t);
+  const fresh = o.uid && ccNow() - ccTs((t.typing || {})[o.uid]) < 6000;
+  if (fresh) {
+    document.getElementById('ccDmTypingWho').textContent = o.name + ' is typing';
+    row.style.display = 'block';
+  } else row.style.display = 'none';
 }
 
 function ccRenderDmMsgs() {
@@ -15896,8 +15957,10 @@ async function ccDmSend() {
       lastMsg: text.slice(0, 80),
       lastTs: firebase.firestore.FieldValue.serverTimestamp(),
       lastFrom: fb.currentUser.uid,
+      ['typing.' + fb.currentUser.uid]: firebase.firestore.FieldValue.delete(),
     });
     await batch.commit();
+    _ccTypingLastWrite = 0;
   } catch (e) {
     input.value = text;
     flash('DM didn\'t send — try again', 'error');
