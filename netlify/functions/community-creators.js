@@ -43,7 +43,12 @@ exports.handler = async (event) => {
         lastLiveAt: c.lastLiveAt || null,
         hoursStreamed: c.hoursStreamed || 0, sessions: c.sessions || 0,
         giveawaysRun: c.giveawaysRun || 0, winnersDrawn: c.winnersDrawn || 0,
-        huntsRun: c.huntsRun || 0, memberSince: c.memberSince || null,
+        // memberSince may be a Firestore Timestamp on older docs — normalize to millis
+        huntsRun: c.huntsRun || 0,
+        memberSince: typeof c.memberSince === "number" ? c.memberSince
+          : (c.memberSince && typeof c.memberSince.toMillis === "function") ? c.memberSince.toMillis()
+          : (c.memberSince && c.memberSince._seconds != null) ? c.memberSince._seconds * 1000
+          : null,
       })),
     };
     _cacheAt = Date.now();
