@@ -41,6 +41,9 @@ exports.handler = async (event) => {
         plan: c.plan, trial: !!c.trial,
         isLive: !!c.isLive, viewers: c.viewers || 0, title: c.title || "",
         lastLiveAt: c.lastLiveAt || null,
+        hoursStreamed: c.hoursStreamed || 0, sessions: c.sessions || 0,
+        giveawaysRun: c.giveawaysRun || 0, winnersDrawn: c.winnersDrawn || 0,
+        huntsRun: c.huntsRun || 0, memberSince: c.memberSince || null,
       })),
     };
     _cacheAt = Date.now();

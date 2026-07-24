@@ -541,7 +541,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.3.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.3.1</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -1967,6 +1967,11 @@
           </div>
         </div>
       </div>
+
+      <!-- Creator profile modal -->
+      <div id="ccCreatorModal" style="display:none;position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.65);align-items:center;justify-content:center;" onclick="if(event.target===this)ccCloseCreator()">
+        <div class="card" style="width:min(480px, 92vw);max-height:90vh;overflow-y:auto;" id="ccCreatorModalBody"></div>
+      </div>
     </div>
 
     <div class="page" id="page-settings">
@@ -2432,9 +2437,20 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.3.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.3.1</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.3.1 — Creator profiles</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 23, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>👤 <strong>Click any creator to see their profile.</strong> On the Creators page, every card now opens a profile: hours streamed, number of streams, giveaways run, winners drawn, and bonus hunts — plus live status, member-since date, and Watch / Shoutout buttons right there.</li>
+            <li>📈 <strong>Your stats build themselves.</strong> Every stream, giveaway, drawn winner, and bonus hunt now counts toward your public creator profile automatically. The clock started today — the grind is officially on the record.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -5800,6 +5816,7 @@ async function startGiveaway() {
     pendingChatMessage:      announceMsg,
     pendingChatTs:           Date.now() + Math.random(),
   });
+  ccBumpStat('giveawaysRun');
   gwUpdateUI();
   flash('🎉 Giveaway started! WenBot is announcing in chat.');
   if (gwTarget === 'discord') {
@@ -7120,6 +7137,7 @@ function _writeWinnerLog({ type, username, avatarUrl, wager, slotName }) {
       drawnAt:   Date.now(),
     })
     .catch(err => console.warn('[winners_log] write failed:', err.message));
+  ccBumpStat('winnersDrawn');
 }
 
 // Back-compat wrapper — older code paths still call addRecentWinner. Funnel
@@ -11168,6 +11186,7 @@ async function startBonusHunt() {
     bhHunt = { active: true, totalCost: cost, bonuses: [] };
     bhRender();
     flash('Bonus hunt started!');
+    ccBumpStat('huntsRun');
   } catch (e) {
     flash('Failed to start hunt: ' + e.message, 'error');
   }
@@ -15400,7 +15419,7 @@ function ccRenderPage() {
            ${isMe ? '' : `<button class="cc-shout" onclick="ccShoutout('${channel}')" title="Shoutout ${name} in YOUR chat — WenBot posts it for your viewers">📣</button>`}
          </div>`
       : `<a class="cc-watch off"  href="https://kick.com/${channel}" target="_blank" rel="noopener">Visit channel</a>`;
-    return `<div class="cc-card ${c.isLive ? 'cc-live' : ''}" style="position:relative;">
+    return `<div class="cc-card ${c.isLive ? 'cc-live' : ''}" style="position:relative;cursor:pointer;" onclick="if(!event.target.closest('a,button'))ccOpenCreator('${channel}')" title="View creator profile">
       ${isMe ? '<span class="cc-you">YOU</span>' : ''}
       <div style="display:flex;align-items:center;gap:12px;min-width:0;">
         ${ava}
@@ -15532,6 +15551,77 @@ async function ccSend() {
     flash('Message didn\'t send — try again', 'error');
   }
 }
+
+// ── Community stat counters ──────────────────────────────────────────────────
+// Fire-and-forget increments piggybacked on existing actions (giveaway start,
+// winner drawn, hunt started). They live under communityStats on the streamer
+// doc and surface on creator profiles via the bot's aggregator. Never blocks
+// or breaks the action it rides on.
+function ccBumpStat(key) {
+  try {
+    fb.db.collection('streamers').doc(fb.activeUid)
+      .set({ communityStats: { [key]: firebase.firestore.FieldValue.increment(1) } }, { merge: true })
+      .catch(() => {});
+  } catch (e) { /* stats must never break the action they ride on */ }
+}
+
+// ── Creator profile modal ────────────────────────────────────────────────────
+function ccOpenCreator(channel) {
+  const c = (cc.data?.creators || []).find(x => x.channel === channel);
+  if (!c) return;
+  const name    = escHtml(c.name || c.channel);
+  const chan    = escHtml(c.channel);
+  const initial = escHtml((c.name || c.channel || '?').charAt(0).toUpperCase());
+  const isMe    = (profile?.kickChannel || '').toLowerCase() === c.channel;
+  const planCls = ['pro','elite','agency'].includes(c.plan) ? c.plan : 'pro';
+  const ava = c.avatarUrl
+    ? `<img class="cc-ava" style="width:72px;height:72px;" src="${escHtml(c.avatarUrl)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+       <div class="cc-ava-fallback" style="display:none;width:72px;height:72px;font-size:28px;">${initial}</div>`
+    : `<div class="cc-ava-fallback" style="width:72px;height:72px;font-size:28px;">${initial}</div>`;
+  const status = c.isLive
+    ? `<span class="cc-live-badge"><span class="dot"></span>LIVE · ${(c.viewers || 0).toLocaleString()} watching${c.title ? ' — ' + escHtml(c.title) : ''}</span>`
+    : `<span style="font-size:12px;color:var(--text-dim);">${c.lastLiveAt ? 'Last live ' + ccAgo(c.lastLiveAt) : 'Offline'}</span>`;
+
+  const hours = c.hoursStreamed || 0;
+  const stat = (icon, num, label) =>
+    `<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
+       <div style="font-size:16px;">${icon}</div>
+       <div style="font-family:'Exo 2',sans-serif;font-size:19px;font-weight:900;color:var(--bright);margin:2px 0;">${num}</div>
+       <div style="font-size:10px;color:var(--text-dim);letter-spacing:0.05em;text-transform:uppercase;">${label}</div>
+     </div>`;
+  const since = c.memberSince
+    ? new Date(c.memberSince).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+    : null;
+
+  document.getElementById('ccCreatorModalBody').innerHTML = `
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+      ${ava}
+      <div style="min-width:0;flex:1;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span class="cc-name" style="font-size:19px;">${name}</span>
+          <span class="cc-plan ${planCls}">${escHtml((c.plan || 'pro').toUpperCase())}</span>
+          ${isMe ? '<span class="cc-you" style="position:static;">YOU</span>' : ''}
+        </div>
+        <div style="margin-top:5px;">${status}</div>
+        ${since ? `<div style="font-size:11px;color:var(--text-dim);margin-top:4px;">On WenBot since ${since}</div>` : ''}
+      </div>
+      <span onclick="ccCloseCreator()" style="cursor:pointer;color:var(--text-dim);font-size:18px;align-self:flex-start;">✕</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px;margin-bottom:16px;">
+      ${stat('⏱', hours >= 100 ? Math.round(hours).toLocaleString() + 'h' : hours + 'h', 'Hours streamed')}
+      ${stat('📺', (c.sessions || 0).toLocaleString(), 'Streams')}
+      ${stat('🎁', (c.giveawaysRun || 0).toLocaleString(), 'Giveaways run')}
+      ${stat('🏆', (c.winnersDrawn || 0).toLocaleString(), 'Winners drawn')}
+      ${stat('🎰', (c.huntsRun || 0).toLocaleString(), 'Bonus hunts')}
+    </div>
+    <div style="font-size:10.5px;color:var(--text-dim);margin-bottom:14px;text-align:center;">Stats count from the launch of the WenBot community (July 2026).</div>
+    <div style="display:flex;gap:8px;">
+      <a class="cc-watch ${c.isLive ? 'live' : 'off'}" style="flex:1;" href="https://kick.com/${chan}" target="_blank" rel="noopener">${c.isLive ? '▶ Watch live' : 'Visit channel'}</a>
+      ${(!isMe && c.isLive) ? `<button class="cc-shout" onclick="ccShoutout('${chan}')" title="Shoutout ${name} in YOUR chat">📣 Shoutout</button>` : ''}
+    </div>`;
+  document.getElementById('ccCreatorModal').style.display = 'flex';
+}
+function ccCloseCreator() { document.getElementById('ccCreatorModal').style.display = 'none'; }
 
 // ── Shoutout — WenBot posts a hype message in YOUR chat ─────────────────────
 // Rides the existing pendingChatMessage mechanism: the bot's profile listener
