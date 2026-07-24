@@ -40,10 +40,20 @@ function initFirebase() {
   fb.db = firebase.firestore();
   // Some networks (AV HTTPS scanning, VPNs, certain ISPs/routers) silently
   // break Firestore's streaming channel — realtime listeners then degrade to
-  // ~20-30s batched updates. Auto-detect switches those clients to proper
-  // long-polling, restoring sub-second delivery. No effect on healthy
-  // connections. MUST be set before the first Firestore call.
-  try { fb.db.settings({ experimentalAutoDetectLongPolling: true, merge: true }); } catch (e) {}
+  // ~20-30s batched updates while writes still go through instantly (the
+  // telltale: your messages reach others fast, but incoming updates crawl).
+  // Auto-detect (SDK default) misses some of these setups, so affected users
+  // can force proper long-polling per-browser:
+  //     localStorage.setItem('wb_force_lp', '1')   (then reload)
+  // Forced long-polling still delivers sub-second; it just skips the broken
+  // streaming transport. MUST be set before the first Firestore call.
+  try {
+    const forceLp = localStorage.getItem('wb_force_lp') === '1';
+    fb.db.settings(forceLp
+      ? { experimentalForceLongPolling: true, merge: true }
+      : { experimentalAutoDetectLongPolling: true, merge: true });
+    if (forceLp) console.log('[Firestore] forced long-polling transport (wb_force_lp)');
+  } catch (e) {}
   if (typeof firebase.storage === 'function') fb.storage = firebase.storage();
 
   // Listen for auth state changes
