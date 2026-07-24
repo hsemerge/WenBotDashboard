@@ -250,6 +250,35 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // community/wins/posts — the Big Wins feed on the Creators page. Any
+    // signed-in dashboard account can read; posting is a paid-creator perk
+    // (same plan gate as chat). Authors can delete their own posts; nothing
+    // is client-editable. The bot server prunes to the newest ~100.
+    match /community/wins/posts/{winId} {
+      function winEligible() {
+        return request.auth != null
+          && get(/databases/$(database)/documents/streamers/$(request.auth.uid)).data.onboarded == true
+          && get(/databases/$(database)/documents/streamers/$(request.auth.uid)).data.plan in ['pro', 'elite', 'agency'];
+      }
+      allow read: if request.auth != null;
+      allow create: if winEligible()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'channel', 'name', 'avatarUrl', 'slot', 'amount', 'multi', 'note', 'ts'])
+        && request.resource.data.slot is string
+        && request.resource.data.slot.size() > 0
+        && request.resource.data.slot.size() <= 60
+        && request.resource.data.amount is string
+        && request.resource.data.amount.size() > 0
+        && request.resource.data.amount.size() <= 20
+        && request.resource.data.multi is string
+        && request.resource.data.multi.size() <= 20
+        && request.resource.data.note is string
+        && request.resource.data.note.size() <= 140
+        && request.resource.data.ts is number;
+      allow update: if false;
+      allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
+    }
+
     // System tokens (WenBot's master Kick credentials) — admin SDK only
     match /system/{doc} {
       allow read, write: if false;

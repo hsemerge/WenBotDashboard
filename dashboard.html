@@ -541,7 +541,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.2.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.3.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -1888,6 +1888,18 @@
         .cc-watch.off  { background:transparent; color:var(--text-dim); border:1px solid var(--border); }
         .cc-watch:hover { filter:brightness(1.15); }
         .cc-you { position:absolute; top:-8px; right:12px; font-size:9px; font-weight:900; letter-spacing:0.08em; background:var(--accent); color:#04141a; padding:2px 8px; border-radius:999px; }
+        .cc-shout { background:rgba(0,229,255,0.10); border:1px solid rgba(0,229,255,0.35); color:var(--accent); border-radius:8px;
+                    font-size:15px; padding:0 13px; cursor:pointer; transition:all .15s; flex:0 0 auto; }
+        .cc-shout:hover { background:rgba(0,229,255,0.22); }
+        .cc-win-amount { font-family:'Exo 2',sans-serif; font-size:24px; font-weight:900; color:#ffd700; letter-spacing:0.01em; }
+        .cc-win-multi { font-size:10.5px; font-weight:900; color:var(--accent); background:rgba(0,229,255,0.10); border:1px solid rgba(0,229,255,0.3);
+                        padding:2px 8px; border-radius:999px; }
+        .cc-win-del { position:absolute; top:10px; right:10px; background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:13px; opacity:0.5; }
+        .cc-win-del:hover { opacity:1; color:var(--red); }
+        .cc-field label { display:block; font-size:11px; color:var(--text-dim); margin-bottom:5px; font-weight:700; letter-spacing:0.04em; }
+        .cc-field input { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--bright);
+                          font-size:13px; padding:9px 12px; outline:none; }
+        .cc-field input:focus { border-color:rgba(0,229,255,0.45); }
       </style>
       <div style="max-width:1200px;margin:0 auto;">
         <div class="card cc-hero" style="margin-bottom:16px;">
@@ -1907,6 +1919,8 @@
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
           <button class="cc-pill on" id="ccFilterAll"  onclick="ccSetFilter('all')">All creators</button>
           <button class="cc-pill"    id="ccFilterLive" onclick="ccSetFilter('live')">🔴 Live now</button>
+          <button class="cc-pill"    id="ccFilterWins" onclick="ccSetFilter('wins')">🏆 Big Wins</button>
+          <button class="btn btn-accent btn-sm" id="ccShareWinBtn" style="display:none;" onclick="ccOpenWinModal()">＋ Share a win</button>
           <div style="margin-left:auto;font-size:11px;color:var(--text-dim);" id="ccUpdatedNote"></div>
         </div>
         <div class="cc-grid" id="ccGrid"></div>
@@ -1917,6 +1931,40 @@
         </div>
         <div style="margin-top:18px;font-size:11.5px;color:var(--text-dim);text-align:center;">
           Don't want your channel listed here? Turn it off any time in <a href="javascript:void(0)" onclick="showPage('settings')" style="color:var(--accent);">Settings → WenBot Community</a>.
+        </div>
+      </div>
+
+      <!-- Share-a-win modal -->
+      <div id="ccWinModal" style="display:none;position:fixed;inset:0;z-index:950;background:rgba(0,0,0,0.65);align-items:center;justify-content:center;" onclick="if(event.target===this)ccCloseWinModal()">
+        <div class="card" style="width:min(460px, 92vw);border-color:rgba(255,215,0,0.35);">
+          <div class="card-title">🏆 Share a big win</div>
+          <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+            Post it to the community Big Wins feed — every WenBot creator sees it. Brag responsibly. 😎
+          </p>
+          <div class="grid-2" style="gap:12px;margin-bottom:12px;">
+            <div class="cc-field">
+              <label>SLOT / GAME *</label>
+              <input type="text" id="ccWinSlot" maxlength="60" placeholder="e.g. Keno, Sweet Bonanza">
+            </div>
+            <div class="cc-field">
+              <label>WIN AMOUNT *</label>
+              <input type="text" id="ccWinAmount" maxlength="20" placeholder="e.g. $25,000">
+            </div>
+          </div>
+          <div class="grid-2" style="gap:12px;margin-bottom:12px;">
+            <div class="cc-field">
+              <label>MULTIPLIER (OPTIONAL)</label>
+              <input type="text" id="ccWinMulti" maxlength="20" placeholder="e.g. 500x">
+            </div>
+            <div class="cc-field">
+              <label>ONE-LINER (OPTIONAL)</label>
+              <input type="text" id="ccWinNote" maxlength="140" placeholder="e.g. $10 bet. Absolute madness.">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+            <button class="btn btn-ghost" onclick="ccCloseWinModal()">Cancel</button>
+            <button class="btn btn-accent" onclick="ccSubmitWin()">Post it 🎉</button>
+          </div>
         </div>
       </div>
     </div>
@@ -2384,9 +2432,22 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.2.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.3.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.3.0 — Shoutouts, Big Wins &amp; the front page</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 23, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>📣 <strong>One-click Shoutouts.</strong> See a fellow creator live on the Creators page? Hit the 📣 button and WenBot instantly posts a hype message in <em>your</em> chat — their name, what they're playing, and the link — so your viewers can raid over. Community raids, zero typing.</li>
+            <li>🏆 <strong>NEW: Big Wins feed.</strong> A new tab on the Creators page where creators post their biggest hits — slot, amount, multiplier, and a one-liner. Hit big? Smash <em>Share a win</em> and the whole community sees it. (Posting is a paid-plan perk; deleting your own posts is one click.)</li>
+            <li>🔴 <strong>You're now on the wenbot.gg front page.</strong> When you're live, your channel appears in a "creators are LIVE right now" strip on the WenBot homepage — with your avatar, viewer count, and a direct link to your stream. Free exposure, automatic. (The same Settings toggle that controls the directory controls this.)</li>
+            <li>🕐 <strong>Fixed:</strong> "Last live" times on the Creators page no longer reset whenever the bot server restarts.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -15281,6 +15342,10 @@ function ccSetFilter(f) {
   cc.filter = f;
   document.getElementById('ccFilterAll') ?.classList.toggle('on', f === 'all');
   document.getElementById('ccFilterLive')?.classList.toggle('on', f === 'live');
+  document.getElementById('ccFilterWins')?.classList.toggle('on', f === 'wins');
+  const share = document.getElementById('ccShareWinBtn');
+  if (share) share.style.display = (f === 'wins' && ccEligibleForChat()) ? '' : 'none';
+  if (f === 'wins') { ccLoadWins(); return; }
   ccRenderPage();
 }
 
@@ -15293,6 +15358,7 @@ function ccRenderPage() {
   document.getElementById('ccStatViewers').textContent  = (t.viewers ?? 0).toLocaleString();
   document.getElementById('ccFilterLive').textContent   = `🔴 Live now${t.live ? ` (${t.live})` : ''}`;
   document.getElementById('ccUpdatedNote').textContent  = d.updatedAt ? `Updated ${ccAgo(d.updatedAt)}` : '';
+  if (cc.filter === 'wins') { ccRenderWins(); return; }
 
   const myCh = (profile?.kickChannel || '').toLowerCase();
   const list = (d.creators || []).filter(c => cc.filter === 'all' || c.isLive);
@@ -15329,7 +15395,10 @@ function ccRenderPage() {
       : `<span style="font-size:11px;color:var(--text-dim);">${c.lastLiveAt ? 'Last live ' + ccAgo(c.lastLiveAt) : 'Offline'}</span>`;
     const title = c.isLive && c.title ? escHtml(c.title) : (c.isLive ? 'Live on Kick right now' : 'Drop a follow so you catch the next stream.');
     const btn = c.isLive
-      ? `<a class="cc-watch live" href="https://kick.com/${channel}" target="_blank" rel="noopener">▶ Watch live</a>`
+      ? `<div style="display:flex;gap:8px;">
+           <a class="cc-watch live" style="flex:1;" href="https://kick.com/${channel}" target="_blank" rel="noopener">▶ Watch live</a>
+           ${isMe ? '' : `<button class="cc-shout" onclick="ccShoutout('${channel}')" title="Shoutout ${name} in YOUR chat — WenBot posts it for your viewers">📣</button>`}
+         </div>`
       : `<a class="cc-watch off"  href="https://kick.com/${channel}" target="_blank" rel="noopener">Visit channel</a>`;
     return `<div class="cc-card ${c.isLive ? 'cc-live' : ''}" style="position:relative;">
       ${isMe ? '<span class="cc-you">YOU</span>' : ''}
@@ -15462,6 +15531,118 @@ async function ccSend() {
     input.value = text; // give their message back
     flash('Message didn\'t send — try again', 'error');
   }
+}
+
+// ── Shoutout — WenBot posts a hype message in YOUR chat ─────────────────────
+// Rides the existing pendingChatMessage mechanism: the bot's profile listener
+// claims it in a transaction (multi-instance safe) and posts within seconds.
+let _ccShoutLast = 0;
+async function ccShoutout(channel) {
+  if (Date.now() - _ccShoutLast < 10000) { flash('Easy — one shoutout every 10 seconds', 'error'); return; }
+  const c = (cc.data?.creators || []).find(x => x.channel === channel);
+  const name  = c?.name || channel;
+  const title = c?.isLive && c.title ? ` playing ${c.title}` : '';
+  const msg = `📣 Big shoutout to ${name} — LIVE right now${title}! Go show them some love 👉 https://kick.com/${channel}`;
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid).set({ pendingChatMessage: msg, pendingChatTs: Date.now() }, { merge: true });
+    _ccShoutLast = Date.now();
+    flash(`📣 WenBot is shouting out ${name} in your chat`);
+  } catch (e) { flash('Shoutout failed — try again', 'error'); }
+}
+
+// ── Big Wins feed ────────────────────────────────────────────────────────────
+// community/wins/posts — paid creators post, everyone signed-in reads. One-shot
+// fetch per tab open (human-driven, low volume); bot server prunes to ~100.
+async function ccLoadWins(force) {
+  if (cc.wins && !force) { ccRenderWins(); return; }
+  try {
+    const snap = await fb.db.collection('community').doc('wins').collection('posts')
+      .orderBy('ts', 'desc').limit(30).get();
+    cc.wins = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) {
+    cc.wins = [];
+    console.warn('[BigWins]', e.message);
+  }
+  ccRenderWins();
+}
+
+function ccRenderWins() {
+  const grid  = document.getElementById('ccGrid');
+  const empty = document.getElementById('ccEmpty');
+  const wins  = cc.wins || [];
+  if (!wins.length) {
+    grid.innerHTML = '';
+    empty.style.display = '';
+    document.getElementById('ccEmptyTitle').textContent = 'No wins posted yet';
+    document.getElementById('ccEmptySub').textContent   = ccEligibleForChat()
+      ? 'Hit something big? Be the first — smash that "Share a win" button.'
+      : 'Paid creators can post their biggest hits here for the whole community to see.';
+    return;
+  }
+  empty.style.display = 'none';
+  const myUid = fb.currentUser?.uid;
+  grid.innerHTML = wins.map(w => {
+    const name    = escHtml(w.name || w.channel || 'creator');
+    const initial = escHtml((w.name || w.channel || '?').charAt(0).toUpperCase());
+    const ava = w.avatarUrl
+      ? `<img class="cc-ava" style="width:36px;height:36px;" src="${escHtml(w.avatarUrl)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+         <div class="cc-ava-fallback" style="display:none;width:36px;height:36px;font-size:15px;">${initial}</div>`
+      : `<div class="cc-ava-fallback" style="width:36px;height:36px;font-size:15px;">${initial}</div>`;
+    return `<div class="cc-card" style="position:relative;">
+      ${w.uid === myUid ? `<button class="cc-win-del" title="Delete your post" onclick="ccDeleteWin('${escHtml(w.id)}')">✕</button>` : ''}
+      <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+        ${ava}
+        <div style="min-width:0;">
+          <div class="cc-name" style="font-size:13.5px;">${name}</div>
+          <div style="font-size:10.5px;color:var(--text-dim);">${ccAgo(w.ts)}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span class="cc-win-amount">${escHtml(w.amount || '')}</span>
+        ${w.multi ? `<span class="cc-win-multi">${escHtml(w.multi)}</span>` : ''}
+      </div>
+      <div style="font-size:12.5px;color:var(--bright);font-weight:700;">🎰 ${escHtml(w.slot || '')}</div>
+      ${w.note ? `<div style="font-size:12px;color:var(--text-dim);line-height:1.5;">"${escHtml(w.note)}"</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function ccOpenWinModal() {
+  if (!ccEligibleForChat()) { flash('Sharing wins is a paid-plan perk', 'error'); return; }
+  document.getElementById('ccWinModal').style.display = 'flex';
+  document.getElementById('ccWinSlot').focus();
+}
+function ccCloseWinModal() { document.getElementById('ccWinModal').style.display = 'none'; }
+
+async function ccSubmitWin() {
+  const slot   = document.getElementById('ccWinSlot').value.trim().slice(0, 60);
+  const amount = document.getElementById('ccWinAmount').value.trim().slice(0, 20);
+  const multi  = document.getElementById('ccWinMulti').value.trim().slice(0, 20);
+  const note   = document.getElementById('ccWinNote').value.trim().slice(0, 140);
+  if (!slot || !amount) { flash('Slot and amount are required', 'error'); return; }
+  try {
+    await fb.db.collection('community').doc('wins').collection('posts').add({
+      uid:       fb.currentUser.uid,
+      channel:   (profile?.kickChannel || '').toLowerCase(),
+      name:      profile?.displayName || profile?.kickChannel || 'creator',
+      avatarUrl: profile?.kickAvatar || null,
+      slot, amount, multi, note,
+      ts: Date.now(),
+    });
+    ccCloseWinModal();
+    ['ccWinSlot','ccWinAmount','ccWinMulti','ccWinNote'].forEach(id => document.getElementById(id).value = '');
+    flash('🏆 Posted to the community Big Wins feed!');
+    ccLoadWins(true);
+  } catch (e) { flash('Post failed — try again', 'error'); }
+}
+
+async function ccDeleteWin(id) {
+  try {
+    await fb.db.collection('community').doc('wins').collection('posts').doc(id).delete();
+    cc.wins = (cc.wins || []).filter(w => w.id !== id);
+    ccRenderWins();
+    flash('Post deleted');
+  } catch (e) { flash('Delete failed — try again', 'error'); }
 }
 
 // Settings → WenBot Community toggle. communityOptOut is streamer-writable

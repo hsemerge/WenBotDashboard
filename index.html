@@ -848,6 +848,65 @@
     </div>
   </section>
 
+  <!-- LIVE CREATORS STRIP — only renders when at least one WenBot creator is
+       live (data via /api/community-creators; opt-outs already excluded). -->
+  <section id="liveStrip" style="display:none;padding:34px 0 10px;">
+    <div class="container">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <span style="width:9px;height:9px;border-radius:50%;background:#ff4757;animation:lsPulse 1.4s infinite;"></span>
+        <span style="font-family:'Exo 2',sans-serif;font-weight:900;font-size:17px;color:#fff;">WenBot creators are LIVE right now</span>
+        <span id="liveStripCount" style="font-size:12px;color:#8b949e;"></span>
+      </div>
+      <div id="liveStripRow" style="display:flex;gap:12px;flex-wrap:wrap;"></div>
+    </div>
+    <style>
+      @keyframes lsPulse { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
+      .ls-chip { display:flex; align-items:center; gap:10px; text-decoration:none; background:rgba(255,255,255,0.04);
+                 border:1px solid rgba(255,71,87,0.35); border-radius:12px; padding:9px 16px 9px 10px;
+                 transition:transform .15s, border-color .15s; }
+      .ls-chip:hover { transform:translateY(-2px); border-color:#ff4757; }
+      .ls-chip img, .ls-chip .ls-fb { width:38px; height:38px; border-radius:50%; object-fit:cover;
+                 border:2px solid #ff4757; background:#1a2029; flex:0 0 auto; }
+      .ls-chip .ls-fb { display:flex; align-items:center; justify-content:center; font-weight:900; color:#00e5ff; font-size:16px; }
+      .ls-chip .n { font-weight:800; font-size:13.5px; color:#fff; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .ls-chip .v { font-size:11px; color:#8b949e; }
+    </style>
+  </section>
+  <script>
+  (function () {
+    fetch('/api/community-creators').then(function (r) { return r.json(); }).then(function (d) {
+      var live = (d.creators || []).filter(function (c) { return c.isLive; });
+      if (!live.length) return;
+      var row = document.getElementById('liveStripRow');
+      live.slice(0, 12).forEach(function (c) {
+        var a = document.createElement('a');
+        a.className = 'ls-chip';
+        a.href = 'https://kick.com/' + encodeURIComponent(c.channel);
+        a.target = '_blank'; a.rel = 'noopener';
+        if (c.avatarUrl) {
+          var img = document.createElement('img');
+          img.src = c.avatarUrl; img.alt = ''; img.loading = 'lazy';
+          img.onerror = function () { img.remove(); };
+          a.appendChild(img);
+        } else {
+          var fb = document.createElement('span'); fb.className = 'ls-fb';
+          fb.textContent = (c.name || c.channel || '?').charAt(0).toUpperCase();
+          a.appendChild(fb);
+        }
+        var box = document.createElement('span');
+        var n = document.createElement('span'); n.className = 'n'; n.textContent = c.name || c.channel;
+        var v = document.createElement('span'); v.className = 'v';
+        v.textContent = '👁 ' + (c.viewers || 0).toLocaleString() + ' watching';
+        box.style.display = 'flex'; box.style.flexDirection = 'column'; box.style.minWidth = '0';
+        box.appendChild(n); box.appendChild(v);
+        a.appendChild(box);
+        row.appendChild(a);
+      });
+      document.getElementById('liveStripCount').textContent = '· ' + live.length + ' live';
+      document.getElementById('liveStrip').style.display = '';
+    }).catch(function () {});
+  })();
+  </script>
 
   <div class="glow-line"></div>
 
