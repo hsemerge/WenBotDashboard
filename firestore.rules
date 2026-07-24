@@ -218,6 +218,38 @@ service cloud.firestore {
       }
     }
 
+    // ── WenBot Creators community ────────────────────────────────────────────
+    // community/creators (the aggregated directory doc) and community/chat are
+    // written by the bot server via admin SDK. The directory is read through
+    // /api/community-creators (cached server endpoint), so clients never read
+    // it directly — keep top-level community docs locked.
+    match /community/{doc} {
+      allow read, write: if false;
+    }
+
+    // community/chat/messages — the cross-creator chat dock. Any signed-in
+    // STREAMER on a paid plan may read and post (active Elite trials carry
+    // plan: 'elite' until the expiry sweep flips it, so the plan check covers
+    // trials too). Messages are shape-validated, always stamped with the
+    // author's own uid, and never client-editable — the bot server prunes
+    // old messages down to the newest ~200.
+    match /community/chat/messages/{msgId} {
+      function chatEligible() {
+        return request.auth != null
+          && get(/databases/$(database)/documents/streamers/$(request.auth.uid)).data.onboarded == true
+          && get(/databases/$(database)/documents/streamers/$(request.auth.uid)).data.plan in ['pro', 'elite', 'agency'];
+      }
+      allow read: if chatEligible();
+      allow create: if chatEligible()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'channel', 'name', 'avatarUrl', 'text', 'ts'])
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 300
+        && request.resource.data.ts is number;
+      allow update, delete: if false;
+    }
+
     // System tokens (WenBot's master Kick credentials) — admin SDK only
     match /system/{doc} {
       allow read, write: if false;

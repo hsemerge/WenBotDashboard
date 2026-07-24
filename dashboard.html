@@ -518,6 +518,10 @@
         <div class="nav-item" onclick="showPage('extension',this)"><span class="icon">🧩</span> Companion Extension</div>
       </div>
       <div class="sidebar-section" style="margin-top:8px;">
+        <div class="sidebar-label">Community</div>
+        <div class="nav-item" id="nav-creators" onclick="showPage('creators',this)"><span class="icon">🌐</span> Creators <span class="nav-badge" id="creatorsLiveBadge" style="display:none;background:var(--red);">0 LIVE</span></div>
+      </div>
+      <div class="sidebar-section" style="margin-top:8px;">
         <div class="sidebar-label">Account</div>
         <div class="nav-item owner-only" onclick="showPage('billing',this)"><span class="icon">💳</span> Plan &amp; Billing <span class="nav-badge red" id="billingBadge" style="display:none;">0</span> <span id="planBadge" class="nav-lock-pill pro-pill" style="margin-left:auto;">Starter</span></div>
         <div class="nav-item" onclick="showPage('referrals',this)"><span class="icon">🤝</span> Invite &amp; Earn</div>
@@ -537,7 +541,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.1.1</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.2.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -1848,6 +1852,75 @@
     </div>
 
     <!-- ── SETTINGS ── -->
+    <!-- ── CREATORS — the WenBot creator community ── -->
+    <div class="page" id="page-creators">
+      <style>
+        /* Creators directory */
+        .cc-hero { display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap;
+                   background:linear-gradient(135deg, rgba(0,229,255,0.08), rgba(0,229,255,0.01) 55%); }
+        .cc-hero-stat { text-align:center; min-width:86px; }
+        .cc-hero-stat .n { font-family:'Exo 2',sans-serif; font-size:26px; font-weight:900; color:var(--bright); font-variant-numeric:tabular-nums; }
+        .cc-hero-stat .l { font-size:11px; color:var(--text-dim); letter-spacing:0.06em; text-transform:uppercase; margin-top:2px; }
+        .cc-pill { border:1px solid var(--border); background:transparent; color:var(--text-dim); font-size:12px; font-weight:700;
+                   padding:6px 14px; border-radius:999px; cursor:pointer; transition:all .15s; }
+        .cc-pill:hover { color:var(--bright); border-color:rgba(255,255,255,0.25); }
+        .cc-pill.on { background:rgba(0,229,255,0.12); border-color:rgba(0,229,255,0.4); color:var(--accent); }
+        .cc-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(270px, 1fr)); gap:14px; }
+        .cc-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:12px;
+                   transition:transform .15s, border-color .15s; }
+        .cc-card:hover { transform:translateY(-2px); border-color:rgba(0,229,255,0.35); }
+        .cc-card.cc-live { border-color:rgba(255,70,90,0.45); box-shadow:0 0 18px rgba(255,70,90,0.10) inset; }
+        .cc-ava { width:52px; height:52px; border-radius:50%; object-fit:cover; background:#1a2029; flex:0 0 auto; border:2px solid var(--border); }
+        .cc-card.cc-live .cc-ava { border-color:var(--red); box-shadow:0 0 0 2px rgba(255,70,90,0.25); }
+        .cc-ava-fallback { width:52px; height:52px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+                           font-family:'Exo 2',sans-serif; font-weight:900; font-size:20px; color:var(--accent); background:rgba(0,229,255,0.10); border:2px solid var(--border); }
+        .cc-name { font-family:'Exo 2',sans-serif; font-weight:800; font-size:15px; color:var(--bright); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .cc-plan { font-size:9px; font-weight:900; letter-spacing:0.08em; padding:2px 7px; border-radius:999px; text-transform:uppercase; flex:0 0 auto; }
+        .cc-plan.pro    { background:rgba(0,229,255,0.12); color:var(--accent); border:1px solid rgba(0,229,255,0.3); }
+        .cc-plan.elite  { background:rgba(255,215,0,0.10); color:#ffd700; border:1px solid rgba(255,215,0,0.3); }
+        .cc-plan.agency { background:rgba(190,120,255,0.12); color:#c99cff; border:1px solid rgba(190,120,255,0.35); }
+        .cc-live-badge { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:800; color:var(--red); }
+        .cc-live-badge .dot { width:7px; height:7px; border-radius:50%; background:var(--red); animation:ccPulse 1.4s infinite; }
+        @keyframes ccPulse { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
+        .cc-title { font-size:12px; color:var(--text-dim); line-height:1.45; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; min-height:34px; }
+        .cc-watch { display:block; text-align:center; text-decoration:none; font-weight:800; font-size:12.5px; padding:9px 12px; border-radius:8px; transition:filter .15s; }
+        .cc-watch.live { background:var(--red); color:#fff; }
+        .cc-watch.off  { background:transparent; color:var(--text-dim); border:1px solid var(--border); }
+        .cc-watch:hover { filter:brightness(1.15); }
+        .cc-you { position:absolute; top:-8px; right:12px; font-size:9px; font-weight:900; letter-spacing:0.08em; background:var(--accent); color:#04141a; padding:2px 8px; border-radius:999px; }
+      </style>
+      <div style="max-width:1200px;margin:0 auto;">
+        <div class="card cc-hero" style="margin-bottom:16px;">
+          <div style="min-width:260px;">
+            <h3 style="margin:0 0 5px;font-family:'Exo 2',sans-serif;">🌐 WenBot Creators</h3>
+            <div style="font-size:13px;color:var(--text-dim);line-height:1.6;max-width:520px;">
+              The creators running WenBot, all in one place. See who's live right now, drop into a stream to show support,
+              and talk shop in <strong style="color:var(--bright);">Creator Chat</strong> — the 💬 dock at the bottom right, on every page.
+            </div>
+          </div>
+          <div style="display:flex;gap:26px;flex-wrap:wrap;">
+            <div class="cc-hero-stat"><div class="n" id="ccStatCreators">—</div><div class="l">Creators</div></div>
+            <div class="cc-hero-stat"><div class="n" id="ccStatLive" style="color:var(--red);">—</div><div class="l">Live now</div></div>
+            <div class="cc-hero-stat"><div class="n" id="ccStatViewers">—</div><div class="l">Watching</div></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+          <button class="cc-pill on" id="ccFilterAll"  onclick="ccSetFilter('all')">All creators</button>
+          <button class="cc-pill"    id="ccFilterLive" onclick="ccSetFilter('live')">🔴 Live now</button>
+          <div style="margin-left:auto;font-size:11px;color:var(--text-dim);" id="ccUpdatedNote"></div>
+        </div>
+        <div class="cc-grid" id="ccGrid"></div>
+        <div id="ccEmpty" style="display:none;text-align:center;padding:60px 20px;color:var(--text-dim);">
+          <div style="font-size:40px;margin-bottom:10px;">🌙</div>
+          <div style="font-weight:700;color:var(--bright);margin-bottom:6px;" id="ccEmptyTitle">Nobody's live right now</div>
+          <div style="font-size:13px;" id="ccEmptySub">Check back soon — you'll see a red badge in the sidebar the moment a creator goes live.</div>
+        </div>
+        <div style="margin-top:18px;font-size:11.5px;color:var(--text-dim);text-align:center;">
+          Don't want your channel listed here? Turn it off any time in <a href="javascript:void(0)" onclick="showPage('settings')" style="color:var(--accent);">Settings → WenBot Community</a>.
+        </div>
+      </div>
+    </div>
+
     <div class="page" id="page-settings">
       <div class="grid-2">
         <div class="card">
@@ -1896,6 +1969,19 @@
             <button class="btn btn-accent" onclick="saveChannelSettings()" style="flex:1;min-width:140px;">Save Display Name</button>
             <button class="btn btn-ghost owner-only" onclick="reconnectKick()" title="Re-authenticate with Kick. Use this if you changed your Kick channel name or WenBot was kicked from mod." style="flex:1;min-width:140px;">🟢 Reconnect Kick</button>
           </div>
+        </div>
+
+        <div class="card owner-only">
+          <div class="card-title">🌐 WenBot Community</div>
+          <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+            The <strong>Creators</strong> page shows every WenBot creator with live status, so streamers can find and support each other.
+            Your channel is listed automatically while you're on a paid plan or trial. Turn this off to be removed from the directory
+            (and from any future public creator showcases) — it takes effect within a couple of minutes.
+          </p>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--bright);">
+            <input type="checkbox" id="communityListedToggle" checked onchange="toggleCommunityListed(this.checked)" style="width:18px;height:18px;accent-color:var(--accent);flex:0 0 auto;">
+            Show my channel in the Creators directory
+          </label>
         </div>
 
         <div class="card owner-only" id="botControlCard">
@@ -2298,9 +2384,22 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.1.1</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.2.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.2.0 — Meet the WenBot Creator Community</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 23, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🌐 <strong>NEW: Creators directory.</strong> A brand-new <em>Creators</em> page in the sidebar shows every creator running WenBot — who's <span style="color:var(--red);font-weight:800;">LIVE</span> right now (with viewer counts and stream titles), who streamed recently, and a one-click <em>Watch live</em> button. When anyone in the community goes live, a red badge lights up in your sidebar.</li>
+            <li>💬 <strong>NEW: Creator Chat.</strong> A chat dock in the bottom-right corner, on every page of the dashboard — talk to other WenBot creators, share big wins, ask questions, plan collabs. Going-live alerts drop right into the chat so you never miss a chance to raid a fellow creator. (Paid plans &amp; trials.)</li>
+            <li>📇 <strong>You're listed automatically</strong> while on a paid plan or trial — more eyes on your streams from creators who get it. Rather stay off the radar? One toggle in <em>Settings → WenBot Community</em> removes you from the directory instantly.</li>
+            <li>⏱ <strong>Stream hours now count.</strong> WenBot has started tracking your hours streamed behind the scenes — powering creator profiles and community stats coming in the next updates.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -3903,6 +4002,61 @@
   </div><!-- end main -->
   <!-- Mobile sidebar backdrop -->
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+  <!-- ── CREATOR CHAT DOCK — dashboard-wide, bottom right ── -->
+  <style>
+    #ccDock { position:fixed; right:18px; bottom:18px; z-index:850; display:none; flex-direction:column; align-items:flex-end; gap:10px; }
+    #ccDockPill { display:inline-flex; align-items:center; gap:8px; background:var(--bg-card); border:1px solid rgba(0,229,255,0.35);
+                  color:var(--bright); font-weight:800; font-size:13px; padding:10px 18px; border-radius:999px; cursor:pointer;
+                  box-shadow:0 6px 24px rgba(0,0,0,0.45); transition:transform .15s, border-color .15s; }
+    #ccDockPill:hover { transform:translateY(-1px); border-color:var(--accent); }
+    #ccUnread { display:none; background:var(--red); color:#fff; font-size:10px; font-weight:900; min-width:18px; height:18px;
+                border-radius:999px; align-items:center; justify-content:center; padding:0 5px; }
+    #ccDockPanel { display:none; width:min(360px, calc(100vw - 36px)); height:480px; max-height:calc(100vh - 120px);
+                   background:var(--bg-card); border:1px solid var(--border); border-radius:14px; overflow:hidden;
+                   flex-direction:column; box-shadow:0 12px 40px rgba(0,0,0,0.55); }
+    #ccDockPanel.open { display:flex; }
+    .cc-dock-head { display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--border);
+                    background:linear-gradient(135deg, rgba(0,229,255,0.08), transparent 60%); }
+    .cc-dock-head .t { font-family:'Exo 2',sans-serif; font-weight:900; font-size:14px; color:var(--bright); }
+    .cc-dock-head .sub { font-size:11px; color:var(--text-dim); margin-left:auto; }
+    #ccMsgs { flex:1; overflow-y:auto; padding:12px 14px; display:flex; flex-direction:column; gap:10px; }
+    .cc-msg { display:flex; gap:9px; align-items:flex-start; }
+    .cc-msg .a { width:28px; height:28px; border-radius:50%; object-fit:cover; background:#1a2029; flex:0 0 auto; margin-top:2px; }
+    .cc-msg .af { width:28px; height:28px; border-radius:50%; flex:0 0 auto; margin-top:2px; display:flex; align-items:center; justify-content:center;
+                  font-size:12px; font-weight:900; color:var(--accent); background:rgba(0,229,255,0.10); }
+    .cc-msg .b { min-width:0; }
+    .cc-msg .who { font-size:11.5px; font-weight:800; color:var(--accent); }
+    .cc-msg .who .tm { font-weight:600; color:var(--text-dim); font-size:10px; margin-left:6px; }
+    .cc-msg .txt { font-size:12.5px; color:var(--bright); line-height:1.5; word-wrap:break-word; overflow-wrap:anywhere; }
+    .cc-msg.me .who { color:#ffd700; }
+    .cc-sys { text-align:center; font-size:11px; color:var(--red); background:rgba(255,70,90,0.07); border:1px solid rgba(255,70,90,0.18);
+              border-radius:8px; padding:6px 10px; }
+    .cc-sys a { color:var(--red); font-weight:800; text-decoration:underline; }
+    .cc-dock-input { display:flex; gap:8px; padding:10px 12px; border-top:1px solid var(--border); }
+    .cc-dock-input input { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--bright);
+                           font-size:13px; padding:9px 12px; outline:none; }
+    .cc-dock-input input:focus { border-color:rgba(0,229,255,0.45); }
+    .cc-dock-input button { background:var(--accent); color:#04141a; border:none; border-radius:8px; font-weight:900; font-size:13px;
+                            padding:0 16px; cursor:pointer; }
+    .cc-locked { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:24px; text-align:center; color:var(--text-dim); font-size:12.5px; }
+  </style>
+  <div id="ccDock">
+    <div id="ccDockPanel">
+      <div class="cc-dock-head">
+        <span style="font-size:16px;">💬</span>
+        <span class="t">Creator Chat</span>
+        <span class="sub" id="ccDockLiveNote"></span>
+        <span onclick="ccToggleDock()" title="Minimize" style="cursor:pointer;color:var(--text-dim);font-size:16px;line-height:1;padding:2px 4px;">─</span>
+      </div>
+      <div id="ccMsgs"></div>
+      <div class="cc-dock-input" id="ccInputRow">
+        <input type="text" id="ccInput" maxlength="300" placeholder="Message the creator community…" onkeydown="if(event.key==='Enter')ccSend()">
+        <button onclick="ccSend()">Send</button>
+      </div>
+    </div>
+    <button id="ccDockPill" onclick="ccToggleDock()">💬 Creator Chat <span id="ccUnread">0</span></button>
+  </div>
 </div><!-- end app -->
 
 <!-- Invoice receipt modal (branded document) -->
@@ -4565,7 +4719,7 @@ function showPage(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotpicker:'Slot Picker', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', settings:'Settings', activity:'Activity Log', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade', referrals:'Invite & Earn', extension:'Companion Extension', whatsnew:"What's New" };
+  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotpicker:'Slot Picker', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', settings:'Settings', activity:'Activity Log', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade', referrals:'Invite & Earn', extension:'Companion Extension', whatsnew:"What's New", creators:'Creators' };
   document.getElementById('topbarTitle').textContent = titles[id] || id;
   // Re-evaluate the top billing banners for this page (hidden on stream-shown pages).
   _activePage = id;
@@ -4600,6 +4754,7 @@ function showPage(id, el) {
   if (id === 'raffle')      loadRafflePage();
   if (id === 'activity')    loadActivityLog();
   if (id === 'overview')    loadOverviewStats();
+  if (id === 'creators')    loadCreatorsPage();
 }
 
 // ── FLASH ──
@@ -5066,6 +5221,14 @@ function onAuthReady(user) {
   // Start the invoice listener at login (not just on the Billing page) so the
   // global "new invoice" banner can appear on any page the moment one is issued.
   loadInvoices();
+
+  // Creators community — sidebar live badge + going-live pings feed off one
+  // shared poller of the cached /api/community-creators endpoint; the chat
+  // dock is its own Firestore listener (paid creators only).
+  { const _cl = document.getElementById('communityListedToggle');
+    if (_cl) _cl.checked = profile?.communityOptOut !== true; }
+  ccStartPoller();
+  ccInitDock();
 
   // Track last dashboard activity (see pingActive). Firebase's lastSignInTime only
   // updates on a FRESH sign-in — a streamer who returns with a saved session never
@@ -15030,5 +15193,290 @@ document.addEventListener('visibilitychange', () => {
     </div>
   </div>
 </div>
+<script>
+// ═════════════════════════ CREATORS COMMUNITY ═════════════════════════
+// One shared poller hits the cached /api/community-creators endpoint every
+// 2 minutes (the function itself caches Firestore for 60s, so this costs
+// ~1 read/min total no matter how many dashboards are open). It feeds:
+//   • the sidebar "N LIVE" badge
+//   • the Creators directory page
+//   • ephemeral going-live pings in the Creator Chat dock
+// The chat dock itself is a Firestore listener on community/chat/messages
+// (rules: paid-plan streamers only — read + shape-validated create).
+
+const CC_POLL_MS = 2 * 60 * 1000;
+const cc = {
+  data: null,          // last /api/community-creators payload
+  filter: 'all',
+  pollTimer: null,
+  prevLive: null,      // Set of live channels from previous poll (null = first poll)
+  pings: [],           // ephemeral going-live system messages (client-only)
+  msgs: [],            // chat messages from Firestore (oldest → newest)
+  chatUnsub: null,
+  chatReady: false,
+  lastSeenTs: Number(localStorage.getItem('cc_lastseen') || 0),
+};
+
+function ccAgo(ts) {
+  if (!ts) return '';
+  const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));
+  if (s < 60)    return s + 's ago';
+  if (s < 3600)  return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+}
+
+async function ccFetch() {
+  try {
+    const r = await fetch('/api/community-creators');
+    if (!r.ok) return;
+    ccOnData(await r.json());
+  } catch (e) { /* transient — next poll retries */ }
+}
+
+function ccStartPoller() {
+  if (cc.pollTimer) return;
+  ccFetch();
+  cc.pollTimer = setInterval(ccFetch, CC_POLL_MS);
+}
+
+function ccOnData(d) {
+  cc.data = d;
+  const liveNow = (d.creators || []).filter(c => c.isLive);
+
+  // Sidebar badge
+  const badge = document.getElementById('creatorsLiveBadge');
+  if (badge) {
+    badge.textContent = liveNow.length + ' LIVE';
+    badge.style.display = liveNow.length ? '' : 'none';
+  }
+  // Dock header note
+  const note = document.getElementById('ccDockLiveNote');
+  if (note) note.textContent = liveNow.length ? `🔴 ${liveNow.length} live now` : '';
+
+  // Going-live pings — diff against the previous poll (skip the first one so
+  // a page load doesn't announce everyone already live).
+  const nowSet = new Set(liveNow.map(c => c.channel));
+  if (cc.prevLive) {
+    const myCh = (profile?.kickChannel || '').toLowerCase();
+    liveNow.forEach(c => {
+      if (!cc.prevLive.has(c.channel) && c.channel !== myCh) {
+        cc.pings.push({ system: true, ts: Date.now(), name: c.name, channel: c.channel, title: c.title || '' });
+      }
+    });
+    if (cc.pings.length > 20) cc.pings = cc.pings.slice(-20);
+  }
+  cc.prevLive = nowSet;
+
+  ccRenderMsgs();
+  if (_activePage === 'creators') ccRenderPage();
+}
+
+function loadCreatorsPage() {
+  if (cc.data) ccRenderPage();
+  ccFetch(); // freshen immediately on page open
+}
+
+function ccSetFilter(f) {
+  cc.filter = f;
+  document.getElementById('ccFilterAll') ?.classList.toggle('on', f === 'all');
+  document.getElementById('ccFilterLive')?.classList.toggle('on', f === 'live');
+  ccRenderPage();
+}
+
+function ccRenderPage() {
+  const d = cc.data;
+  if (!d) return;
+  const t = d.totals || {};
+  document.getElementById('ccStatCreators').textContent = t.creators ?? '—';
+  document.getElementById('ccStatLive').textContent     = t.live ?? '—';
+  document.getElementById('ccStatViewers').textContent  = (t.viewers ?? 0).toLocaleString();
+  document.getElementById('ccFilterLive').textContent   = `🔴 Live now${t.live ? ` (${t.live})` : ''}`;
+  document.getElementById('ccUpdatedNote').textContent  = d.updatedAt ? `Updated ${ccAgo(d.updatedAt)}` : '';
+
+  const myCh = (profile?.kickChannel || '').toLowerCase();
+  const list = (d.creators || []).filter(c => cc.filter === 'all' || c.isLive);
+  const grid  = document.getElementById('ccGrid');
+  const empty = document.getElementById('ccEmpty');
+
+  if (!list.length) {
+    grid.innerHTML = '';
+    empty.style.display = '';
+    if (cc.filter === 'live') {
+      document.getElementById('ccEmptyTitle').textContent = "Nobody's live right now";
+      document.getElementById('ccEmptySub').textContent   = "Check back soon — you'll see a red badge in the sidebar the moment a creator goes live.";
+    } else {
+      document.getElementById('ccEmptyTitle').textContent = 'The directory is warming up';
+      document.getElementById('ccEmptySub').textContent   = 'Creators appear here automatically — check back in a couple of minutes.';
+    }
+    return;
+  }
+  empty.style.display = 'none';
+
+  grid.innerHTML = list.map(c => {
+    const name    = escHtml(c.name || c.channel);
+    const channel = escHtml(c.channel);
+    const initial = escHtml((c.name || c.channel || '?').charAt(0).toUpperCase());
+    const isMe    = myCh && c.channel === myCh;
+    const planCls = ['pro','elite','agency'].includes(c.plan) ? c.plan : 'pro';
+    const planTxt = escHtml((c.plan || 'pro').toUpperCase());
+    const ava = c.avatarUrl
+      ? `<img class="cc-ava" src="${escHtml(c.avatarUrl)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+         <div class="cc-ava-fallback" style="display:none;">${initial}</div>`
+      : `<div class="cc-ava-fallback">${initial}</div>`;
+    const status = c.isLive
+      ? `<span class="cc-live-badge"><span class="dot"></span>LIVE · ${(c.viewers || 0).toLocaleString()} watching</span>`
+      : `<span style="font-size:11px;color:var(--text-dim);">${c.lastLiveAt ? 'Last live ' + ccAgo(c.lastLiveAt) : 'Offline'}</span>`;
+    const title = c.isLive && c.title ? escHtml(c.title) : (c.isLive ? 'Live on Kick right now' : 'Drop a follow so you catch the next stream.');
+    const btn = c.isLive
+      ? `<a class="cc-watch live" href="https://kick.com/${channel}" target="_blank" rel="noopener">▶ Watch live</a>`
+      : `<a class="cc-watch off"  href="https://kick.com/${channel}" target="_blank" rel="noopener">Visit channel</a>`;
+    return `<div class="cc-card ${c.isLive ? 'cc-live' : ''}" style="position:relative;">
+      ${isMe ? '<span class="cc-you">YOU</span>' : ''}
+      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+        ${ava}
+        <div style="min-width:0;flex:1;">
+          <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+            <span class="cc-name">${name}</span>
+            <span class="cc-plan ${planCls}">${planTxt}</span>
+          </div>
+          <div style="margin-top:3px;">${status}</div>
+        </div>
+      </div>
+      <div class="cc-title">${title}</div>
+      ${btn}
+    </div>`;
+  }).join('');
+}
+
+// ── Creator Chat dock ────────────────────────────────────────────────────────
+function ccEligibleForChat() {
+  return !!(fb.currentUser && fb.activeUid === fb.currentUser.uid && (PLAN_RANK[userPlan] || 0) >= 1);
+}
+
+function ccInitDock() {
+  const dock = document.getElementById('ccDock');
+  if (!dock) return;
+  // Owners only — moderators are moderating someone else's dashboard and
+  // shouldn't speak (or read) as that streamer.
+  if (!fb.currentUser || fb.activeUid !== fb.currentUser.uid) return;
+  dock.style.display = 'flex';
+  if (localStorage.getItem('cc_dock_open') === '1') document.getElementById('ccDockPanel').classList.add('open');
+
+  if (!ccEligibleForChat()) { ccLockedState('Creator Chat is where WenBot creators hang out, share wins, and help each other.<br><br>It unlocks on any paid plan — upgrade to join the conversation.'); return; }
+
+  cc.chatUnsub = fb.db.collection('community').doc('chat').collection('messages')
+    .orderBy('ts', 'desc').limit(50)
+    .onSnapshot(snap => {
+      cc.chatReady = true;
+      cc.msgs = snap.docs.map(d => d.data()).reverse();
+      ccRenderMsgs();
+    }, err => {
+      console.warn('[CreatorChat]', err.message);
+      ccLockedState('Creator Chat is unlocking soon — hang tight!');
+    });
+}
+
+function ccLockedState(html) {
+  const msgs = document.getElementById('ccMsgs');
+  const input = document.getElementById('ccInputRow');
+  if (msgs)  msgs.innerHTML = `<div class="cc-locked"><div style="font-size:30px;">💬</div><div>${html}</div></div>`;
+  if (input) input.style.display = 'none';
+}
+
+function ccRenderMsgs() {
+  const box = document.getElementById('ccMsgs');
+  if (!box || (!cc.chatReady && !cc.pings.length)) return;
+  if (!cc.chatReady) return; // don't clobber the locked state with pings only
+
+  const myUid = fb.currentUser?.uid;
+  const items = [...cc.msgs, ...cc.pings].sort((a, b) => (a.ts || 0) - (b.ts || 0));
+
+  box.innerHTML = items.length ? items.map(m => {
+    if (m.system) {
+      return `<div class="cc-sys">🔴 <strong>${escHtml(m.name)}</strong> just went live${m.title ? ' — ' + escHtml(m.title) : ''} · <a href="https://kick.com/${escHtml(m.channel)}" target="_blank" rel="noopener">watch</a></div>`;
+    }
+    const initial = escHtml((m.name || m.channel || '?').charAt(0).toUpperCase());
+    const ava = m.avatarUrl
+      ? `<img class="a" src="${escHtml(m.avatarUrl)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="af" style="display:none;">${initial}</div>`
+      : `<div class="af">${initial}</div>`;
+    return `<div class="cc-msg ${m.uid === myUid ? 'me' : ''}">
+      ${ava}
+      <div class="b">
+        <div class="who">${escHtml(m.name || m.channel || 'creator')}<span class="tm">${ccAgo(m.ts)}</span></div>
+        <div class="txt">${escHtml(m.text || '')}</div>
+      </div>
+    </div>`;
+  }).join('')
+  : `<div class="cc-locked"><div style="font-size:30px;">👋</div><div>It's quiet in here… say hi and get the creator community talking!</div></div>`;
+
+  const open = document.getElementById('ccDockPanel').classList.contains('open');
+  if (open) {
+    box.scrollTop = box.scrollHeight;
+    ccMarkSeen(items);
+  } else {
+    const unread = items.filter(m => (m.ts || 0) > cc.lastSeenTs && m.uid !== myUid).length;
+    const u = document.getElementById('ccUnread');
+    u.textContent = unread > 9 ? '9+' : unread;
+    u.style.display = unread ? 'inline-flex' : 'none';
+  }
+}
+
+function ccMarkSeen(items) {
+  const maxTs = (items || [...cc.msgs, ...cc.pings]).reduce((m, x) => Math.max(m, x.ts || 0), cc.lastSeenTs);
+  cc.lastSeenTs = maxTs;
+  localStorage.setItem('cc_lastseen', String(maxTs));
+  const u = document.getElementById('ccUnread');
+  if (u) u.style.display = 'none';
+}
+
+function ccToggleDock() {
+  const panel = document.getElementById('ccDockPanel');
+  const open  = panel.classList.toggle('open');
+  localStorage.setItem('cc_dock_open', open ? '1' : '0');
+  if (open) {
+    ccRenderMsgs();
+    ccMarkSeen();
+    const box = document.getElementById('ccMsgs');
+    if (box) box.scrollTop = box.scrollHeight;
+    document.getElementById('ccInput')?.focus();
+  }
+}
+
+async function ccSend() {
+  const input = document.getElementById('ccInput');
+  const text = (input.value || '').trim();
+  if (!text) return;
+  if (text.length > 300) { flash('Keep it under 300 characters', 'error'); return; }
+  input.value = '';
+  try {
+    await fb.db.collection('community').doc('chat').collection('messages').add({
+      uid:       fb.currentUser.uid,
+      channel:   (profile?.kickChannel || '').toLowerCase(),
+      name:      profile?.displayName || profile?.kickChannel || 'creator',
+      avatarUrl: profile?.kickAvatar || null,
+      text,
+      ts: Date.now(),
+    });
+  } catch (e) {
+    input.value = text; // give their message back
+    flash('Message didn\'t send — try again', 'error');
+  }
+}
+
+// Settings → WenBot Community toggle. communityOptOut is streamer-writable
+// (it's not on the profile denylist); the bot aggregator re-reads it every
+// ~2 minutes, so delisting is near-immediate.
+async function toggleCommunityListed(listed) {
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid).set({ communityOptOut: !listed }, { merge: true });
+    flash(listed ? 'Your channel will appear in the Creators directory' : 'Removed from the Creators directory');
+  } catch (e) {
+    const t = document.getElementById('communityListedToggle');
+    if (t) t.checked = !listed;
+    flash('Could not save — try again', 'error');
+  }
+}
+</script>
 </body>
 </html>

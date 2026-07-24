@@ -419,7 +419,7 @@
          Thumbnails hotlink from clips.kick.com (allowed in the site CSP);
          each card opens the clip on Kick in a new tab. -->
     <h2 class="section-title" id="videos">💰 <span>Biggest Wins</span></h2>
-    <div id="bigWinsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;max-width:900px;margin:0 auto 34px;">
+    <div id="bigWinsGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,360px));justify-content:center;gap:14px;max-width:900px;margin:0 auto 34px;">
       <!-- populated by renderBigWins() below -->
     </div>
 
@@ -1131,12 +1131,6 @@
   const BIG_WINS = [
     { id: 'clip_01KW2077G1JBQV6SK0KY72JHTC', sub: 'b7', title: '$25K HIT!!! 💜',            dur: 100 },
     { id: 'clip_01KWPMYCNHTAYNBDRYWTCDDW7N', sub: 'c6', title: '500x KENO for $10K HOLYYY', dur: 59 },
-    { id: 'clip_01K5VZPD7NHKAEWGRAXTHA5621', sub: '70', title: 'MAX WIN',                   dur: 40 },
-    { id: 'clip_01K5VZPCJGB2WB30CYZJCSDJ91', sub: '97', title: 'Mental GOES MENTAL!!!$$$',  dur: 50 },
-    { id: 'clip_01K8RN9KG27ERCE3ZGQJHS5XKR', sub: 'ad', title: 'MAX WIN on Brick Snake 2000', dur: 30 },
-    { id: 'clip_01KWPQEWEWJ64Y9WE0D4A13229', sub: 'd6', title: 'Keno 500x',                 dur: 41 },
-    { id: 'clip_01KW20T82T9VTCAG9MJ6XZ6WRN', sub: '7d', title: '$25K Hit — the replay',     dur: 87 },
-    { id: 'clip_01K5VZP4727A3VPNTZ566W3PS8', sub: '1d', title: 'BANGGG 💥',                 dur: 30 },
   ];
   function renderBigWins() {
     const grid = document.getElementById('bigWinsGrid');

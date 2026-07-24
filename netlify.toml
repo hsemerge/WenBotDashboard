@@ -40,6 +40,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/community-creators"
+  to     = "/.netlify/functions/community-creators"
+  status = 200
+
+[[redirects]]
   from   = "/api/kick-streamer-finalize"
   to     = "/.netlify/functions/kick-streamer-finalize"
   status = 200
