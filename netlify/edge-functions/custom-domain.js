@@ -55,6 +55,16 @@ export default async (request, context) => {
   const bespoke = SLUG_TO_PAGE[slug];
   if (bespoke) {
     if (path.startsWith("/portals/")) return; // already the page itself
+
+    // Branded legal pages: megrewards.com/terms + /privacy serve the portal's
+    // own documents instead of the catch-all bespoke page. Only for slugs that
+    // ship the files.
+    const LEGAL_PAGES = new Set(["irishqueenoftheslots"]);
+    if ((path === "/terms" || path === "/privacy") && LEGAL_PAGES.has(slug)) {
+      url.pathname = `/portals/${slug}${path}.html`;
+      return context.rewrite(url.toString());
+    }
+
     url.pathname = bespoke;
 
     // Shareable board deep links (megrewards.com/csgobig, /degen). The page reads
