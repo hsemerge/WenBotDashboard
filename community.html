@@ -354,6 +354,28 @@ renderNav();
 loadCreators();
 setInterval(loadCreators, 60000);
 if (SESSION) loadPassport();
+
+// Cross-origin session handoff (?s=<one-time code>) — used when the sign-in
+// started on a domain other than wenbot.gg (e.g. a future custom-domain
+// community mirror). Claim the code, store the session, clean the URL.
+(async () => {
+  const code = new URLSearchParams(location.search).get('s');
+  if (!code || SESSION) return;
+  try {
+    const r = await fetch('/api/kick-session-claim', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    const d = await r.json();
+    if (r.ok && d.session) {
+      saveKickViewerSession(d.session);
+      SESSION = d.session;
+      renderNav();
+      loadPassport();
+    }
+  } catch { /* expired code — viewer can just sign in again */ }
+  history.replaceState({}, '', location.pathname);
+})();
 </script>
 </body>
 </html>
