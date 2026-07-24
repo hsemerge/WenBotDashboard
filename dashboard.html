@@ -541,7 +541,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.5.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.6.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -1929,6 +1929,7 @@
               The creators running WenBot, all in one place. See who's live right now, drop into a stream to show support,
               and talk shop in <strong style="color:var(--bright);">Creator Chat</strong> — the 💬 dock at the bottom right, on every page.
             </div>
+            <div id="ccTodayLine" style="display:none;font-size:12px;color:var(--bright);margin-top:9px;cursor:pointer;" onclick="ccSetFilter('sched')" title="Open the schedule board"></div>
           </div>
           <div style="display:flex;gap:26px;flex-wrap:wrap;">
             <div class="cc-hero-stat"><div class="n" id="ccStatCreators">—</div><div class="l">Creators</div></div>
@@ -2488,9 +2489,23 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.5.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.6.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.6.0 — The Community goes public: viewer passports</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 24, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🪪 <strong>NEW: wenbot.gg/community — a public home for your viewers.</strong> Anyone can browse the creator directory, see who's live, and check the weekly schedule. Viewers <strong>sign in with Kick</strong> (no account needed) and get their <em>WenBot Passport</em>: their points, giveaway wins, and raffle tickets on every WenBot channel they're part of — with one-click jumps to your stream and rewards portal. Your community, working as a funnel for every creator in it.</li>
+            <li>⭐ <strong>Viewer favorites.</strong> Viewers can star their favorite creators on the community page — starred channels float to the top so your regulars always find you first.</li>
+            <li>📊 <strong>WenBot Weekly.</strong> Every Monday, WenBot posts a community recap right into Creator Chat — wins shared (and the biggest one), hours streamed, giveaways run, winners drawn. Your grind, on the record, weekly.</li>
+            <li>📅 <strong>Today's lineup at a glance.</strong> The Creators page header now shows who's scheduled today — click it to open the full schedule board.</li>
+            <li>🏆 <strong>Stat parity.</strong> Winners drawn with the <code>!winner</code> chat command now count toward your creator profile, same as dashboard draws.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -15599,6 +15614,20 @@ function ccRenderPage() {
   document.getElementById('ccStatViewers').textContent  = (t.viewers ?? 0).toLocaleString();
   document.getElementById('ccFilterLive').textContent   = `🔴 Live now${t.live ? ` (${t.live})` : ''}`;
   document.getElementById('ccUpdatedNote').textContent  = d.updatedAt ? `Updated ${ccAgo(d.updatedAt)}` : '';
+
+  // Hero: who's scheduled today (click → schedule board)
+  const todayKey = CC_DAYS[(new Date().getDay() + 6) % 7][0];
+  const todays = (d.creators || []).filter(c => c.schedule && c.schedule[todayKey]);
+  const tl = document.getElementById('ccTodayLine');
+  if (tl) {
+    if (todays.length) {
+      tl.innerHTML = `📅 <strong style="color:var(--accent);">Today:</strong> ` +
+        todays.slice(0, 4).map(c => `${escHtml(c.name)} <span style="color:var(--text-dim);">${escHtml(c.schedule[todayKey])}</span>`).join(' · ') +
+        (todays.length > 4 ? ` <span style="color:var(--text-dim);">+${todays.length - 4} more</span>` : '');
+      tl.style.display = '';
+    } else tl.style.display = 'none';
+  }
+
   if (cc.filter === 'wins')  { ccRenderWins(); return; }
   if (cc.filter === 'sched') { ccRenderSchedule(); return; }
 
@@ -15749,6 +15778,13 @@ function ccRenderMsgs() {
   box.innerHTML = items.length ? items.map(m => {
     if (m.system) {
       return `<div class="cc-sys">🔴 <strong>${escHtml(m.name)}</strong> just went live${m.title ? ' — ' + escHtml(m.title) : ''} · <a href="https://kick.com/${escHtml(m.channel)}" target="_blank" rel="noopener">watch</a></div>`;
+    }
+    if (m.uid === 'wenbot') {
+      // WenBot's own posts (e.g. the Monday Weekly digest) — distinct system card
+      return `<div style="background:linear-gradient(135deg, rgba(0,229,255,0.10), rgba(124,58,237,0.08));border:1px solid rgba(0,229,255,0.35);border-radius:10px;padding:10px 12px;">
+        <div style="font-size:11px;font-weight:900;color:var(--accent);margin-bottom:4px;">🤖 ${escHtml(m.name || 'WenBot')}<span style="font-weight:600;color:var(--text-dim);font-size:10px;margin-left:6px;">${ccAgo(m.ts)}</span></div>
+        <div style="font-size:12.5px;color:var(--bright);line-height:1.55;">${escHtml(m.text || '')}</div>
+      </div>`;
     }
     const initial = escHtml((m.name || m.channel || '?').charAt(0).toUpperCase());
     const ava = m.avatarUrl

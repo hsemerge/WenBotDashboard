@@ -50,6 +50,16 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/community-passport"
+  to     = "/.netlify/functions/community-passport"
+  status = 200
+
+[[redirects]]
+  from   = "/community"
+  to     = "/community.html"
+  status = 200
+
+[[redirects]]
   from   = "/api/kick-streamer-finalize"
   to     = "/.netlify/functions/kick-streamer-finalize"
   status = 200
