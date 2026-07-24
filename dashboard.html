@@ -15884,9 +15884,16 @@ function ccOpenThread(tid) {
     : `<span class="af" style="width:26px;height:26px;font-size:11px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:var(--accent);background:rgba(0,229,255,0.10);font-weight:900;">${initial}</span>`;
   ccSetDockView('dm');
   if (cc.dmMsgUnsub) cc.dmMsgUnsub();
+  // Clear the previous conversation's messages BEFORE subscribing — otherwise
+  // the old thread's history flashes in the new conversation until the first
+  // snapshot lands.
+  cc.dmMsgs = [];
+  const box = document.getElementById('ccDmMsgs');
+  if (box) box.innerHTML = '<div class="cc-locked" style="color:var(--text-dim);font-size:11px;">Loading…</div>';
   cc.dmMsgUnsub = ccDmCol().doc(tid).collection('messages')
     .orderBy('ts', 'desc').limit(50)
     .onSnapshot(snap => {
+      if (cc.dmActive !== tid) return; // stale snapshot from a switched-away thread
       cc.dmMsgs = snap.docs.map(d => {
         const m = d.data({ serverTimestamps: 'estimate' });
         m.ts = ccTs(m.ts);
