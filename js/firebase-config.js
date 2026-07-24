@@ -38,21 +38,21 @@ function initFirebase() {
   fb.app = firebase.initializeApp(firebaseConfig);
   fb.auth = firebase.auth();
   fb.db = firebase.firestore();
-  // Some networks (AV HTTPS scanning, VPNs, certain ISPs/routers) silently
-  // break Firestore's streaming channel — realtime listeners then degrade to
-  // ~20-30s batched updates while writes still go through instantly (the
-  // telltale: your messages reach others fast, but incoming updates crawl).
-  // Auto-detect (SDK default) misses some of these setups, so affected users
-  // can force proper long-polling per-browser:
-  //     localStorage.setItem('wb_force_lp', '1')   (then reload)
-  // Forced long-polling still delivers sub-second; it just skips the broken
-  // streaming transport. MUST be set before the first Firestore call.
+  // Transport: FORCED long-polling for everyone. Some networks (AV HTTPS
+  // scanning, VPNs, certain ISPs/routers) silently break Firestore's streaming
+  // channel — realtime listeners then degrade to ~20-30s batched updates while
+  // writes still land instantly (telltale: your chat messages reach others
+  // fast, but incoming ones crawl). The SDK's auto-detect missed real cases in
+  // our user base, so we standardize on long-polling: still sub-second
+  // delivery (hanging GET), just immune to broken streams. Many production
+  // chat apps on Firestore run this way permanently.
+  // Escape hatch back to auto-detect: localStorage.setItem('wb_no_lp','1') + reload.
+  // MUST be set before the first Firestore call.
   try {
-    const forceLp = localStorage.getItem('wb_force_lp') === '1';
-    fb.db.settings(forceLp
-      ? { experimentalForceLongPolling: true, merge: true }
-      : { experimentalAutoDetectLongPolling: true, merge: true });
-    if (forceLp) console.log('[Firestore] forced long-polling transport (wb_force_lp)');
+    const noLp = localStorage.getItem('wb_no_lp') === '1';
+    fb.db.settings(noLp
+      ? { experimentalAutoDetectLongPolling: true, merge: true }
+      : { experimentalForceLongPolling: true, merge: true });
   } catch (e) {}
   if (typeof firebase.storage === 'function') fb.storage = firebase.storage();
 

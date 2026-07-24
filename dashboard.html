@@ -541,7 +541,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.4.3</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.5.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -1870,8 +1870,8 @@
         .cc-pill:hover { color:var(--bright); border-color:rgba(255,255,255,0.25); }
         .cc-pill.on { background:rgba(0,229,255,0.12); border-color:rgba(0,229,255,0.4); color:var(--accent); }
         .cc-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(270px, 1fr)); gap:14px; }
-        .cc-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:12px;
-                   transition:transform .15s, border-color .15s; }
+        .cc-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:15px 16px; display:flex; flex-direction:column; gap:11px;
+                   transition:transform .15s, border-color .15s, box-shadow .15s; }
         .cc-card:hover { transform:translateY(-2px); border-color:rgba(0,229,255,0.35); }
         .cc-card.cc-live { border-color:rgba(255,70,90,0.45); box-shadow:0 0 18px rgba(255,70,90,0.10) inset; }
         .cc-ava { width:52px; height:52px; border-radius:50%; object-fit:cover; background:#1a2029; flex:0 0 auto; border:2px solid var(--border); }
@@ -1886,15 +1886,17 @@
         .cc-live-badge { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:800; color:var(--red); }
         .cc-live-badge .dot { width:7px; height:7px; border-radius:50%; background:var(--red); animation:ccPulse 1.4s infinite; }
         @keyframes ccPulse { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
-        .cc-title { font-size:12px; color:var(--text-dim); line-height:1.45; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; min-height:34px; }
-        .cc-watch { display:block; text-align:center; text-decoration:none; font-weight:800; font-size:12.5px; padding:9px 12px; border-radius:8px; transition:filter .15s; }
+        .cc-title { font-size:12.5px; color:var(--text); line-height:1.5; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; min-height:36px; }
+        .cc-watch { display:flex; align-items:center; justify-content:center; text-align:center; text-decoration:none; font-weight:800; font-size:12px;
+                    padding:0 10px; height:36px; border-radius:9px; transition:filter .15s; white-space:nowrap; }
         .cc-watch.live { background:var(--red); color:#fff; }
         .cc-watch.off  { background:transparent; color:var(--text-dim); border:1px solid var(--border); }
         .cc-watch:hover { filter:brightness(1.15); }
         .cc-you { position:absolute; top:-8px; right:12px; font-size:9px; font-weight:900; letter-spacing:0.08em; background:var(--accent); color:#04141a; padding:2px 8px; border-radius:999px; }
-        .cc-shout { background:rgba(0,229,255,0.10); border:1px solid rgba(0,229,255,0.35); color:var(--accent); border-radius:8px;
-                    font-size:15px; padding:0 13px; cursor:pointer; transition:all .15s; flex:0 0 auto; }
-        .cc-shout:hover { background:rgba(0,229,255,0.22); }
+        .cc-shout { background:rgba(0,229,255,0.08); border:1px solid rgba(0,229,255,0.3); color:var(--accent); border-radius:9px;
+                    font-size:14px; padding:0 11px; height:36px; cursor:pointer; transition:all .15s; flex:0 0 auto;
+                    display:flex; align-items:center; justify-content:center; white-space:nowrap; }
+        .cc-shout:hover { background:rgba(0,229,255,0.2); }
         .cc-win-amount { font-family:'Exo 2',sans-serif; font-size:24px; font-weight:900; color:#ffd700; letter-spacing:0.01em; }
         .cc-win-multi { font-size:10.5px; font-weight:900; color:var(--accent); background:rgba(0,229,255,0.10); border:1px solid rgba(0,229,255,0.3);
                         padding:2px 8px; border-radius:999px; }
@@ -1911,8 +1913,9 @@
         .cc-live-badge .dot { background:#31d76c; }
         .cc-meta { font-size:11px; color:var(--text-dim); }
         .cc-watch.live { background:#1da84f; color:#fff; }
-        .cc-btn2 { display:block; text-align:center; text-decoration:none; font-weight:800; font-size:12.5px; padding:9px 12px;
-                   border-radius:8px; background:transparent; color:var(--text-dim); border:1px solid var(--border); transition:all .15s; }
+        .cc-btn2 { display:flex; align-items:center; justify-content:center; text-align:center; text-decoration:none; font-weight:700; font-size:12px;
+                   padding:0 10px; height:36px; border-radius:9px; background:transparent; color:var(--text-dim); border:1px solid var(--border);
+                   transition:all .15s; white-space:nowrap; }
         .cc-btn2:hover { color:var(--bright); border-color:rgba(255,255,255,0.3); }
         .cc-edit-btn { position:absolute; top:10px; right:10px; background:rgba(0,229,255,0.10); border:1px solid rgba(0,229,255,0.3);
                        color:var(--accent); font-size:10.5px; font-weight:800; border-radius:999px; padding:3px 10px; cursor:pointer; }
@@ -1937,6 +1940,7 @@
           <button class="cc-pill on" id="ccFilterAll"  onclick="ccSetFilter('all')">All creators</button>
           <button class="cc-pill"    id="ccFilterLive" onclick="ccSetFilter('live')">🔴 Live now</button>
           <button class="cc-pill"    id="ccFilterWins" onclick="ccSetFilter('wins')">🏆 Big Wins</button>
+          <button class="cc-pill"    id="ccFilterSched" onclick="ccSetFilter('sched')">📅 Schedule</button>
           <button class="btn btn-accent btn-sm" id="ccShareWinBtn" style="display:none;" onclick="ccOpenWinModal()">＋ Share a win</button>
           <div style="margin-left:auto;font-size:11px;color:var(--text-dim);" id="ccUpdatedNote"></div>
         </div>
@@ -2005,7 +2009,15 @@
               placeholder="e.g. 🔥 $2000 BONUS HUNT + viewer battles all night!"></textarea>
           </div>
           <div id="ccBlurbCount" style="font-size:10.5px;color:var(--text-dim);text-align:right;margin-bottom:12px;">140 left</div>
-          <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <div class="cc-field" style="margin-bottom:6px;">
+            <label>📅 WEEKLY SCHEDULE (OPTIONAL)</label>
+            <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;line-height:1.5;">
+              Shows on the community <strong>Schedule</strong> board so creators &amp; viewers know when you go live.
+              Leave a day blank for no stream. e.g. <em>8 PM EST</em> or <em>Bonus hunt 7pm</em>.
+            </div>
+            <div id="ccSchedGrid" style="display:grid;grid-template-columns:44px 1fr;gap:6px 8px;align-items:center;"></div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
             <button class="btn btn-ghost" onclick="ccCloseBlurbModal()">Cancel</button>
             <button class="btn btn-accent" onclick="ccSaveBlurb()">Save card</button>
           </div>
@@ -2476,9 +2488,22 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.4.3</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.5.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.5.0 — The Schedule board &amp; chat that behaves</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 24, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>📅 <strong>NEW: Community Schedule board.</strong> A new tab on the Creators page shows the whole community's weekly streaming lineup — today's column is highlighted, live creators get a green dot, and clicking anyone opens their profile. Set your own days via <em>✏️ Edit card</em> on your creator card (e.g. "8 PM EST" or "Bonus hunt 7pm"). Your schedule also shows on your profile.</li>
+            <li>💬 <strong>Chat now scrolls like a real chat app.</strong> If you've scrolled up to read history, new messages no longer yank you to the bottom — a "↓ New messages" pill appears instead. At the bottom? It follows along like always. Works in Community chat and DMs.</li>
+            <li>📡 <strong>Delivery, standardized.</strong> Everyone's dashboard now uses the connection mode that proved reliable across networks — messages, DMs, and typing bubbles should land in under a second for every creator, not just most of them.</li>
+            <li>🃏 <strong>Cleaner creator cards.</strong> Buttons sized so nothing wraps or bulges, brighter card messages, tidier spacing.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -4225,6 +4250,10 @@
     #ccDmNotice { display:none; margin:10px 14px 0; padding:8px 12px; background:rgba(255,70,90,0.08); border:1px solid rgba(255,70,90,0.25);
                   border-radius:8px; font-size:11.5px; color:var(--bright); cursor:pointer; }
     #ccDmNotice:hover { background:rgba(255,70,90,0.14); }
+    .cc-jump { display:none; position:absolute; left:50%; transform:translateX(-50%); bottom:64px; z-index:5;
+               background:var(--accent); color:#04141a; font-size:11px; font-weight:900; border:none; border-radius:999px;
+               padding:6px 14px; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,0.4); }
+    #ccDockPanel { position:relative; }
   </style>
   <div id="ccDock">
     <div id="ccDockPanel">
@@ -4240,6 +4269,8 @@
       </div>
       <div id="ccDmNotice" onclick="ccDmNoticeClick()"></div>
       <div id="ccMsgs"></div>
+      <button class="cc-jump" id="ccJumpChat" onclick="ccJumpToLatest('ccMsgs','ccJumpChat')">↓ New messages</button>
+      <button class="cc-jump" id="ccJumpDm" onclick="ccJumpToLatest('ccDmMsgs','ccJumpDm')">↓ New messages</button>
       <div class="cc-dock-input" id="ccInputRow">
         <input type="text" id="ccInput" maxlength="300" placeholder="Message the creator community…" onkeydown="if(event.key==='Enter')ccSend()">
         <button onclick="ccSend()">Send</button>
@@ -15552,6 +15583,7 @@ function ccSetFilter(f) {
   document.getElementById('ccFilterAll') ?.classList.toggle('on', f === 'all');
   document.getElementById('ccFilterLive')?.classList.toggle('on', f === 'live');
   document.getElementById('ccFilterWins')?.classList.toggle('on', f === 'wins');
+  document.getElementById('ccFilterSched')?.classList.toggle('on', f === 'sched');
   const share = document.getElementById('ccShareWinBtn');
   if (share) share.style.display = (f === 'wins' && ccEligibleForChat()) ? '' : 'none';
   if (f === 'wins') { ccLoadWins(); return; }
@@ -15567,12 +15599,14 @@ function ccRenderPage() {
   document.getElementById('ccStatViewers').textContent  = (t.viewers ?? 0).toLocaleString();
   document.getElementById('ccFilterLive').textContent   = `🔴 Live now${t.live ? ` (${t.live})` : ''}`;
   document.getElementById('ccUpdatedNote').textContent  = d.updatedAt ? `Updated ${ccAgo(d.updatedAt)}` : '';
-  if (cc.filter === 'wins') { ccRenderWins(); return; }
+  if (cc.filter === 'wins')  { ccRenderWins(); return; }
+  if (cc.filter === 'sched') { ccRenderSchedule(); return; }
 
   const myCh = (profile?.kickChannel || '').toLowerCase();
   const list = (d.creators || []).filter(c => cc.filter === 'all' || c.isLive);
   const grid  = document.getElementById('ccGrid');
   const empty = document.getElementById('ccEmpty');
+  grid.style.gridTemplateColumns = ''; // schedule view narrows the columns — reset
 
   if (!list.length) {
     grid.innerHTML = '';
@@ -15711,6 +15745,7 @@ function ccRenderMsgs() {
   const myUid = fb.currentUser?.uid;
   const items = [...cc.msgs, ...cc.pings].sort((a, b) => (a.ts || 0) - (b.ts || 0));
 
+  const wasNear = ccNearBottom(box); // capture BEFORE the re-render moves scrollHeight
   box.innerHTML = items.length ? items.map(m => {
     if (m.system) {
       return `<div class="cc-sys">🔴 <strong>${escHtml(m.name)}</strong> just went live${m.title ? ' — ' + escHtml(m.title) : ''} · <a href="https://kick.com/${escHtml(m.channel)}" target="_blank" rel="noopener">watch</a></div>`;
@@ -15731,10 +15766,33 @@ function ccRenderMsgs() {
 
   const open = document.getElementById('ccDockPanel').classList.contains('open');
   if (open && cc.dockView === 'chat') {
-    box.scrollTop = box.scrollHeight;
-    ccMarkSeen(items);
+    ccSmartScroll(box, 'ccJumpChat', wasNear);
+    if (wasNear) ccMarkSeen(items);
   }
   ccUpdatePill();
+}
+
+// Chat-app scrolling: only auto-scroll when the reader was already at (or
+// near) the bottom; if they've scrolled up to read history, leave them alone
+// and surface a "↓ New messages" pill instead.
+function ccNearBottom(el) {
+  return !el || (el.scrollHeight - el.scrollTop - el.clientHeight) < 90;
+}
+function ccSmartScroll(el, jumpId, wasNear) {
+  const jump = document.getElementById(jumpId);
+  if (wasNear) {
+    el.scrollTop = el.scrollHeight;
+    if (jump) jump.style.display = 'none';
+  } else if (jump) {
+    jump.style.display = 'block';
+  }
+}
+function ccJumpToLatest(boxId, jumpId) {
+  const box = document.getElementById(boxId);
+  if (box) box.scrollTop = box.scrollHeight;
+  const jump = document.getElementById(jumpId);
+  if (jump) jump.style.display = 'none';
+  if (boxId === 'ccMsgs') ccMarkSeen();
 }
 
 function ccMarkSeen(items) {
@@ -15780,19 +15838,80 @@ async function ccSend() {
   }
 }
 
-// ── Creator card blurb (Edit my card) ────────────────────────────────────────
+// ── Schedule board — the community's weekly lineup ───────────────────────────
+function ccRenderSchedule() {
+  const grid  = document.getElementById('ccGrid');
+  const empty = document.getElementById('ccEmpty');
+  const creators = (cc.data?.creators || []).filter(c => c.schedule && Object.keys(c.schedule).length);
+  const myCh  = (profile?.kickChannel || '').toLowerCase();
+  const today = CC_DAYS[(new Date().getDay() + 6) % 7][0]; // JS Sunday=0 → our Mon-first keys
+
+  if (!creators.length) {
+    grid.innerHTML = '';
+    empty.style.display = '';
+    document.getElementById('ccEmptyTitle').textContent = 'No schedules posted yet';
+    document.getElementById('ccEmptySub').textContent   = 'Set yours via ✏️ Edit card on your creator card — be the reason this board exists.';
+    return;
+  }
+  empty.style.display = 'none';
+
+  // One column per day, Mon–Sun; each shows the creators streaming that day.
+  grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(180px, 1fr))';
+  grid.innerHTML = CC_DAYS.map(([key, label]) => {
+    const isToday = key === today;
+    const rows = creators.filter(c => c.schedule[key]).map(c => {
+      const initial = escHtml((c.name || c.channel || '?').charAt(0).toUpperCase());
+      const ava = c.avatarUrl
+        ? `<img src="${escHtml(c.avatarUrl)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex:0 0 auto;${c.isLive ? 'border:2px solid #31d76c;' : ''}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><span style="display:none;width:24px;height:24px;border-radius:50%;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:var(--accent);background:rgba(0,229,255,0.10);flex:0 0 auto;">${initial}</span>`
+        : `<span style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:var(--accent);background:rgba(0,229,255,0.10);flex:0 0 auto;">${initial}</span>`;
+      return `<div onclick="ccOpenCreator('${escHtml(c.channel)}')" title="View ${escHtml(c.name)}'s profile"
+        style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;transition:background .15s;"
+        onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background=''">
+        ${ava}
+        <div style="min-width:0;">
+          <div style="font-size:11.5px;font-weight:800;color:var(--bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(c.name)}${c.channel === myCh ? ' <span style="color:var(--accent);font-size:9px;">(you)</span>' : ''}${c.isLive ? ' <span style="color:#31d76c;font-size:9px;font-weight:900;">● LIVE</span>' : ''}</div>
+          <div style="font-size:10.5px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(c.schedule[key])}</div>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="cc-card" style="padding:12px;gap:6px;${isToday ? 'border-color:rgba(0,229,255,0.45);box-shadow:0 0 14px rgba(0,229,255,0.08) inset;' : ''}">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-family:'Exo 2',sans-serif;font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:${isToday ? 'var(--accent)' : 'var(--text-dim)'};">${label}</span>
+        ${isToday ? '<span style="font-size:9px;font-weight:900;background:rgba(0,229,255,0.14);color:var(--accent);border:1px solid rgba(0,229,255,0.35);border-radius:999px;padding:1px 8px;">TODAY</span>' : ''}
+      </div>
+      ${rows || '<div style="font-size:11px;color:var(--text-dim);padding:6px 8px;">—</div>'}
+    </div>`;
+  }).join('');
+}
+
+// ── Creator card blurb + weekly schedule (Edit my card) ─────────────────────
+const CC_DAYS = [['mon','Mon'],['tue','Tue'],['wed','Wed'],['thu','Thu'],['fri','Fri'],['sat','Sat'],['sun','Sun']];
+
 function ccOpenBlurbModal() {
   document.getElementById('ccBlurbInput').value = profile?.communityBlurb || '';
   document.getElementById('ccBlurbCount').textContent = (140 - (profile?.communityBlurb || '').length) + ' left';
+  const sched = profile?.communitySchedule || {};
+  document.getElementById('ccSchedGrid').innerHTML = CC_DAYS.map(([k, label]) => `
+    <label style="font-size:11px;font-weight:800;color:var(--text-dim);margin:0;">${label}</label>
+    <input type="text" id="ccSched_${k}" maxlength="40" value="${escHtml(sched[k] || '')}" placeholder="—"
+      style="background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--bright);font-size:12px;padding:7px 10px;outline:none;">
+  `).join('');
   document.getElementById('ccBlurbModal').style.display = 'flex';
   document.getElementById('ccBlurbInput').focus();
 }
 function ccCloseBlurbModal() { document.getElementById('ccBlurbModal').style.display = 'none'; }
 async function ccSaveBlurb() {
   const text = document.getElementById('ccBlurbInput').value.trim().slice(0, 140);
+  const schedule = {};
+  CC_DAYS.forEach(([k]) => {
+    const v = (document.getElementById('ccSched_' + k)?.value || '').trim().slice(0, 40);
+    if (v) schedule[k] = v;
+  });
   try {
-    await fb.db.collection('streamers').doc(fb.activeUid).set({ communityBlurb: text }, { merge: true });
-    if (profile) profile.communityBlurb = text;
+    // update() (not merge-set) so the schedule map is REPLACED — a merge-set
+    // would deep-merge the map and cleared days would never actually clear.
+    await fb.db.collection('streamers').doc(fb.activeUid).update({ communityBlurb: text, communitySchedule: schedule });
+    if (profile) { profile.communityBlurb = text; profile.communitySchedule = schedule; }
     ccCloseBlurbModal();
     flash('✏️ Card saved — the directory refreshes within ~2 minutes');
   } catch (e) { flash('Could not save — try again', 'error'); }
@@ -15880,6 +15999,7 @@ function ccSetDockView(v) {
   show('ccDmList', v === 'dms');
   show('ccDmConvo', v === 'dm');
   if (v !== 'dm' && cc.dmMsgUnsub) { cc.dmMsgUnsub(); cc.dmMsgUnsub = null; cc.dmActive = null; }
+  ['ccJumpChat', 'ccJumpDm'].forEach(id => { const j = document.getElementById(id); if (j) j.style.display = 'none'; });
   if (v === 'chat') { ccRenderMsgs(); const box = document.getElementById('ccMsgs'); if (box) box.scrollTop = box.scrollHeight; }
   if (v === 'dms') ccRenderDmList();
   ccRenderDmBadge();
@@ -16010,13 +16130,14 @@ function ccRenderDmMsgs() {
   const box = document.getElementById('ccDmMsgs');
   if (!box) return;
   const me = fb.currentUser?.uid;
+  const wasNear = ccNearBottom(box);
   box.innerHTML = (cc.dmMsgs || []).map(m => `
     <div style="display:flex;flex-direction:column;align-items:${m.from === me ? 'flex-end' : 'flex-start'};">
       <div style="max-width:82%;background:${m.from === me ? 'rgba(0,229,255,0.14)' : 'rgba(255,255,255,0.06)'};border:1px solid ${m.from === me ? 'rgba(0,229,255,0.25)' : 'var(--border)'};border-radius:10px;padding:7px 11px;font-size:12.5px;color:var(--bright);line-height:1.5;overflow-wrap:anywhere;">${escHtml(m.text || '')}</div>
       <div style="font-size:9.5px;color:var(--text-dim);margin-top:2px;">${ccAgo(m.ts)}</div>
     </div>`).join('')
     || `<div class="cc-locked"><div style="font-size:26px;">👋</div><div>Say hi — this conversation is just between you two.</div></div>`;
-  box.scrollTop = box.scrollHeight;
+  ccSmartScroll(box, 'ccJumpDm', wasNear);
 }
 
 async function ccDmSend() {
@@ -16124,6 +16245,12 @@ function ccOpenCreator(channel) {
     <div style="font-size:10.5px;color:var(--text-dim);margin-bottom:14px;text-align:center;">Stats count from the launch of the WenBot community (July 2026).</div>
     ${c.isLive && c.title ? `<div style="font-size:12px;color:var(--bright);margin-bottom:12px;"><span style="color:var(--text-dim);">Now streaming:</span> ${escHtml(c.title)}</div>` : ''}
     ${c.blurb ? `<div style="font-size:12.5px;color:var(--text-dim);line-height:1.6;margin-bottom:14px;border-left:2px solid var(--border);padding-left:10px;">${escHtml(c.blurb)}</div>` : ''}
+    ${c.schedule && Object.keys(c.schedule).length ? `<div style="margin-bottom:14px;">
+      <div style="font-size:10.5px;color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase;font-weight:800;margin-bottom:6px;">📅 Weekly schedule</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">${CC_DAYS.filter(([k]) => c.schedule[k]).map(([k, label]) =>
+        `<span style="font-size:10.5px;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:4px 9px;"><strong style="color:var(--accent);">${label}</strong> <span style="color:var(--bright);">${escHtml(c.schedule[k])}</span></span>`
+      ).join('')}</div>
+    </div>` : ''}
     <div style="display:flex;gap:8px;margin-bottom:8px;">
       <a class="cc-watch ${c.isLive ? 'live' : 'off'}" style="flex:1;" href="https://kick.com/${chan}" target="_blank" rel="noopener">${c.isLive ? '▶ Watch on Kick' : 'Visit channel'}</a>
       <a class="cc-btn2" style="flex:1;" href="/${chan}" target="_blank" rel="noopener">Portal</a>
@@ -16176,6 +16303,7 @@ async function ccLoadWins(force) {
 function ccRenderWins() {
   const grid  = document.getElementById('ccGrid');
   const empty = document.getElementById('ccEmpty');
+  grid.style.gridTemplateColumns = ''; // schedule view narrows the columns — reset
   const wins  = cc.wins || [];
   if (!wins.length) {
     grid.innerHTML = '';
