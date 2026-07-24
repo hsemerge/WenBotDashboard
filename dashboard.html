@@ -15755,9 +15755,16 @@ function ccDmInit() {
       ccRenderDmBadge();
       if (cc.dockView === 'dms') ccRenderDmList();
       // Live thread open? Mark it read as messages arrive + refresh typing.
+      // ONLY when lastTs is actually newer than our read stamp — the mark-read
+      // write itself updates this doc and re-fires this listener, so an
+      // unconditional mark-read here becomes an infinite write loop.
       if (cc.dockView === 'dm' && cc.dmActive) {
+        const me  = fb.currentUser.uid;
         const act = cc.dmThreads.find(t => t.id === cc.dmActive);
-        if (act && act.lastFrom !== fb.currentUser.uid) ccDmMarkRead(cc.dmActive);
+        if (act && act.lastFrom && act.lastFrom !== me
+            && (act.lastTs || 0) > ccTs((act.read || {})[me])) {
+          ccDmMarkRead(cc.dmActive);
+        }
         ccDmUpdateTyping();
       }
     }, err => {
