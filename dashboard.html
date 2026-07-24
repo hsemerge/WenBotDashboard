@@ -15297,6 +15297,17 @@ const cc = {
   lastSeenTs: Number(localStorage.getItem('cc_lastseen') || 0),
 };
 
+// Normalize a message timestamp to millis. New messages carry a Firestore
+// server Timestamp (one authoritative clock — client clocks were skewing the
+// chat order); older ones carry a plain Date.now() number.
+function ccTs(v) {
+  if (v == null) return 0;
+  if (typeof v === 'number') return v;
+  if (typeof v.toMillis === 'function') return v.toMillis();
+  if (v.seconds != null) return v.seconds * 1000;
+  return 0;
+}
+
 function ccAgo(ts) {
   if (!ts) return '';
   const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));
@@ -15457,7 +15468,13 @@ function ccInitDock() {
     .orderBy('ts', 'desc').limit(50)
     .onSnapshot(snap => {
       cc.chatReady = true;
-      cc.msgs = snap.docs.map(d => d.data()).reverse();
+      // serverTimestamps:'estimate' — your own just-sent message renders
+      // instantly with an estimated time instead of a null timestamp.
+      cc.msgs = snap.docs.map(d => {
+        const m = d.data({ serverTimestamps: 'estimate' });
+        m.ts = ccTs(m.ts);
+        return m;
+      }).reverse();
       ccRenderMsgs();
     }, err => {
       console.warn('[CreatorChat]', err.message);
@@ -15544,7 +15561,8 @@ async function ccSend() {
       name:      profile?.displayName || profile?.kickChannel || 'creator',
       avatarUrl: profile?.kickAvatar || null,
       text,
-      ts: Date.now(),
+      // Server-stamped: one authoritative clock, no client-skew reordering
+      ts: firebase.firestore.FieldValue.serverTimestamp(),
     });
   } catch (e) {
     input.value = text; // give their message back
@@ -15648,7 +15666,11 @@ async function ccLoadWins(force) {
   try {
     const snap = await fb.db.collection('community').doc('wins').collection('posts')
       .orderBy('ts', 'desc').limit(30).get();
-    cc.wins = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    cc.wins = snap.docs.map(d => {
+      const w = { id: d.id, ...d.data({ serverTimestamps: 'estimate' }) };
+      w.ts = ccTs(w.ts);
+      return w;
+    });
   } catch (e) {
     cc.wins = [];
     console.warn('[BigWins]', e.message);
@@ -15717,7 +15739,7 @@ async function ccSubmitWin() {
       name:      profile?.displayName || profile?.kickChannel || 'creator',
       avatarUrl: profile?.kickAvatar || null,
       slot, amount, multi, note,
-      ts: Date.now(),
+      ts: firebase.firestore.FieldValue.serverTimestamp(),
     });
     ccCloseWinModal();
     ['ccWinSlot','ccWinAmount','ccWinMulti','ccWinNote'].forEach(id => document.getElementById(id).value = '');

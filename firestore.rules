@@ -246,7 +246,9 @@ service cloud.firestore {
         && request.resource.data.text is string
         && request.resource.data.text.size() > 0
         && request.resource.data.text.size() <= 300
-        && request.resource.data.ts is number;
+        // Server-stamped time (request.time) keeps chat ordering immune to
+        // client clock skew; plain numbers still accepted for stale tabs.
+        && (request.resource.data.ts == request.time || request.resource.data.ts is number);
       allow update, delete: if false;
     }
 
@@ -274,7 +276,7 @@ service cloud.firestore {
         && request.resource.data.multi.size() <= 20
         && request.resource.data.note is string
         && request.resource.data.note.size() <= 140
-        && request.resource.data.ts is number;
+        && (request.resource.data.ts == request.time || request.resource.data.ts is number);
       allow update: if false;
       allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
     }
