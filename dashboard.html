@@ -10003,7 +10003,8 @@ const OS_OVERLAYS = [
   { id:'winner',      name:'Spinning Names', icon:'🎰', tag:'giveaway',   desc:'Slot-machine drum that scrolls viewer names and lands on the winner.', path:'/overlay-winner.html',        obsW:480,  obsH:440,  demo:true,  header:'🎰 Giveaway Winner',     note:'Width: 480, height: 440 (the machine itself is ~380px wide).' },
   { id:'entries',     name:'Entries Feed',   icon:'📝', tag:'giveaway',   desc:'Live scrolling list of entries as viewers join.',           path:'/overlay-giveaway.html',      obsW:440,  obsH:740,  demo:true,  header:'🎁 Giveaway Live',       note:'Width: 440, height: 740. The list scrolls inside the OBS source if entries overflow.' },
   { id:'bonusbattle', name:'Bonus Battle',   icon:'⚔️', tag:'battles',    desc:'Match display with live viewer vote counts and results.',   path:'/overlay-bonus-battle.html',  obsW:1920, obsH:1080, demo:true,  header:null,                     note:'Header comes from the battle title. Width: 1920, height: 1080.' },
-  { id:'tournament',  name:'Tournament',     icon:'🏅', tag:'tournament', desc:'Live bracket — matchups and winners as they progress.',     path:'/overlay-tournament.html',    obsW:1920, obsH:1080, demo:true,  header:null,                     note:'Header comes from the tournament title. Width: 1920, height: 1080.' },
+  { id:'tournament',  name:'Tournament — Arena', icon:'🏅', tag:'tournament', desc:'Center-out bracket — sides converge on the Final beneath the champion crown.', path:'/overlay-tournament.html',    obsW:1920, obsH:1080, demo:true,  header:null,                     note:'Header comes from the tournament title. Width: 1920, height: 1080.' },
+  { id:'tournament2', name:'Tournament — Classic', icon:'🏆', tag:'tournament', desc:'Left-to-right bracket — every round in columns, crown atop the Final.', path:'/overlay-tournament.html', extra:'layout=classic', obsW:1920, obsH:1080, demo:true, header:null, note:'Header comes from the tournament title. Width: 1920, height: 1080.' },
   { id:'bankroll',    name:'Session P/L',    icon:'💵', tag:'bankroll',   desc:'Combined deposits, withdrawals, and net profit/loss for the session.', path:'/overlay-bankroll.html',      obsW:380,  obsH:170,  demo:true,  header:'💵 Session P/L',          note:'Width: 380, height: 170. Updates live as you log deposits/withdrawals on the Overview.' },
   { id:'deposits',    name:'Deposits',       icon:'💰', tag:'bankroll',   desc:'Total you have deposited this session.',                    path:'/overlay-deposits.html',      obsW:320,  obsH:130,  demo:true,  header:'💰 Deposited',            note:'Width: 320, height: 130.' },
   { id:'withdrawals', name:'Withdrawals',    icon:'💸', tag:'bankroll',   desc:'Total you have withdrawn this session.',                    path:'/overlay-withdrawals.html',   obsW:320,  obsH:130,  demo:true,  header:'💸 Withdrawn',            note:'Width: 320, height: 130.' },
@@ -10096,7 +10097,7 @@ function gwOverlayUrl(overlayId, opts) {
     if (t.winner)             p.set('winner',   t.winner.replace('#',''));
     if (t.duration != null)   p.set('duration', t.duration);
   }
-  return o.path + '?' + p.toString();
+  return o.path + '?' + p.toString() + (o.extra ? '&' + o.extra : '');
 }
 
 function loadOverlayStudio() {
@@ -10290,8 +10291,9 @@ function osUpdateUrl() {
     return;
   }
   const tp = osThemeParams();
-  document.getElementById('osUrlInput').value = `${base}${o.path}?channel=${encodeURIComponent(chan)}&${tp}`;
-  document.getElementById('osOpenLink').href  = `${base}${o.path}?channel=${encodeURIComponent(chan)}&demo=1&${tp}`;
+  const ex = o.extra ? '&' + o.extra : '';
+  document.getElementById('osUrlInput').value = `${base}${o.path}?channel=${encodeURIComponent(chan)}&${tp}${ex}`;
+  document.getElementById('osOpenLink').href  = `${base}${o.path}?channel=${encodeURIComponent(chan)}&demo=1&${tp}${ex}`;
 }
 
 // Compute and apply the preview iframe scale to fit the viewport
@@ -10353,7 +10355,7 @@ function osReloadFrame() {
     const base = window.location.origin;
     const tp = osThemeParams();
     const demoFlag = o.demo ? '&demo=1' : '';
-    frame.src = `${base}${o.path}?channel=${encodeURIComponent(chan)}${demoFlag}&${tp}`;
+    frame.src = `${base}${o.path}?channel=${encodeURIComponent(chan)}${demoFlag}&${tp}${o.extra ? '&' + o.extra : ''}`;
   }, 220);
 }
 

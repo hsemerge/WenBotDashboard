@@ -155,7 +155,12 @@
 </div>
 
 <script>
-const channel = new URLSearchParams(window.location.search).get('channel') || '';
+const _qs     = new URLSearchParams(window.location.search);
+const channel = _qs.get('channel') || '';
+// Two layouts, same WenBot design language:
+//   arena   (default) — sides converge on a center Final under the crown
+//   classic           — every round left-to-right, crown atop the last column
+const LAYOUT  = _qs.get('layout') === 'classic' ? 'classic' : 'arena';
 
 function escHtml(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -267,7 +272,7 @@ function render(t) {
       <div class="bcol-body">${cells.join('')}</div></div>`;
   };
 
-  // Final + champion crown, center column.
+  // Final match + champion crown (shared by both layouts).
   const finalData  = rounds.find(x => x.round === totalRounds);
   const finalMatch = finalData && finalData.matches && finalData.matches[0];
   let champName = null;
@@ -275,26 +280,46 @@ function render(t) {
     const c = finalMatch.winner === 'p1' ? finalMatch.p1 : finalMatch.p2;
     if (c) champName = c.kickUsername;
   }
-  const centerCol = `<div class="bcol center">
-    <div class="crown ${champName ? 'won' : ''}">
+  const crownBlock = `<div class="crown ${champName ? 'won' : ''}">
       <div class="ring">👑</div>
       <div class="lbl">CHAMPION</div>
       <div class="who">${champName ? escHtml(champName) : 'TBD'}</div>
-    </div>
-    <div class="rchip ${chipCls(totalRounds)}" style="align-self:center;"><span>${roundLabel(totalRounds, size)}</span></div>
-    ${matchCell(finalMatch, totalRounds, 'c', 'final')}
-  </div>`;
+    </div>`;
 
-  // Assemble: left side (rounds 1..R-1), center final, right side mirrored.
-  const left  = [];
-  const right = [];
-  for (let r = 1; r < totalRounds; r++) {
-    left.push(col(r, 'l'));
-    right.unshift(col(r, 'r'));
+  let field;
+  if (LAYOUT === 'classic') {
+    // Classic: every round as a full column, left → right, crown atop the Final.
+    const colsC = [];
+    for (let r = 1; r <= totalRounds; r++) {
+      const data  = rounds.find(x => x.round === r);
+      const count = Math.max(1, size / Math.pow(2, r));
+      const cells = [];
+      for (let i = 0; i < count; i++) {
+        cells.push(matchCell(data && data.matches && data.matches[i], r, 'l', r === totalRounds ? 'final' : ''));
+      }
+      colsC.push(`<div class="bcol ${r === totalRounds ? 'center' : ''}">
+        ${r === totalRounds ? crownBlock : ''}
+        <div class="rchip ${chipCls(r)}"><span>${roundLabel(r, size)}</span></div>
+        <div class="bcol-body">${cells.join('')}</div></div>`);
+    }
+    field = `<div class="field">${colsC.join('')}</div>`;
+  } else {
+    // Arena: sides converge on the center Final under the crown.
+    const centerCol = `<div class="bcol center">
+      ${crownBlock}
+      <div class="rchip ${chipCls(totalRounds)}" style="align-self:center;"><span>${roundLabel(totalRounds, size)}</span></div>
+      ${matchCell(finalMatch, totalRounds, 'c', 'final')}
+    </div>`;
+    const left  = [];
+    const right = [];
+    for (let r = 1; r < totalRounds; r++) {
+      left.push(col(r, 'l'));
+      right.unshift(col(r, 'r'));
+    }
+    field = totalRounds === 1
+      ? `<div class="field">${centerCol}</div>`
+      : `<div class="field">${left.join('')}${centerCol}${right.join('')}</div>`;
   }
-  const field = totalRounds === 1
-    ? `<div class="field">${centerCol}</div>`
-    : `<div class="field">${left.join('')}${centerCol}${right.join('')}</div>`;
 
   const alive = (t.participants || []).filter(p => !p.eliminated).length;
   card.innerHTML = `<div class="arena">
