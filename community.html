@@ -136,6 +136,12 @@
     </div>
   </div>
 
+  <!-- COMMUNITY PULSE -->
+  <div class="sec" id="secPulse" style="display:none;">
+    <div class="sec-title">📈 Community Pulse <span class="sub">the whole platform, in numbers</span></div>
+    <div class="grid" id="pulseGrid" style="grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));"></div>
+  </div>
+
   <!-- YOUR PASSPORT (signed-in only) -->
   <div class="sec" id="passport">
     <div class="sec-title">🪪 Your WenBot Passport <span class="sub">everything you've earned, across the whole community</span></div>
@@ -160,9 +166,28 @@
     <div class="grid" id="allGrid"><div class="empty">Loading creators…</div></div>
   </div>
 
+  <!-- NEW HERE? -->
+  <div class="sec">
+    <div class="sec-title">👋 New here? <span class="sub">how the community works</span></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fill, minmax(230px, 1fr));">
+      <div class="card"><div style="font-size:22px;">🤖</div><div class="cname" style="white-space:normal;">What is WenBot?</div>
+        <div class="blurb" style="min-height:0;">The bot behind your favorite Kick gambling streams — giveaways, points, raffles, leaderboards, all automated.</div>
+        <div style="font-size:10.5px;color:var(--dim);">🎬 Video coming soon</div></div>
+      <div class="card"><div style="font-size:22px;">🪙</div><div class="cname" style="white-space:normal;">Earning points &amp; WenPoints</div>
+        <div class="blurb" style="min-height:0;">Chat while a creator is live to earn their channel points — and WenPoints here, spendable community-wide, on top.</div>
+        <div style="font-size:10.5px;color:var(--dim);">🎬 Video coming soon</div></div>
+      <div class="card"><div style="font-size:22px;">🎁</div><div class="cname" style="white-space:normal;">Giveaways, raffles &amp; verification</div>
+        <div class="blurb" style="min-height:0;">Type the keyword to join giveaways, buy raffle tickets with points, and use !verify to unlock code-only drops.</div>
+        <div style="font-size:10.5px;color:var(--dim);">🎬 Video coming soon</div></div>
+      <div class="card"><div style="font-size:22px;">🛟</div><div class="cname" style="white-space:normal;">Need help?</div>
+        <div class="blurb" style="min-height:0;">Our support team solves everything — open a ticket in the WenBot Discord or ask in your streamer's chat.</div>
+        <div style="font-size:10.5px;color:var(--dim);">💬 Support via Discord</div></div>
+    </div>
+  </div>
+
   <footer>
     Powered by <a href="/">WenBot</a> — the all-in-one streamer bot for Kick ·
-    <a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a><br>
+    <a href="/updates">Updates</a> · <a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a><br>
     18+ · Gambling happens on third-party licensed platforms — play responsibly.
   </footer>
 </div>
@@ -270,12 +295,91 @@ async function loadCreators() {
   } catch (e) { /* retry next poll */ }
 }
 
+// ── Community Pulse ─────────────────────────────────────────────────────────
+async function loadPulse() {
+  try {
+    const r = await fetch('/api/community-stats');
+    const s = await r.json();
+    if (!r.ok) return;
+    const tiles = [
+      ['👑', s.streamers,        'Creators on WenBot'],
+      ['⏱',  s.hoursStreamed,    'Hours streamed'],
+      ['🎁', s.giveawaysRun,     'Giveaways run'],
+      ['🏆', s.winnersDrawn,     'Winners drawn'],
+      ['🎰', s.huntsRun,         'Bonus hunts'],
+      ['💎', s.winsShared,       'Big wins shared'],
+      ['💬', s.commandsUsed,     'Commands used'],
+      ['🎲', s.casinosSupported, 'Casinos supported'],
+      ['🖥',  s.widgetsOffered,   'Stream widgets'],
+    ].filter(t => t[1] > 0 || ['🎲','🖥','👑'].includes(t[0]));
+    document.getElementById('pulseGrid').innerHTML = tiles.map(([icon, n, label]) => `
+      <div class="card" style="align-items:center;text-align:center;gap:4px;padding:16px 10px;">
+        <div style="font-size:20px;">${icon}</div>
+        <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--bright);font-variant-numeric:tabular-nums;">${Number(n || 0).toLocaleString()}</div>
+        <div style="font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;">${label}</div>
+      </div>`).join('');
+    document.getElementById('secPulse').style.display = tiles.length ? '' : 'none';
+  } catch (e) { /* non-critical */ }
+}
+
+// ── WenPoints ───────────────────────────────────────────────────────────────
+let WP = null; // { balance, lifetime, streak, lastCheckin }
+function todayUTC() { return new Date().toISOString().slice(0, 10); }
+
+function wpChipHtml() {
+  if (!WP) return '';
+  return `<span title="WenPoints — earned by chatting on any WenBot stream" style="display:inline-flex;align-items:center;gap:5px;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.3);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:800;color:var(--accent);">⚡ ${(WP.balance || 0).toLocaleString()} WP</span>`;
+}
+
+async function wpCheckin() {
+  if (!SESSION) return;
+  const btn = document.getElementById('wpCheckinBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Claiming…'; }
+  try {
+    const r = await fetch('/api/wenpoints-checkin', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kickUsername: SESSION.kickUsername, accessToken: SESSION.accessToken }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Check-in failed');
+    WP = { ...(WP || {}), balance: d.balance, streak: d.streak, lastCheckin: todayUTC() };
+    renderNav();
+    renderWpCard();
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Daily check-in +10'; }
+    alert(e.message);
+  }
+}
+
+function renderWpCard() {
+  const el = document.getElementById('wpCard');
+  if (!el || !WP) return;
+  const claimed = WP.lastCheckin === todayUTC();
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <div style="font-size:26px;">⚡</div>
+      <div>
+        <div style="font-family:'Exo 2',sans-serif;font-weight:900;font-size:18px;color:var(--accent);">${(WP.balance || 0).toLocaleString()} WenPoints</div>
+        <div style="font-size:11px;color:var(--dim);">Earned across the whole community · lifetime ${(WP.lifetime || 0).toLocaleString()}${WP.streak > 1 ? ` · 🔥 ${WP.streak}-day streak` : ''}</div>
+      </div>
+      <div style="margin-left:auto;">
+        ${claimed
+          ? '<span style="font-size:12px;color:var(--green);font-weight:800;">✓ Checked in today</span>'
+          : '<button id="wpCheckinBtn" class="kick-btn" style="background:var(--accent);color:#04141a;" onclick="wpCheckin()">Daily check-in +10</button>'}
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--dim);margin-top:10px;line-height:1.6;">
+      Earn WenPoints by chatting on <strong style="color:var(--text);">any</strong> WenBot creator's live stream, plus a daily check-in here.
+      The WenBot store — cosmetics, sponsored raffles, and plan-discount vouchers — is coming soon. Start stacking. 😎
+    </div>`;
+}
+
 // ── Auth + passport ─────────────────────────────────────────────────────────
 function renderNav() {
   const el = document.getElementById('navAuth');
   if (SESSION) {
     const initial = esc((SESSION.kickUsername || '?').charAt(0).toUpperCase());
-    el.innerHTML = `<span class="user-chip">
+    el.innerHTML = `${wpChipHtml()} <span class="user-chip">
       <span class="fb">${initial}</span>
       <b>${esc(SESSION.kickUsername)}</b>
       <button onclick="signOut()">sign out</button>
@@ -305,6 +409,9 @@ async function loadPassport() {
     });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Failed to load');
+
+    WP = d.wenpoints || { balance: 0, lifetime: 0 };
+    renderNav();
 
     const initial = esc((d.username || '?').charAt(0).toUpperCase());
     const ava = d.avatarUrl
@@ -340,9 +447,11 @@ async function loadPassport() {
           <div class="ptot"><div class="n">${t.tickets || 0}</div><div class="l">Raffle tickets</div></div>
         </div>
       </div>
+      <div id="wpCard" style="margin-top:16px;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.2);border-radius:12px;padding:14px 16px;"></div>
       ${rows
         ? `<div class="pass-rows">${rows}</div>`
         : `<div style="margin-top:14px;font-size:13px;color:var(--dim);">No activity yet — hang out in a WenBot creator's chat, earn points, join a giveaway, and your passport fills itself in. Pick a stream above and dive in! 👆</div>`}`;
+    renderWpCard();
   } catch (e) {
     card.innerHTML = `<div style="font-size:13px;color:var(--dim);">Couldn't load your passport (${esc(e.message)}). <a href="javascript:location.reload()">Retry</a> or sign in again.</div>`;
   }
@@ -352,6 +461,7 @@ async function loadPassport() {
 SESSION = getKickViewerSession();
 renderNav();
 loadCreators();
+loadPulse();
 setInterval(loadCreators, 60000);
 if (SESSION) loadPassport();
 

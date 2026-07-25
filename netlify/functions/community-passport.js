@@ -54,9 +54,14 @@ exports.handler = async (event) => {
       }
     } catch { /* rebuild */ }
 
-    // 3. The community's creators (aggregate doc — 1 read).
-    const commDoc = await db.collection("community").doc("creators").get();
+    // 3. The community's creators (aggregate doc) + the viewer's global
+    //    WenPoints ledger — 2 reads, fetched together.
+    const [commDoc, wpDoc] = await Promise.all([
+      db.collection("community").doc("creators").get(),
+      db.collection("wenpoints").doc(userKey).get(),
+    ]);
     const creators = (commDoc.exists ? commDoc.data().creators || [] : []).slice(0, MAX_CREATORS);
+    const wp = wpDoc.exists ? wpDoc.data() : {};
 
     // 4. Per-creator lookups, all in parallel, all bounded.
     const channels = (await Promise.all(creators.map(async (c) => {
@@ -89,6 +94,12 @@ exports.handler = async (event) => {
     const payload = {
       username: kickLookup.user.name,
       channels,
+      wenpoints: {
+        balance:     wp.balance || 0,
+        lifetime:    wp.lifetime || 0,
+        streak:      wp.streak || 0,
+        lastCheckin: wp.lastCheckin || null,
+      },
       totals: {
         channels: channels.length,
         points:   channels.reduce((s, x) => s + x.points, 0),

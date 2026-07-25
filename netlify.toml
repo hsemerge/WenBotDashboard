@@ -55,6 +55,21 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/community-stats"
+  to     = "/.netlify/functions/community-stats"
+  status = 200
+
+[[redirects]]
+  from   = "/api/wenpoints-checkin"
+  to     = "/.netlify/functions/wenpoints-checkin"
+  status = 200
+
+[[redirects]]
+  from   = "/updates"
+  to     = "/updates.html"
+  status = 200
+
+[[redirects]]
   from   = "/community"
   to     = "/community.html"
   status = 200

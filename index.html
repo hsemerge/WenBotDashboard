@@ -907,6 +907,25 @@
       document.getElementById('liveStripCount').textContent = '· ' + live.length + ' live';
       document.getElementById('liveStrip').style.display = '';
     }).catch(function () {});
+
+    // Live platform numbers — appended to the hero stats row once real data exists.
+    fetch('/api/community-stats').then(function (r) { return r.json(); }).then(function (s) {
+      var row = document.querySelector('.hero-stats');
+      if (!row || !s || !s.streamers) return;
+      var add = [
+        [String(s.streamers), 'Creators on WenBot'],
+        s.giveawaysRun ? [Number(s.giveawaysRun).toLocaleString(), 'Giveaways Run'] : null,
+        s.hoursStreamed ? [Number(s.hoursStreamed).toLocaleString() + 'h', 'Streamed & Counting'] : null,
+      ].filter(Boolean);
+      add.forEach(function (t) {
+        var d = document.createElement('div');
+        d.className = 'hero-stat';
+        var n = document.createElement('div'); n.className = 'hero-stat-num'; n.textContent = t[0];
+        var l = document.createElement('div'); l.className = 'hero-stat-label'; l.textContent = t[1];
+        d.appendChild(n); d.appendChild(l);
+        row.appendChild(d);
+      });
+    }).catch(function () {});
   })();
   </script>
 
@@ -1253,9 +1272,11 @@
       <p>© 2026 WenBot. Built for Kick streamers.</p>
       <p style="margin-top:4px;">Powered by <a href="https://www.logicplaystudios.com" target="_blank" rel="noopener" style="color:var(--accent);">LogicPlay Studios</a></p>
     </div>
-    <div style="display:flex;gap:20px;">
+    <div style="display:flex;gap:20px;flex-wrap:wrap;">
       <a href="login.html" style="font-size:13px;color:var(--text-dim);">Sign In</a>
       <a href="#pricing" style="font-size:13px;color:var(--text-dim);">Pricing</a>
+      <a href="/community" style="font-size:13px;color:var(--text-dim);">Community</a>
+      <a href="/updates" style="font-size:13px;color:var(--text-dim);">Updates</a>
       <a href="terms.html" style="font-size:13px;color:var(--text-dim);">Terms</a>
     </div>
   </footer>

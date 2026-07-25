@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WenBot Updates — Roadmap & Changelog</title>
+<meta name="description" content="What's coming to WenBot and everything that already shipped — the public roadmap and changelog.">
+<link rel="icon" href="/img/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  :root { --bg:#0d1117; --bg-card:#161b22; --border:#21262d; --accent:#00e5ff; --gold:#ffd700;
+          --text:#c9d1d9; --dim:#8b949e; --bright:#ffffff; }
+  body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+  a { color:var(--accent); }
+  .wrap { max-width:860px; margin:0 auto; padding:0 20px 60px; }
+  nav { display:flex; align-items:center; justify-content:space-between; padding:18px 0 26px; }
+  .brand { display:flex; align-items:center; gap:10px; text-decoration:none; }
+  .brand img { height:44px; }
+  .brand span { font-family:'Exo 2',sans-serif; font-weight:900; font-size:18px; color:var(--bright); }
+  nav a.back { color:var(--dim); text-decoration:none; font-size:13px; font-weight:600; }
+  h1 { font-family:'Exo 2',sans-serif; font-size:clamp(26px,5vw,38px); font-weight:900; color:var(--bright); }
+  h1 span { color:var(--accent); }
+  .lead { color:var(--dim); font-size:14px; margin:8px 0 30px; line-height:1.7; }
+  .sec-h { font-family:'Exo 2',sans-serif; font-size:16px; font-weight:900; color:var(--bright); margin:34px 0 14px; display:flex; align-items:center; gap:10px; }
+  .card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:20px 22px; margin-bottom:14px; }
+  .rm { display:flex; gap:14px; align-items:flex-start; }
+  .rm .ico { font-size:20px; flex:0 0 auto; margin-top:2px; }
+  .rm b { color:var(--bright); font-size:14px; }
+  .rm p { font-size:13px; color:var(--dim); line-height:1.65; margin-top:3px; }
+  .tag { font-size:9.5px; font-weight:900; letter-spacing:.06em; border-radius:999px; padding:2px 9px; text-transform:uppercase; }
+  .tag.soon  { background:rgba(0,229,255,.12); color:var(--accent); border:1px solid rgba(0,229,255,.3); }
+  .tag.next  { background:rgba(255,215,0,.1); color:var(--gold); border:1px solid rgba(255,215,0,.3); }
+  .ver { display:flex; align-items:baseline; gap:10px; margin-bottom:10px; }
+  .ver b { font-family:'Exo 2',sans-serif; font-size:15px; color:var(--bright); }
+  .ver span { font-size:11.5px; color:var(--dim); }
+  ul { margin:0 0 0 18px; }
+  li { font-size:13px; color:var(--text); line-height:1.8; }
+  footer { text-align:center; margin-top:46px; font-size:12px; color:var(--dim); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="brand" href="/"><img src="/img/logo.png" alt="WenBot"><span>Updates</span></a>
+    <a class="back" href="/community">← Community</a>
+  </nav>
+
+  <h1>WenBot <span>Updates</span></h1>
+  <div class="lead">What we're building next and everything that already shipped. WenBot moves fast — this page is the receipt.</div>
+
+  <div class="sec-h">🚧 Up &amp; coming</div>
+  <div class="card"><div class="rm"><div class="ico">⚡</div><div><b>The WenBot Store (WenPoints)</b> <span class="tag next">next up</span>
+    <p>Spend the WenPoints you earn watching any WenBot creator: cosmetics and flair, WenBot-sponsored raffles, and vouchers streamers can put toward their plan.</p></div></div></div>
+  <div class="card"><div class="rm"><div class="ico">🎬</div><div><b>Tutorial library</b> <span class="tag next">next up</span>
+    <p>Bite-size videos for streamers (setup, overlays, store, verification) and viewers (points, giveaways, verification) — right where you need them.</p></div></div></div>
+  <div class="card"><div class="rm"><div class="ico">🪪</div><div><b>Deeper viewer profiles</b> <span class="tag soon">planned</span>
+    <p>Per-channel stats on your passport — chats sent, giveaways entered, biggest wins — plus viewing your own chat history per channel.</p></div></div></div>
+  <div class="card"><div class="rm"><div class="ico">⚔️</div><div><b>Creator Clash</b> <span class="tag soon">planned</span>
+    <p>Community events where creators go head-to-head — bonus-hunt battles with community-wide voting and bragging rights.</p></div></div></div>
+  <div class="card"><div class="rm"><div class="ico">🔮</div><div><b>Predictions</b> <span class="tag soon">planned</span>
+    <p>Channel-point predictions on stream outcomes — win multipliers, leaderboards, chaos.</p></div></div></div>
+
+  <div class="sec-h">✅ Shipped</div>
+  <div class="card"><div class="ver"><b>v1.6.0 — The Community goes public</b><span>July 24, 2026</span></div><ul>
+    <li>wenbot.gg/community: public creator directory, live-now, weekly schedule board, viewer favorites</li>
+    <li>Sign in with Kick → your WenBot Passport: points, wins &amp; raffle tickets across every channel</li>
+    <li>WenBot Weekly — Monday community recap posted to Creator Chat</li>
+  </ul></div>
+  <div class="card"><div class="ver"><b>v1.5.0 — Schedule board &amp; chat polish</b><span>July 24, 2026</span></div><ul>
+    <li>Community schedule board with today highlighting; creators set their week on their card</li>
+    <li>Chat-app scrolling, sub-second delivery on every network, typing indicators in DMs</li>
+  </ul></div>
+  <div class="card"><div class="ver"><b>v1.4.x — Creator DMs, cards &amp; raffle scale</b><span>July 23–24, 2026</span></div><ul>
+    <li>Creator-to-creator DMs with unread flags and typing bubbles</li>
+    <li>Creator card makeover: live viewers, stream category, live-for timers, editable card message</li>
+    <li>Raffles rebuilt for six-figure ticket counts — instant draws, removals and resets at any size</li>
+  </ul></div>
+  <div class="card"><div class="ver"><b>v1.2–1.3 — The Creators community</b><span>July 23, 2026</span></div><ul>
+    <li>Creators directory with live status, one-click Shoutouts, Big Wins feed, creator profiles with self-building stats</li>
+    <li>Creator Chat — the community dock on every dashboard page</li>
+  </ul></div>
+  <div class="card"><div class="ver"><b>v1.0–1.1 — The foundation</b><span>July 2026</span></div><ul>
+    <li>Giveaway console with point-entry giveaways, pause/reopen, and blocked-list control</li>
+    <li>Bonus Hunt console, viewer control card, timed messages, overview overhaul</li>
+    <li>Store reply modes, faster overlays, live-status detection with offline protection</li>
+  </ul></div>
+
+  <footer>
+    WenBot v1.7.0 · <a href="/">wenbot.gg</a> · <a href="/community">Community</a><br>
+    Want something on this list? Tell your streamer — they tell us.
+  </footer>
+</div>
+</body>
+</html>

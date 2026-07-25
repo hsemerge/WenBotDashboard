@@ -541,7 +541,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.6.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.7.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -2489,9 +2489,23 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.6.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.7.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.7.0 — WenPoints, the Pulse &amp; the public roadmap</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 24, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>⚡ <strong>NEW: WenPoints.</strong> A community-wide currency your viewers earn automatically — chatting on <em>any</em> WenBot creator's live stream earns WenPoints on top of your channel points, plus a daily check-in bonus on the community page. Balances show on their passport. The WenBot store (cosmetics, sponsored raffles, and vouchers viewers can put toward <em>your</em> plan) is next.</li>
+            <li>📈 <strong>Community Pulse.</strong> wenbot.gg/community now shows live platform-wide numbers — creators, hours streamed, giveaways run, winners drawn, hunts, wins shared, commands used — and the homepage flexes them too. Every stat updates itself.</li>
+            <li>🗺 <strong>Public roadmap &amp; changelog</strong> at wenbot.gg/updates — what's coming and everything that shipped, viewer-readable.</li>
+            <li>🎓 <strong>Tutorials library</strong> on the Help page — the full course list is laid out, videos dropping in as they're produced. Viewers get their own "New here?" guide on the community page.</li>
+            <li>📊 <strong>More stats now counting:</strong> tournaments run, GTB sessions, commands used, and per-viewer chat counts — feeding creator profiles and future viewer stats.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -2766,6 +2780,18 @@
     </div>
 
     <div class="page" id="page-help">
+      <!-- 🎓 Tutorials library — video slots; drop YouTube links into TUTORIALS below as they're produced -->
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+          <h3 style="margin:0;">🎓 Tutorials</h3>
+          <span style="font-size:11px;color:var(--text-dim);">short videos for every part of WenBot — rolling out now</span>
+        </div>
+        <div id="helpTutorialGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-top:10px;"></div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:12px;line-height:1.6;">
+          🛟 <strong style="color:var(--bright);">Stuck on anything?</strong> Our support solves it all — open a ticket in the
+          <a href="https://discord.gg/wenbot" target="_blank" rel="noopener" style="color:var(--accent);">WenBot Discord</a> or ask for a call. No question is too small.
+        </div>
+      </div>
       <div class="grid-2">
         <!-- ════ LEFT COLUMN: Chat command reference ════ -->
         <div class="stack">
@@ -5015,6 +5041,7 @@ function showPage(id, el) {
   if (id === 'activity')    loadActivityLog();
   if (id === 'overview')    loadOverviewStats();
   if (id === 'creators')    loadCreatorsPage();
+  if (id === 'help')        renderHelpTutorials();
 }
 
 // ── FLASH ──
@@ -7887,6 +7914,7 @@ async function startGTB() {
     pendingChatTs: Date.now(),
   });
   flash('GTB is open! WenBot is announcing in chat.');
+  ccBumpStat('gtbRun');
   listenGTBGuesses();
   bhGtbRender();
 }
@@ -13765,6 +13793,7 @@ async function tnSeedBracket(t, realParticipants) {
       updatedAt: Date.now(),
     });
     flash(t.mode === 'raffle' ? `Drew ${realParticipants.length} entrants — bracket started!` : 'Bracket started! Good luck!');
+    ccBumpStat('tournamentsRun');
   } catch (e) { flash('Error: ' + e.message, 'error'); }
 }
 
@@ -16414,6 +16443,41 @@ async function ccDeleteWin(id) {
     ccRenderWins();
     flash('Post deleted');
   } catch (e) { flash('Delete failed — try again', 'error'); }
+}
+
+// ── Tutorials library (Help page) ────────────────────────────────────────────
+// Each entry: [icon, title, videoUrl|null]. Drop a YouTube/embed URL in as
+// videos get produced — null renders a "coming soon" card.
+const TUTORIALS = [
+  ['🤖', 'What is WenBot? — Overview', null],
+  ['🧭', "Navigating WenBot's dashboard", null],
+  ['🔗', 'Linking WenBot to your Kick stream', null],
+  ['💬', 'Kick setup + commands you need to know', null],
+  ['🎮', 'Discord setup + commands you need to know', null],
+  ['👤', 'Setting up your profile & stream pages', null],
+  ['🖥', 'Using overlays & widgets in OBS', null],
+  ['🔑', 'Linking your leaderboard API key', null],
+  ['🛒', 'Setting up your streamer store', null],
+  ['✅', 'Using the verification system', null],
+  ['🎁', 'Running giveaways, raffles & bonus hunts', null],
+  ['👥', 'Including your viewers — features to know', null],
+  ['🤝', 'Earning with the affiliate & rewards system', null],
+  ['📈', 'Using WenBot to grow your stream', null],
+];
+function renderHelpTutorials() {
+  const grid = document.getElementById('helpTutorialGrid');
+  if (!grid || grid.childElementCount) return;
+  grid.innerHTML = TUTORIALS.map(([icon, title, url]) => url
+    ? `<a href="${escHtml(url)}" target="_blank" rel="noopener" style="display:block;background:var(--bg);border:1px solid rgba(0,229,255,0.3);border-radius:10px;padding:12px;text-decoration:none;">
+        <div style="font-size:18px;">${icon}</div>
+        <div style="font-size:12.5px;font-weight:700;color:var(--bright);margin-top:4px;line-height:1.4;">${escHtml(title)}</div>
+        <div style="font-size:10.5px;color:var(--accent);margin-top:5px;">▶ Watch</div>
+      </a>`
+    : `<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;opacity:.75;">
+        <div style="font-size:18px;">${icon}</div>
+        <div style="font-size:12.5px;font-weight:700;color:var(--bright);margin-top:4px;line-height:1.4;">${escHtml(title)}</div>
+        <div style="font-size:10.5px;color:var(--text-dim);margin-top:5px;">🎬 Coming soon</div>
+      </div>`).join('');
 }
 
 // Settings → WenBot Community toggle. communityOptOut is streamer-writable
