@@ -4234,7 +4234,9 @@
 
   <!-- ── CREATOR CHAT DOCK — dashboard-wide, bottom right ── -->
   <style>
-    #ccDock { position:fixed; right:18px; bottom:18px; z-index:850; display:none; flex-direction:column; align-items:flex-end; gap:10px; }
+    #ccDock { position:fixed; right:18px; bottom:18px; z-index:850; display:none; flex-direction:column; align-items:flex-end; gap:10px; transition:bottom .2s; }
+    /* Pages with their own bottom bar (Overlay Studio URL row) — dock dodges up */
+    #ccDock.cc-raised { bottom:110px; }
     #ccDockPill { display:inline-flex; align-items:center; gap:8px; background:var(--bg-card); border:1px solid rgba(0,229,255,0.35);
                   color:var(--bright); font-weight:800; font-size:13px; padding:10px 18px; border-radius:999px; cursor:pointer;
                   box-shadow:0 6px 24px rgba(0,0,0,0.45); transition:transform .15s, border-color .15s; }
@@ -5042,6 +5044,8 @@ function showPage(id, el) {
   if (id === 'overview')    loadOverviewStats();
   if (id === 'creators')    loadCreatorsPage();
   if (id === 'help')        renderHelpTutorials();
+  // Creator Chat dock dodges pages that have their own bottom bar
+  document.getElementById('ccDock')?.classList.toggle('cc-raised', id === 'overlays');
 }
 
 // ── FLASH ──
