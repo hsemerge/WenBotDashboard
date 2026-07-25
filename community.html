@@ -136,10 +136,11 @@
     </div>
   </div>
 
-  <!-- COMMUNITY PULSE -->
-  <div class="sec" id="secPulse" style="display:none;">
-    <div class="sec-title">📈 Community Pulse <span class="sub">the whole platform, in numbers</span></div>
-    <div class="grid" id="pulseGrid" style="grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));"></div>
+  <!-- COMMUNITY PULSE — slim ticker, deliberately lightweight so it never
+       competes with the creator cards. Can graduate to its own tab later. -->
+  <div id="secPulse" style="display:none;margin-top:26px;background:var(--bg-card);border:1px solid var(--border);border-radius:999px;padding:9px 18px;overflow-x:auto;white-space:nowrap;scrollbar-width:none;">
+    <span style="font-size:11px;font-weight:900;color:var(--accent);letter-spacing:.05em;margin-right:12px;">📈 PULSE</span>
+    <span id="pulseTicker" style="font-size:12px;color:var(--text);"></span>
   </div>
 
   <!-- YOUR PASSPORT (signed-in only) -->
@@ -295,36 +296,114 @@ async function loadCreators() {
   } catch (e) { /* retry next poll */ }
 }
 
-// ── Community Pulse ─────────────────────────────────────────────────────────
+// ── Community Pulse — slim one-line ticker; zero-stats are simply omitted ───
 async function loadPulse() {
   try {
     const r = await fetch('/api/community-stats');
     const s = await r.json();
     if (!r.ok) return;
-    const tiles = [
-      ['👑', s.streamers,        'Creators on WenBot'],
-      ['⏱',  s.hoursStreamed,    'Hours streamed'],
-      ['🎁', s.giveawaysRun,     'Giveaways run'],
-      ['🏆', s.winnersDrawn,     'Winners drawn'],
-      ['🎰', s.huntsRun,         'Bonus hunts'],
-      ['💎', s.winsShared,       'Big wins shared'],
-      ['💬', s.commandsUsed,     'Commands used'],
-      ['🎲', s.casinosSupported, 'Casinos supported'],
-      ['🖥',  s.widgetsOffered,   'Stream widgets'],
-    ].filter(t => t[1] > 0 || ['🎲','🖥','👑'].includes(t[0]));
-    document.getElementById('pulseGrid').innerHTML = tiles.map(([icon, n, label]) => `
-      <div class="card" style="align-items:center;text-align:center;gap:4px;padding:16px 10px;">
-        <div style="font-size:20px;">${icon}</div>
-        <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--bright);font-variant-numeric:tabular-nums;">${Number(n || 0).toLocaleString()}</div>
-        <div style="font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;">${label}</div>
-      </div>`).join('');
-    document.getElementById('secPulse').style.display = tiles.length ? '' : 'none';
+    const bits = [
+      ['👑', s.streamers,        'creators'],
+      ['⏱',  s.hoursStreamed,    'hours streamed'],
+      ['🎁', s.giveawaysRun,     'giveaways run'],
+      ['🏆', s.winnersDrawn,     'winners drawn'],
+      ['🎰', s.huntsRun,         'bonus hunts'],
+      ['💎', s.winsShared,       'big wins shared'],
+      ['💬', s.commandsUsed,     'commands used'],
+      ['🎲', s.casinosSupported, 'casinos supported'],
+      ['🖥',  s.widgetsOffered,   'stream widgets'],
+    ].filter(t => Number(t[1]) > 0);
+    if (!bits.length) return;
+    document.getElementById('pulseTicker').innerHTML = bits.map(([icon, n, label]) =>
+      `${icon} <b style="color:var(--bright);font-variant-numeric:tabular-nums;">${Number(n).toLocaleString()}</b> <span style="color:var(--dim);">${label}</span>`
+    ).join(' <span style="color:var(--border);margin:0 8px;">|</span> ');
+    document.getElementById('secPulse').style.display = '';
   } catch (e) { /* non-critical */ }
 }
 
 // ── WenPoints ───────────────────────────────────────────────────────────────
-let WP = null; // { balance, lifetime, streak, lastCheckin }
+let WP = null; // { balance, lifetime, streak, lastCheckin, owned, equipped }
 function todayUTC() { return new Date().toISOString().slice(0, 10); }
+
+// Cosmetic catalog (mirrors /api/wenpoints-spend) — passport themes + flair
+const WP_THEMES = {
+  default: { name: 'WenBot Cyan', css: 'linear-gradient(135deg, rgba(0,229,255,.09), rgba(124,58,237,.07) 60%)', border: 'rgba(0,229,255,.3)' },
+  gold:    { name: 'Gold Passport', price: 150, css: 'linear-gradient(135deg, rgba(255,215,0,.13), rgba(255,140,0,.06) 60%)', border: 'rgba(255,215,0,.45)' },
+  royal:   { name: 'Royal Purple',  price: 150, css: 'linear-gradient(135deg, rgba(168,85,247,.16), rgba(59,7,100,.10) 60%)', border: 'rgba(168,85,247,.5)' },
+  emerald: { name: 'Emerald',       price: 150, css: 'linear-gradient(135deg, rgba(49,215,108,.13), rgba(6,78,59,.10) 60%)', border: 'rgba(49,215,108,.45)' },
+  blood:   { name: 'Blood Diamond', price: 250, css: 'linear-gradient(135deg, rgba(255,71,87,.15), rgba(120,6,30,.10) 60%)', border: 'rgba(255,71,87,.5)' },
+};
+const WP_FLAIRS = {
+  lucky:   { name: '🍀 Lucky',           price: 50 },
+  degen:   { name: '🔥 Certified Degen', price: 100 },
+  roller:  { name: '🎲 High Roller',     price: 100 },
+  diamond: { name: '💎 Diamond Hands',   price: 150 },
+};
+
+function applyPassTheme() {
+  const card = document.getElementById('passCard');
+  if (!card) return;
+  const t = WP_THEMES[WP?.equipped?.theme] || WP_THEMES.default;
+  card.style.background  = `${t.css}, var(--bg-card)`;
+  card.style.borderColor = t.border;
+}
+
+async function wpSpend(action, kind, id, btn) {
+  if (!SESSION) return;
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const r = await fetch('/api/wenpoints-spend', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kickUsername: SESSION.kickUsername, accessToken: SESSION.accessToken, action, kind, id }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Failed');
+    WP = { ...(WP || {}), balance: d.balance, owned: d.owned, equipped: d.equipped };
+    renderNav();
+    renderWpCard();
+    applyPassTheme();
+    renderWpStore();
+    renderPassFlair();
+  } catch (e) {
+    alert(e.message);
+    renderWpStore(); // restore buttons
+  }
+}
+
+function renderPassFlair() {
+  const el = document.getElementById('passFlair');
+  if (!el) return;
+  const f = WP_FLAIRS[WP?.equipped?.flair];
+  el.textContent = f ? f.name : '';
+  el.style.display = f ? '' : 'none';
+}
+
+function renderWpStore() {
+  const el = document.getElementById('wpStore');
+  if (!el || !WP) return;
+  const owned = WP.owned || { theme: [], flair: [] };
+  const eq    = WP.equipped || {};
+  const row = (kind, id, name, price, swatch) => {
+    const isOwned = (owned[kind] || []).includes(id);
+    const isEq    = eq[kind] === id;
+    const btn = isEq
+      ? `<button class="btn portal" style="flex:0 0 auto;height:26px;font-size:10.5px;padding:0 10px;" onclick="wpSpend('unequip','${kind}','${id}',this)">Unequip</button>`
+      : isOwned
+        ? `<button class="btn portal" style="flex:0 0 auto;height:26px;font-size:10.5px;padding:0 10px;color:var(--accent);border-color:rgba(0,229,255,.35);" onclick="wpSpend('equip','${kind}','${id}',this)">Equip</button>`
+        : `<button class="btn watch" style="flex:0 0 auto;height:26px;font-size:10.5px;padding:0 10px;background:var(--accent);color:#04141a;" onclick="wpSpend('buy','${kind}','${id}',this)">⚡ ${price}</button>`;
+    return `<div style="display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:9px;padding:7px 10px;">
+      ${swatch || ''}
+      <span style="font-size:12px;font-weight:700;color:var(--bright);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;">${name}${isEq ? ' <span style="color:var(--green);font-size:9.5px;font-weight:900;">EQUIPPED</span>' : ''}</span>
+      ${btn}
+    </div>`;
+  };
+  const themes = Object.entries(WP_THEMES).filter(([id]) => id !== 'default').map(([id, t]) =>
+    row('theme', id, t.name, t.price, `<span style="width:16px;height:16px;border-radius:5px;background:${t.css};border:1px solid ${t.border};flex:0 0 auto;"></span>`)).join('');
+  const flairs = Object.entries(WP_FLAIRS).map(([id, f]) => row('flair', id, f.name, f.price, '')).join('');
+  el.innerHTML = `
+    <div style="font-size:11px;font-weight:900;color:var(--dim);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;">🛍 WenPoints Store <span style="font-weight:600;letter-spacing:0;text-transform:none;">— passport themes &amp; flair (cosmetics only)</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;">${themes}${flairs}</div>`;
+}
 
 function wpChipHtml() {
   if (!WP) return '';
@@ -428,6 +507,8 @@ async function loadPassport() {
         <span class="pstat">🪙 <b>${(c.points || 0).toLocaleString()}</b> ${esc(c.currency || 'points')}</span>
         <span class="pstat">🏆 <b>${c.wins || 0}</b> win${c.wins === 1 ? '' : 's'}</span>
         <span class="pstat">🎟 <b>${c.tickets || 0}</b> ticket${c.tickets === 1 ? '' : 's'}</span>
+        ${c.msgs ? `<span class="pstat">💬 <b>${(c.msgs).toLocaleString()}</b> chats</span>` : ''}
+        ${c.lastSeen ? `<span class="pstat" title="Last seen in this chat">👁 <b>${ago(c.lastSeen)}</b></span>` : ''}
         <span style="margin-left:auto;display:flex;gap:8px;">
           <a class="btn watch ${c.isLive ? '' : 'off'}" href="https://kick.com/${esc(c.channel)}" target="_blank" rel="noopener">${c.isLive ? '▶ Watch' : 'Kick'}</a>
           <a class="btn portal" href="/${esc(c.channel)}" target="_blank" rel="noopener">Rewards</a>
@@ -438,7 +519,7 @@ async function loadPassport() {
       <div class="pass-head">
         ${ava}
         <div>
-          <div class="pass-name">${esc(d.username)}</div>
+          <div class="pass-name">${esc(d.username)} <span id="passFlair" style="display:none;font-size:11px;font-weight:800;background:rgba(255,215,0,.1);border:1px solid rgba(255,215,0,.35);color:var(--gold, #ffd700);border-radius:999px;padding:3px 10px;vertical-align:middle;"></span></div>
           <div class="pass-sub">Community member across ${t.channels || 0} channel${t.channels === 1 ? '' : 's'}</div>
         </div>
         <div class="pass-totals">
@@ -448,10 +529,14 @@ async function loadPassport() {
         </div>
       </div>
       <div id="wpCard" style="margin-top:16px;background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.2);border-radius:12px;padding:14px 16px;"></div>
+      <div id="wpStore" style="margin-top:14px;"></div>
       ${rows
         ? `<div class="pass-rows">${rows}</div>`
         : `<div style="margin-top:14px;font-size:13px;color:var(--dim);">No activity yet — hang out in a WenBot creator's chat, earn points, join a giveaway, and your passport fills itself in. Pick a stream above and dive in! 👆</div>`}`;
     renderWpCard();
+    renderWpStore();
+    renderPassFlair();
+    applyPassTheme();
   } catch (e) {
     card.innerHTML = `<div style="font-size:13px;color:var(--dim);">Couldn't load your passport (${esc(e.message)}). <a href="javascript:location.reload()">Retry</a> or sign in again.</div>`;
   }

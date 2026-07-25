@@ -76,8 +76,9 @@ exports.handler = async (event) => {
             .where("status", "==", "raffle_entry")
             .limit(25).get().catch(() => null),
         ]);
-        const points  = viewerDoc.exists ? (viewerDoc.data().points || 0) : 0;
-        let  tickets  = 0;
+        const v = viewerDoc.exists ? viewerDoc.data() : {};
+        const points = v.points || 0;
+        let  tickets = 0;
         if (ticketSnap) ticketSnap.forEach((d) => { tickets += d.data().qty || 1; });
         if (!viewerDoc.exists && !winsAgg && !tickets) return null; // no presence here
         return {
@@ -86,6 +87,9 @@ exports.handler = async (event) => {
           currency: c.currency || "points",
           schedule: c.schedule || null,
           points, wins: winsAgg, tickets,
+          msgs:     v.msgCount || 0,
+          lastSeen: v.lastSeen || null,
+          streak:   v.checkinStreak || v.streak || 0,
         };
       } catch { return null; }
     }))).filter(Boolean)
@@ -99,6 +103,8 @@ exports.handler = async (event) => {
         lifetime:    wp.lifetime || 0,
         streak:      wp.streak || 0,
         lastCheckin: wp.lastCheckin || null,
+        owned:       wp.owned || { theme: [], flair: [] },
+        equipped:    wp.equipped || {},
       },
       totals: {
         channels: channels.length,
