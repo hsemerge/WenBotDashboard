@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tournament Overlay</title>
-  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root{--ov-accent:#00e5ff;--ov-accent-rgb:0,229,255;--ov-panel:rgba(13,17,23,0.93);--ov-text:#ffffff;--ov-font:'Inter',sans-serif;--ov-font-heading:'Exo 2',sans-serif;}
-    
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: transparent; font-family: var(--ov-font-heading); width: 680px; }
+    body { background: transparent; font-family: var(--ov-font-heading); width: fit-content; }
     .overlay { padding: 0; }
 
     .bracket-card {
@@ -23,34 +23,69 @@
     @keyframes fadeIn { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
 
     .top-bar {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 16px 8px;
+      display: flex; align-items: center; justify-content: space-between; gap: 14px;
+      padding: 12px 18px 10px;
       border-bottom: 1px solid rgba(255,255,255,0.06);
     }
-    .battle-title { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.45); letter-spacing: .08em; text-transform: uppercase; }
-    .status-pill {
-      font-size: 10px; font-weight: 800; padding: 3px 10px; border-radius: 20px; letter-spacing: .05em;
-    }
+    .battle-title { font-size: 15px; font-weight: 900; color: var(--ov-text); letter-spacing: .02em; }
+    .battle-sub   { font-family: var(--ov-font); font-size: 10.5px; font-weight: 600; color: rgba(255,255,255,0.45); margin-top: 2px; }
+    .status-pill  { font-size: 10px; font-weight: 800; padding: 3px 10px; border-radius: 20px; letter-spacing: .05em; white-space: nowrap; }
     .pill-reg  { background: rgba(83,224,119,0.15); color: #53e077; border: 1px solid rgba(83,224,119,0.3); }
     .pill-live { background: rgba(255,71,87,0.15); color: #ff4757; border: 1px solid rgba(255,71,87,0.3); }
-    .pill-done { background: rgba(var(--ov-accent-rgb),0.1); color: var(--ov-accent); border: 1px solid rgba(var(--ov-accent-rgb),0.25); }
+    .pill-done { background: rgba(255,215,0,0.12); color: #ffd700; border: 1px solid rgba(255,215,0,0.3); }
 
-    .match-row {
-      display: grid; grid-template-columns: 1fr 48px 1fr;
-      align-items: center; padding: 12px 14px;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
+    /* ── The bracket: one column per round ── */
+    .bracket { display: flex; gap: 14px; padding: 14px 18px 16px; align-items: stretch; }
+    .bcol { display: flex; flex-direction: column; width: 224px; flex: 0 0 auto; }
+    .bcol-head {
+      text-align: center; font-size: 10px; font-weight: 900; letter-spacing: .12em;
+      padding: 5px 8px; border-radius: 7px; margin-bottom: 10px;
+      background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.4);
+      border: 1px solid rgba(255,255,255,0.05);
     }
-    .match-row:last-child { border-bottom: none; }
-    .player { font-size: 15px; font-weight: 900; color: var(--ov-text); }
-    .player.winner { color: #ffd700; }
-    .player.loser { color: rgba(255,255,255,0.3); text-decoration: line-through; }
-    .player.bye { color: rgba(255,255,255,0.2); font-size: 11px; font-style: italic; }
-    .vs-col { text-align: center; font-size: 13px; font-weight: 900; color: rgba(255,255,255,0.3); }
-    .winner-badge { font-size: 11px; color: #ffd700; font-weight: 800; margin-bottom: 2px; }
+    .bcol-head.now  { background: rgba(var(--ov-accent-rgb),0.14); color: var(--ov-accent); border-color: rgba(var(--ov-accent-rgb),0.4); }
+    .bcol-head.done { color: rgba(255,255,255,0.55); }
+    .bcol-body { flex: 1; display: flex; flex-direction: column; justify-content: space-around; gap: 10px; }
+
+    .bmatch {
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .bmatch.hot { border-color: rgba(var(--ov-accent-rgb),0.55); box-shadow: 0 0 14px rgba(var(--ov-accent-rgb),0.12); }
+    .bp {
+      display: flex; align-items: center; gap: 7px;
+      padding: 7px 10px; min-height: 33px;
+    }
+    .bp + .bp { border-top: 1px solid rgba(255,255,255,0.05); }
+    .bp .nm {
+      font-size: 12.5px; font-weight: 800; color: var(--ov-text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;
+    }
+    .bp img { width: 20px; height: 20px; border-radius: 4px; object-fit: cover; flex: 0 0 auto; }
+    .bp .x  { font-family: var(--ov-font); font-size: 11px; font-weight: 800; color: rgba(255,255,255,0.55); flex: 0 0 auto; }
+    .bp.win  { background: rgba(255,215,0,0.07); }
+    .bp.win .nm { color: #ffd700; }
+    .bp.win .x  { color: #ffd700; }
+    .bp.lose .nm { color: rgba(255,255,255,0.28); text-decoration: line-through; }
+    .bp.lose .x  { color: rgba(255,255,255,0.25); }
+    .bp.tbd .nm  { color: rgba(255,255,255,0.22); font-style: italic; font-weight: 600; }
+    .bp.bye .nm  { color: rgba(255,255,255,0.2); font-style: italic; font-size: 11px; }
+
+    .champ {
+      margin-top: 10px; text-align: center;
+      background: linear-gradient(135deg, rgba(255,215,0,0.14), rgba(255,140,0,0.06));
+      border: 1px solid rgba(255,215,0,0.4); border-radius: 10px; padding: 8px 10px;
+      animation: champGlow 1.6s ease-in-out infinite;
+    }
+    @keyframes champGlow { 0%,100% { box-shadow: 0 0 8px rgba(255,215,0,0.15);} 50% { box-shadow: 0 0 20px rgba(255,215,0,0.35);} }
+    .champ .c1 { font-size: 9px; font-weight: 900; letter-spacing: .16em; color: rgba(255,215,0,0.7); }
+    .champ .c2 { font-size: 15px; font-weight: 900; color: #ffd700; margin-top: 2px; }
 
     .bottom-bar {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 8px 16px;
+      padding: 8px 18px;
       border-top: 1px solid rgba(255,255,255,0.06);
       background: rgba(0,0,0,0.2);
     }
@@ -59,29 +94,37 @@
     .pool-label { font-family: var(--ov-font); font-size: 11px; color: rgba(255,255,255,0.4); }
     .pool-label strong { color: #ffd700; }
 
+    /* Registration list reuses a narrow card */
+    .reg-wrap { width: 420px; }
+    .reg-row { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .reg-row:last-child { border-bottom: none; }
+    .reg-idx { font-size: 11px; color: rgba(255,255,255,0.35); min-width: 18px; }
+    .reg-name { font-size: 14px; font-weight: 800; color: var(--ov-text); }
+
     .hidden { display: none; }
   </style>
   <script src="/js/overlay-theme.js"></script>
 </head>
 <body>
 <div class="overlay" id="overlay">
-  <div class="hidden" id="bracketCard">
-    <div class="bracket-card">
-      <div class="top-bar">
-        <div class="battle-title" id="ovTitle">Tournament</div>
-        <div class="status-pill" id="ovStatus"></div>
-      </div>
-      <div id="ovMatches"></div>
-      <div class="bottom-bar">
-        <div class="info-label">Round <strong id="ovRound">1</strong> &nbsp;·&nbsp; <strong id="ovRemaining">—</strong> remaining</div>
-        <div class="pool-label">Prize Pool: <strong id="ovPool">0 pts</strong></div>
-      </div>
-    </div>
-  </div>
+  <div class="hidden" id="bracketCard"></div>
 </div>
 
 <script>
 const channel = new URLSearchParams(window.location.search).get('channel') || '';
+
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Round label by how many PLAYERS enter that round (bracketSize / 2^(r-1)).
+function roundLabel(round, size) {
+  const players = size / Math.pow(2, round - 1);
+  if (players <= 2)  return 'FINAL';
+  if (players === 4) return 'SEMIFINALS';
+  if (players === 8) return 'QUARTERFINALS';
+  return 'ROUND OF ' + players;
+}
 
 async function poll() {
   if (!channel) return;
@@ -98,96 +141,110 @@ function render(t) {
   if (!t?.active) { card.className = 'hidden'; return; }
   card.className = '';
 
-  document.getElementById('ovTitle').textContent = t.title || 'Tournament';
+  const statusPill = t.status === 'registration'
+    ? '<div class="status-pill pill-reg">● REGISTRATION OPEN</div>'
+    : t.status === 'active'
+      ? '<div class="status-pill pill-live">● LIVE</div>'
+      : '<div class="status-pill pill-done">🏆 COMPLETE</div>';
 
-  const pill = document.getElementById('ovStatus');
-  if (t.status === 'registration') {
-    pill.textContent = '● REGISTRATION OPEN'; pill.className = 'status-pill pill-reg';
-  } else if (t.status === 'active') {
-    pill.textContent = '● LIVE'; pill.className = 'status-pill pill-live';
-  } else {
-    pill.textContent = '✅ COMPLETE'; pill.className = 'status-pill pill-done';
-  }
+  const size = t.bracketSize || 8;
+  const sub  = `${size}-player bracket · highest multiplier wins`;
+  const head = `
+    <div class="top-bar">
+      <div><div class="battle-title">${escHtml(t.title || 'Tournament')}</div><div class="battle-sub">${sub}</div></div>
+      ${statusPill}
+    </div>`;
 
-  document.getElementById('ovRound').textContent     = t.currentRound || '—';
-  document.getElementById('ovPool').textContent      = (t.prizePool || 0).toLocaleString() + ' pts';
-  const alive = (t.participants || []).filter(p => !p.eliminated).length;
-  document.getElementById('ovRemaining').textContent = alive || '—';
-
+  // ── Registration: compact entrant list ──
   if (t.status === 'registration') {
     const participants = t.participants || [];
-    document.getElementById('ovMatches').innerHTML = participants.length
-      ? participants.slice(0, 6).map((p, i) =>
-          `<div class="match-row" style="display:flex;align-items:center;gap:10px;padding:8px 16px;">
-            <span style="font-size:11px;color:rgba(255,255,255,0.35);min-width:18px;">#${i+1}</span>
-            <span style="font-size:14px;font-weight:800;color:var(--ov-text);">${escHtml(p.kickUsername)}</span>
-          </div>`).join('') + (participants.length > 6 ? `<div style="padding:8px 16px;font-size:11px;color:rgba(255,255,255,0.4);">+${participants.length - 6} more…</div>` : '')
+    const rows = participants.length
+      ? participants.slice(0, 8).map((p, i) =>
+          `<div class="reg-row"><span class="reg-idx">#${i + 1}</span><span class="reg-name">${escHtml(p.kickUsername)}</span></div>`).join('')
+        + (participants.length > 8 ? `<div style="padding:8px 16px;font-family:var(--ov-font);font-size:11px;color:rgba(255,255,255,0.4);">+${participants.length - 8} more…</div>` : '')
       : '<div style="padding:14px 16px;font-size:13px;color:rgba(255,255,255,0.35);text-align:center;">Waiting for participants…</div>';
+    card.innerHTML = `<div class="bracket-card reg-wrap">${head}${rows}
+      <div class="bottom-bar"><div class="info-label"><strong>${participants.length}</strong> entered</div>
+      <div class="pool-label">Prize Pool: <strong>${(t.prizePool || 0).toLocaleString()} pts</strong></div></div></div>`;
     return;
   }
 
-  // Active: show current round matches
+  // ── Active / complete: the full bracket, every round as a column ──
+  const totalRounds = Math.max(1, Math.round(Math.log2(size)));
   const rounds = t.rounds || [];
-  const currentRound = rounds.find(r => r.round === t.currentRound);
-  if (!currentRound) { card.className = 'hidden'; return; }
+  const cur = t.currentRound || 1;
 
-  const thumb = (p) => (p && p.slot && p.slot.thumbnailUrl)
-    ? `<img src="${escHtml(p.slot.thumbnailUrl)}" alt="" style="width:26px;height:26px;border-radius:4px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none';">` : '';
-  const slotName = (p) => (p && p.slot && p.slot.name)
-    ? `<div style="font-size:10px;color:rgba(255,255,255,0.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;">${escHtml(p.slot.name)}</div>` : '';
-  const xOf = (m, side) => (m.score && m.score[side])
-    ? `<span style="font-size:12px;font-weight:800;color:#ffd700;margin-left:6px;">${(Number(m.score[side].x) || 0).toFixed(2)}x</span>` : '';
-
-  document.getElementById('ovMatches').innerHTML = currentRound.matches.slice(0, 5).map(m => {
-    const p1done = m.winner === 'p1';
-    const p2done = m.winner === 'p2';
-    const p1cls  = p1done ? 'winner' : (p2done ? 'loser' : '');
-    const p2cls  = p2done ? 'winner' : (p1done ? 'loser' : '');
-    return `<div class="match-row">
-      <div style="display:flex;align-items:center;gap:6px;min-width:0;">
-        ${thumb(m.p1)}
-        <div style="min-width:0;">
-          ${p1done ? '<div class="winner-badge">🥇</div>' : ''}
-          <div class="player ${p1cls}" style="display:flex;align-items:center;">${m.p1 ? escHtml(m.p1.kickUsername) : '<span class="bye">BYE</span>'}${xOf(m, 'p1')}</div>
-          ${slotName(m.p1)}
-        </div>
-      </div>
-      <div class="vs-col">VS</div>
-      <div style="display:flex;align-items:center;gap:6px;flex-direction:row-reverse;min-width:0;">
-        ${thumb(m.p2)}
-        <div style="min-width:0;text-align:right;">
-          ${p2done ? '<div class="winner-badge" style="text-align:right;">🥇</div>' : ''}
-          <div class="player ${p2cls}" style="display:flex;align-items:center;flex-direction:row-reverse;">${m.p2 ? escHtml(m.p2.kickUsername) : '<span class="bye">BYE</span>'}${xOf(m, 'p2')}</div>
-          ${slotName(m.p2)}
-        </div>
-      </div>
+  const playerRow = (p, cls, x) => `
+    <div class="bp ${cls}">
+      ${p && p.slot && p.slot.thumbnailUrl ? `<img src="${escHtml(p.slot.thumbnailUrl)}" alt="" onerror="this.style.display='none';">` : ''}
+      <span class="nm">${p ? escHtml(p.kickUsername) : (cls === 'bye' ? 'BYE' : 'TBD')}</span>
+      ${x ? `<span class="x">${x}</span>` : ''}
     </div>`;
-  }).join('');
+
+  const cols = [];
+  let champHtml = '';
+  for (let r = 1; r <= totalRounds; r++) {
+    const data   = rounds.find(x => x.round === r);
+    const count  = Math.max(1, size / Math.pow(2, r));
+    const headCls = r === cur && t.status === 'active' ? 'now' : (r < cur || t.status === 'complete' ? 'done' : '');
+    const cells = [];
+    for (let i = 0; i < count; i++) {
+      const m = data && data.matches && data.matches[i];
+      if (!m) { // future round — TBD placeholder
+        cells.push(`<div class="bmatch">${playerRow(null, 'tbd')}${playerRow(null, 'tbd')}</div>`);
+        continue;
+      }
+      const x1 = m.score && m.score.p1 ? (Number(m.score.p1.x) || 0).toFixed(2) + 'x' : '';
+      const x2 = m.score && m.score.p2 ? (Number(m.score.p2.x) || 0).toFixed(2) + 'x' : '';
+      const p1cls = !m.p1 ? 'bye' : m.winner === 'p1' ? 'win' : m.winner === 'p2' ? 'lose' : '';
+      const p2cls = !m.p2 ? 'bye' : m.winner === 'p2' ? 'win' : m.winner === 'p1' ? 'lose' : '';
+      const hot   = r === cur && t.status === 'active' && !m.winner && m.p1 && m.p2;
+      cells.push(`<div class="bmatch ${hot ? 'hot' : ''}">${playerRow(m.p1, p1cls, x1)}${playerRow(m.p2, p2cls, x2)}</div>`);
+
+      // Champion flourish under the final column once decided
+      if (r === totalRounds && m.winner) {
+        const champ = m.winner === 'p1' ? m.p1 : m.p2;
+        if (champ) champHtml = `<div class="champ"><div class="c1">🏆 CHAMPION</div><div class="c2">${escHtml(champ.kickUsername)}</div></div>`;
+      }
+    }
+    cols.push(`<div class="bcol"><div class="bcol-head ${headCls}">${roundLabel(r, size)}</div>
+      <div class="bcol-body">${cells.join('')}</div>${r === totalRounds ? champHtml : ''}</div>`);
+  }
+
+  const alive = (t.participants || []).filter(p => !p.eliminated).length;
+  card.innerHTML = `<div class="bracket-card">${head}
+    <div class="bracket">${cols.join('')}</div>
+    <div class="bottom-bar">
+      <div class="info-label">Round <strong>${cur}</strong> of <strong>${totalRounds}</strong> &nbsp;·&nbsp; <strong>${alive || '—'}</strong> remaining</div>
+      <div class="pool-label">Prize Pool: <strong>${(t.prizePool || 0).toLocaleString()} pts</strong></div>
+    </div></div>`;
 }
 
-function escHtml(s) {
-  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-// Demo state for the Overlay Studio preview (?demo=1) — fakes an active
-// tournament so the overlay chrome is visible without a real one running.
+// Demo state for the Overlay Studio preview (?demo=1) — a mid-tournament
+// 8-player bracket so the full chrome is visible without a real one running.
 const isDemo = new URLSearchParams(location.search).get('demo') === '1';
 if (isDemo) {
+  const P = (n) => ({ kickUsername: n });
   render({
     active: true,
-    status: 'registration',
+    status: 'active',
     title: 'Friday Showdown',
-    currentRound: 1,
+    bracketSize: 8,
+    currentRound: 2,
     prizePool: 12500,
-    participants: [
-      { kickUsername: 'streamer_fan',  eliminated: false },
-      { kickUsername: 'bigwinner99',   eliminated: false },
-      { kickUsername: 'slot_hunter',   eliminated: false },
-      { kickUsername: 'chipsking',     eliminated: false },
-      { kickUsername: 'kicker420',     eliminated: false },
-      { kickUsername: 'wenfan22',      eliminated: false },
+    participants: [P('bigwinner99'), P('slot_hunter'), P('chipsking'), P('wenfan22')],
+    rounds: [
+      { round: 1, matches: [
+        { p1: P('bigwinner99'),  p2: P('kicker420'),   winner: 'p1', score: { p1: { x: 141.2 }, p2: { x: 38.5 } } },
+        { p1: P('slot_hunter'),  p2: P('degenqueen'),  winner: 'p1', score: { p1: { x: 66.4 },  p2: { x: 12.1 } } },
+        { p1: P('chipsking'),    p2: P('mrpenguin'),   winner: 'p1', score: { p1: { x: 209.9 }, p2: { x: 87.3 } } },
+        { p1: P('wenfan22'),     p2: P('citizen25'),   winner: 'p1', score: { p1: { x: 55.0 },  p2: { x: 31.6 } } },
+      ]},
+      { round: 2, matches: [
+        { p1: P('bigwinner99'),  p2: P('slot_hunter'), winner: 'p1', score: { p1: { x: 98.7 }, p2: { x: 44.0 } } },
+        { p1: P('chipsking'),    p2: P('wenfan22'),    winner: null },
+      ]},
     ],
-    rounds: [],
   });
 } else if (channel) {
   poll();
