@@ -562,7 +562,9 @@ function signOut() {
 
 async function loadPassport() {
   if (!SESSION) return;
-  document.getElementById('passport').style.display = '';
+  // 'block', not '' — the stylesheet has #passport{display:none}, and clearing
+  // the inline style just falls back to that rule (section stayed invisible).
+  document.getElementById('passport').style.display = 'block';
   const card = document.getElementById('passCard');
   try {
     const r = await fetch('/api/community-passport', {
