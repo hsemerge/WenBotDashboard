@@ -29,10 +29,9 @@
   .top { display:flex; align-items:center; gap:12px; padding:12px 20px; position:sticky; top:0; z-index:40;
          background:rgba(13,17,23,.94); backdrop-filter:blur(8px); border-bottom:1px solid var(--border); flex-wrap:wrap; }
   .top-inner { max-width:1280px; margin:0 auto; width:100%; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-  .brand { display:flex; align-items:center; gap:9px; text-decoration:none; }
-  .brand img { height:38px; }
-  .brand span { font-family:'Exo 2',sans-serif; font-weight:900; font-size:16px; color:var(--bright); }
-  .brand b { color:var(--accent); font-size:11px; font-weight:800; letter-spacing:.05em; }
+  .brand { display:flex; align-items:center; gap:11px; text-decoration:none; }
+  .brand img { height:54px; }
+  .brand b { color:var(--accent); font-family:'Exo 2',sans-serif; font-size:15px; font-weight:900; letter-spacing:.12em; }
   .nav { display:flex; gap:2px; flex-wrap:wrap; }
   .nav button { background:none; border:none; color:var(--dim); font-family:'Inter',sans-serif; font-size:12.5px; font-weight:700;
                 padding:8px 12px; border-radius:8px; cursor:pointer; }
@@ -181,7 +180,7 @@
 <body>
 
 <div class="top"><div class="top-inner">
-  <a class="brand" href="/"><img src="/img/logo.png" alt="WenBot"><span>WenBot</span> <b>COMMUNITY</b></a>
+  <a class="brand" href="/"><img src="/img/logo.png" alt="WenBot"><b>COMMUNITY</b></a>
   <div class="nav" id="navBar">
     <button data-v="home" class="on" onclick="setView('home')">Home</button>
     <button data-v="wins" onclick="setView('wins')">💎 Big Wins</button>
@@ -549,9 +548,9 @@ function renderAuth() {
     chip.textContent = `⚡ ${(WP?.balance || 0).toLocaleString()} WP`;
     document.getElementById('signinBand').style.display = 'none';
   } else {
-    el.innerHTML = `<button class="kick-btn" onclick="initiateKickAuth('viewer', 'wenbot')">
-      <svg width="13" height="13" viewBox="0 0 512 512" fill="currentColor"><path d="M37 .036h164.448v113.621h54.71V56.845h54.731V.036h164.448v170.777h-54.73v56.81h-54.711v56.788h54.71v56.81h54.731v170.743H310.889v-56.81h-54.71v-56.788h-54.731v113.598H37V.036z"/></svg>
-      Sign in with Kick</button>`;
+    // ONE sign-in on screen: the passport band carries the CTA (it explains
+    // the "why"); no duplicate lime button in the top bar.
+    el.innerHTML = '';
     chip.style.display = 'none';
     document.getElementById('signinBand').style.display = 'block';
     document.getElementById('passBand').style.display = 'none';
