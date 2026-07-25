@@ -20,8 +20,24 @@ exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
   try {
     if (_cache && Date.now() - _cacheAt < TTL_MS) return res(200, _cache);
-    const doc = await getDb().collection("community").doc("stats").get();
+    const db = getDb();
+    const [doc, winsSnap] = await Promise.all([
+      db.collection("community").doc("stats").get(),
+      // Recent Big Wins for the public community page — display fields only.
+      db.collection("community").doc("wins").collection("posts")
+        .orderBy("ts", "desc").limit(6).get().catch(() => null),
+    ]);
     const d = doc.exists ? doc.data() : {};
+    const recentWins = [];
+    if (winsSnap) winsSnap.forEach((w) => {
+      const x = w.data();
+      recentWins.push({
+        name: x.name || x.channel || "creator", channel: x.channel || "",
+        avatarUrl: x.avatarUrl || null,
+        slot: x.slot || "", amount: x.amount || "", multi: x.multi || "",
+        ts: x.ts && x.ts.toMillis ? x.ts.toMillis() : (Number(x.ts) || null),
+      });
+    });
     _cache = {
       streamers:      d.streamers || 0,
       hoursStreamed:  d.hoursStreamed || 0,
@@ -35,6 +51,7 @@ exports.handler = async (event) => {
       winsShared:     d.winsShared || 0,
       casinosSupported: CASINOS_SUPPORTED,
       widgetsOffered:   WIDGETS_OFFERED,
+      recentWins,
       updatedAt:      d.updatedAt || null,
     };
     _cacheAt = Date.now();

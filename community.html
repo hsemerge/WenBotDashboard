@@ -136,11 +136,11 @@
     </div>
   </div>
 
-  <!-- COMMUNITY PULSE — slim ticker, deliberately lightweight so it never
-       competes with the creator cards. Can graduate to its own tab later. -->
-  <div id="secPulse" style="display:none;margin-top:26px;background:var(--bg-card);border:1px solid var(--border);border-radius:999px;padding:9px 18px;overflow-x:auto;white-space:nowrap;scrollbar-width:none;">
-    <span style="font-size:11px;font-weight:900;color:var(--accent);letter-spacing:.05em;margin-right:12px;">📈 PULSE</span>
-    <span id="pulseTicker" style="font-size:12px;color:var(--text);"></span>
+  <!-- COMMUNITY PULSE (tile grid — placement still under discussion; zero
+       stats are omitted so nothing renders as "0") -->
+  <div class="sec" id="secPulse" style="display:none;">
+    <div class="sec-title">📈 Community Pulse <span class="sub">the whole platform, in numbers</span></div>
+    <div class="grid" id="pulseGrid" style="grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));"></div>
   </div>
 
   <!-- YOUR PASSPORT (signed-in only) -->
@@ -153,6 +153,12 @@
   <div class="sec" id="secLive" style="display:none;">
     <div class="sec-title">🔴 Live right now</div>
     <div class="grid" id="liveGrid"></div>
+  </div>
+
+  <!-- RECENT BIG WINS -->
+  <div class="sec" id="secWins" style="display:none;">
+    <div class="sec-title">💎 Recent Big Wins <span class="sub">posted by the creators themselves</span></div>
+    <div class="grid" id="winsGrid" style="grid-template-columns:repeat(auto-fill, minmax(210px, 1fr));"></div>
   </div>
 
   <!-- STREAMING TODAY -->
@@ -259,9 +265,10 @@ function renderAll() {
   document.getElementById('secLive').style.display = live.length ? '' : 'none';
   document.getElementById('liveGrid').innerHTML = live.map(creatorCard).join('');
 
-  // Schedule board
+  // Schedule board — always visible; an honest empty state beats a section
+  // that silently vanishes and looks broken.
   const withSched = CREATORS.filter(c => c.schedule && Object.keys(c.schedule).length);
-  document.getElementById('secToday').style.display = withSched.length ? '' : 'none';
+  document.getElementById('secToday').style.display = '';
   if (withSched.length) {
     const today = DAYS[(new Date().getDay() + 6) % 7][0];
     document.getElementById('schedGrid').innerHTML = DAYS.map(([key, label]) => {
@@ -276,6 +283,9 @@ function renderAll() {
         ${rows || '<div style="font-size:11px;color:var(--dim);padding:4px 6px;">—</div>'}
       </div>`;
     }).join('');
+  } else {
+    document.getElementById('schedGrid').innerHTML =
+      '<div class="empty" style="grid-column:1/-1;">The weekly lineup is coming together — creators are setting their schedules now. Check back soon!</div>';
   }
 
   // All creators — favorites first, then live, then the rest
@@ -296,29 +306,53 @@ async function loadCreators() {
   } catch (e) { /* retry next poll */ }
 }
 
-// ── Community Pulse — slim one-line ticker; zero-stats are simply omitted ───
+// ── Community Pulse — stat tiles; zero stats are simply omitted ─────────────
 async function loadPulse() {
   try {
     const r = await fetch('/api/community-stats');
     const s = await r.json();
     if (!r.ok) return;
-    const bits = [
-      ['👑', s.streamers,        'creators'],
-      ['⏱',  s.hoursStreamed,    'hours streamed'],
-      ['🎁', s.giveawaysRun,     'giveaways run'],
-      ['🏆', s.winnersDrawn,     'winners drawn'],
-      ['🎰', s.huntsRun,         'bonus hunts'],
-      ['💎', s.winsShared,       'big wins shared'],
-      ['💬', s.commandsUsed,     'commands used'],
-      ['🎲', s.casinosSupported, 'casinos supported'],
-      ['🖥',  s.widgetsOffered,   'stream widgets'],
+    const tiles = [
+      ['👑', s.streamers,        'Creators on WenBot'],
+      ['⏱',  s.hoursStreamed,    'Hours streamed'],
+      ['🎁', s.giveawaysRun,     'Giveaways run'],
+      ['🏆', s.winnersDrawn,     'Winners drawn'],
+      ['🎰', s.huntsRun,         'Bonus hunts'],
+      ['💎', s.winsShared,       'Big wins shared'],
+      ['💬', s.commandsUsed,     'Commands used'],
+      ['🎲', s.casinosSupported, 'Casinos supported'],
+      ['🖥',  s.widgetsOffered,   'Stream widgets'],
     ].filter(t => Number(t[1]) > 0);
-    if (!bits.length) return;
-    document.getElementById('pulseTicker').innerHTML = bits.map(([icon, n, label]) =>
-      `${icon} <b style="color:var(--bright);font-variant-numeric:tabular-nums;">${Number(n).toLocaleString()}</b> <span style="color:var(--dim);">${label}</span>`
-    ).join(' <span style="color:var(--border);margin:0 8px;">|</span> ');
+    renderRecentWins(s.recentWins);
+    if (!tiles.length) return;
+    document.getElementById('pulseGrid').innerHTML = tiles.map(([icon, n, label]) => `
+      <div class="card" style="align-items:center;text-align:center;gap:4px;padding:16px 10px;">
+        <div style="font-size:20px;">${icon}</div>
+        <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--bright);font-variant-numeric:tabular-nums;">${Number(n).toLocaleString()}</div>
+        <div style="font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;">${label}</div>
+      </div>`).join('');
     document.getElementById('secPulse').style.display = '';
   } catch (e) { /* non-critical */ }
+}
+
+function renderRecentWins(wins) {
+  if (!wins || !wins.length) return;
+  document.getElementById('winsGrid').innerHTML = wins.map(w => `
+    <div class="card" style="gap:7px;">
+      <div style="display:flex;align-items:center;gap:9px;min-width:0;">
+        ${avaHtml(w, 30)}
+        <div style="min-width:0;">
+          <div style="font-size:12px;font-weight:800;color:var(--bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(w.name)}</div>
+          ${w.ts ? `<div style="font-size:10px;color:var(--dim);">${ago(w.ts)}</div>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-family:'Exo 2',sans-serif;font-size:19px;font-weight:900;color:var(--gold, #ffd700);">${esc(w.amount)}</span>
+        ${w.multi ? `<span style="font-size:10px;font-weight:900;color:var(--accent);background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);padding:2px 7px;border-radius:999px;">${esc(w.multi)}</span>` : ''}
+      </div>
+      <div style="font-size:11.5px;color:var(--text);font-weight:700;">🎰 ${esc(w.slot)}</div>
+    </div>`).join('');
+  document.getElementById('secWins').style.display = '';
 }
 
 // ── WenPoints ───────────────────────────────────────────────────────────────
