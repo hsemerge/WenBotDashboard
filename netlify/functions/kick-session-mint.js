@@ -23,6 +23,8 @@ const ALLOWED_RETURN_HOSTS = new Set([
   "www.skslots.co.uk",
   "irishqueenoftheslots.com",
   "www.irishqueenoftheslots.com",
+  "megrewards.com",
+  "www.megrewards.com",
 ]);
 
 const CODE_TTL_MS = 60 * 1000;

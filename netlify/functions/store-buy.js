@@ -58,9 +58,11 @@ exports.handler = async (event) => {
     const profile = streamerSnap.docs[0].data();
     const currency = profile.currencyName || "points";
 
-    // Requested quantity (raffle multi-ticket). Clamped 1..100; non-raffle items
+    // Requested quantity (raffle multi-ticket). Clamped 1..1000; non-raffle items
     // are forced to 1 inside the transaction (multi-buy is a raffle feature).
-    const reqQty = Math.max(1, Math.min(parseInt(body.quantity, 10) || 1, 100));
+    // Coalesced ticket storage makes a 1000-ticket buy a single doc increment,
+    // so the old 100 cap (a doc-write limit) no longer applies.
+    const reqQty = Math.max(1, Math.min(parseInt(body.quantity, 10) || 1, 1000));
 
     const itemRef   = db.collection("streamers").doc(uid).collection("store_items").doc(itemId);
     const viewerRef = db.collection("streamers").doc(uid).collection("viewers").doc(userKey);

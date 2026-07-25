@@ -633,7 +633,7 @@
       const qtyStepper = (it.isRaffleItem && !out)
         ? `<div class="store-qty">
             <button type="button" class="rq-btn" onclick="rqAdj('${esc(it.id)}',-1)" aria-label="Fewer">−</button>
-            <input id="rq-${esc(it.id)}" class="rq-input" type="number" value="1" min="1" max="100" inputmode="numeric" oninput="rqClamp('${esc(it.id)}')">
+            <input id="rq-${esc(it.id)}" class="rq-input" type="number" value="1" min="1" max="1000" inputmode="numeric" oninput="rqClamp('${esc(it.id)}')">
             <button type="button" class="rq-btn" onclick="rqAdj('${esc(it.id)}',1)" aria-label="More">+</button>
             <span class="rq-hint">tickets</span>
           </div>`
@@ -717,9 +717,9 @@
   window.viewerLogout = function () { clearKickViewerSession(); viewer = null; refreshViewerUI(); renderStore(window.__S || {}); };
 
   // Raffle quantity stepper helpers.
-  function rqVal(id) { const el = document.getElementById('rq-' + id); return Math.max(1, Math.min(100, parseInt(el?.value, 10) || 1)); }
+  function rqVal(id) { const el = document.getElementById('rq-' + id); return Math.max(1, Math.min(1000, parseInt(el?.value, 10) || 1)); }
   window.rqClamp = function (id) { const el = document.getElementById('rq-' + id); if (!el) return; el.value = rqVal(id); rqSyncBtn(id); };
-  window.rqAdj   = function (id, d) { const el = document.getElementById('rq-' + id); if (!el) return; el.value = Math.max(1, Math.min(100, (parseInt(el.value, 10) || 1) + d)); rqSyncBtn(id); };
+  window.rqAdj   = function (id, d) { const el = document.getElementById('rq-' + id); if (!el) return; el.value = Math.max(1, Math.min(1000, (parseInt(el.value, 10) || 1) + d)); rqSyncBtn(id); };
   function rqSyncBtn(id) {
     const item = _storeItems.find(i => i.id === id); if (!item || !viewer) return;
     const btn = document.querySelector(`.store-buy[data-id="${CSS.escape(id)}"]`);

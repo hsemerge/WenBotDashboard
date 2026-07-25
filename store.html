@@ -246,7 +246,7 @@
     const item = allItems.find(i => i.id === itemId);
     if (!item) return;
     const qtyEl = document.getElementById('qty-' + itemId);
-    const qty   = item.isRaffleItem ? Math.max(1, Math.min(100, parseInt(qtyEl?.value, 10) || 1)) : 1;
+    const qty   = item.isRaffleItem ? Math.max(1, Math.min(1000, parseInt(qtyEl?.value, 10) || 1)) : 1;
     const total = Number(item.price) * qty;
     const verb  = item.isRaffleItem
       ? (qty > 1 ? `buy ${qty} tickets for the ${item.name} raffle` : `enter the ${item.name} raffle`)
@@ -329,7 +329,7 @@
       let actionHtml;
       if (viewer && !outOfStock) {
         const qtyHtml = item.isRaffleItem
-          ? `<input type="number" id="qty-${escHtml(item.id)}" value="1" min="1" max="100" style="width:52px;background:var(--bg-card,#161b22);border:1px solid var(--border,#30363d);border-radius:7px;color:var(--bright,#f0f6fc);font-weight:700;font-size:13px;padding:7px;text-align:center;">`
+          ? `<input type="number" id="qty-${escHtml(item.id)}" value="1" min="1" max="1000" style="width:52px;background:var(--bg-card,#161b22);border:1px solid var(--border,#30363d);border-radius:7px;color:var(--bright,#f0f6fc);font-weight:700;font-size:13px;padding:7px;text-align:center;">`
           : '';
         actionHtml = `<div style="display:flex;gap:8px;margin-top:10px;">${qtyHtml}
           <button id="buy-${escHtml(item.id)}" onclick="buyItem('${escHtml(item.id)}')" style="flex:1;background:linear-gradient(90deg,var(--accent),#7b5cff);color:#fff;font-weight:800;border:none;border-radius:8px;padding:9px;cursor:pointer;font-size:13px;">${item.isRaffleItem ? '🎟 Buy tickets' : 'Buy'}</button>
