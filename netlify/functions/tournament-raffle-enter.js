@@ -93,6 +93,10 @@ exports.handler = async (event) => {
     batch.update(tRef, {
       prizePool:    admin.firestore.FieldValue.increment(entryCost),
       entriesCount: admin.firestore.FieldValue.increment(1),
+      // Overlay-facing registration stats: unique entrants + who joined last
+      // (the overlay can't afford to scan tournament_entries on its 2s poll).
+      entrantsCount: admin.firestore.FieldValue.increment(mine.size === 0 ? 1 : 0),
+      lastEntrant:   kickUsername,
       updatedAt:    Date.now(),
     });
     await batch.commit();
