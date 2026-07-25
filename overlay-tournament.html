@@ -216,21 +216,28 @@ function render(t) {
     let rows, enteredLabel;
     if (t.mode === 'raffle') {
       // Raffle-mode entries live in the ticket pool (tournament_entries), not
-      // participants — show the pool counters + who joined last.
-      const tix  = t.entriesCount  || 0;
-      const who  = t.entrantsCount || 0;
+      // participants — show the pool counters + who joined last. When the
+      // config is one-ticket-per-person, tickets == people, so one number.
+      const tix   = t.entriesCount  || 0;
+      const who   = Math.max(t.entrantsCount || 0, tix ? 1 : 0);
+      const multi = (t.config && t.config.maxEntriesPerUser || 1) > 1;
+      const stats = multi
+        ? `<div><div style="font-size:24px;font-weight:900;color:var(--ov-accent);">🎟 ${tix.toLocaleString()}</div>
+             <div style="font-family:var(--ov-font);font-size:9.5px;font-weight:800;letter-spacing:.1em;color:rgba(255,255,255,0.4);">TICKETS IN THE DRAW</div></div>
+           <div><div style="font-size:24px;font-weight:900;color:var(--ov-text);">${who.toLocaleString()}</div>
+             <div style="font-family:var(--ov-font);font-size:9.5px;font-weight:800;letter-spacing:.1em;color:rgba(255,255,255,0.4);">PLAYERS ENTERED</div></div>`
+        : `<div><div style="font-size:24px;font-weight:900;color:var(--ov-accent);">🎟 ${tix.toLocaleString()}</div>
+             <div style="font-family:var(--ov-font);font-size:9.5px;font-weight:800;letter-spacing:.1em;color:rgba(255,255,255,0.4);">PLAYERS ENTERED</div></div>`;
       rows = tix
         ? `<div style="padding:18px 16px;text-align:center;">
-            <div style="display:flex;justify-content:center;gap:26px;">
-              <div><div style="font-size:24px;font-weight:900;color:var(--ov-accent);">🎟 ${tix.toLocaleString()}</div>
-                <div style="font-family:var(--ov-font);font-size:9.5px;font-weight:800;letter-spacing:.1em;color:rgba(255,255,255,0.4);">TICKETS IN THE POOL</div></div>
-              <div><div style="font-size:24px;font-weight:900;color:var(--ov-text);">${who.toLocaleString()}</div>
-                <div style="font-family:var(--ov-font);font-size:9.5px;font-weight:800;letter-spacing:.1em;color:rgba(255,255,255,0.4);">ENTRANTS</div></div>
-            </div>
+            <div style="display:flex;justify-content:center;gap:26px;">${stats}</div>
             ${t.lastEntrant ? `<div style="margin-top:12px;font-family:var(--ov-font);font-size:11.5px;color:rgba(255,255,255,0.55);">Latest entry: <strong style="color:#31d76c;">${escHtml(t.lastEntrant)}</strong> 🎉</div>` : ''}
+            <div style="margin-top:8px;font-family:var(--ov-font);font-size:10px;color:rgba(255,255,255,0.35);">Bracket players are drawn from the entries when registration closes</div>
           </div>`
-        : '<div style="padding:18px 16px;font-size:13px;color:rgba(255,255,255,0.35);text-align:center;">🎟 Ticket pool is open — be the first in!</div>';
-      enteredLabel = `<strong>${tix.toLocaleString()}</strong> ticket${tix === 1 ? '' : 's'} · <strong>${who.toLocaleString()}</strong> entrant${who === 1 ? '' : 's'}`;
+        : '<div style="padding:18px 16px;font-size:13px;color:rgba(255,255,255,0.35);text-align:center;">🎟 Entries are open — be the first in!</div>';
+      enteredLabel = multi
+        ? `<strong>${tix.toLocaleString()}</strong> ticket${tix === 1 ? '' : 's'} · <strong>${who.toLocaleString()}</strong> player${who === 1 ? '' : 's'}`
+        : `<strong>${tix.toLocaleString()}</strong> entered`;
     } else {
       const participants = t.participants || [];
       rows = participants.length

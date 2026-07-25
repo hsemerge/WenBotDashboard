@@ -282,13 +282,26 @@ function renderRegistration(t, s) {
     btn.textContent = isFull ? 'Tournament Full' : `Enter for ${(t.entryCost || 0).toLocaleString()} pts`;
   }
 
-  // Participants list
-  document.getElementById('tnViewPartList').innerHTML = participants.map((p, i) =>
-    `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
-      <span style="color:var(--dim);font-size:12px;min-width:24px;">#${i+1}</span>
-      <span style="font-size:13px;font-weight:600;">${escHtml(p.kickUsername)}</span>
-      ${viewerSession?.kickUsernameKey === p.kickUsernameKey || viewerSession?.kickUsername?.toLowerCase() === p.kickUsernameKey ? '<span style="font-size:10px;color:var(--green);font-weight:700;margin-left:auto;">YOU</span>' : ''}
-    </div>`).join('') || '<div class="text-dim" style="font-size:13px;text-align:center;padding:16px;">No participants yet.</div>';
+  // Participants list. Raffle mode: bracket players don't exist until the
+  // draw — the list slot explains the pool instead of "No participants yet"
+  // (which read as broken next to a non-zero count).
+  const partTitle = document.getElementById('tnViewPartCount')?.parentElement;
+  if (partTitle) partTitle.firstChild.textContent = isRaffle ? '🎟 Entries (' : 'Participants (';
+  if (isRaffle) {
+    document.getElementById('tnViewPartList').innerHTML = entered
+      ? `<div class="text-dim" style="font-size:12.5px;line-height:1.7;text-align:center;padding:12px;">
+          <strong style="color:var(--bright,#fff);">${entered.toLocaleString()}</strong> ${cfg.maxEntriesPerUser > 1 ? 'ticket' + (entered === 1 ? '' : 's') + ' in the draw' : (entered === 1 ? 'player' : 'players') + ' entered'}${t.lastEntrant ? ` · latest: <strong style="color:var(--green,#31d76c);">${escHtml(t.lastEntrant)}</strong>` : ''}<br>
+          The <strong style="color:var(--bright,#fff);">${t.bracketSize}</strong> bracket players are <strong>drawn from the entries</strong> when registration closes. ${cfg.maxEntriesPerUser > 1 ? 'More tickets = better odds!' : ''}
+        </div>`
+      : '<div class="text-dim" style="font-size:13px;text-align:center;padding:16px;">No entries yet — be the first in!</div>';
+  } else {
+    document.getElementById('tnViewPartList').innerHTML = participants.map((p, i) =>
+      `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <span style="color:var(--dim);font-size:12px;min-width:24px;">#${i+1}</span>
+        <span style="font-size:13px;font-weight:600;">${escHtml(p.kickUsername)}</span>
+        ${viewerSession?.kickUsernameKey === p.kickUsernameKey || viewerSession?.kickUsername?.toLowerCase() === p.kickUsernameKey ? '<span style="font-size:10px;color:var(--green);font-weight:700;margin-left:auto;">YOU</span>' : ''}
+      </div>`).join('') || '<div class="text-dim" style="font-size:13px;text-align:center;padding:16px;">No participants yet.</div>';
+  }
 }
 
 function renderBracket(t, s) {

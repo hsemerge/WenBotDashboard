@@ -22,8 +22,30 @@ exports.handler = async (event) => {
     if (streamerSnap.empty) return res(404, { error: "Channel not found" });
     const uid = streamerSnap.docs[0].id;
 
-    const tDoc = await db.collection("streamers").doc(uid).collection("tournaments").doc("current").get();
+    const tRef = db.collection("streamers").doc(uid).collection("tournaments").doc("current");
+    const tDoc = await tRef.get();
     const tournament = tDoc.exists ? tDoc.data() : null;
+
+    // Self-heal: raffle tournaments created before entrantsCount existed show
+    // "N tickets · 0 entrants". Derive it ONCE from the entries pool (bounded)
+    // and persist — the field existing afterwards keeps this from re-running.
+    if (tournament && tournament.mode === "raffle" && tournament.status === "registration"
+        && (tournament.entriesCount || 0) > 0 && tournament.entrantsCount === undefined) {
+      try {
+        const snap = await db.collection("streamers").doc(uid)
+          .collection("tournament_entries").limit(500).get();
+        const uniq = new Set();
+        let last = null, lastAt = 0;
+        snap.forEach((d) => {
+          const e = d.data();
+          if (e.kickUsernameKey) uniq.add(e.kickUsernameKey);
+          if ((e.enteredAt || 0) > lastAt) { lastAt = e.enteredAt || 0; last = e.kickUsername || null; }
+        });
+        tournament.entrantsCount = uniq.size;
+        if (last && !tournament.lastEntrant) tournament.lastEntrant = last;
+        tRef.set({ entrantsCount: uniq.size, ...(last ? { lastEntrant: last } : {}) }, { merge: true }).catch(() => {});
+      } catch { /* cosmetic — skip */ }
+    }
 
     let viewerPoints = null;
     let isVerified   = false;
