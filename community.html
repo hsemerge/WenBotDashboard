@@ -136,13 +136,6 @@
     </div>
   </div>
 
-  <!-- COMMUNITY PULSE (tile grid — placement still under discussion; zero
-       stats are omitted so nothing renders as "0") -->
-  <div class="sec" id="secPulse" style="display:none;">
-    <div class="sec-title">📈 Community Pulse <span class="sub">the whole platform, in numbers</span></div>
-    <div class="grid" id="pulseGrid" style="grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));"></div>
-  </div>
-
   <!-- YOUR PASSPORT (signed-in only) -->
   <div class="sec" id="passport">
     <div class="sec-title">🪪 Your WenBot Passport <span class="sub">everything you've earned, across the whole community</span></div>
@@ -153,6 +146,16 @@
   <div class="sec" id="secLive" style="display:none;">
     <div class="sec-title">🔴 Live right now</div>
     <div class="grid" id="liveGrid"></div>
+  </div>
+
+  <!-- SECTION TABS — keeps the page dense; each area gets room in its own tab -->
+  <div id="cTabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:30px;border-bottom:1px solid var(--border);padding-bottom:0;">
+  </div>
+
+  <!-- COMMUNITY PULSE -->
+  <div class="sec" id="secPulse" style="display:none;">
+    <div class="sec-title">📈 Community Pulse <span class="sub">the whole platform, in numbers — counting since July 2026</span></div>
+    <div class="grid" id="pulseGrid" style="grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));"></div>
   </div>
 
   <!-- RECENT BIG WINS -->
@@ -168,13 +171,13 @@
   </div>
 
   <!-- ALL CREATORS -->
-  <div class="sec">
+  <div class="sec" id="secAll">
     <div class="sec-title">🌐 All creators <span class="sub">⭐ favorite the ones you follow — they float to the top</span></div>
     <div class="grid" id="allGrid"><div class="empty">Loading creators…</div></div>
   </div>
 
   <!-- NEW HERE? -->
-  <div class="sec">
+  <div class="sec" id="secGuide">
     <div class="sec-title">👋 New here? <span class="sub">how the community works</span></div>
     <div class="grid" style="grid-template-columns:repeat(auto-fill, minmax(230px, 1fr));">
       <div class="card"><div style="font-size:22px;">🤖</div><div class="cname" style="white-space:normal;">What is WenBot?</div>
@@ -205,6 +208,47 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'
 const DAYS = [['mon','Mon'],['tue','Tue'],['wed','Wed'],['thu','Thu'],['fri','Fri'],['sat','Sat'],['sun','Sun']];
 let CREATORS = [];
 let SESSION  = null;
+
+// ── Section tabs — keep the page dense, give each area its own room ─────────
+const CTABS = [
+  ['creators', '🌐 Creators', ['secLive', 'secAll']],
+  ['wins',     '💎 Big Wins', ['secWins']],
+  ['sched',    '📅 Schedule', ['secToday']],
+  ['pulse',    '📈 Pulse',    ['secPulse']],
+  ['guide',    '👋 New here?', ['secGuide']],
+];
+let cTab = 'creators';
+let LIVE_COUNT = 0;
+
+function setCTab(t) {
+  cTab = t;
+  document.querySelectorAll('#cTabs button').forEach(b => {
+    const on = b.dataset.tab === t;
+    b.style.color = on ? 'var(--accent)' : 'var(--dim)';
+    b.style.borderBottomColor = on ? 'var(--accent)' : 'transparent';
+  });
+  applyTabVisibility();
+}
+
+function applyTabVisibility() {
+  const active = CTABS.find(x => x[0] === cTab) || CTABS[0];
+  CTABS.forEach(([, , secs]) => secs.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    let show = active[2].includes(id);
+    if (id === 'secLive' && !LIVE_COUNT) show = false; // no live section when nobody's live
+    el.style.display = show ? '' : 'none';
+  }));
+}
+
+function renderTabBar() {
+  const bar = document.getElementById('cTabs');
+  const live = LIVE_COUNT ? ` (${LIVE_COUNT} live)` : '';
+  bar.innerHTML = CTABS.map(([id, label]) =>
+    `<button data-tab="${id}" onclick="setCTab('${id}')" style="background:none;border:none;border-bottom:2px solid transparent;color:var(--dim);font-family:'Exo 2',sans-serif;font-weight:800;font-size:13.5px;padding:10px 14px 12px;cursor:pointer;">${label}${id === 'creators' ? live : ''}</button>`
+  ).join('');
+  setCTab(cTab);
+}
 
 function favs() { try { return JSON.parse(localStorage.getItem('wb_comm_favs') || '[]'); } catch { return []; } }
 function toggleFav(ch) {
@@ -262,13 +306,11 @@ function renderAll() {
   document.getElementById('hsViewers').textContent  = live.reduce((s, c) => s + (c.viewers || 0), 0).toLocaleString();
 
   // Live strip
-  document.getElementById('secLive').style.display = live.length ? '' : 'none';
+  LIVE_COUNT = live.length;
   document.getElementById('liveGrid').innerHTML = live.map(creatorCard).join('');
 
-  // Schedule board — always visible; an honest empty state beats a section
-  // that silently vanishes and looks broken.
+  // Schedule board — honest empty state, never a vanished section.
   const withSched = CREATORS.filter(c => c.schedule && Object.keys(c.schedule).length);
-  document.getElementById('secToday').style.display = '';
   if (withSched.length) {
     const today = DAYS[(new Date().getDay() + 6) % 7][0];
     document.getElementById('schedGrid').innerHTML = DAYS.map(([key, label]) => {
@@ -295,6 +337,8 @@ function renderAll() {
   document.getElementById('allGrid').innerHTML = sorted.length
     ? sorted.map(creatorCard).join('')
     : '<div class="empty">The community is warming up — check back soon.</div>';
+
+  renderTabBar();
 }
 
 async function loadCreators() {
@@ -324,19 +368,23 @@ async function loadPulse() {
       ['🖥',  s.widgetsOffered,   'Stream widgets'],
     ].filter(t => Number(t[1]) > 0);
     renderRecentWins(s.recentWins);
-    if (!tiles.length) return;
-    document.getElementById('pulseGrid').innerHTML = tiles.map(([icon, n, label]) => `
+    document.getElementById('pulseGrid').innerHTML = tiles.length
+      ? tiles.map(([icon, n, label]) => `
       <div class="card" style="align-items:center;text-align:center;gap:4px;padding:16px 10px;">
         <div style="font-size:20px;">${icon}</div>
         <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--bright);font-variant-numeric:tabular-nums;">${Number(n).toLocaleString()}</div>
         <div style="font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;">${label}</div>
-      </div>`).join('');
-    document.getElementById('secPulse').style.display = '';
+      </div>`).join('')
+      : '<div class="empty" style="grid-column:1/-1;">The counters are warming up — the whole platform\'s numbers land here shortly.</div>';
   } catch (e) { /* non-critical */ }
 }
 
 function renderRecentWins(wins) {
-  if (!wins || !wins.length) return;
+  if (!wins || !wins.length) {
+    document.getElementById('winsGrid').innerHTML =
+      '<div class="empty" style="grid-column:1/-1;">No wins posted yet — creators share their biggest hits here. The next 500x is loading… 🎰</div>';
+    return;
+  }
   document.getElementById('winsGrid').innerHTML = wins.map(w => `
     <div class="card" style="gap:7px;">
       <div style="display:flex;align-items:center;gap:9px;min-width:0;">
@@ -352,7 +400,6 @@ function renderRecentWins(wins) {
       </div>
       <div style="font-size:11.5px;color:var(--text);font-weight:700;">🎰 ${esc(w.slot)}</div>
     </div>`).join('');
-  document.getElementById('secWins').style.display = '';
 }
 
 // ── WenPoints ───────────────────────────────────────────────────────────────
@@ -579,6 +626,7 @@ async function loadPassport() {
 // ── Boot ────────────────────────────────────────────────────────────────────
 SESSION = getKickViewerSession();
 renderNav();
+renderTabBar();
 loadCreators();
 loadPulse();
 setInterval(loadCreators, 60000);
