@@ -65,13 +65,20 @@
     }
     .bp img { width: 20px; height: 20px; border-radius: 4px; object-fit: cover; flex: 0 0 auto; }
     .bp .x  { font-family: var(--ov-font); font-size: 11px; font-weight: 800; color: rgba(255,255,255,0.55); flex: 0 0 auto; }
-    .bp.win  { background: rgba(255,215,0,0.07); }
-    .bp.win .nm { color: #ffd700; }
-    .bp.win .x  { color: #ffd700; }
-    .bp.lose .nm { color: rgba(255,255,255,0.28); text-decoration: line-through; }
-    .bp.lose .x  { color: rgba(255,255,255,0.25); }
+    .bp.win  { background: rgba(49,215,108,0.09); box-shadow: inset 2px 0 0 #31d76c; }
+    .bp.win .nm { color: #31d76c; }
+    .bp.win .x  { color: #31d76c; }
+    .bp.lose .nm { color: rgba(255,71,87,0.75); }
+    .bp.lose .x  { color: rgba(255,71,87,0.55); }
     .bp.tbd .nm  { color: rgba(255,255,255,0.22); font-style: italic; font-weight: 600; }
     .bp.bye .nm  { color: rgba(255,255,255,0.2); font-style: italic; font-size: 11px; }
+
+    .bigwin { display: flex; align-items: center; gap: 7px; background: rgba(255,215,0,0.09);
+              border: 1px solid rgba(255,215,0,0.35); border-radius: 8px; padding: 4px 10px; white-space: nowrap; }
+    .bigwin .bw1 { font-size: 8.5px; font-weight: 900; letter-spacing: .1em; color: rgba(255,215,0,0.65); }
+    .bigwin .bw2 { font-size: 13px; font-weight: 900; color: #ffd700; font-family: var(--ov-font); }
+    .bigwin .bw3 { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.6); font-family: var(--ov-font);
+                   max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
 
     .champ {
       margin-top: 10px; text-align: center;
@@ -177,9 +184,16 @@ function render(t) {
   const playerRow = (p, cls, x) => `
     <div class="bp ${cls}">
       ${p && p.slot && p.slot.thumbnailUrl ? `<img src="${escHtml(p.slot.thumbnailUrl)}" alt="" onerror="this.style.display='none';">` : ''}
-      <span class="nm">${p ? escHtml(p.kickUsername) : (cls === 'bye' ? 'BYE' : 'TBD')}</span>
+      <span class="nm">${cls === 'win' ? '🏆 ' : ''}${p ? escHtml(p.kickUsername) : (cls === 'bye' ? 'BYE' : 'TBD')}</span>
       ${x ? `<span class="x">${x}</span>` : ''}
     </div>`;
+
+  // Biggest win so far — shown as a gold chip in the top bar (like the ref).
+  let bigX = 0, bigWho = null, bigSlot = '';
+  rounds.forEach(rd => (rd.matches || []).forEach(m => ['p1', 'p2'].forEach(side => {
+    const v = m.score && m.score[side] ? Number(m.score[side].x) || 0 : 0;
+    if (v > bigX) { bigX = v; bigWho = m[side]; bigSlot = (m[side] && m[side].slot && m[side].slot.name) || ''; }
+  })));
 
   const cols = [];
   let champHtml = '';
@@ -212,7 +226,15 @@ function render(t) {
   }
 
   const alive = (t.participants || []).filter(p => !p.eliminated).length;
-  card.innerHTML = `<div class="bracket-card">${head}
+  const bigChip = bigX > 0
+    ? `<div class="bigwin"><span class="bw1">💥 BIGGEST WIN</span><span class="bw2">${bigX.toFixed(2)}x</span><span class="bw3">${escHtml(bigSlot || (bigWho ? bigWho.kickUsername : ''))}</span></div>`
+    : '';
+  const headB = `
+    <div class="top-bar">
+      <div><div class="battle-title">${escHtml(t.title || 'Tournament')}</div><div class="battle-sub">${sub}</div></div>
+      <div style="display:flex;align-items:center;gap:10px;">${bigChip}${statusPill}</div>
+    </div>`;
+  card.innerHTML = `<div class="bracket-card">${headB}
     <div class="bracket">${cols.join('')}</div>
     <div class="bottom-bar">
       <div class="info-label">Round <strong>${cur}</strong> of <strong>${totalRounds}</strong> &nbsp;·&nbsp; <strong>${alive || '—'}</strong> remaining</div>
