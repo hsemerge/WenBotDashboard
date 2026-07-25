@@ -142,15 +142,18 @@
     <div class="pass-card" id="passCard"><div style="color:var(--dim);font-size:13px;">Loading your passport…</div></div>
   </div>
 
+  <!-- SECTION TABS — keeps the page dense; each area gets room in its own tab -->
+  <div id="cTabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:30px;border-bottom:1px solid var(--border);padding-bottom:0;">
+  </div>
+
   <!-- LIVE NOW -->
   <div class="sec" id="secLive" style="display:none;">
     <div class="sec-title">🔴 Live right now</div>
     <div class="grid" id="liveGrid"></div>
   </div>
 
-  <!-- SECTION TABS — keeps the page dense; each area gets room in its own tab -->
-  <div id="cTabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:30px;border-bottom:1px solid var(--border);padding-bottom:0;">
-  </div>
+  <!-- Divider between Live-now and the rest of the creators tab -->
+  <div id="liveSep" style="display:none;border-top:1px solid var(--border);margin-top:30px;"></div>
 
   <!-- COMMUNITY PULSE -->
   <div class="sec" id="secPulse" style="display:none;">
@@ -211,7 +214,7 @@ let SESSION  = null;
 
 // ── Section tabs — keep the page dense, give each area its own room ─────────
 const CTABS = [
-  ['creators', '🌐 Creators', ['secLive', 'secAll']],
+  ['creators', '🌐 Creators', ['secLive', 'liveSep', 'secAll']],
   ['wins',     '💎 Big Wins', ['secWins']],
   ['sched',    '📅 Schedule', ['secToday']],
   ['pulse',    '📈 Pulse',    ['secPulse']],
@@ -236,7 +239,7 @@ function applyTabVisibility() {
     const el = document.getElementById(id);
     if (!el) return;
     let show = active[2].includes(id);
-    if (id === 'secLive' && !LIVE_COUNT) show = false; // no live section when nobody's live
+    if ((id === 'secLive' || id === 'liveSep') && !LIVE_COUNT) show = false; // no live section when nobody's live
     el.style.display = show ? '' : 'none';
   }));
 }
