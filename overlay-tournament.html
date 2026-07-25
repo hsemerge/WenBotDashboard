@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tournament Overlay</title>
-  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,700;0,800;0,900;1,800;1,900&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root{--ov-accent:#00e5ff;--ov-accent-rgb:0,229,255;--ov-panel:rgba(13,17,23,0.93);--ov-text:#ffffff;--ov-font:'Inter',sans-serif;--ov-font-heading:'Exo 2',sans-serif;}
 
@@ -12,88 +12,125 @@
     body { background: transparent; font-family: var(--ov-font-heading); width: fit-content; }
     .overlay { padding: 0; }
 
-    .bracket-card {
-      background: var(--ov-panel);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 14px;
+    /* WenBot arena panel: glass + faint diagonal circuit lines + accent spine */
+    .arena {
+      position: relative;
+      background:
+        repeating-linear-gradient(115deg, rgba(var(--ov-accent-rgb),0.022) 0 2px, transparent 2px 26px),
+        var(--ov-panel);
+      border: 1px solid rgba(var(--ov-accent-rgb),0.22);
+      border-radius: 16px;
       overflow: hidden;
       backdrop-filter: blur(12px);
       animation: fadeIn 0.4s ease;
+      box-shadow: 0 0 34px rgba(var(--ov-accent-rgb),0.07);
     }
     @keyframes fadeIn { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
 
     .top-bar {
       display: flex; align-items: center; justify-content: space-between; gap: 14px;
-      padding: 12px 18px 10px;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      padding: 12px 18px 11px;
+      border-bottom: 1px solid rgba(var(--ov-accent-rgb),0.18);
+      background: linear-gradient(90deg, rgba(var(--ov-accent-rgb),0.08), transparent 45%, rgba(var(--ov-accent-rgb),0.05));
     }
-    .battle-title { font-size: 15px; font-weight: 900; color: var(--ov-text); letter-spacing: .02em; }
-    .battle-sub   { font-family: var(--ov-font); font-size: 10.5px; font-weight: 600; color: rgba(255,255,255,0.45); margin-top: 2px; }
+    .t-title { display: flex; align-items: center; gap: 10px; }
+    .t-bolt { width: 26px; height: 26px; border-radius: 7px; background: rgba(var(--ov-accent-rgb),0.14);
+              border: 1px solid rgba(var(--ov-accent-rgb),0.45); display: flex; align-items: center; justify-content: center;
+              font-size: 14px; }
+    .battle-title { font-size: 15px; font-weight: 900; font-style: italic; color: var(--ov-text); letter-spacing: .03em; }
+    .battle-sub   { font-family: var(--ov-font); font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.45); margin-top: 1px; text-transform: uppercase; letter-spacing: .08em; }
     .status-pill  { font-size: 10px; font-weight: 800; padding: 3px 10px; border-radius: 20px; letter-spacing: .05em; white-space: nowrap; }
     .pill-reg  { background: rgba(83,224,119,0.15); color: #53e077; border: 1px solid rgba(83,224,119,0.3); }
     .pill-live { background: rgba(255,71,87,0.15); color: #ff4757; border: 1px solid rgba(255,71,87,0.3); }
     .pill-done { background: rgba(255,215,0,0.12); color: #ffd700; border: 1px solid rgba(255,215,0,0.3); }
 
-    /* ── The bracket: one column per round ── */
-    .bracket { display: flex; gap: 14px; padding: 14px 18px 16px; align-items: stretch; }
-    .bcol { display: flex; flex-direction: column; width: 224px; flex: 0 0 auto; }
-    .bcol-head {
-      text-align: center; font-size: 10px; font-weight: 900; letter-spacing: .12em;
-      padding: 5px 8px; border-radius: 7px; margin-bottom: 10px;
-      background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.4);
-      border: 1px solid rgba(255,255,255,0.05);
-    }
-    .bcol-head.now  { background: rgba(var(--ov-accent-rgb),0.14); color: var(--ov-accent); border-color: rgba(var(--ov-accent-rgb),0.4); }
-    .bcol-head.done { color: rgba(255,255,255,0.55); }
-    .bcol-body { flex: 1; display: flex; flex-direction: column; justify-content: space-around; gap: 10px; }
-
-    .bmatch {
-      background: rgba(255,255,255,0.025);
-      border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 10px;
-      overflow: hidden;
-    }
-    .bmatch.hot { border-color: rgba(var(--ov-accent-rgb),0.55); box-shadow: 0 0 14px rgba(var(--ov-accent-rgb),0.12); }
-    .bp {
-      display: flex; align-items: center; gap: 7px;
-      padding: 7px 10px; min-height: 33px;
-    }
-    .bp + .bp { border-top: 1px solid rgba(255,255,255,0.05); }
-    .bp .nm {
-      font-size: 12.5px; font-weight: 800; color: var(--ov-text);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;
-    }
-    .bp img { width: 20px; height: 20px; border-radius: 4px; object-fit: cover; flex: 0 0 auto; }
-    .bp .x  { font-family: var(--ov-font); font-size: 11px; font-weight: 800; color: rgba(255,255,255,0.55); flex: 0 0 auto; }
-    .bp.win  { background: rgba(49,215,108,0.09); box-shadow: inset 2px 0 0 #31d76c; }
-    .bp.win .nm { color: #31d76c; }
-    .bp.win .x  { color: #31d76c; }
-    .bp.lose .nm { color: rgba(255,71,87,0.75); }
-    .bp.lose .x  { color: rgba(255,71,87,0.55); }
-    .bp.tbd .nm  { color: rgba(255,255,255,0.22); font-style: italic; font-weight: 600; }
-    .bp.bye .nm  { color: rgba(255,255,255,0.2); font-style: italic; font-size: 11px; }
-
     .bigwin { display: flex; align-items: center; gap: 7px; background: rgba(255,215,0,0.09);
-              border: 1px solid rgba(255,215,0,0.35); border-radius: 8px; padding: 4px 10px; white-space: nowrap; }
+              border: 1px solid rgba(255,215,0,0.35); border-radius: 8px; padding: 4px 10px; white-space: nowrap;
+              transform: skew(-8deg); }
+    .bigwin > * { transform: skew(8deg); }
     .bigwin .bw1 { font-size: 8.5px; font-weight: 900; letter-spacing: .1em; color: rgba(255,215,0,0.65); }
     .bigwin .bw2 { font-size: 13px; font-weight: 900; color: #ffd700; font-family: var(--ov-font); }
     .bigwin .bw3 { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.6); font-family: var(--ov-font);
                    max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
 
-    .champ {
-      margin-top: 10px; text-align: center;
-      background: linear-gradient(135deg, rgba(255,215,0,0.14), rgba(255,140,0,0.06));
-      border: 1px solid rgba(255,215,0,0.4); border-radius: 10px; padding: 8px 10px;
-      animation: champGlow 1.6s ease-in-out infinite;
+    /* ── CENTER-OUT ARENA BRACKET ──
+       Sides converge on the Final in the middle: [R1-L]…[SF-L] [FINAL] [SF-R]…[R1-R] */
+    .field { display: flex; gap: 12px; padding: 16px 18px 16px; align-items: stretch; }
+    .bcol  { display: flex; flex-direction: column; width: 196px; flex: 0 0 auto; }
+    .bcol.center { width: 220px; justify-content: center; }
+
+    .rchip {
+      align-self: center; margin-bottom: 12px;
+      font-size: 9.5px; font-weight: 900; font-style: italic; letter-spacing: .14em;
+      padding: 4px 14px; transform: skew(-12deg);
+      background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.38);
+      border: 1px solid rgba(255,255,255,0.07);
     }
-    @keyframes champGlow { 0%,100% { box-shadow: 0 0 8px rgba(255,215,0,0.15);} 50% { box-shadow: 0 0 20px rgba(255,215,0,0.35);} }
-    .champ .c1 { font-size: 9px; font-weight: 900; letter-spacing: .16em; color: rgba(255,215,0,0.7); }
-    .champ .c2 { font-size: 15px; font-weight: 900; color: #ffd700; margin-top: 2px; }
+    .rchip span { display: inline-block; transform: skew(12deg); }
+    .rchip.now  { background: rgba(var(--ov-accent-rgb),0.15); color: var(--ov-accent); border-color: rgba(var(--ov-accent-rgb),0.5);
+                  box-shadow: 0 0 12px rgba(var(--ov-accent-rgb),0.18); }
+    .rchip.done { color: rgba(255,255,255,0.55); }
+
+    .bcol-body { flex: 1; display: flex; flex-direction: column; justify-content: space-around; gap: 12px; }
+
+    .bmatch {
+      position: relative;
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 4px 12px 4px 12px; /* WenBot cut-corner signature */
+      overflow: hidden;
+    }
+    .bmatch::before { /* accent notch, top-left */
+      content: ''; position: absolute; top: 0; left: 0;
+      border-style: solid; border-width: 9px 9px 0 0;
+      border-color: rgba(var(--ov-accent-rgb),0.5) transparent transparent transparent;
+    }
+    .bmatch.hot { border-color: rgba(var(--ov-accent-rgb),0.6); animation: hotPulse 1.6s ease-in-out infinite; }
+    @keyframes hotPulse { 0%,100% { box-shadow: 0 0 6px rgba(var(--ov-accent-rgb),0.12);} 50% { box-shadow: 0 0 18px rgba(var(--ov-accent-rgb),0.3);} }
+
+    .bp { display: flex; align-items: center; gap: 7px; padding: 7px 10px; min-height: 33px; }
+    .bp + .bp { border-top: 1px solid rgba(255,255,255,0.05); }
+    .bp img { width: 20px; height: 20px; border-radius: 4px; object-fit: cover; flex: 0 0 auto; }
+    .bp .nm { font-size: 12.5px; font-weight: 800; color: var(--ov-text);
+              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+    .xchip  { font-family: var(--ov-font); font-size: 10.5px; font-weight: 800; color: rgba(255,255,255,0.55);
+              background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+              border-radius: 6px; padding: 1px 7px; flex: 0 0 auto; }
+    .adv    { font-size: 10px; color: #31d76c; flex: 0 0 auto; }
+
+    .bp.win  { background: linear-gradient(90deg, rgba(49,215,108,0.12), transparent 70%); }
+    .bp.win .nm { color: #31d76c; }
+    .bp.win .xchip { color: #31d76c; border-color: rgba(49,215,108,0.4); background: rgba(49,215,108,0.08); }
+    .bp.lose .nm { color: rgba(255,71,87,0.7); }
+    .bp.lose .xchip { color: rgba(255,71,87,0.55); border-color: rgba(255,71,87,0.2); }
+    .bp.tbd .nm  { color: rgba(255,255,255,0.22); font-style: italic; font-weight: 600; }
+    .bp.bye .nm  { color: rgba(255,255,255,0.2); font-style: italic; font-size: 11px; }
+
+    /* Center column: crown + the Final */
+    .crown {
+      text-align: center; margin-bottom: 12px;
+    }
+    .crown .ring {
+      width: 46px; height: 46px; margin: 0 auto 6px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; font-size: 22px;
+      background: radial-gradient(circle, rgba(255,215,0,0.16), rgba(255,215,0,0.03) 70%);
+      border: 1px solid rgba(255,215,0,0.4);
+    }
+    .crown .lbl { font-size: 8.5px; font-weight: 900; letter-spacing: .2em; color: rgba(255,215,0,0.6); }
+    .crown .who { font-size: 15px; font-weight: 900; font-style: italic; color: rgba(255,255,255,0.28); margin-top: 2px; }
+    .crown.won .ring { animation: champGlow 1.6s ease-in-out infinite; }
+    .crown.won .who  { color: #ffd700; }
+    @keyframes champGlow { 0%,100% { box-shadow: 0 0 10px rgba(255,215,0,0.2);} 50% { box-shadow: 0 0 26px rgba(255,215,0,0.5);} }
+
+    .bmatch.final { border-color: rgba(255,215,0,0.35); border-radius: 4px 14px 4px 14px; }
+    .bmatch.final::before { border-top-color: rgba(255,215,0,0.55); }
+    .bmatch.final .bp { min-height: 40px; }
+    .bmatch.final .bp .nm { font-size: 14px; }
 
     .bottom-bar {
       display: flex; align-items: center; justify-content: space-between;
       padding: 8px 18px;
-      border-top: 1px solid rgba(255,255,255,0.06);
+      border-top: 1px solid rgba(var(--ov-accent-rgb),0.15);
       background: rgba(0,0,0,0.2);
     }
     .info-label { font-family: var(--ov-font); font-size: 11px; color: rgba(255,255,255,0.4); }
@@ -101,7 +138,7 @@
     .pool-label { font-family: var(--ov-font); font-size: 11px; color: rgba(255,255,255,0.4); }
     .pool-label strong { color: #ffd700; }
 
-    /* Registration list reuses a narrow card */
+    /* Registration list */
     .reg-wrap { width: 420px; }
     .reg-row { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); }
     .reg-row:last-child { border-bottom: none; }
@@ -124,12 +161,12 @@ function escHtml(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// Round label by how many PLAYERS enter that round (bracketSize / 2^(r-1)).
+// Round label by how many PLAYERS enter that round.
 function roundLabel(round, size) {
   const players = size / Math.pow(2, round - 1);
   if (players <= 2)  return 'FINAL';
-  if (players === 4) return 'SEMIFINALS';
-  if (players === 8) return 'QUARTERFINALS';
+  if (players === 4) return 'SEMIS';
+  if (players === 8) return 'QUARTERS';
   return 'ROUND OF ' + players;
 }
 
@@ -155,11 +192,11 @@ function render(t) {
       : '<div class="status-pill pill-done">🏆 COMPLETE</div>';
 
   const size = t.bracketSize || 8;
-  const sub  = `${size}-player bracket · highest multiplier wins`;
-  const head = `
-    <div class="top-bar">
-      <div><div class="battle-title">${escHtml(t.title || 'Tournament')}</div><div class="battle-sub">${sub}</div></div>
-      ${statusPill}
+  const titleBlock = `
+    <div class="t-title">
+      <div class="t-bolt">⚡</div>
+      <div><div class="battle-title">${escHtml(t.title || 'Tournament')}</div>
+      <div class="battle-sub">${size}-player arena · highest multi advances</div></div>
     </div>`;
 
   // ── Registration: compact entrant list ──
@@ -170,72 +207,99 @@ function render(t) {
           `<div class="reg-row"><span class="reg-idx">#${i + 1}</span><span class="reg-name">${escHtml(p.kickUsername)}</span></div>`).join('')
         + (participants.length > 8 ? `<div style="padding:8px 16px;font-family:var(--ov-font);font-size:11px;color:rgba(255,255,255,0.4);">+${participants.length - 8} more…</div>` : '')
       : '<div style="padding:14px 16px;font-size:13px;color:rgba(255,255,255,0.35);text-align:center;">Waiting for participants…</div>';
-    card.innerHTML = `<div class="bracket-card reg-wrap">${head}${rows}
+    card.innerHTML = `<div class="arena reg-wrap">
+      <div class="top-bar">${titleBlock}${statusPill}</div>${rows}
       <div class="bottom-bar"><div class="info-label"><strong>${participants.length}</strong> entered</div>
       <div class="pool-label">Prize Pool: <strong>${(t.prizePool || 0).toLocaleString()} pts</strong></div></div></div>`;
     return;
   }
 
-  // ── Active / complete: the full bracket, every round as a column ──
+  // ── Active / complete: center-out arena bracket ──
   const totalRounds = Math.max(1, Math.round(Math.log2(size)));
   const rounds = t.rounds || [];
   const cur = t.currentRound || 1;
 
-  const playerRow = (p, cls, x) => `
-    <div class="bp ${cls}">
-      ${p && p.slot && p.slot.thumbnailUrl ? `<img src="${escHtml(p.slot.thumbnailUrl)}" alt="" onerror="this.style.display='none';">` : ''}
-      <span class="nm">${cls === 'win' ? '🏆 ' : ''}${p ? escHtml(p.kickUsername) : (cls === 'bye' ? 'BYE' : 'TBD')}</span>
-      ${x ? `<span class="x">${x}</span>` : ''}
-    </div>`;
-
-  // Biggest win so far — shown as a gold chip in the top bar (like the ref).
+  // Biggest win so far — gold chip in the top bar.
   let bigX = 0, bigWho = null, bigSlot = '';
   rounds.forEach(rd => (rd.matches || []).forEach(m => ['p1', 'p2'].forEach(side => {
     const v = m.score && m.score[side] ? Number(m.score[side].x) || 0 : 0;
     if (v > bigX) { bigX = v; bigWho = m[side]; bigSlot = (m[side] && m[side].slot && m[side].slot.name) || ''; }
   })));
-
-  const cols = [];
-  let champHtml = '';
-  for (let r = 1; r <= totalRounds; r++) {
-    const data   = rounds.find(x => x.round === r);
-    const count  = Math.max(1, size / Math.pow(2, r));
-    const headCls = r === cur && t.status === 'active' ? 'now' : (r < cur || t.status === 'complete' ? 'done' : '');
-    const cells = [];
-    for (let i = 0; i < count; i++) {
-      const m = data && data.matches && data.matches[i];
-      if (!m) { // future round — TBD placeholder
-        cells.push(`<div class="bmatch">${playerRow(null, 'tbd')}${playerRow(null, 'tbd')}</div>`);
-        continue;
-      }
-      const x1 = m.score && m.score.p1 ? (Number(m.score.p1.x) || 0).toFixed(2) + 'x' : '';
-      const x2 = m.score && m.score.p2 ? (Number(m.score.p2.x) || 0).toFixed(2) + 'x' : '';
-      const p1cls = !m.p1 ? 'bye' : m.winner === 'p1' ? 'win' : m.winner === 'p2' ? 'lose' : '';
-      const p2cls = !m.p2 ? 'bye' : m.winner === 'p2' ? 'win' : m.winner === 'p1' ? 'lose' : '';
-      const hot   = r === cur && t.status === 'active' && !m.winner && m.p1 && m.p2;
-      cells.push(`<div class="bmatch ${hot ? 'hot' : ''}">${playerRow(m.p1, p1cls, x1)}${playerRow(m.p2, p2cls, x2)}</div>`);
-
-      // Champion flourish under the final column once decided
-      if (r === totalRounds && m.winner) {
-        const champ = m.winner === 'p1' ? m.p1 : m.p2;
-        if (champ) champHtml = `<div class="champ"><div class="c1">🏆 CHAMPION</div><div class="c2">${escHtml(champ.kickUsername)}</div></div>`;
-      }
-    }
-    cols.push(`<div class="bcol"><div class="bcol-head ${headCls}">${roundLabel(r, size)}</div>
-      <div class="bcol-body">${cells.join('')}</div>${r === totalRounds ? champHtml : ''}</div>`);
-  }
-
-  const alive = (t.participants || []).filter(p => !p.eliminated).length;
   const bigChip = bigX > 0
     ? `<div class="bigwin"><span class="bw1">💥 BIGGEST WIN</span><span class="bw2">${bigX.toFixed(2)}x</span><span class="bw3">${escHtml(bigSlot || (bigWho ? bigWho.kickUsername : ''))}</span></div>`
     : '';
-  const headB = `
-    <div class="top-bar">
-      <div><div class="battle-title">${escHtml(t.title || 'Tournament')}</div><div class="battle-sub">${sub}</div></div>
-      <div style="display:flex;align-items:center;gap:10px;">${bigChip}${statusPill}</div>
+
+  // dir: 'l' (advance →), 'r' (advance ←), 'c' (final)
+  const playerRow = (p, cls, x, dir) => {
+    const arrowL = dir === 'r' && cls === 'win' ? '<span class="adv">◀</span>' : '';
+    const arrowR = dir === 'l' && cls === 'win' ? '<span class="adv">▶</span>' : '';
+    return `<div class="bp ${cls}">
+      ${arrowL}
+      ${p && p.slot && p.slot.thumbnailUrl ? `<img src="${escHtml(p.slot.thumbnailUrl)}" alt="" onerror="this.style.display='none';">` : ''}
+      <span class="nm">${p ? escHtml(p.kickUsername) : (cls === 'bye' ? 'BYE' : 'TBD')}</span>
+      ${x ? `<span class="xchip">${x}</span>` : ''}
+      ${arrowR}
     </div>`;
-  card.innerHTML = `<div class="bracket-card">${headB}
-    <div class="bracket">${cols.join('')}</div>
+  };
+
+  const matchCell = (m, r, dir, extraCls = '') => {
+    if (!m) return `<div class="bmatch ${extraCls}">${playerRow(null, 'tbd', '', dir)}${playerRow(null, 'tbd', '', dir)}</div>`;
+    const x1 = m.score && m.score.p1 ? (Number(m.score.p1.x) || 0).toFixed(2) + 'x' : '';
+    const x2 = m.score && m.score.p2 ? (Number(m.score.p2.x) || 0).toFixed(2) + 'x' : '';
+    const p1cls = !m.p1 ? 'bye' : m.winner === 'p1' ? 'win' : m.winner === 'p2' ? 'lose' : '';
+    const p2cls = !m.p2 ? 'bye' : m.winner === 'p2' ? 'win' : m.winner === 'p1' ? 'lose' : '';
+    const hot   = r === cur && t.status === 'active' && !m.winner && m.p1 && m.p2;
+    return `<div class="bmatch ${extraCls} ${hot ? 'hot' : ''}">${playerRow(m.p1, p1cls, x1, dir)}${playerRow(m.p2, p2cls, x2, dir)}</div>`;
+  };
+
+  const chipCls = (r) => r === cur && t.status === 'active' ? 'now' : (r < cur || t.status === 'complete' ? 'done' : '');
+  const col = (r, dir) => {
+    const data  = rounds.find(x => x.round === r);
+    const count = Math.max(1, size / Math.pow(2, r));
+    const half  = count > 1 ? count / 2 : 1;
+    const idx0  = dir === 'l' ? 0 : half;
+    const cells = [];
+    for (let i = 0; i < half; i++) {
+      const m = data && data.matches && data.matches[idx0 + i];
+      cells.push(matchCell(m, r, dir));
+    }
+    return `<div class="bcol"><div class="rchip ${chipCls(r)}"><span>${roundLabel(r, size)}</span></div>
+      <div class="bcol-body">${cells.join('')}</div></div>`;
+  };
+
+  // Final + champion crown, center column.
+  const finalData  = rounds.find(x => x.round === totalRounds);
+  const finalMatch = finalData && finalData.matches && finalData.matches[0];
+  let champName = null;
+  if (finalMatch && finalMatch.winner) {
+    const c = finalMatch.winner === 'p1' ? finalMatch.p1 : finalMatch.p2;
+    if (c) champName = c.kickUsername;
+  }
+  const centerCol = `<div class="bcol center">
+    <div class="crown ${champName ? 'won' : ''}">
+      <div class="ring">👑</div>
+      <div class="lbl">CHAMPION</div>
+      <div class="who">${champName ? escHtml(champName) : 'TBD'}</div>
+    </div>
+    <div class="rchip ${chipCls(totalRounds)}" style="align-self:center;"><span>${roundLabel(totalRounds, size)}</span></div>
+    ${matchCell(finalMatch, totalRounds, 'c', 'final')}
+  </div>`;
+
+  // Assemble: left side (rounds 1..R-1), center final, right side mirrored.
+  const left  = [];
+  const right = [];
+  for (let r = 1; r < totalRounds; r++) {
+    left.push(col(r, 'l'));
+    right.unshift(col(r, 'r'));
+  }
+  const field = totalRounds === 1
+    ? `<div class="field">${centerCol}</div>`
+    : `<div class="field">${left.join('')}${centerCol}${right.join('')}</div>`;
+
+  const alive = (t.participants || []).filter(p => !p.eliminated).length;
+  card.innerHTML = `<div class="arena">
+    <div class="top-bar">${titleBlock}<div style="display:flex;align-items:center;gap:10px;">${bigChip}${statusPill}</div></div>
+    ${field}
     <div class="bottom-bar">
       <div class="info-label">Round <strong>${cur}</strong> of <strong>${totalRounds}</strong> &nbsp;·&nbsp; <strong>${alive || '—'}</strong> remaining</div>
       <div class="pool-label">Prize Pool: <strong>${(t.prizePool || 0).toLocaleString()} pts</strong></div>
@@ -243,7 +307,7 @@ function render(t) {
 }
 
 // Demo state for the Overlay Studio preview (?demo=1) — a mid-tournament
-// 8-player bracket so the full chrome is visible without a real one running.
+// 8-player arena so the full chrome is visible without a real one running.
 const isDemo = new URLSearchParams(location.search).get('demo') === '1';
 if (isDemo) {
   const P = (n) => ({ kickUsername: n });
