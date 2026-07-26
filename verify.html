@@ -213,6 +213,9 @@
           <svg width="18" height="14" viewBox="0 0 71 55" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M60.1 4.9A58.6 58.6 0 0 0 45.5.4a40 40 0 0 0-1.8 3.7 54.2 54.2 0 0 0-16.3 0A38 38 0 0 0 25.6.4 58.8 58.8 0 0 0 11 4.9C1.6 19 -1 32.7.3 46.3a59.1 59.1 0 0 0 18 9.1 43.5 43.5 0 0 0 3.8-6.2 38.4 38.4 0 0 1-6-2.9l1.4-1.1a42 42 0 0 0 36 0l1.5 1.1a38.2 38.2 0 0 1-6 2.9 43.2 43.2 0 0 0 3.8 6.2 58.8 58.8 0 0 0 18-9.1C72.3 30.6 68.4 17 60.1 4.9ZM23.8 38.2c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.2 6.4 7.2c0 4-2.9 7.2-6.4 7.2Zm23.7 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2 6.5 3.2 6.4 7.2c0 4-2.8 7.2-6.4 7.2Z"/></svg>
           <span id="discordLinkBtnText">Connect Discord &amp; Join</span>
         </button>
+        <div style="margin-top:10px;">
+          <a href="#" onclick="vfDeclineDiscord(); return false;" style="font-size:12px; color:#8b949e; text-decoration:underline;">Maybe later — I'm done for now</a>
+        </div>
         <p id="discordLinked" style="display:none; color:#00ff88; font-size:13px; margin-top:10px; font-weight:600;">✅ Discord linked!</p>
       </div>
       <!-- Where next — back to the page they verified for, or wenbot.gg for
@@ -351,37 +354,102 @@
   // Two tiers: Verified (Kick + casino linked, or Kick-only via skip) and
   // ✦ Fully Verified (Discord linked too). Updated from verify-status on load
   // and again after every successful link on this page.
-  const vfState = { kickName: null, casinoLinked: false, casinoSkipped: false, casinoUser: null, discordLinked: false };
+  const vfState = { kickName: null, casinoLinked: false, casinoSkipped: false, casinoUser: null, discordLinked: false, discordDeclined: false, discordAvailable: true };
+  // "Maybe later" on the Discord step is remembered per channel — no nagging
+  // "1 step left" on every return visit.
+  try { if (channel && localStorage.getItem('wb_dcskip_' + channel.toLowerCase()) === '1') vfState.discordDeclined = true; } catch {}
+
+  // One step row. state: done | cur | next | skip — cur glows cyan with
+  // "← You're here", done is a green check circle, skip an amber dash.
+  function vfRow(state, num, label, sub, right, rightColor) {
+    const numStyle = {
+      done: 'background:rgba(0,255,136,0.12);color:var(--green);border:1px solid rgba(0,255,136,0.4);',
+      cur:  'background:rgba(0,229,255,0.12);color:var(--accent);border:1px solid rgba(0,229,255,0.55);box-shadow:0 0 8px rgba(0,229,255,0.25);',
+      next: 'background:transparent;color:var(--text-dim);border:1px solid var(--border);',
+      skip: 'background:rgba(255,167,38,0.1);color:#ffa726;border:1px solid rgba(255,167,38,0.4);',
+    }[state];
+    const rowStyle = state === 'cur'  ? 'background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.35);'
+                   : state === 'next' ? 'opacity:.55;border:1px solid transparent;'
+                   :                    'border:1px solid transparent;';
+    return `<div style="display:flex;align-items:center;gap:10px;font-size:12.5px;padding:7px 9px;border-radius:8px;${rowStyle}">
+      <span style="width:22px;height:22px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;${numStyle}">${num}</span>
+      <div style="min-width:0;">
+        <div style="color:var(--bright);font-weight:700;">${label}</div>
+        ${sub ? `<div style="font-size:11px;color:var(--text-dim);margin-top:1px;line-height:1.4;">${sub}</div>` : ''}
+      </div>
+      <span style="margin-left:auto;font-weight:600;text-align:right;font-size:11.5px;flex-shrink:0;color:${rightColor};">${right}</span>
+    </div>`;
+  }
 
   function renderVfProgress() {
     const card = document.getElementById('vfProgress');
     if (!card || !vfState.kickName) return;
-    const cn  = casinoName || 'Casino';
-    const row = (icon, label, right, color) =>
-      `<div style="display:flex;align-items:center;gap:9px;font-size:12.5px;">
-        <span style="width:18px;text-align:center;">${icon}</span>
-        <span style="color:var(--text);">${escHtml(label)}</span>
-        <span style="margin-left:auto;color:${color};font-weight:600;text-align:right;">${right}</span>
-      </div>`;
-    const rows = [ row('💬', 'Kick', `✓ Linked — ${escHtml(vfState.kickName)}`, 'var(--green)') ];
-    if (vfState.casinoLinked)       rows.push(row('🎰', cn, `✓ Linked — ${escHtml(vfState.casinoUser || '')}`, 'var(--green)'));
-    else if (vfState.casinoSkipped) rows.push(row('🎰', cn, '○ Skipped — add anytime', '#ffa726'));
-    else                            rows.push(row('🎰', cn, '○ Not linked', 'var(--text-dim)'));
-    rows.push(vfState.discordLinked
-      ? row('🎮', 'Discord', '✓ Linked', 'var(--green)')
-      : row('🎮', 'Discord', '○ Not linked', 'var(--text-dim)'));
+    const cn         = casinoName || 'Casino';
+    const dAvail     = vfState.discordAvailable;
+    const casinoDone = vfState.casinoLinked || vfState.casinoSkipped;
+    const dcDone     = vfState.discordLinked || vfState.discordDeclined || !dAvail;
+    const total      = dAvail ? 3 : 2;
+    // 0 = everything settled. With a dtoken, Discord attaches automatically on
+    // the step-2 submit, so it shows "Ready" instead of becoming the current step.
+    const step = !casinoDone ? 2 : (!dcDone ? 3 : 0);
+    const dcName = guildInfo?.name ? escHtml(guildInfo.name) : escHtml(channel) + "'s Discord";
+
+    const rows = [ vfRow('done', '✓', 'Kick', escHtml(vfState.kickName), 'Linked', 'var(--green)') ];
+    if (vfState.casinoLinked)       rows.push(vfRow('done', '✓', escHtml(cn), escHtml(vfState.casinoUser || ''), 'Linked', 'var(--green)'));
+    else if (vfState.casinoSkipped) rows.push(vfRow('skip', '–', escHtml(cn), 'Add anytime for code-based activities', 'Skipped', '#ffa726'));
+    else                            rows.push(vfRow('cur',  '2', escHtml(cn), 'Enter your username below' + (vsCasinoRequired ? '' : ' — or skip'), "← You're here", 'var(--accent)'));
+    if (dAvail) {
+      if (vfState.discordLinked)        rows.push(vfRow('done', '✓', dcName, 'Role + /points & /buy', 'Linked', 'var(--green)'));
+      else if (vfState.discordDeclined) rows.push(vfRow('skip', '–', dcName, 'Connect anytime for role + /points & /buy', 'Skipped', '#ffa726'));
+      else if (dtoken && step === 2)    rows.push(vfRow('next', '3', dcName, 'Auto-links when you finish step 2', 'Ready', 'var(--text-dim)'));
+      else if (dtoken && step === 3)    rows.push(vfRow('cur',  '3', dcName, 'Confirm above to attach your Discord', "← You're here", 'var(--accent)'));
+      else if (step === 3)              rows.push(vfRow('cur',  '3', dcName, 'Connect below to finish verifying', "← You're here", 'var(--accent)'));
+      else                              rows.push(vfRow('next', '3', dcName, 'Role + /points & /buy', 'Up next', 'var(--text-dim)'));
+    }
     document.getElementById('vfProgressRows').innerHTML = rows.join('');
 
     const pill = document.getElementById('vfProgressState');
-    const casinoDone = vfState.casinoLinked || vfState.casinoSkipped;
+    const gold = vfState.casinoLinked && vfState.discordLinked && dAvail;
     let text, col, bg, bord;
-    if (vfState.casinoLinked && vfState.discordLinked)  { text = '✦ Fully Verified';           col = '#ffd700';        bg = 'rgba(255,215,0,0.08)';  bord = 'rgba(255,215,0,0.35)'; }
-    else if (casinoDone && vfState.discordLinked)       { text = `✓ Verified · ${cn} skipped`; col = 'var(--green)';   bg = 'rgba(0,255,136,0.08)';  bord = 'rgba(0,255,136,0.3)'; }
-    else if (casinoDone)                                { text = '✓ Verified · 1 step left';   col = 'var(--green)';   bg = 'rgba(0,255,136,0.08)';  bord = 'rgba(0,255,136,0.3)'; }
-    else                                                { text = '○ Not verified yet';         col = 'var(--text-dim)'; bg = 'transparent';           bord = 'var(--border)'; }
+    if (step)                          { text = `Step ${step} of ${total}`;        col = 'var(--accent)';  bg = 'rgba(0,229,255,0.08)'; bord = 'rgba(0,229,255,0.3)'; }
+    else if (gold)                     { text = '✦ Fully Verified';                col = '#ffd700';        bg = 'rgba(255,215,0,0.08)'; bord = 'rgba(255,215,0,0.35)'; }
+    else if (vfState.casinoSkipped)    { text = `✓ Verified · ${cn} skipped`;      col = 'var(--green)';   bg = 'rgba(0,255,136,0.08)'; bord = 'rgba(0,255,136,0.3)'; }
+    else                               { text = '✓ Verified';                      col = 'var(--green)';   bg = 'rgba(0,255,136,0.08)'; bord = 'rgba(0,255,136,0.3)'; }
     pill.textContent = text;
     pill.style.color = col; pill.style.background = bg; pill.style.borderColor = bord;
     card.style.display = '';
+
+    // The page header follows the step too — the title, the glowing row, and
+    // the action on screen always point at the same thing. Step 2 keeps the
+    // entry-point copy applyCasinoText already set.
+    if (casinoName) {
+      const icon = document.querySelector('.verify-icon');
+      const t    = document.getElementById('verifyTitle');
+      const dsc  = document.getElementById('verifyDesc');
+      if (step === 3) {
+        if (icon) icon.textContent = '🎮';
+        t.textContent   = `Join ${guildInfo?.name || channel + "'s Discord"}`;
+        dsc.textContent = 'Connect your Discord below to finish verifying — it grants your verified role and unlocks /points and /buy.';
+      } else if (step === 0) {
+        if (icon) icon.textContent = gold ? '✦' : '✅';
+        t.textContent   = gold ? "You're Fully Verified" : "You're Verified";
+        dsc.textContent = gold
+          ? `Kick, ${casinoName}, and Discord are all linked — you're set for everything.`
+          : (vfState.casinoSkipped
+              ? `Verified with Kick only — add your ${casinoName} username anytime for code-based activities.`
+              : `Kick and ${casinoName} are linked.` + (dAvail && vfState.discordDeclined ? ' Connect Discord anytime for your role, /points and /buy.' : ''));
+      }
+    }
+  }
+
+  // "Maybe later" under the Connect Discord button — clean done state instead
+  // of a permanent "1 step left" nag. Reversible: any later Discord connect wins.
+  function vfDeclineDiscord() {
+    vfState.discordDeclined = true;
+    try { localStorage.setItem('wb_dcskip_' + channel.toLowerCase(), '1'); } catch {}
+    const s = document.getElementById('discordLinkSection');
+    if (s) s.style.display = 'none';
+    renderVfProgress();
   }
 
   // Show Kick OAuth gate on load; after OAuth read identity from unified viewer session
@@ -701,7 +769,12 @@
     try {
       const r = await fetch(`/api/discord-guild-info?channel=${encodeURIComponent(channel)}`);
       const d = await r.json();
-      if (!d || !d.name) return;
+      if (!d || !d.name) {
+        // Streamer has no Discord connected — the progress card drops step 3
+        // ("Step 2 of 2"). Only on a definitive answer, never a fetch hiccup.
+        if (r.status === 404 || r.ok) { vfState.discordAvailable = false; renderVfProgress(); }
+        return;
+      }
       guildInfo = d;
       const header = document.getElementById('dvServerHeader');
       if (header) {
@@ -711,8 +784,10 @@
            <div style="font-size:11px;color:#8b949e;">You'll be added to this Discord server.</div></div>`;
         header.style.display = 'flex';
       }
-      const prompt = document.getElementById('discordLinkPrompt');
-      if (prompt) prompt.textContent = 'Connect your Discord to finish verifying and join the server below.';
+      // Server name now known — refresh the card so step 3 shows the real
+      // server name instead of "<channel>'s Discord". (The static prompt copy
+      // already explains the link; no overwrite needed.)
+      renderVfProgress();
     } catch {}
   }
   loadGuildInfo();
