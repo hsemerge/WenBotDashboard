@@ -192,9 +192,9 @@
       <!-- Kick-only skip — only when the streamer's casinoRequired flag is off -->
       <div id="skipCasinoWrap" style="display:none;text-align:center;margin-top:14px;">
         <button id="skipCasinoBtn" onclick="submitSkip()" style="background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.45);border-radius:8px;color:#00e5ff;font-size:13px;font-weight:800;padding:11px 18px;cursor:pointer;width:100%;font-family:'Exo 2',sans-serif;">
-          Skip — I don't have a <span id="skipCasinoName">casino</span> account
+          Skip: I don't have a <span id="skipCasinoName">casino</span> account
         </button>
-        <div style="font-size:11px;color:#8b949e;margin-top:8px;line-height:1.5;">You'll be verified with Kick only — good for giveaways &amp; tournaments. Add your casino later to qualify for code-based activities.</div>
+        <div style="font-size:11px;color:#8b949e;margin-top:8px;line-height:1.5;">You'll be verified with Kick only. Good for giveaways &amp; tournaments, and you can add your casino later to qualify for code-based activities.</div>
       </div>
     </div>
 
@@ -204,7 +204,7 @@
       <p id="successMsg">Your account has been linked successfully.</p>
       <div id="discordLinkSection" style="margin-top:20px; padding-top:18px; border-top:1px solid rgba(255,255,255,0.08);">
         <div id="dvServerHeader" style="display:none; align-items:center; gap:12px; background:rgba(88,101,242,0.08); border:1px solid rgba(88,101,242,0.3); border-radius:10px; padding:10px 12px; margin-bottom:12px; text-align:left;"></div>
-        <p id="discordLinkPrompt" style="font-size:13px; color:#8b949e; margin-bottom:12px; line-height:1.6;">Connect your Discord to <strong style="color:#c9d1d9;">finish verifying</strong> and join the server — it links your Discord to the same Kick identity, grants your verified role, and unlocks <strong style="color:#c9d1d9;">/points</strong> and <strong style="color:#c9d1d9;">/buy</strong>.</p>
+        <p id="discordLinkPrompt" style="font-size:13px; color:#8b949e; margin-bottom:12px; line-height:1.6;">Connect your Discord to <strong style="color:#c9d1d9;">finish verifying</strong> and join the server. It links your Discord to the same Kick identity, grants your verified role, and unlocks <strong style="color:#c9d1d9;">/points</strong> and <strong style="color:#c9d1d9;">/buy</strong>.</p>
         <button onclick="linkDiscord()" style="
           background: #5865F2; border: none; border-radius: 8px; cursor: pointer;
           font-family: 'Exo 2', sans-serif; font-size: 14px; font-weight: 800;
@@ -214,7 +214,7 @@
           <span id="discordLinkBtnText">Connect Discord &amp; Join</span>
         </button>
         <div style="margin-top:10px;">
-          <a href="#" onclick="vfDeclineDiscord(); return false;" style="font-size:12px; color:#8b949e; text-decoration:underline;">Maybe later — I'm done for now</a>
+          <a href="#" onclick="vfDeclineDiscord(); return false;" style="font-size:12px; color:#8b949e; text-decoration:underline;">Maybe later, I'm done for now</a>
         </div>
         <p id="discordLinked" style="display:none; color:#00ff88; font-size:13px; margin-top:10px; font-weight:600;">✅ Discord linked!</p>
       </div>
@@ -287,7 +287,7 @@
       ? `Link Your Discord Account`
       : `Connect Your ${casinoName} Account`;
     document.getElementById('verifyDesc').textContent = discordMode
-      ? `You came from ${channel ? channel + "'s" : 'the'} Discord — sign in with Kick to link your Discord to your Kick identity, then add your ${casinoName} username to complete the set.`
+      ? `You came from ${channel ? channel + "'s" : 'the'} Discord. Sign in with Kick to link your Discord to your Kick identity, then add your ${casinoName} username to complete the set.`
       : `Link your ${casinoName} username to your Kick account to unlock giveaways, tournaments, and code-based activities.`;
     document.getElementById('affiliateLabel').textContent = `${casinoName} Username`;
     document.getElementById('affiliateInput').placeholder = `Enter your exact ${casinoName} username...`;
@@ -397,7 +397,7 @@
     const rows = [ vfRow('done', '✓', 'Kick', escHtml(vfState.kickName), 'Linked', 'var(--green)') ];
     if (vfState.casinoLinked)       rows.push(vfRow('done', '✓', escHtml(cn), escHtml(vfState.casinoUser || ''), 'Linked', 'var(--green)'));
     else if (vfState.casinoSkipped) rows.push(vfRow('skip', '–', escHtml(cn), 'Add anytime for code-based activities', 'Skipped', '#ffa726'));
-    else                            rows.push(vfRow('cur',  '2', escHtml(cn), 'Enter your username below' + (vsCasinoRequired ? '' : ' — or skip'), "← You're here", 'var(--accent)'));
+    else                            rows.push(vfRow('cur',  '2', escHtml(cn), 'Enter your username below' + (vsCasinoRequired ? '' : ', or skip'), "← You're here", 'var(--accent)'));
     if (dAvail) {
       if (vfState.discordLinked)        rows.push(vfRow('done', '✓', dcName, 'Role + /points & /buy', 'Linked', 'var(--green)'));
       else if (vfState.discordDeclined) rows.push(vfRow('skip', '–', dcName, 'Connect anytime for role + /points & /buy', 'Skipped', '#ffa726'));
@@ -429,14 +429,14 @@
       if (step === 3) {
         if (icon) icon.textContent = '🎮';
         t.textContent   = `Join ${guildInfo?.name || channel + "'s Discord"}`;
-        dsc.textContent = 'Connect your Discord below to finish verifying — it grants your verified role and unlocks /points and /buy.';
+        dsc.textContent = 'Connect your Discord below to finish verifying. It grants your verified role and unlocks /points and /buy.';
       } else if (step === 0) {
         if (icon) icon.textContent = gold ? '✦' : '✅';
         t.textContent   = gold ? "You're Fully Verified" : "You're Verified";
         dsc.textContent = gold
-          ? `Kick, ${casinoName}, and Discord are all linked — you're set for everything.`
+          ? `Kick, ${casinoName}, and Discord are all linked. You're set for everything.`
           : (vfState.casinoSkipped
-              ? `Verified with Kick only — add your ${casinoName} username anytime for code-based activities.`
+              ? `Verified with ${vfState.discordLinked ? 'Kick and Discord' : 'Kick only'}. Add your ${casinoName} username anytime for code-based activities.`
               : `Kick and ${casinoName} are linked.` + (dAvail && vfState.discordDeclined ? ' Connect Discord anytime for your role, /points and /buy.' : ''));
       }
     }
@@ -514,8 +514,14 @@
         vfState.discordLinked = !!sData.discordLinkedAny;
         if (sData.verified && sData.providerUsername) {
           document.getElementById('formSection').style.display = 'none';
-          document.getElementById('alreadyVerifiedCasino').textContent = casinoName;
-          document.getElementById('alreadyVerifiedUsername').textContent = sData.providerUsername;
+          // Name every linked account, not just the casino.
+          if (sData.discordLinkedAny) {
+            const line = document.getElementById('alreadyVerifiedCasino').parentElement;
+            if (line) line.innerHTML = `You're verified with <strong>Kick</strong>, <strong>${escHtml(casinoName)}</strong> (${escHtml(sData.providerUsername)}), and <strong>Discord</strong>.`;
+          } else {
+            document.getElementById('alreadyVerifiedCasino').textContent = casinoName;
+            document.getElementById('alreadyVerifiedUsername').textContent = sData.providerUsername;
+          }
           // In Discord-initiated flow there's a dtoken — confirming will attach
           // Discord. Reflect that in the button label.
           const btn = document.getElementById('confirmExistingBtn');
@@ -533,7 +539,7 @@
           vsSkipped = true;
           document.getElementById('formSection').style.display = 'none';
           const line = document.getElementById('alreadyVerifiedCasino').parentElement;
-          if (line) line.innerHTML = `You're verified with <strong>Kick only</strong> — no ${escHtml(casinoName || 'casino')} account linked.`;
+          if (line) line.innerHTML = `You're verified with <strong>${sData.discordLinkedAny ? 'Kick and Discord' : 'Kick only'}</strong>. No ${escHtml(casinoName || 'casino')} account linked.`;
           const btn = document.getElementById('confirmExistingBtn');
           if (dtoken) btn.textContent = 'Confirm & Link Discord';
           else btn.textContent = 'Looks good';
@@ -616,7 +622,7 @@
         vfState.discordLinked = vfState.discordLinked || !!data.discordLinked || !!data.discordLinkedAny;
         renderVfProgress();
         const discordNote = data.discordLinked
-          ? `<br><br>✦ <strong style="color:#ffd700;">Fully verified!</strong> Your Discord, Kick, and ${escHtml(data.casinoName || casinoName)} accounts are all linked — use <strong>/points</strong> and <strong>/buy</strong> in the server.`
+          ? `<br><br>✦ <strong style="color:#ffd700;">Fully verified!</strong> Your Kick, ${escHtml(data.casinoName || casinoName)}, and Discord accounts are all linked. Use <strong>/points</strong> and <strong>/buy</strong> in the server.`
           : '';
         const linkedLine = `<strong>${escHtml(data.kickUsername)}</strong> has been linked to <strong>${escHtml(data.affiliateUsername)}</strong> on ${escHtml(data.casinoName || casinoName)}.`;
         let affiliateMsg;
@@ -626,9 +632,9 @@
           // Degen only publishes its TOP wagerers, so a "not found" here does NOT
           // mean the viewer isn't under code — we just can't see them. Reassure,
           // don't alarm.
-          affiliateMsg = `${linkedLine}<br><br>You're verified and ready to enter giveaways! 🎉<br><br><em style="color:var(--text-dim);font-size:12px;">Heads up: Degen only shows its top wagerers publicly, so we can only auto-confirm "under code" for them. If you're playing under <strong>${escHtml(channel)}</strong>'s code you still count — just ask a mod to confirm you if you need it.</em>${discordNote}`;
+          affiliateMsg = `${linkedLine}<br><br>You're verified and ready to enter giveaways! 🎉<br><br><em style="color:var(--text-dim);font-size:12px;">Heads up: Degen only shows its top wagerers publicly, so we can only auto-confirm "under code" for them. If you're playing under <strong>${escHtml(channel)}</strong>'s code you still count. Just ask a mod to confirm you if you need it.</em>${discordNote}`;
         } else {
-          affiliateMsg = `${linkedLine}<br><br><em style="color:var(--text-dim);font-size:12px;">Note: your account wasn't found under ${escHtml(channel)}'s affiliate code, so you won't be eligible for code-based activities — but you're verified for general giveaways!</em>${discordNote}`;
+          affiliateMsg = `${linkedLine}<br><br><em style="color:var(--text-dim);font-size:12px;">Note: your account wasn't found under ${escHtml(channel)}'s affiliate code, so you won't be eligible for code-based activities, but you're verified for general giveaways!</em>${discordNote}`;
         }
         document.getElementById('successMsg').innerHTML = affiliateMsg;
         // Hide the Discord link section if the user already linked, OR if this
@@ -677,11 +683,11 @@
         vfState.discordLinked = vfState.discordLinked || !!data.discordLinked || !!data.discordLinkedAny;
         renderVfProgress();
         const discordNote = data.discordLinked
-          ? `<br><br>🎮 <strong>Discord linked!</strong> Your Discord and Kick accounts are connected — use <strong>/points</strong> and <strong>/buy</strong> in the server.`
+          ? `<br><br>🎮 <strong>Discord linked!</strong> Your Kick and Discord accounts are connected. Use <strong>/points</strong> and <strong>/buy</strong> in the server.`
           : '';
         document.getElementById('successMsg').innerHTML =
-          `<strong>${escHtml(data.kickUsername)}</strong> is verified for <strong>${escHtml(channel)}</strong> — Kick account only.` +
-          `<br><br><em style="color:var(--text-dim);font-size:12px;">No ${escHtml(casinoName || 'casino')} account linked — come back to this page anytime to add it and qualify for code-based activities.</em>${discordNote}`;
+          `<strong>${escHtml(data.kickUsername)}</strong> is verified for <strong>${escHtml(channel)}</strong> with Kick only.` +
+          `<br><br><em style="color:var(--text-dim);font-size:12px;">No ${escHtml(casinoName || 'casino')} account linked. Come back to this page anytime to add it and qualify for code-based activities.</em>${discordNote}`;
         if (data.discordLinked || data.discordLinkedAny || !data.streamerHasDiscord) {
           document.getElementById('discordLinkSection').style.display = 'none';
         }
