@@ -15218,8 +15218,9 @@ document.addEventListener('click', (e) => {
 let spSpinning = false;
 
 // Reel sizing — keep short so each spin only hotlinks ~SP_REEL_LEN images.
-const SP_REEL_LEN = 20;
-const SP_WIN_IDX  = 16; // winner lands here; a few decoys trail it to fill the right side
+const SP_REEL_LEN = 26;
+const SP_WIN_IDX  = 16; // winner lands here; 9 decoys trail it so the right side of
+                        // the carousel stays filled even on wide/capped containers
 
 function spApplyFilters() {
   const mode      = document.getElementById('spExclusiveFilter')?.value || ''; // '' | 'stake' | 'stakeengine'
@@ -15275,13 +15276,13 @@ function spStep(track) {
 function spShowReady() {
   if (!spPool.length) return;
   const items = [];
-  for (let i = 0; i < 10; i++) items.push(spPool[Math.floor(Math.random() * spPool.length)]);
+  for (let i = 0; i < 16; i++) items.push(spPool[Math.floor(Math.random() * spPool.length)]);
   spRenderReel(items);
   const track = document.getElementById('spTrack');
   if (!track) return;
   track.style.transition = 'none';
   requestAnimationFrame(() => {
-    track.style.transform = `translateX(-${3 * spStep(track)}px)`; // center ~index 3
+    track.style.transform = `translateX(-${7 * spStep(track)}px)`; // center ~index 7 — fills both wings on wide containers
   });
   document.getElementById('spCarousel')?.classList.remove('landed');
 }
