@@ -889,9 +889,10 @@
            skew it) and holds until the streamer acts. No backdrop, no extra
            frame — the reveal graphic provides its own chrome. */
         .gw-spinner-overlay { position: fixed; top: 36%; transform: translate(-50%, -50%); width: min(680px, 92vw); height: min(420px, 56vh); background: rgba(13,17,23,0.92); border: 1px solid var(--border); border-radius: 14px; display: none; overflow: hidden; z-index: 650; box-shadow: 0 24px 80px rgba(0,0,0,0.7); transition: background 0.4s, border-color 0.4s, box-shadow 0.4s; }
-        /* Once the spin has landed, drop the dark chrome — the reveal floats
-           clean with the winner card, no clunky black slab behind it. */
-        .gw-spinner-overlay.gw-landed { background: transparent; border-color: transparent; box-shadow: none; }
+        /* Once the spin has landed: FULLY opaque (nothing behind bleeds
+           through) but the frame outline drops so the reveal reads as one
+           clean surface instead of a box inside a box. */
+        .gw-spinner-overlay.gw-landed { background: rgb(13,17,23); border-color: transparent; }
         .gw-spinner-overlay.active { display: block; }
         .gw-spinner-overlay #gwSpinnerFrame {
           position: absolute;
