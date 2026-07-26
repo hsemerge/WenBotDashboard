@@ -3299,7 +3299,10 @@
 
       <!-- Spinner carousel -->
       <style>
-        .sp-stage { --sp-card: 124px; --sp-gap: 14px; max-width: 720px; margin: 0 auto; }
+        /* ID-qualified so the page-wide `#page-slotpicker > *` width cap can't
+           override this (ID+class > ID+universal). Bigger cards, ~5-6 visible. */
+        #page-slotpicker .sp-stage { --sp-card: 156px; --sp-gap: 16px; max-width: 940px; margin: 0 auto; }
+        .sp-stage { --sp-card: 156px; --sp-gap: 16px; max-width: 940px; margin: 0 auto; }
         .sp-carousel {
           position: relative; background: var(--bg-card);
           border: 1px solid var(--border); border-radius: 16px;
