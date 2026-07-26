@@ -2565,7 +2565,7 @@
           <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
             <li>💬 <strong>New: "Require a casino account to verify" toggle</strong> (Settings → Platform). Leave it ON if you run a leaderboard or code giveaways — nothing changes. Turn it OFF and viewers without an account at your casino can <strong>skip the casino step</strong> and verify with Kick only: they still count for verified giveaways, tournaments, and your Discord verified role.</li>
             <li>🎯 <strong>Code giveaways stay protected.</strong> Kick-only viewers are never counted as under-code — if they add their casino username later (same verify link), they upgrade in place.</li>
-            <li>🪪 Kick-only viewers show up on your Verified Users page tagged <strong>💬 Kick only</strong>, and the Discord <code>/register</code> flow works for them too.</li>
+            <li>🪪 Kick-only viewers show up on your Verified Users page with casino <strong>Skipped</strong>, and the Discord <code>/register</code> flow works for them too.</li>
           </ul>
         </div>
 
@@ -8406,7 +8406,7 @@ function renderVerifiedFromCache() {
     const statusBadge = v.underAffiliate
       ? `<span title="This user is under your affiliate code." style="background:rgba(0,255,136,0.15);color:#00ff88;border:1px solid rgba(0,255,136,0.45);border-radius:20px;padding:3px 12px;font-size:11px;font-weight:800;letter-spacing:0.03em;text-transform:uppercase;">✓ Under Code</span>`
       : `<span title="Not confirmed under your affiliate code. Click ↻ Re-check to refresh." style="background:transparent;color:var(--text-dim);border:1px solid var(--border);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:500;">Standard</span>`;
-    const casinoName  = v.provider === 'none' ? '💬 Kick only' : (CASINO_NAMES[v.provider] || v.provider || '—');
+    const casinoName  = v.provider === 'none' ? 'Skipped' : (CASINO_NAMES[v.provider] || v.provider || '—');
     const discordUser = verifiedDiscordMap[v.kickName?.toLowerCase()];
     const discordCell = discordUser
       ? `<span style="color:#5865F2;font-weight:600;font-size:12px;">@${escHtml(discordUser)}</span>`
