@@ -13572,10 +13572,12 @@ function tnRoundCard(r, currentRound) {
         <input type="number" id="tn_${r.round}_${m.id}_${side}bet" placeholder="Bet" min="0" step="0.01" oninput="tnCalcX('${r.round}','${m.id}')" style="width:74px;padding:5px 7px;font-size:11px;background:var(--bg-panel);border:1px solid var(--border);border-radius:5px;color:var(--bright);">
         <input type="number" id="tn_${r.round}_${m.id}_${side}win" placeholder="Win" min="0" step="0.01" oninput="tnCalcX('${r.round}','${m.id}')" style="width:74px;padding:5px 7px;font-size:11px;background:var(--bg-panel);border:1px solid var(--border);border-radius:5px;color:var(--bright);">
         <span id="tn_${r.round}_${m.id}_${side}x" style="font-size:12px;font-weight:800;color:var(--accent);min-width:46px;">—</span>`;
-      panel = `<div style="grid-column:1/-1;display:flex;flex-direction:column;gap:6px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span style="font-size:11px;color:var(--text-dim);min-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(m.p1.kickUsername)}</span>${fld('p1')}</div>
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span style="font-size:11px;color:var(--text-dim);min-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(m.p2.kickUsername)}</span>${fld('p2')}</div>
-        <button onclick="tnScoreMatch('${r.round}','${m.id}')" style="align-self:flex-start;padding:5px 14px;font-size:11px;font-weight:700;background:rgba(255,167,38,0.12);border:1px solid rgba(255,167,38,0.4);border-radius:6px;color:var(--orange);cursor:pointer;">Score &amp; Advance ▶</button>
+      panel = `<div style="grid-column:1/-1;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">
+        <div style="display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span style="font-size:11px;color:var(--text-dim);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(m.p1.kickUsername)}</span>${fld('p1')}</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;">${fld('p2')}<span style="font-size:11px;color:var(--text-dim);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(m.p2.kickUsername)}</span></div>
+        </div>
+        <button onclick="tnScoreMatch('${r.round}','${m.id}')" style="display:block;margin:10px auto 0;padding:5px 16px;font-size:11px;font-weight:700;background:rgba(255,167,38,0.12);border:1px solid rgba(255,167,38,0.4);border-radius:6px;color:var(--orange);cursor:pointer;">Score &amp; Advance ▶</button>
       </div>`;
     } else if (done && (sc.p1 || sc.p2)) {
       const xs = (side) => sc[side] ? (Number(sc[side].x) || 0).toFixed(2) + 'x' : '—';
