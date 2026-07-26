@@ -278,15 +278,24 @@
     document.getElementById('affiliateInput').placeholder = `Enter your exact ${casinoName} username...`;
     document.getElementById('providerHint').textContent   =
       `Enter the username you use at ${casinoName}. If you play under ${channel}'s code, you'll also qualify for code-based activities.`;
+    const sk = document.getElementById('skipCasinoName');
+    if (sk) sk.textContent = casinoName;
   }
 
   // Resolve the casino: param first, else the channel's actual provider. If the
   // streamer hasn't set one, tell the viewer instead of guessing a casino.
+  // Always fetch portal-data (cached, no auth) — it also carries the streamer's
+  // casinoRequired flag, so the Skip button can render with the form instead of
+  // waiting the 2-3s verify-status needs for its Kick token lookup.
   async function initCasino() {
-    if (!casino && channel) {
+    if (channel) {
       try {
         const r = await fetch('/api/portal-data?channel=' + encodeURIComponent(channel));
-        if (r.ok) { const d = await r.json(); casino = (d.streamer?.provider || '').toLowerCase(); }
+        if (r.ok) {
+          const d = await r.json();
+          if (!casino) casino = (d.streamer?.provider || '').toLowerCase();
+          if (d.streamer) applyCasinoRequired(d.streamer.casinoRequired !== false);
+        }
       } catch {}
     }
     if (!casino) {
@@ -306,10 +315,24 @@
     if (reconnectInterval) { clearInterval(reconnectInterval); reconnectInterval = null; }
   });
 
-  // Streamer's verification policy (from /api/verify-status). vsSkipped =
-  // this viewer is Kick-only verified (skipped the casino step earlier).
+  // Streamer's verification policy. vsSkipped = this viewer is Kick-only
+  // verified (skipped the casino step earlier). The flag arrives from three
+  // places, fastest first: localStorage cache (instant on repeat visits),
+  // portal-data (cached, no auth — fires at page load), and verify-status
+  // (authoritative, but needs a Kick token lookup, so it lands last).
   let vsCasinoRequired = true;
   let vsSkipped = false;
+
+  function applyCasinoRequired(required) {
+    vsCasinoRequired = !!required;
+    try { localStorage.setItem('wb_casreq_' + channel.toLowerCase(), required ? '1' : '0'); } catch {}
+    const wrap = document.getElementById('skipCasinoWrap');
+    if (wrap) wrap.style.display = required ? 'none' : '';
+    const nm = document.getElementById('skipCasinoName');
+    if (nm && casinoName) nm.textContent = casinoName;
+  }
+  // Instant path: last known value for this channel.
+  try { if (channel && localStorage.getItem('wb_casreq_' + channel.toLowerCase()) === '0') applyCasinoRequired(false); } catch {}
 
   // Show Kick OAuth gate on load; after OAuth read identity from unified viewer session
   async function resolveToken() {
@@ -364,12 +387,8 @@
       });
       if (sResp.ok) {
         const sData = await sResp.json();
-        vsCasinoRequired = sData.casinoRequired !== false;
-        // Skip option — streamer allows Kick-only verification.
-        if (!vsCasinoRequired) {
-          document.getElementById('skipCasinoName').textContent = casinoName || 'casino';
-          document.getElementById('skipCasinoWrap').style.display = '';
-        }
+        // Authoritative — corrects the cached/portal-data value if stale.
+        applyCasinoRequired(sData.casinoRequired !== false);
         if (sData.verified && sData.providerUsername) {
           document.getElementById('formSection').style.display = 'none';
           document.getElementById('alreadyVerifiedCasino').textContent = casinoName;

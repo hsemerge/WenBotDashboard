@@ -340,6 +340,10 @@ exports.handler = async (event) => {
       logoUrl:     profile.kickAvatar || null,
       provider,
       providerName: provider ? (CASINO_NAMES[provider] || provider) : null,
+      // Verify-page policy: when false the viewer can skip the casino step.
+      // Exposed here so verify.html can show the Skip button immediately
+      // (verify-status confirms it authoritatively but needs a Kick lookup).
+      casinoRequired: profile.casinoRequired !== false,
       currency:    profile.currencyName || "points",
       plan,
       // Theme color only honored for Elite+ — keeps the upsell intact while
