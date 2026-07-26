@@ -142,6 +142,18 @@
       <a href="#" id="switchAccountLink" onclick="switchKickAccount(); return false;" style="display:none;font-size:11px;color:var(--text-dim);text-decoration:underline;flex-shrink:0;">Not you?</a>
     </div>
 
+    <!-- Verification progress — "verify" is the journey, "link" is each step.
+         Rows show exactly which accounts are tied to this Kick identity;
+         linking all of them = ✦ Fully Verified. Rendered once the viewer's
+         session + status are known. -->
+    <div id="vfProgress" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:13px 16px;margin-bottom:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-dim);letter-spacing:.06em;">YOUR VERIFICATION</div>
+        <div id="vfProgressState" style="font-size:11px;font-weight:800;border-radius:20px;padding:3px 11px;border:1px solid transparent;">—</div>
+      </div>
+      <div id="vfProgressRows" style="display:flex;flex-direction:column;gap:7px;"></div>
+    </div>
+
     <!-- Kick OAuth gate — shown until user authenticates -->
     <div id="kickGate" style="display:none; text-align:center; padding:8px 0 16px;">
       <p style="font-size:13px; color:var(--text-dim); margin-bottom:16px; line-height:1.6;">
@@ -192,7 +204,7 @@
       <p id="successMsg">Your account has been linked successfully.</p>
       <div id="discordLinkSection" style="margin-top:20px; padding-top:18px; border-top:1px solid rgba(255,255,255,0.08);">
         <div id="dvServerHeader" style="display:none; align-items:center; gap:12px; background:rgba(88,101,242,0.08); border:1px solid rgba(88,101,242,0.3); border-radius:10px; padding:10px 12px; margin-bottom:12px; text-align:left;"></div>
-        <p id="discordLinkPrompt" style="font-size:13px; color:#8b949e; margin-bottom:12px;">Connect your Discord to finish verifying and join the server.</p>
+        <p id="discordLinkPrompt" style="font-size:13px; color:#8b949e; margin-bottom:12px; line-height:1.6;">Connect your Discord to <strong style="color:#c9d1d9;">finish verifying</strong> and join the server — it links your Discord to the same Kick identity, grants your verified role, and unlocks <strong style="color:#c9d1d9;">/points</strong> and <strong style="color:#c9d1d9;">/buy</strong>.</p>
         <button onclick="linkDiscord()" style="
           background: #5865F2; border: none; border-radius: 8px; cursor: pointer;
           font-family: 'Exo 2', sans-serif; font-size: 14px; font-weight: 800;
@@ -272,7 +284,7 @@
       ? `Link Your Discord Account`
       : `Connect Your ${casinoName} Account`;
     document.getElementById('verifyDesc').textContent = discordMode
-      ? `Sign in with Kick and enter your ${casinoName} username to link everything in one step.`
+      ? `You came from ${channel ? channel + "'s" : 'the'} Discord — sign in with Kick to link your Discord to your Kick identity, then add your ${casinoName} username to complete the set.`
       : `Link your ${casinoName} username to your Kick account to unlock giveaways, tournaments, and code-based activities.`;
     document.getElementById('affiliateLabel').textContent = `${casinoName} Username`;
     document.getElementById('affiliateInput').placeholder = `Enter your exact ${casinoName} username...`;
@@ -280,6 +292,7 @@
       `Enter the username you use at ${casinoName}. If you play under ${channel}'s code, you'll also qualify for code-based activities.`;
     const sk = document.getElementById('skipCasinoName');
     if (sk) sk.textContent = casinoName;
+    renderVfProgress(); // casino label resolves late — refresh the card
   }
 
   // Resolve the casino: param first, else the channel's actual provider. If the
@@ -334,6 +347,43 @@
   // Instant path: last known value for this channel.
   try { if (channel && localStorage.getItem('wb_casreq_' + channel.toLowerCase()) === '0') applyCasinoRequired(false); } catch {}
 
+  // ── Verification progress card ─────────────────────────────────────────────
+  // Two tiers: Verified (Kick + casino linked, or Kick-only via skip) and
+  // ✦ Fully Verified (Discord linked too). Updated from verify-status on load
+  // and again after every successful link on this page.
+  const vfState = { kickName: null, casinoLinked: false, casinoSkipped: false, casinoUser: null, discordLinked: false };
+
+  function renderVfProgress() {
+    const card = document.getElementById('vfProgress');
+    if (!card || !vfState.kickName) return;
+    const cn  = casinoName || 'Casino';
+    const row = (icon, label, right, color) =>
+      `<div style="display:flex;align-items:center;gap:9px;font-size:12.5px;">
+        <span style="width:18px;text-align:center;">${icon}</span>
+        <span style="color:var(--text);">${escHtml(label)}</span>
+        <span style="margin-left:auto;color:${color};font-weight:600;text-align:right;">${right}</span>
+      </div>`;
+    const rows = [ row('💬', 'Kick', `✓ Linked — ${escHtml(vfState.kickName)}`, 'var(--green)') ];
+    if (vfState.casinoLinked)       rows.push(row('🎰', cn, `✓ Linked — ${escHtml(vfState.casinoUser || '')}`, 'var(--green)'));
+    else if (vfState.casinoSkipped) rows.push(row('🎰', cn, '○ Skipped — add anytime', '#ffa726'));
+    else                            rows.push(row('🎰', cn, '○ Not linked', 'var(--text-dim)'));
+    rows.push(vfState.discordLinked
+      ? row('🎮', 'Discord', '✓ Linked', 'var(--green)')
+      : row('🎮', 'Discord', '○ Not linked', 'var(--text-dim)'));
+    document.getElementById('vfProgressRows').innerHTML = rows.join('');
+
+    const pill = document.getElementById('vfProgressState');
+    const casinoDone = vfState.casinoLinked || vfState.casinoSkipped;
+    let text, col, bg, bord;
+    if (vfState.casinoLinked && vfState.discordLinked)  { text = '✦ Fully Verified';           col = '#ffd700';        bg = 'rgba(255,215,0,0.08)';  bord = 'rgba(255,215,0,0.35)'; }
+    else if (casinoDone && vfState.discordLinked)       { text = `✓ Verified · ${cn} skipped`; col = 'var(--green)';   bg = 'rgba(0,255,136,0.08)';  bord = 'rgba(0,255,136,0.3)'; }
+    else if (casinoDone)                                { text = '✓ Verified · 1 step left';   col = 'var(--green)';   bg = 'rgba(0,255,136,0.08)';  bord = 'rgba(0,255,136,0.3)'; }
+    else                                                { text = '○ Not verified yet';         col = 'var(--text-dim)'; bg = 'transparent';           bord = 'var(--border)'; }
+    pill.textContent = text;
+    pill.style.color = col; pill.style.background = bg; pill.style.borderColor = bord;
+    card.style.display = '';
+  }
+
   // Show Kick OAuth gate on load; after OAuth read identity from unified viewer session
   async function resolveToken() {
     if (!channel) {
@@ -375,6 +425,7 @@
     document.getElementById('kickUsernameDisplay').textContent = resolvedKickUsername;
     document.getElementById('identityIcon').textContent = '✅';
     document.getElementById('switchAccountLink').style.display = 'block';
+    vfState.kickName = resolvedKickUsername;
 
     // Check whether they're already verified for this streamer + active casino.
     // If so, swap the casino-entry form for a 1-click "confirm" card — avoids
@@ -389,6 +440,10 @@
         const sData = await sResp.json();
         // Authoritative — corrects the cached/portal-data value if stale.
         applyCasinoRequired(sData.casinoRequired !== false);
+        vfState.casinoLinked  = !!(sData.verified && sData.providerUsername);
+        vfState.casinoSkipped = !!sData.casinoSkipped;
+        vfState.casinoUser    = sData.providerUsername || null;
+        vfState.discordLinked = !!sData.discordLinkedAny;
         if (sData.verified && sData.providerUsername) {
           document.getElementById('formSection').style.display = 'none';
           document.getElementById('alreadyVerifiedCasino').textContent = casinoName;
@@ -420,6 +475,7 @@
         }
       }
     } catch { /* silent — fall through to normal form */ }
+    renderVfProgress();
   }
 
   // Reveal the casino-entry form when the streamer clicks "change casino username"
@@ -486,8 +542,13 @@
 
       if (resp.ok && data.success) {
         document.getElementById('formSection').style.display = 'none';
+        vfState.casinoLinked  = true;
+        vfState.casinoSkipped = false;
+        vfState.casinoUser    = data.affiliateUsername;
+        vfState.discordLinked = vfState.discordLinked || !!data.discordLinked || !!data.discordLinkedAny;
+        renderVfProgress();
         const discordNote = data.discordLinked
-          ? `<br><br>🎮 <strong>Discord linked!</strong> You can now use <strong>/points</strong> and <strong>/buy</strong> in the server.`
+          ? `<br><br>✦ <strong style="color:#ffd700;">Fully verified!</strong> Your Discord, Kick, and ${escHtml(data.casinoName || casinoName)} accounts are all linked — use <strong>/points</strong> and <strong>/buy</strong> in the server.`
           : '';
         const linkedLine = `<strong>${escHtml(data.kickUsername)}</strong> has been linked to <strong>${escHtml(data.affiliateUsername)}</strong> on ${escHtml(data.casinoName || casinoName)}.`;
         let affiliateMsg;
@@ -544,8 +605,11 @@
       if (resp.ok && data.success) {
         document.getElementById('formSection').style.display = 'none';
         document.getElementById('alreadyVerifiedSection').style.display = 'none';
+        vfState.casinoSkipped = true;
+        vfState.discordLinked = vfState.discordLinked || !!data.discordLinked || !!data.discordLinkedAny;
+        renderVfProgress();
         const discordNote = data.discordLinked
-          ? `<br><br>🎮 <strong>Discord linked!</strong> You can now use <strong>/points</strong> and <strong>/buy</strong> in the server.`
+          ? `<br><br>🎮 <strong>Discord linked!</strong> Your Discord and Kick accounts are connected — use <strong>/points</strong> and <strong>/buy</strong> in the server.`
           : '';
         document.getElementById('successMsg').innerHTML =
           `<strong>${escHtml(data.kickUsername)}</strong> is verified for <strong>${escHtml(channel)}</strong> — Kick account only.` +
