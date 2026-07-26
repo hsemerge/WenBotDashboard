@@ -224,6 +224,7 @@
         <a id="vfReturnBtn" href="#" style="display:none; margin-bottom:10px; text-align:center; background:rgba(0,229,255,0.12); border:1px solid rgba(0,229,255,0.4); border-radius:8px; color:#00e5ff; font-size:14px; font-weight:800; padding:11px 18px; text-decoration:none; font-family:'Exo 2',sans-serif;"></a>
         <a id="vfDiscordBtn" href="#" target="_blank" rel="noopener" style="display:none; margin-bottom:10px; text-align:center; background:rgba(88,101,242,0.15); border:1px solid rgba(88,101,242,0.5); border-radius:8px; color:#a5b3f5; font-size:13px; font-weight:700; padding:10px 18px; text-decoration:none;">Open the Discord server ↗</a>
         <a id="vfWenbotBtn" href="https://wenbot.gg" style="display:none; text-align:center; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.14); border-radius:8px; color:#c9d1d9; font-size:13px; font-weight:700; padding:10px 18px; text-decoration:none;">Explore wenbot.gg →</a>
+        <a href="#" id="vfAddCasinoLink" onclick="vfAddCasinoNow(); return false;" style="display:none; margin-top:12px; font-size:12px; color:#8b949e; text-decoration:underline;">or add your casino username</a>
       </div>
     </div>
 
@@ -552,6 +553,17 @@
     renderVfProgress();
   }
 
+  // From the post-skip success box: swap back to the casino form so they can
+  // add the account they just remembered they have.
+  function vfAddCasinoNow() {
+    hideStatus();
+    document.getElementById('formSection').style.display = 'block';
+    const skipWrap = document.getElementById('skipCasinoWrap');
+    if (skipWrap) skipWrap.style.display = 'none'; // already skipped once
+    const inp = document.getElementById('affiliateInput');
+    if (inp) { inp.focus(); inp.select(); }
+  }
+
   // Reveal the casino-entry form when the streamer clicks "change casino username"
   // on the already-verified short-circuit card.
   function revealCasinoForm() {
@@ -707,6 +719,13 @@
     document.getElementById('successBox').classList.add('show');
     document.getElementById('errorBox').classList.remove('show');
     document.getElementById('tryAgainLink').style.display = 'none';
+    // Late remembering: skipped the casino, clicked through, then realized
+    // they DO have an account. Only shown while the casino is still unlinked.
+    const addLink = document.getElementById('vfAddCasinoLink');
+    if (addLink) {
+      addLink.textContent = `or add your ${casinoName || 'casino'} username`;
+      addLink.style.display = (vfState.casinoSkipped && !vfState.casinoLinked) ? 'inline-block' : 'none';
+    }
     // Offer the next step: back to the page they verified for (tournament /
     // bonus battle / …), or wenbot.gg for chat-link arrivals. Both elements
     // are anchors — display:block makes them full-width buttons.
