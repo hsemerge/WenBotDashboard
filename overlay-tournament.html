@@ -194,7 +194,14 @@ function render(t) {
   _lastPayload = sig;
 
   const card = document.getElementById('bracketCard');
-  if (!t?.active) { card.className = 'hidden'; return; }
+  if (!t?.active) {
+    // Standby shell — a dim placeholder so streamers can position/scale the
+    // source in OBS before a tournament exists. ?standby=0 restores full hide.
+    if (_qs.get('standby') === '0') { card.className = 'hidden'; return; }
+    card.className = '';
+    card.innerHTML = `<div style="display:inline-flex;align-items:center;gap:9px;background:var(--ov-panel);border:1px dashed rgba(255,255,255,0.28);border-radius:12px;padding:11px 18px;opacity:0.55;font-family:var(--ov-font-heading);color:var(--ov-text);font-size:13px;font-weight:800;">🏅 Tournament overlay <span style="font-family:var(--ov-font);font-weight:600;font-size:11px;color:rgba(255,255,255,0.55);">— standby · fills automatically when a tournament starts</span></div>`;
+    return;
+  }
   card.className = '';
 
   const statusPill = t.status === 'registration'

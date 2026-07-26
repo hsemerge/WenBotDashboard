@@ -888,7 +888,10 @@
            centers it on the stage, not the viewport, so the sidebar doesn't
            skew it) and holds until the streamer acts. No backdrop, no extra
            frame — the reveal graphic provides its own chrome. */
-        .gw-spinner-overlay { position: fixed; top: 36%; transform: translate(-50%, -50%); width: min(680px, 92vw); height: min(420px, 56vh); background: rgba(13,17,23,0.92); border: 1px solid var(--border); border-radius: 14px; display: none; overflow: hidden; z-index: 650; box-shadow: 0 24px 80px rgba(0,0,0,0.7); }
+        .gw-spinner-overlay { position: fixed; top: 36%; transform: translate(-50%, -50%); width: min(680px, 92vw); height: min(420px, 56vh); background: rgba(13,17,23,0.92); border: 1px solid var(--border); border-radius: 14px; display: none; overflow: hidden; z-index: 650; box-shadow: 0 24px 80px rgba(0,0,0,0.7); transition: background 0.4s, border-color 0.4s, box-shadow 0.4s; }
+        /* Once the spin has landed, drop the dark chrome — the reveal floats
+           clean with the winner card, no clunky black slab behind it. */
+        .gw-spinner-overlay.gw-landed { background: transparent; border-color: transparent; box-shadow: none; }
         .gw-spinner-overlay.active { display: block; }
         .gw-spinner-overlay #gwSpinnerFrame {
           position: absolute;
@@ -3043,8 +3046,13 @@
             <!-- rendered by JS -->
           </div>
 
-          <!-- Appearance section -->
-          <div style="border-top:1px solid var(--border);padding:16px 14px;margin-top:auto;">
+        </div><!-- /left overlay-list panel -->
+
+        <!-- ── APPEARANCE — right-hand editing rail. Moved out of the left
+             column's bottom so theming never requires scrolling past the
+             overlay list; sits to the RIGHT of the preview (flex order). ── -->
+        <div id="osRightRail" style="order:3;width:256px;flex-shrink:0;border-left:1px solid var(--border);overflow-y:auto;background:var(--bg-panel);">
+          <div style="padding:16px 14px;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
               <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);">Appearance</div>
               <span id="osScopeName" style="font-size:9px;font-weight:700;color:var(--accent);background:rgba(0,229,255,0.1);padding:2px 7px;border-radius:8px;">—</span>
@@ -4433,7 +4441,7 @@
 <!-- Viewer profile — live Kick "mod card" (follow date, sub, role, ban status)
      pulled on demand when vetting a giveaway winner. Nothing is stored; the
      "View on Kick" button opens Kick's own tools for message history. -->
-<div id="viewerProfileModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:660;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)closeViewerProfile()">
+<div id="viewerProfileModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:700;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)closeViewerProfile()">
   <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;width:min(720px,96vw);max-height:92vh;overflow:auto;box-shadow:0 24px 70px rgba(0,0,0,0.6);">
     <div id="vpBody"></div>
   </div>
@@ -6719,6 +6727,7 @@ async function spinPicker() {
   gwSyncSpinnerFrame();
   const overlay = document.getElementById('gwSpinnerOverlay');
   overlay.classList.add('active');
+  overlay.classList.remove('gw-landed'); // dark chrome returns for the next spin
   gwCenterSpinnerOverlay();
   requestAnimationFrame(gwResizeSpinnerFrame);
 
@@ -6781,6 +6790,7 @@ window.addEventListener('message', (e) => {
   if (!pickedWinner.username) return;
 
   flash('🏆 Winner: ' + pickedWinner.username);
+  document.getElementById('gwSpinnerOverlay')?.classList.add('gw-landed');
   addRecentWinner(pickedWinner);
   showWinnerActionPopup(pickedWinner);
   gwSetPeopleTab('w');   // surface the Winners tab the moment a draw lands
@@ -7682,7 +7692,8 @@ window.addEventListener('resize', () => {
 
 function gwClearOverlay() {
   if (_gwOverlayHideTimer) { clearTimeout(_gwOverlayHideTimer); _gwOverlayHideTimer = null; }
-  document.getElementById('gwSpinnerOverlay')?.classList.remove('active');
+  const _ov = document.getElementById('gwSpinnerOverlay');
+  if (_ov) { _ov.classList.remove('active'); _ov.classList.remove('gw-landed'); }
   const uid = fb.activeUid;
   if (!uid) return;
   fb.db.collection('streamers').doc(uid).collection('giveaway_state').doc('snapshot')
@@ -7693,15 +7704,16 @@ function gwClearOverlay() {
 async function gwPopupRemoveFromPool() {
   const panel = document.getElementById('gwWinnerDecision');
   const key = panel && panel.getAttribute('data-key');
-  const btn = document.getElementById('gwWinnerPopupRemoveBtn');
   if (!key) return;
-  if (btn) btn.disabled = true;
+  // Optimistic: close instantly and do the removal in the background — the
+  // old flow held the popup open through the Firestore round-trips, which
+  // read as "takes a second" on every draw.
+  closeWinnerPopup();
+  flash('🚫 Removing from pool…');
   if (await _gwRemoveEntryByKey(key)) {
-    if (btn) btn.textContent = "✓ Removed — won't be drawn again";
-    setTimeout(closeWinnerPopup, 1400);
+    flash("✓ Removed — can't win or rejoin this round");
   } else {
-    if (btn) btn.disabled = false;
-    flash('Failed to remove from pool', 'error');
+    flash('Failed to remove from pool — they are still in the draw', 'error');
   }
 }
 
