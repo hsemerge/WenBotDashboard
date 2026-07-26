@@ -176,6 +176,14 @@
       </div>
 
       <button class="btn-verify" id="verifyBtn" onclick="submitVerify()">Verify Account</button>
+
+      <!-- Kick-only skip — only when the streamer's casinoRequired flag is off -->
+      <div id="skipCasinoWrap" style="display:none;text-align:center;margin-top:14px;">
+        <button id="skipCasinoBtn" onclick="submitSkip()" style="background:none;border:1px solid rgba(255,255,255,0.18);border-radius:8px;color:var(--text-dim,#8b949e);font-size:13px;font-weight:700;padding:10px 18px;cursor:pointer;width:100%;font-family:'Exo 2',sans-serif;">
+          Skip — I don't have a <span id="skipCasinoName">casino</span> account
+        </button>
+        <div style="font-size:11px;color:#8b949e;margin-top:8px;line-height:1.5;">You'll be verified with Kick only — good for giveaways &amp; tournaments. Add your casino later to qualify for code-based giveaways.</div>
+      </div>
     </div>
 
     <div class="status-box success" id="successBox">
@@ -298,6 +306,11 @@
     if (reconnectInterval) { clearInterval(reconnectInterval); reconnectInterval = null; }
   });
 
+  // Streamer's verification policy (from /api/verify-status). vsSkipped =
+  // this viewer is Kick-only verified (skipped the casino step earlier).
+  let vsCasinoRequired = true;
+  let vsSkipped = false;
+
   // Show Kick OAuth gate on load; after OAuth read identity from unified viewer session
   async function resolveToken() {
     if (!channel) {
@@ -351,6 +364,12 @@
       });
       if (sResp.ok) {
         const sData = await sResp.json();
+        vsCasinoRequired = sData.casinoRequired !== false;
+        // Skip option — streamer allows Kick-only verification.
+        if (!vsCasinoRequired) {
+          document.getElementById('skipCasinoName').textContent = casinoName || 'casino';
+          document.getElementById('skipCasinoWrap').style.display = '';
+        }
         if (sData.verified && sData.providerUsername) {
           document.getElementById('formSection').style.display = 'none';
           document.getElementById('alreadyVerifiedCasino').textContent = casinoName;
@@ -365,6 +384,20 @@
           // Pre-fill the form input too so "change casino username" reveals
           // it with the existing value already typed in.
           document.getElementById('affiliateInput').value = sData.providerUsername;
+        } else if (sData.verified && sData.casinoSkipped) {
+          // Kick-only verified (casino skipped earlier). Confirm re-runs the
+          // skip path (harmless rewrite; attaches Discord when dtoken present);
+          // the link below reveals the form to add a casino username.
+          vsSkipped = true;
+          document.getElementById('formSection').style.display = 'none';
+          const line = document.getElementById('alreadyVerifiedCasino').parentElement;
+          if (line) line.innerHTML = `You're verified with <strong>Kick only</strong> — no ${escHtml(casinoName || 'casino')} account linked.`;
+          const btn = document.getElementById('confirmExistingBtn');
+          if (dtoken) btn.textContent = 'Confirm & Link Discord';
+          else btn.textContent = 'Looks good';
+          const chg = document.getElementById('changeCasinoLink');
+          if (chg) chg.textContent = `or add your ${casinoName || 'casino'} username`;
+          document.getElementById('alreadyVerifiedSection').style.display = 'block';
         }
       }
     } catch { /* silent — fall through to normal form */ }
@@ -386,14 +419,17 @@
   // this card look dead while the request ran.
   async function confirmExisting() {
     const existing = document.getElementById('affiliateInput').value.trim();
-    if (!existing) { revealCasinoForm(); return; }
+    // Kick-only verified: confirming re-runs the skip path (attaches Discord
+    // when a dtoken is present) instead of demanding a casino username.
+    if (!existing && !vsSkipped) { revealCasinoForm(); return; }
     const btn = document.getElementById('confirmExistingBtn');
     const label = btn.textContent;
     btn.disabled = true;
     btn.textContent = 'Confirming…';
-    await submitVerify();
-    // Success hides the whole card (submitVerify does it); if we're still
-    // visible the request failed — restore the button so they can retry.
+    if (existing) await submitVerify();
+    else await submitSkip();
+    // Success hides the whole card; if we're still visible the request
+    // failed — restore the button so they can retry.
     btn.disabled = false;
     btn.textContent = label;
   }
@@ -466,6 +502,47 @@
       showError('Network error. Check your connection and try again.');
       btn.disabled = false;
       btn.textContent = 'Verify Account';
+    }
+  }
+
+  // Kick-only verification — the streamer allows skipping the casino step.
+  // Same endpoint as the normal flow (skipCasino flag); dtoken still attaches
+  // Discord, so the /register + tournament entry paths work without a casino.
+  async function submitSkip() {
+    const btn = document.getElementById('skipCasinoBtn');
+    const btnHtml = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Verifying…'; }
+    hideStatus();
+    try {
+      const payload = { channel, kickAccessToken, skipCasino: true };
+      if (dtoken) payload.dtoken = dtoken;
+      const resp = await fetch('/api/verify-affiliate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await resp.json();
+      if (resp.ok && data.success) {
+        document.getElementById('formSection').style.display = 'none';
+        document.getElementById('alreadyVerifiedSection').style.display = 'none';
+        const discordNote = data.discordLinked
+          ? `<br><br>🎮 <strong>Discord linked!</strong> You can now use <strong>/points</strong> and <strong>/buy</strong> in the server.`
+          : '';
+        document.getElementById('successMsg').innerHTML =
+          `<strong>${escHtml(data.kickUsername)}</strong> is verified for <strong>${escHtml(channel)}</strong> — Kick account only.` +
+          `<br><br><em style="color:var(--text-dim);font-size:12px;">No ${escHtml(casinoName || 'casino')} account linked — come back to this page anytime to add it and qualify for code-based giveaways.</em>${discordNote}`;
+        if (data.discordLinked || data.discordLinkedAny || !data.streamerHasDiscord) {
+          document.getElementById('discordLinkSection').style.display = 'none';
+        }
+        showSuccess();
+        document.getElementById('successBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        showError(data.error || 'Verification failed. Please try again.');
+        if (btn) { btn.disabled = false; btn.innerHTML = btnHtml; }
+      }
+    } catch (err) {
+      showError('Network error. Check your connection and try again.');
+      if (btn) { btn.disabled = false; btn.innerHTML = btnHtml; }
     }
   }
 

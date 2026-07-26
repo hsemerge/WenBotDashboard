@@ -1,8 +1,10 @@
 // POST /api/verify-affiliate
-// Body: { channel, kickUsername, affiliateUsername, casino }
+// Body: { channel, kickUsername, affiliateUsername, casino, skipCasino? }
 // Verifies a viewer's casino account.
 // Kick-chat flow: saves a pending_confirmation and returns a confirm code — bot finalizes on !confirm.
 // Discord flow: saves directly to verified_users (Discord OAuth already proves identity).
+// skipCasino: Kick-only verification (doc `${kickKey}_none`) — allowed only when
+// the streamer's casinoRequired flag is false. Works with dtoken (Discord attach).
 
 const { getDb, admin }         = require("./_lib/firebase");
 const { res, checkRateLimit }  = require("./_lib/http");
@@ -29,8 +31,9 @@ exports.handler = async (event) => {
   let body;
   try { body = JSON.parse(event.body || "{}"); } catch { return res(400, { error: "Invalid JSON" }); }
 
-  const { channel, kickAccessToken, dtoken, affiliateUsername, casino } = body;
-  if (!channel || !kickAccessToken || !affiliateUsername) {
+  const { channel, kickAccessToken, dtoken, affiliateUsername, casino, skipCasino } = body;
+  const skipMode = !!skipCasino && !affiliateUsername;
+  if (!channel || !kickAccessToken || (!affiliateUsername && !skipMode)) {
     return res(400, { error: "Missing required fields" });
   }
 
@@ -79,7 +82,87 @@ exports.handler = async (event) => {
     }
 
     const kickKey      = kickUsername.toLowerCase();
-    const affiliateKey = affiliateUsername.toLowerCase();
+    const affiliateKey = (affiliateUsername || "").toLowerCase();
+
+    // ── Kick-only skip path ──────────────────────────────────────────────────
+    // Gated on the streamer's casinoRequired flag (Settings → Platform card).
+    // Writes a `${kickKey}_none` verified_users doc: counts as verified for
+    // tournaments / verified giveaways / the Discord role, but never matches
+    // code-based (provider-filtered) eligibility. Discord dtoken (consumed
+    // above) still attaches. Adding a real casino later overwrites this.
+    if (skipMode) {
+      if (streamerData.casinoRequired !== false) {
+        return res(400, { error: "This streamer requires a casino account to verify." });
+      }
+      const skipRef = db.collection("streamers").doc(streamerUid)
+        .collection("verified_users").doc(`${kickKey}_none`);
+      await skipRef.set({
+        kickName:               kickUsername,
+        kickName_lower:         kickKey,
+        providerUsername:       null,
+        providerUsername_lower: null,
+        provider:               "none",
+        providerUid:            null,
+        apiVerified:            false,
+        underAffiliate:         false,
+        wagerAmount:            0,
+        wagerLastSyncedAt:      null,
+        casinoSkipped:          true,
+        verifiedAt:             Date.now(),
+      });
+
+      if (discordUserId) {
+        await db.collection("streamers").doc(streamerUid)
+          .collection("discord_links").doc(discordUserId).set({
+            kickUsername,
+            discordUsername,
+            linkedAt: Date.now(),
+          });
+      }
+
+      // First-verify bonus applies to Kick-only verifies too (idempotent flag).
+      let verifyBonusAwarded = 0;
+      const bonus = parseInt(streamerData.firstVerifyBonus || 0, 10);
+      if (bonus > 0) {
+        try {
+          const viewerRef  = db.collection("streamers").doc(streamerUid).collection("viewers").doc(kickKey);
+          const viewerSnap = await viewerRef.get();
+          if (!(viewerSnap.exists && viewerSnap.data().firstVerifyBonusAt)) {
+            await viewerRef.set({
+              points:             admin.firestore.FieldValue.increment(bonus),
+              firstVerifyBonusAt: Date.now(),
+            }, { merge: true });
+            verifyBonusAwarded = bonus;
+            logAudit(streamerUid, "first_verify_bonus", { kickUsername, bonus });
+          }
+        } catch (err) { console.warn("[verify-affiliate] first-verify bonus failed:", err.message); }
+      }
+
+      let hasExistingDiscordLink = !!discordUserId;
+      if (!hasExistingDiscordLink) {
+        const existingLink = await db.collection("streamers").doc(streamerUid)
+          .collection("discord_links").where("kickUsername", "==", kickUsername).limit(1).get();
+        hasExistingDiscordLink = !existingLink.empty;
+      }
+
+      logAudit(streamerUid, "verify", { kickUsername, provider: "none", casinoSkipped: true, discordLinked: !!discordUserId });
+
+      return res(200, {
+        success:            true,
+        kickUsername,
+        affiliateUsername:  null,
+        provider:           "none",
+        casinoName:         null,
+        casinoSkipped:      true,
+        apiVerified:        false,
+        underAffiliate:     false,
+        discordLinked:      !!discordUserId,
+        discordLinkedAny:   hasExistingDiscordLink,
+        discordUsername:    discordUsername || null,
+        streamerHasDiscord: !!streamerData.discordConfig?.guildId,
+        verifyBonusAwarded,
+      });
+    }
 
     // Check the active casino matches what the streamer is currently streaming at.
     // Never default — if the streamer hasn't set a casino, verification can't run.
@@ -181,6 +264,9 @@ exports.handler = async (event) => {
       .collection("verified_users").doc(kickKey);
     const legacySnap = await legacyRef.get();
     if (legacySnap.exists) batch.delete(legacyRef);
+    // A real casino verify supersedes any earlier Kick-only skip doc (no-op if absent).
+    batch.delete(db.collection("streamers").doc(streamerUid)
+      .collection("verified_users").doc(`${kickKey}_none`));
     await batch.commit();
 
     // Discord-initiated flow: also save the discord_link

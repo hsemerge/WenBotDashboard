@@ -35,38 +35,57 @@ exports.handler = async (event) => {
     if (streamerSnap.empty) return res(404, { error: "Channel not found" });
     const uid          = streamerSnap.docs[0].id;
     const streamerData = streamerSnap.docs[0].data();
+    // Streamer policy: when false, the verify page offers "skip the casino step"
+    // (Kick-only verification). Default true — leaderboard/code streamers.
+    const casinoRequired = streamerData.casinoRequired !== false;
     // Never assume a casino — if none is set there's nothing to verify against.
     const activeProvider = (streamerData.activeProvider || "").toLowerCase();
     if (!activeProvider) {
-      return res(200, { kickUsername, verified: false, provider: null, noCasino: true, discordLinkedAny: false });
+      return res(200, { kickUsername, verified: false, provider: null, noCasino: true, casinoRequired, discordLinkedAny: false });
     }
 
-    // Direct lookup by the known doc ID format — `${kickKey}_${provider}`
-    const verifyRef = db.collection("streamers").doc(uid)
-      .collection("verified_users").doc(`${kickKey}_${activeProvider}`);
-    const verifySnap = await verifyRef.get();
+    // Direct lookups by the known doc ID format — `${kickKey}_${provider}`,
+    // plus the Kick-only doc (`${kickKey}_none`) written by the skip path.
+    const [verifySnap, skipSnap, discordSnap] = await Promise.all([
+      db.collection("streamers").doc(uid).collection("verified_users").doc(`${kickKey}_${activeProvider}`).get(),
+      db.collection("streamers").doc(uid).collection("verified_users").doc(`${kickKey}_none`).get(),
+      db.collection("streamers").doc(uid).collection("discord_links")
+        .where("kickUsername", "==", kickUsername).limit(1).get(),
+    ]);
 
-    // Does this Kick user already have ANY Discord link on this streamer?
-    const discordSnap = await db.collection("streamers").doc(uid)
-      .collection("discord_links")
-      .where("kickUsername", "==", kickUsername).limit(1).get();
-
-    if (!verifySnap.exists) {
+    if (verifySnap.exists) {
+      const v = verifySnap.data();
       return res(200, {
         kickUsername,
-        verified:     false,
-        provider:     activeProvider,
+        verified:         true,
+        provider:         activeProvider,
+        providerUsername: v.providerUsername || null,
+        underAffiliate:   !!v.underAffiliate,
+        casinoRequired,
         discordLinkedAny: !discordSnap.empty,
       });
     }
 
-    const v = verifySnap.data();
+    // Kick-only verified (casino skipped) — page shows the "verified, add your
+    // casino anytime" card instead of the blank form.
+    if (skipSnap.exists) {
+      return res(200, {
+        kickUsername,
+        verified:         true,
+        casinoSkipped:    true,
+        provider:         activeProvider,
+        providerUsername: null,
+        underAffiliate:   false,
+        casinoRequired,
+        discordLinkedAny: !discordSnap.empty,
+      });
+    }
+
     return res(200, {
       kickUsername,
-      verified:         true,
-      provider:         activeProvider,
-      providerUsername: v.providerUsername || null,
-      underAffiliate:   !!v.underAffiliate,
+      verified:     false,
+      provider:     activeProvider,
+      casinoRequired,
       discordLinkedAny: !discordSnap.empty,
     });
   } catch (err) {

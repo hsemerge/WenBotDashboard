@@ -541,7 +541,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.8.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.9.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -2111,6 +2111,12 @@
             <input type="password" id="settingsApiKey" placeholder="sk_...">
             <div class="hint" id="settingsApiKeyHint"></div>
           </div>
+          <label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;color:var(--text);margin-bottom:12px;cursor:pointer;">
+            <input type="checkbox" id="settingsCasinoRequired" checked style="width:16px;height:16px;margin-top:1px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+            <span>Require a casino account to verify
+              <div class="hint" style="margin-top:2px;">ON: viewers must enter their casino username to verify — best when you run a leaderboard or code giveaways. OFF: viewers can skip the casino step and verify with Kick only; they won't count for code-based giveaways until they add it.</div>
+            </span>
+          </label>
           <button class="btn btn-accent" onclick="saveProviderSettings()" style="width:100%;">Save Platform</button>
         </div>
 
@@ -2546,9 +2552,21 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.8.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.9.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.9.0 — Verification without a casino account</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 26, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>💬 <strong>New: "Require a casino account to verify" toggle</strong> (Settings → Platform). Leave it ON if you run a leaderboard or code giveaways — nothing changes. Turn it OFF and viewers without an account at your casino can <strong>skip the casino step</strong> and verify with Kick only: they still count for verified giveaways, tournaments, and your Discord verified role.</li>
+            <li>🎯 <strong>Code giveaways stay protected.</strong> Kick-only viewers are never counted as under-code — if they add their casino username later (same verify link), they upgrade in place.</li>
+            <li>🪪 Kick-only viewers show up on your Verified Users page tagged <strong>💬 Kick only</strong>, and the Discord <code>/register</code> flow works for them too.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -8347,9 +8365,10 @@ function loadVerifiedUsers() {
   // ONE-TIME read (re-runs each time this view opens). Previously a live listener
   // that re-read every verified_users doc on every wager-sync write — 24/7, per
   // open dashboard. The management table doesn't need to be real-time.
+  // 'none' = Kick-only verifications (casino step skipped — casinoRequired off).
   fb.db.collection('streamers').doc(uid)
     .collection('verified_users')
-    .where('provider', '==', activeProvider)
+    .where('provider', 'in', activeProvider ? [activeProvider, 'none'] : ['none'])
     .get().then(snap => {
       verifiedCache = snap.docs.map(d => ({ id: d.id, data: d.data() }));
       document.getElementById('statVerified').textContent = snap.size;
@@ -8387,7 +8406,7 @@ function renderVerifiedFromCache() {
     const statusBadge = v.underAffiliate
       ? `<span title="This user is under your affiliate code." style="background:rgba(0,255,136,0.15);color:#00ff88;border:1px solid rgba(0,255,136,0.45);border-radius:20px;padding:3px 12px;font-size:11px;font-weight:800;letter-spacing:0.03em;text-transform:uppercase;">✓ Under Code</span>`
       : `<span title="Not confirmed under your affiliate code. Click ↻ Re-check to refresh." style="background:transparent;color:var(--text-dim);border:1px solid var(--border);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:500;">Standard</span>`;
-    const casinoName  = CASINO_NAMES[v.provider] || v.provider || '—';
+    const casinoName  = v.provider === 'none' ? '💬 Kick only' : (CASINO_NAMES[v.provider] || v.provider || '—');
     const discordUser = verifiedDiscordMap[v.kickName?.toLowerCase()];
     const discordCell = discordUser
       ? `<span style="color:#5865F2;font-weight:600;font-size:12px;">@${escHtml(discordUser)}</span>`
@@ -8610,6 +8629,9 @@ async function selectLinkEntry(providerUid, btn) {
 
 // ── SETTINGS ──
 async function loadProviderSettings() {
+  // Casino-required toggle loads regardless of whether a casino is set yet.
+  const reqChk = document.getElementById('settingsCasinoRequired');
+  if (reqChk) reqChk.checked = profile?.casinoRequired !== false;
   if (!profile?.activeProvider) return;
   document.getElementById('settingsProvider').value = profile.activeProvider;
   srProviderChange();
@@ -8626,8 +8648,9 @@ async function saveProviderSettings() {
   // Save the value to the field THIS casino uses (apiKey / referralCode / …).
   // Optional — they can set the casino now and add the credential later.
   if (cred && value) await saveProviderConfig(provider, { [cred.field]: value, enabled: true });
-  await saveStreamerProfile({ activeProvider: provider });
-  if (profile) profile.activeProvider = provider;
+  const casinoRequired = document.getElementById('settingsCasinoRequired')?.checked !== false;
+  await saveStreamerProfile({ activeProvider: provider, casinoRequired });
+  if (profile) { profile.activeProvider = provider; profile.casinoRequired = casinoRequired; }
   updatePlatformDisplays();
   updateLeaderboardLink(provider);
   flash('Platform saved!');
