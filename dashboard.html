@@ -3053,12 +3053,15 @@
              column's bottom so theming never requires scrolling past the
              overlay list; sits to the RIGHT of the preview (flex order). ── -->
         <div id="osRightRail" style="order:3;width:256px;flex-shrink:0;border-left:1px solid var(--border);overflow-y:auto;background:var(--bg-panel);">
-          <div style="padding:16px 14px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-              <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);">Appearance</div>
+          <!-- Header — mirrors the left panel's "Overlay Studio" header for symmetry -->
+          <div style="padding:20px 18px 14px;border-bottom:1px solid var(--border);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <div style="font-family:'Exo 2',sans-serif;font-size:17px;font-weight:900;color:var(--bright);letter-spacing:-.01em;">Appearance</div>
               <span id="osScopeName" style="font-size:9px;font-weight:700;color:var(--accent);background:rgba(0,229,255,0.1);padding:2px 7px;border-radius:8px;">—</span>
             </div>
-            <div style="font-size:10px;color:var(--text-dim);margin-bottom:14px;opacity:0.8;">Each overlay has its own look.</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:3px;">Each overlay has its own look — save to apply</div>
+          </div>
+          <div style="padding:16px 14px;">
 
             <!-- Header text (only for overlays that support it) -->
             <div id="osHeaderWrap" style="margin-bottom:12px;display:none;">
@@ -3182,8 +3185,8 @@
                 Apply to All
               </button>
               <button onclick="osSaveTheme()"
-                style="flex:1;padding:9px 4px;background:var(--accent);border:none;border-radius:7px;color:#0d1117;font-family:'Exo 2',sans-serif;font-size:13px;font-weight:800;cursor:pointer;">
-                Save
+                style="flex:1;padding:9px 4px;background:var(--green, #31d76c);border:none;border-radius:7px;color:#04220e;font-family:'Exo 2',sans-serif;font-size:13px;font-weight:800;cursor:pointer;">
+                💾 Save
               </button>
             </div>
             <button onclick="osResetOverlay()"
@@ -4284,9 +4287,7 @@
 
   <!-- ── CREATOR CHAT DOCK — dashboard-wide, bottom right ── -->
   <style>
-    #ccDock { position:fixed; right:18px; bottom:18px; z-index:850; display:none; flex-direction:column; align-items:flex-end; gap:10px; transition:bottom .2s; }
-    /* Pages with their own bottom bar (Overlay Studio URL row) — dock dodges up */
-    #ccDock.cc-raised { bottom:110px; }
+    #ccDock { position:fixed; right:18px; bottom:18px; z-index:850; display:none; flex-direction:column; align-items:flex-end; gap:10px; }
     #ccDockPill { display:inline-flex; align-items:center; gap:8px; background:var(--bg-card); border:1px solid rgba(0,229,255,0.35);
                   color:var(--bright); font-weight:800; font-size:13px; padding:10px 18px; border-radius:999px; cursor:pointer;
                   box-shadow:0 6px 24px rgba(0,0,0,0.45); transition:transform .15s, border-color .15s; }
@@ -5094,8 +5095,6 @@ function showPage(id, el) {
   if (id === 'overview')    loadOverviewStats();
   if (id === 'creators')    loadCreatorsPage();
   if (id === 'help')        renderHelpTutorials();
-  // Creator Chat dock dodges pages that have their own bottom bar
-  document.getElementById('ccDock')?.classList.toggle('cc-raised', id === 'overlays');
 }
 
 // ── Collapsible sidebar sections (persisted per browser) ──
