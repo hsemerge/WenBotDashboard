@@ -541,7 +541,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.7.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.8.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -2531,9 +2531,24 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.7.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.8.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.8.0 — Slot picks everywhere, a smoother Studio &amp; polish round</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 26, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🎰 <strong>Tournament slot picks in every format.</strong> Viewers entering your tournament page now pick their slot in <em>all</em> modes — with a live search of the full slot catalog (thumbnails included). Picks show next to their name on the entry list, the bracket, and the overlay. Toggle it in tournament setup (on by default).</li>
+            <li>🎨 <strong>Overlay Studio, rearranged.</strong> Appearance controls moved to their own panel on the right — the preview stays front and center, and the green <strong>Save</strong> button makes it obvious when a change still needs applying.</li>
+            <li>📺 <strong>Overlays show a standby card when idle.</strong> Tournament, Bonus Hunt, and Bonus Battle overlays now render a subtle placeholder when nothing's running — so you can position them in OBS without starting a session. Add <code>&amp;standby=0</code> to the URL to hide it.</li>
+            <li>🏆 <strong>Winner reveal cleaned up.</strong> No more double frame around the winner card, the reveal stays fully opaque, viewer profiles open <em>above</em> the popup, and "remove from pool" is instant.</li>
+            <li>📌 <strong>Collapsible sidebar sections.</strong> Click a nav section header to fold it — WenBot remembers your layout.</li>
+            <li>🛠 <strong>Verification page:</strong> actions reordered so Save comes before posting the verify message — no more posting stale settings.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -3931,10 +3946,11 @@
                   <input type="number" id="tnMaxEntries" class="form-input" min="1" value="1">
                 </div>
               </div>
-              <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:14px;cursor:pointer;">
-                <input type="checkbox" id="tnRequireSlot" checked style="width:16px;height:16px;accent-color:var(--accent);"> Require viewers to pick a slot when entering
-              </label>
             </div>
+
+            <label id="tnRequireSlotField" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-bottom:14px;cursor:pointer;">
+              <input type="checkbox" id="tnRequireSlot" checked style="width:16px;height:16px;accent-color:var(--accent);"> 🎰 Viewers pick a slot when they enter <span style="color:var(--text-dim);font-size:11px;">(shown on the bracket &amp; overlay)</span>
+            </label>
 
             <div id="tnModeHint" style="font-size:12px;color:var(--text-dim);background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:14px;line-height:1.5;"></div>
 
@@ -13781,9 +13797,11 @@ async function tnCreate() {
   if (mode === 'raffle') { dist = tnGetPrizeDistribution(); if (!dist) return; }
 
   // Per-mode config the later phases consume (entry, draw, seeding).
+  // requireSlot applies to every format — it gates the slot pick on the
+  // viewer entry page (tournament.html), which works in all modes.
   const config = (mode === 'raffle')
     ? { entryCost, maxEntriesPerUser: maxEntries, requireSlot }
-    : {};
+    : { requireSlot };
 
   // Champion prediction (applies to every format).
   const championMode = document.getElementById('tnChampionMode')?.value || 'off';

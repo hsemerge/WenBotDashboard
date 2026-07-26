@@ -119,8 +119,12 @@
 
           <!-- Enter / already entered -->
           <div id="tnEnterBlock">
-            <div id="tnSlotPickWrap" style="display:none;margin-bottom:10px;">
-              <input type="text" id="tnSlotPick" placeholder="Your slot pick (e.g. Gates of Olympus)" maxlength="80" style="width:100%;padding:11px 12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:13px;">
+            <div id="tnSlotPickWrap" style="display:none;margin-bottom:10px;position:relative;">
+              <div style="font-size:11px;color:var(--dim);margin-bottom:6px;">🎰 Pick your slot — it shows next to your name on the bracket</div>
+              <input type="text" id="tnSlotPick" placeholder="Search slots… (e.g. Gates of Olympus)" maxlength="80" autocomplete="off"
+                     style="width:100%;padding:11px 12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:13px;"
+                     onfocus="tnSlotFocus()" oninput="tnSlotInput()" onkeydown="if(event.key==='Escape')tnSlotHideDrop();">
+              <div id="tnSlotDrop" style="display:none;position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--card);border:1px solid rgba(0,229,255,0.25);border-radius:10px;max-height:264px;overflow-y:auto;z-index:50;box-shadow:0 10px 28px rgba(0,0,0,0.55);"></div>
             </div>
             <button class="btn btn-accent" onclick="tnEnter()" id="tnEnterBtn" style="width:100%;padding:13px;">Enter Tournament</button>
             <div id="tnEnterMsg" style="font-size:12px;color:var(--red);margin-top:8px;min-height:16px;text-align:center;"></div>
@@ -254,8 +258,8 @@ function renderRegistration(t, s) {
   }).join('');
   document.getElementById('tnViewDistBlock').innerHTML = distHtml;
 
-  // Slot pick — only for raffle when the streamer requires it.
-  document.getElementById('tnSlotPickWrap').style.display = (isRaffle && cfg.requireSlot) ? '' : 'none';
+  // Slot pick — any mode where the streamer requires it (default on).
+  document.getElementById('tnSlotPickWrap').style.display = cfg.requireSlot ? '' : 'none';
 
   // Enter / already entered
   const btn        = document.getElementById('tnEnterBtn');
@@ -298,7 +302,8 @@ function renderRegistration(t, s) {
     document.getElementById('tnViewPartList').innerHTML = participants.map((p, i) =>
       `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
         <span style="color:var(--dim);font-size:12px;min-width:24px;">#${i+1}</span>
-        <span style="font-size:13px;font-weight:600;">${escHtml(p.kickUsername)}</span>
+        ${p.slot?.thumbnailUrl ? `<img src="${escHtml(p.slot.thumbnailUrl)}" alt="" style="width:26px;height:26px;border-radius:6px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none';">` : ''}
+        <span style="font-size:13px;font-weight:600;">${escHtml(p.kickUsername)}${p.slot?.name ? ` <span style="color:var(--dim);font-weight:400;font-size:12px;">— ${escHtml(p.slot.name)}</span>` : ''}</span>
         ${viewerSession?.kickUsernameKey === p.kickUsernameKey || viewerSession?.kickUsername?.toLowerCase() === p.kickUsernameKey ? '<span style="font-size:10px;color:var(--green);font-weight:700;margin-left:auto;">YOU</span>' : ''}
       </div>`).join('') || '<div class="text-dim" style="font-size:13px;text-align:center;padding:16px;">No participants yet.</div>';
   }
@@ -399,11 +404,11 @@ async function tnEnter() {
   const msg = document.getElementById('tnEnterMsg');
   msg.style.color = 'var(--red)';
 
-  let slot = '';
-  if (isRaffle && cfg.requireSlot) {
-    slot = (document.getElementById('tnSlotPick')?.value || '').trim();
-    if (!slot) { msg.textContent = 'Pick a slot to enter.'; return; }
-  }
+  // Slot payload: catalog pick (with thumbnail) if one was chosen, else the
+  // typed text as a free-form slot name. Applies to every mode.
+  const typed = (document.getElementById('tnSlotPick')?.value || '').trim();
+  const slot  = (tnSlotSel && tnSlotSel.name === typed) ? tnSlotSel : (typed ? { name: typed } : null);
+  if (cfg.requireSlot && !slot) { msg.textContent = 'Pick a slot to enter.'; return; }
 
   btn.disabled = true;
   btn.textContent = 'Entering…';
@@ -411,7 +416,7 @@ async function tnEnter() {
   try {
     const endpoint = isRaffle ? '/api/tournament-raffle-enter' : '/api/tournament-enter';
     const body = { channel, kickUsername: viewerSession.kickUsername, accessToken: viewerSession.accessToken };
-    if (isRaffle) body.slot = slot;
+    if (slot) body.slot = slot;
     const r = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -420,12 +425,86 @@ async function tnEnter() {
     const data = await r.json();
     if (!r.ok) { msg.textContent = data.error || 'Failed to enter.'; btn.disabled = false; btn.textContent = 'Try Again'; return; }
     if (data.message) { msg.style.color = 'var(--green)'; msg.textContent = data.message; }
+    // Clear the pick so a second raffle ticket starts fresh.
+    const sp = document.getElementById('tnSlotPick');
+    if (sp) sp.value = '';
+    tnSlotSel = null;
     await fetchState();
   } catch { msg.textContent = 'Network error — try again.'; btn.disabled = false; btn.textContent = 'Enter Tournament'; }
 }
 
 function show(id) { document.getElementById(id).style.display = ''; }
 function hide(id) { document.getElementById(id).style.display = 'none'; }
+
+// ── Slot pick autocomplete ──────────────────────────────────────────────────
+// Catalog loads lazily on first focus (it's a few thousand entries — fine
+// client-side). A catalog pick carries thumbnail/gameId; free text is still
+// accepted for slots we don't know.
+let tnSlotCatalog = null;   // null = not loaded, [] = load failed (free text only)
+let tnSlotSel     = null;   // { name, thumbnailUrl, gameId } when picked from the list
+let tnSlotLoading = false;
+
+async function tnSlotLoadCatalog() {
+  if (tnSlotCatalog !== null || tnSlotLoading) return;
+  tnSlotLoading = true;
+  try {
+    const r = await fetch('/api/slots-catalog');
+    const d = r.ok ? await r.json() : null;
+    tnSlotCatalog = (d?.slots || []).map(s => ({ name: s.name, provider: s.provider || '', thumbnailUrl: s.thumbnailUrl || null, gameId: s.gameId || null }));
+  } catch { tnSlotCatalog = []; }
+  tnSlotLoading = false;
+  tnSlotInput(); // re-filter with whatever's typed now that data is here
+}
+
+function tnSlotFocus() { tnSlotLoadCatalog(); tnSlotInput(); }
+function tnSlotHideDrop() { const d = document.getElementById('tnSlotDrop'); if (d) d.style.display = 'none'; }
+
+function tnSlotInput() {
+  const inp  = document.getElementById('tnSlotPick');
+  const drop = document.getElementById('tnSlotDrop');
+  if (!inp || !drop) return;
+  const q = inp.value.trim().toLowerCase();
+  if (tnSlotSel && tnSlotSel.name !== inp.value.trim()) tnSlotSel = null; // typed past the pick
+  if (!q) { drop.style.display = 'none'; return; }
+  if (tnSlotCatalog === null) {
+    drop.innerHTML = '<div style="padding:10px 12px;font-size:12px;color:var(--dim);">Loading slots…</div>';
+    drop.style.display = '';
+    return;
+  }
+  const starts = [], contains = [];
+  for (const s of tnSlotCatalog) {
+    const n = s.name.toLowerCase();
+    if (n.startsWith(q)) starts.push(s);
+    else if (n.includes(q)) contains.push(s);
+    if (starts.length >= 8) break;
+  }
+  const hits = starts.concat(contains).slice(0, 8);
+  if (!hits.length) { drop.style.display = 'none'; return; }
+  drop.innerHTML = hits.map((s, i) =>
+    `<div onmousedown="event.preventDefault();tnSlotChoose(${i});" style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05);" onmouseover="this.style.background='rgba(0,229,255,0.07)'" onmouseout="this.style.background=''">
+      ${s.thumbnailUrl ? `<img src="${escHtml(s.thumbnailUrl)}" alt="" style="width:30px;height:30px;border-radius:6px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none';">` : '<span style="width:30px;text-align:center;flex-shrink:0;">🎰</span>'}
+      <div style="min-width:0;">
+        <div style="font-size:13px;font-weight:600;color:var(--bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(s.name)}</div>
+        ${s.provider ? `<div style="font-size:10px;color:var(--dim);">${escHtml(s.provider)}</div>` : ''}
+      </div>
+    </div>`).join('');
+  drop._hits = hits;
+  drop.style.display = '';
+}
+
+function tnSlotChoose(i) {
+  const drop = document.getElementById('tnSlotDrop');
+  const s = drop?._hits?.[i];
+  if (!s) return;
+  tnSlotSel = s;
+  const inp = document.getElementById('tnSlotPick');
+  if (inp) inp.value = s.name;
+  tnSlotHideDrop();
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#tnSlotPickWrap')) tnSlotHideDrop();
+});
 
 async function init() {
   if (!channel) {

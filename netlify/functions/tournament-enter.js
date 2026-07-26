@@ -1,6 +1,8 @@
 // POST /api/tournament-enter
-// Body: { channel, kickUsername, accessToken }
+// Body: { channel, kickUsername, accessToken, slot? }
 // Verifies viewer identity, deducts entry cost, adds to participants.
+// slot may be a string or { name, thumbnailUrl, gameId }; required when
+// the tournament's config.requireSlot is on.
 
 const { getDb, admin }        = require("./_lib/firebase");
 const { res, checkRateLimit } = require("./_lib/http");
@@ -15,7 +17,7 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || "{}"); }
   catch { return res(400, { error: "Invalid JSON" }); }
 
-  const { channel, kickUsername, accessToken } = body;
+  const { channel, kickUsername, accessToken, slot } = body;
   if (!channel || !kickUsername || !accessToken) {
     return res(400, { error: "Missing required fields" });
   }
@@ -51,6 +53,14 @@ exports.handler = async (event) => {
       return res(400, { error: "Tournament registration is not open" });
     }
     const t = tDoc.data();
+
+    // Slot pick — same shape tournament-raffle-enter stores on tickets.
+    const cfg      = t.config || {};
+    const rawName  = slot && typeof slot === "object" ? slot.name : slot;
+    const slotName = rawName ? String(rawName).slice(0, 80) : "";
+    if (cfg.requireSlot && !slotName) {
+      return res(400, { error: "Please pick a slot to enter." });
+    }
 
     // 4. Check already entered
     const already = (t.participants || []).some(p => p && p.kickUsernameKey === userKey);
@@ -89,7 +99,11 @@ exports.handler = async (event) => {
     }
 
     // 8. Batch: deduct points, add participant, update prize pool
-    const newParticipant = { kickUsername, kickUsernameKey: userKey, enteredAt: Date.now(), eliminated: false, eliminatedRound: null, place: null };
+    const newParticipant = {
+      kickUsername, kickUsernameKey: userKey, enteredAt: Date.now(),
+      slot: slotName ? { name: slotName, thumbnailUrl: (slot && slot.thumbnailUrl) || null, gameId: (slot && slot.gameId) || null } : null,
+      eliminated: false, eliminatedRound: null, place: null,
+    };
     const batch = db.batch();
     if (entryCost > 0) {
       batch.update(viewerRef, { points: admin.firestore.FieldValue.increment(-entryCost) });
@@ -103,7 +117,7 @@ exports.handler = async (event) => {
 
     const newBalance = currentPoints - entryCost;
 
-    logAudit(uid, "tournament_enter", { kickUsername, entryCost });
+    logAudit(uid, "tournament_enter", { kickUsername, entryCost, slot: slotName || null });
 
     return res(200, {
       success: true,
