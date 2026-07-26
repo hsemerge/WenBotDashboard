@@ -495,8 +495,8 @@
   <aside class="sidebar">
     <img src="/img/logo.png" alt="WenBot" style="height:104px;width:100%;max-width:200px;object-fit:contain;display:block;margin:0 auto;">
     <div style="flex:1;overflow-y:auto;padding-top:8px;">
-      <div class="sidebar-section">
-        <div class="sidebar-label">Live</div>
+      <div class="sidebar-section" data-sec="live">
+        <div class="sidebar-label sb-toggle" onclick="sbToggleSection('live')">Live <span class="sb-chev">▾</span></div>
         <div class="nav-item active" onclick="showPage('overview',this)"><span class="icon">📊</span> Overview</div>
         <div class="nav-item" onclick="showPage('giveaway',this)"><span class="icon">🎁</span> Giveaway <span class="nav-badge" id="gwLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
         <div class="nav-item" onclick="showPage('bonushunt',this)"><span class="icon">🎰</span> Bonus Hunt <span class="nav-badge" id="bhLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
@@ -506,8 +506,8 @@
         <div class="nav-item" onclick="showPage('bonusbattle',this)"><span class="icon">⚔️</span> Bonus Battles <span class="nav-badge" id="bbLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
         <div class="nav-item" onclick="showPage('tournament',this)"><span class="icon">🏆</span> Tournaments <span class="nav-badge" id="tnLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
       </div>
-      <div class="sidebar-section" style="margin-top:8px;">
-        <div class="sidebar-label">Manage</div>
+      <div class="sidebar-section" style="margin-top:8px;" data-sec="manage">
+        <div class="sidebar-label sb-toggle" onclick="sbToggleSection('manage')">Manage <span class="sb-chev">▾</span></div>
         <div class="nav-item" onclick="showPage('leaderboard',this)"><span class="icon">🏆</span> Leaderboard</div>
         <div class="nav-item" onclick="showPage('verified',this)"><span class="icon">✅</span> Verified Users</div>
         <div class="nav-item" onclick="showPage('points',this)"><span class="icon">🪙</span> Points</div>
@@ -517,12 +517,12 @@
         <div class="nav-item" onclick="showPage('overlays',this)"><span class="icon">🖥</span> Overlays</div>
         <div class="nav-item" onclick="showPage('extension',this)"><span class="icon">🧩</span> Companion Extension</div>
       </div>
-      <div class="sidebar-section" style="margin-top:8px;">
-        <div class="sidebar-label">Community</div>
+      <div class="sidebar-section" style="margin-top:8px;" data-sec="community">
+        <div class="sidebar-label sb-toggle" onclick="sbToggleSection('community')">Community <span class="sb-chev">▾</span></div>
         <div class="nav-item" id="nav-creators" onclick="showPage('creators',this)"><span class="icon">🌐</span> Creators <span class="nav-badge" id="creatorsLiveBadge" style="display:none;background:var(--red);">0 LIVE</span></div>
       </div>
-      <div class="sidebar-section" style="margin-top:8px;">
-        <div class="sidebar-label">Account</div>
+      <div class="sidebar-section" style="margin-top:8px;" data-sec="account">
+        <div class="sidebar-label sb-toggle" onclick="sbToggleSection('account')">Account <span class="sb-chev">▾</span></div>
         <div class="nav-item owner-only" onclick="showPage('billing',this)"><span class="icon">💳</span> Plan &amp; Billing <span class="nav-badge red" id="billingBadge" style="display:none;">0</span> <span id="planBadge" class="nav-lock-pill pro-pill" style="margin-left:auto;">Starter</span></div>
         <div class="nav-item" onclick="showPage('referrals',this)"><span class="icon">🤝</span> Invite &amp; Earn</div>
         <div class="nav-item" onclick="showPage('settings',this)"><span class="icon">⚙️</span> Settings</div>
@@ -824,6 +824,13 @@
            windows but never stretch edge-to-edge when maximized. (Overlays is
            excluded — the Studio is a full-bleed app; What's New & Creators cap
            themselves internally.) */
+        /* Collapsible sidebar sections */
+        .sb-toggle { cursor: pointer; user-select: none; display: flex; align-items: center; }
+        .sb-toggle:hover { color: var(--bright); }
+        .sb-chev { margin-left: auto; font-size: 10px; opacity: 0.6; transition: transform 0.18s; }
+        .sidebar-section.sb-collapsed .sb-chev { transform: rotate(-90deg); }
+        .sidebar-section.sb-collapsed .nav-item { display: none; }
+
         #page-points > *, #page-gtb > *, #page-store > *, #page-commands > *,
         #page-leaderboard > *, #page-verified > *, #page-referrals > *,
         #page-activity > *, #page-extension > *, #page-slotpicker > *,
@@ -5081,6 +5088,23 @@ function showPage(id, el) {
   // Creator Chat dock dodges pages that have their own bottom bar
   document.getElementById('ccDock')?.classList.toggle('cc-raised', id === 'overlays');
 }
+
+// ── Collapsible sidebar sections (persisted per browser) ──
+function sbCollapsedSet() {
+  try { return new Set(JSON.parse(localStorage.getItem('wb_sb_collapsed') || '[]')); } catch { return new Set(); }
+}
+function sbToggleSection(key) {
+  const sec = document.querySelector(`.sidebar-section[data-sec="${key}"]`);
+  if (!sec) return;
+  const set = sbCollapsedSet();
+  const collapsed = sec.classList.toggle('sb-collapsed');
+  if (collapsed) set.add(key); else set.delete(key);
+  localStorage.setItem('wb_sb_collapsed', JSON.stringify([...set]));
+}
+// Restore on load
+sbCollapsedSet().forEach(key => {
+  document.querySelector(`.sidebar-section[data-sec="${key}"]`)?.classList.add('sb-collapsed');
+});
 
 // ── FLASH ──
 function flash(msg, type='success') {
