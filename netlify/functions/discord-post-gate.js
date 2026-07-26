@@ -53,7 +53,7 @@ exports.handler = async (event) => {
   const verifyUrl = `https://wenbot.gg/verify.html?channel=${encodeURIComponent(channelName)}&casino=${encodeURIComponent(casino)}&src=discord`;
   const body = {
     content: verify.gateMessage ||
-      "🛡️ **Verify to unlock the server**\n\nClick **Verify** below, connect your Kick + casino, and you'll be granted access.",
+      `🛡️ **Verify to unlock the server**\n\nClick **Verify** below and link your Kick, Discord, and casino${data.casinoRequired === false ? " (optional)" : ""} accounts. You'll be granted access once you're verified.`,
     components: [{
       type: 1,
       components: [{ type: 2, style: 5, label: "✅ Verify", url: verifyUrl }],
