@@ -153,7 +153,14 @@
 
   function overlayId() {
     var m = window.location.pathname.match(/([^\/]+?)\.html$/i);
-    return m ? (PATH_TO_ID[m[1]] || null) : null;
+    var id = m ? (PATH_TO_ID[m[1]] || null) : null;
+    // Layout variants are separate Overlay Studio cards with their own saved
+    // themes: the classic-bracket tournament card saves under 'tournament2'.
+    if (id === 'tournament' &&
+        new URLSearchParams(window.location.search).get('layout') === 'classic') {
+      return 'tournament2';
+    }
+    return id;
   }
 
   // Poll the streamer's saved theme so OBS picks up dashboard changes live.
@@ -167,6 +174,9 @@
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         var saved = d && d.overlays && d.overlays[id];
+        // Variant cards fall back to the base overlay's theme until the
+        // streamer saves one specifically for the variant.
+        if (!saved && id === 'tournament2' && d && d.overlays) saved = d.overlays['tournament'];
         if (saved) applyTheme(fromSaved(saved));
       })
       .catch(function () {});
