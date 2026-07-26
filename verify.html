@@ -381,11 +381,21 @@
 
   // Confirm the existing verification (re-submit the same casino username) so
   // verify-affiliate.js can attach the Discord dtoken to the existing record
-  // without forcing the user to retype anything.
+  // without forcing the user to retype anything. All feedback lands on THIS
+  // button — submitVerify's states target the (hidden) form button, which made
+  // this card look dead while the request ran.
   async function confirmExisting() {
     const existing = document.getElementById('affiliateInput').value.trim();
     if (!existing) { revealCasinoForm(); return; }
-    submitVerify();
+    const btn = document.getElementById('confirmExistingBtn');
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Confirming…';
+    await submitVerify();
+    // Success hides the whole card (submitVerify does it); if we're still
+    // visible the request failed — restore the button so they can retry.
+    btn.disabled = false;
+    btn.textContent = label;
   }
 
   function connectKick() {
@@ -442,7 +452,11 @@
         if (data.discordLinked || data.discordLinkedAny || !data.streamerHasDiscord) {
           document.getElementById('discordLinkSection').style.display = 'none';
         }
+        // The already-verified short-circuit card ("Looks good") must clear on
+        // success too — leaving it up made the confirm look like a no-op.
+        document.getElementById('alreadyVerifiedSection').style.display = 'none';
         showSuccess();
+        document.getElementById('successBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
       } else {
         showError(data.error || 'Verification failed. Please try again.');
         btn.disabled = false;
@@ -477,8 +491,18 @@
     const dcBtn = document.getElementById('vfDiscordBtn');
     if (dcBtn && guildInfo && guildInfo.guildId) {
       dcBtn.href = `https://discord.com/channels/${encodeURIComponent(guildInfo.guildId)}`;
+      // Prefer the desktop app; the href stays as the browser fallback.
+      dcBtn.onclick = (e) => { e.preventDefault(); openDiscordApp(guildInfo.guildId, dcBtn.href); };
       dcBtn.style.display = 'block';
     }
+  }
+
+  // Try the desktop app via discord://; if it grabs focus the page blurs and we
+  // cancel the web fallback. No app installed → the browser tab opens instead.
+  function openDiscordApp(guildId, webUrl) {
+    const t = setTimeout(() => { window.open(webUrl, '_blank', 'noopener'); }, 1400);
+    window.addEventListener('blur', () => clearTimeout(t), { once: true });
+    location.href = 'discord://-/channels/' + guildId;
   }
 
   function showError(msg) {

@@ -245,6 +245,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/discord-verify-diagnose"
+  to     = "/.netlify/functions/discord-verify-diagnose"
+  status = 200
+
+[[redirects]]
   from   = "/api/slot-request-data"
   to     = "/.netlify/functions/slot-request-data"
   status = 200

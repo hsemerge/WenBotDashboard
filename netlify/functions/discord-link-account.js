@@ -175,7 +175,8 @@ exports.handler = async (event) => {
   // source of truth — it succeeds if they're a member and harmlessly 404s if not.
   // Needs the bot to have Manage Roles + a higher role than the target.
   let roleAssigned = false;
-  if (verifyCfg.assignRole && verifyCfg.roleId) {
+  const roleExpected = !!(verifyCfg.assignRole && verifyCfg.roleId);
+  if (roleExpected) {
     try {
       const roleResp = await fetch(
         `https://discord.com/api/v10/guilds/${guildId}/members/${discordUserId}/roles/${verifyCfg.roleId}`,
@@ -189,6 +190,8 @@ exports.handler = async (event) => {
   }
 
   // alreadyMember (= now a member) drives the "Open Discord" button; inviteUrl is
-  // only set on the rare failure path.
-  return res(200, { success: true, discordUsername, kickUsername, alreadyMember: isMember, joined, roleAssigned, inviteUrl, guildId });
+  // only set on the rare failure path. roleExpected lets the callback page tell
+  // the user when a configured role FAILED to land (bot hierarchy/permissions)
+  // instead of failing silently.
+  return res(200, { success: true, discordUsername, kickUsername, alreadyMember: isMember, joined, roleAssigned, roleExpected, inviteUrl, guildId });
 };

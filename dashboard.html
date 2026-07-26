@@ -2279,8 +2279,10 @@
             <button class="btn btn-accent" onclick="saveVerifySettings()">Save Verification Settings</button>
             <button class="btn" onclick="postVerifyGate()" style="font-size:13px;padding:8px 16px;">📨 Post / refresh the verify message</button>
             <button class="btn" onclick="populateDiscordChannels()" style="font-size:13px;padding:8px 16px;">↺ Refresh roles &amp; channels</button>
+            <button class="btn" onclick="dvRunSetupCheck()" id="dvCheckBtn" style="font-size:13px;padding:8px 16px;">🩺 Check role setup</button>
           </div>
           <div class="hint" style="margin-top:6px;">Save first, then post — the verify message uses your saved channel &amp; role.</div>
+          <div id="dvCheckResult" style="display:none;margin-top:10px;border-radius:8px;padding:12px 14px;font-size:12.5px;line-height:1.65;"></div>
         </div><!-- /Verification & Roles -->
       </div><!-- /Discord & Verification card -->
 
@@ -12270,6 +12272,46 @@ async function postVerifyGate() {
   } catch (e) {
     flash('Failed to post: ' + e.message, 'error');
   }
+}
+
+// Live check against Discord: can WenBot actually grant the saved Verified
+// role? Catches the two silent killers — missing Manage Roles, and WenBot's
+// role sitting below the target in the hierarchy.
+async function dvRunSetupCheck() {
+  if (!fb.currentUser) return;
+  const btn = document.getElementById('dvCheckBtn');
+  const out = document.getElementById('dvCheckResult');
+  if (btn) { btn.disabled = true; btn.textContent = '🩺 Checking…'; }
+  try {
+    const idToken = await fb.currentUser.getIdToken();
+    const resp = await fetch('/api/discord-verify-diagnose', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid: fb.activeUid }),
+    });
+    const data = await resp.json();
+    if (!resp.ok || data.error) throw new Error(data.error || 'Check failed');
+    const md = s => escHtml(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    if (out) {
+      const lines = [
+        ...(data.problems || []).map(p => `<div style="display:flex;gap:8px;"><span>❌</span><span>${md(p)}</span></div>`),
+        ...(data.notes    || []).map(n => `<div style="display:flex;gap:8px;"><span>${data.ok ? '✅' : 'ℹ️'}</span><span>${md(n)}</span></div>`),
+      ];
+      out.innerHTML = lines.join('') || '<div>✅ All good.</div>';
+      out.style.background = data.ok ? 'rgba(83,224,119,0.08)' : 'rgba(255,71,87,0.08)';
+      out.style.border     = data.ok ? '1px solid rgba(83,224,119,0.25)' : '1px solid rgba(255,71,87,0.25)';
+      out.style.color      = 'var(--bright)';
+      out.style.display    = '';
+    }
+  } catch (e) {
+    if (out) {
+      out.innerHTML = '❌ ' + escHtml(e.message);
+      out.style.background = 'rgba(255,71,87,0.08)';
+      out.style.border = '1px solid rgba(255,71,87,0.25)';
+      out.style.display = '';
+    }
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '🩺 Check role setup'; }
 }
 
 function updateDiscordStatusBadge(guildId) {
