@@ -115,10 +115,12 @@
     }
     try {
       const idToken = await user.getIdToken();
+      // fb.activeUid: when an admin/mod is managing another account (streamer
+      // switcher), the server gets connected to THAT account, not their own.
       const resp = await fetch('/api/discord-save-guild', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
-        body:    JSON.stringify({ guildId }),
+        body:    JSON.stringify({ guildId, uid: (typeof fb !== 'undefined' && fb.activeUid) || undefined }),
       });
       const result = await resp.json();
       if (!resp.ok) throw new Error(result.error || 'Unknown error');

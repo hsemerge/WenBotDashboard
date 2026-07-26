@@ -4490,7 +4490,8 @@ async function discordNotify(type, data) {
         'Content-Type':  'application/json',
         'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify({ type, data }),
+      // uid: notify the ACTIVE streamer's Discord (matters when moderating).
+      body: JSON.stringify({ type, data, uid: fb.activeUid }),
     }).catch(() => {});
   } catch {}
 }
@@ -12184,7 +12185,8 @@ async function populateDiscordChannels(selectedGiveaway, selectedAnnouncement) {
   aSel.innerHTML = '<option value="">Loading channels…</option>';
   try {
     const idToken = await fb.currentUser.getIdToken();
-    const resp = await fetch('/api/discord-channels', {
+    // uid = managed account when moderating, so the dropdowns list THEIR guild.
+    const resp = await fetch('/api/discord-channels?uid=' + encodeURIComponent(fb.activeUid || ''), {
       headers: { 'Authorization': 'Bearer ' + idToken },
     });
     const { channels, roles, error } = await resp.json();

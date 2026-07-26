@@ -88,12 +88,19 @@ exports.handler = async (event) => {
   const { type, data } = body;
   if (!type) return res(400, { error: "Missing type" });
 
-  // Verify Firebase ID token to get uid
+  // Verify Firebase ID token to get uid. body.uid lets a moderator / agency
+  // admin (delegatedFor claim) notify the MANAGED streamer's Discord — without
+  // it, a mod running a giveaway posted to their own server (or nowhere).
   const db = getDb();
   let uid;
   try {
     const decoded = await admin.auth().verifyIdToken(idToken);
-    uid = decoded.uid;
+    const requested = body.uid || decoded.uid;
+    const delegated = Array.isArray(decoded.delegatedFor) && decoded.delegatedFor.includes(requested);
+    if (requested !== decoded.uid && !delegated) {
+      return res(403, { error: "You don't have access to that account." });
+    }
+    uid = requested;
   } catch {
     return res(401, { error: "Invalid auth token" });
   }

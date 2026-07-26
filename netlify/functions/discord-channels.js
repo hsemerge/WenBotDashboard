@@ -1,6 +1,8 @@
-// GET /api/discord-channels
+// GET /api/discord-channels[?uid=<managed streamer>]
 // Returns text channels for the streamer's connected Discord guild
-// Auth: Firebase ID token in Authorization header
+// Auth: Firebase ID token in Authorization header. ?uid= lets a moderator /
+// agency admin (delegatedFor claim) load the MANAGED account's guild instead
+// of their own.
 
 const { getDb, admin } = require("./_lib/firebase");
 const { res }          = require("./_lib/http");
@@ -16,7 +18,12 @@ exports.handler = async (event) => {
   let uid;
   try {
     const decoded = await admin.auth().verifyIdToken(authHeader);
-    uid = decoded.uid;
+    const requested = (event.queryStringParameters || {}).uid || decoded.uid;
+    const delegated = Array.isArray(decoded.delegatedFor) && decoded.delegatedFor.includes(requested);
+    if (requested !== decoded.uid && !delegated) {
+      return res(403, { error: "You don't have access to that account." });
+    }
+    uid = requested;
   } catch {
     return res(401, { error: "Invalid auth token" });
   }
