@@ -2241,8 +2241,6 @@
             <select id="dvGateChannelId"><option value="">— select a channel —</option></select>
             <div class="hint">WenBot posts a clickable <strong>Verify</strong> button here. Works even if another bot (e.g. Double Counter) is your anti-bot gate — this just gives users a link to link Kick + casino.</div>
           </div>
-          <button class="btn" onclick="postVerifyGate()" style="font-size:13px;padding:8px 16px;">📨 Post / refresh the verify message</button>
-
           <!-- Toggle 2: full anti-bot gate -->
           <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin:16px 0 12px;">
             <input type="checkbox" id="dvGatekeeper" onchange="dvToggleChanged()" style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;">
@@ -2268,8 +2266,10 @@
 
           <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
             <button class="btn btn-accent" onclick="saveVerifySettings()">Save Verification Settings</button>
+            <button class="btn" onclick="postVerifyGate()" style="font-size:13px;padding:8px 16px;">📨 Post / refresh the verify message</button>
             <button class="btn" onclick="populateDiscordChannels()" style="font-size:13px;padding:8px 16px;">↺ Refresh roles &amp; channels</button>
           </div>
+          <div class="hint" style="margin-top:6px;">Save first, then post — the verify message uses your saved channel &amp; role.</div>
         </div><!-- /Verification & Roles -->
       </div><!-- /Discord & Verification card -->
 
