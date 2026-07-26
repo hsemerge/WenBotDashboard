@@ -179,7 +179,7 @@
 
       <!-- Kick-only skip — only when the streamer's casinoRequired flag is off -->
       <div id="skipCasinoWrap" style="display:none;text-align:center;margin-top:14px;">
-        <button id="skipCasinoBtn" onclick="submitSkip()" style="background:none;border:1px solid rgba(255,255,255,0.18);border-radius:8px;color:var(--text-dim,#8b949e);font-size:13px;font-weight:700;padding:10px 18px;cursor:pointer;width:100%;font-family:'Exo 2',sans-serif;">
+        <button id="skipCasinoBtn" onclick="submitSkip()" style="background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.45);border-radius:8px;color:#00e5ff;font-size:13px;font-weight:800;padding:11px 18px;cursor:pointer;width:100%;font-family:'Exo 2',sans-serif;">
           Skip — I don't have a <span id="skipCasinoName">casino</span> account
         </button>
         <div style="font-size:11px;color:#8b949e;margin-top:8px;line-height:1.5;">You'll be verified with Kick only — good for giveaways &amp; tournaments. Add your casino later to qualify for code-based giveaways.</div>
@@ -277,7 +277,7 @@
     document.getElementById('affiliateLabel').textContent = `${casinoName} Username`;
     document.getElementById('affiliateInput').placeholder = `Enter your exact ${casinoName} username...`;
     document.getElementById('providerHint').textContent   =
-      `Enter the username you use at ${casinoName}. If you're wagering under ${channel}'s affiliate code you'll qualify for wager giveaways too.`;
+      `Enter the username you use at ${casinoName}. If you play under ${channel}'s code, you'll also qualify for code-only giveaways.`;
   }
 
   // Resolve the casino: param first, else the channel's actual provider. If the
