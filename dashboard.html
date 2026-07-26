@@ -620,6 +620,19 @@
         </div>
       </div>
 
+      <!-- 🚀 Getting Started checklist — new-streamer onboarding. Auto-detects
+           each step from the profile / bot heartbeat, hides itself once every
+           step is done (or dismissed — reopen from the Help page). -->
+      <div id="gettingStartedCard" style="display:none;background:linear-gradient(135deg,rgba(0,229,255,0.06),rgba(0,229,255,0.015));border:1px solid rgba(0,229,255,0.25);border-radius:12px;padding:16px 18px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <div style="font-family:'Exo 2',sans-serif;font-size:15px;font-weight:900;color:var(--bright);">🚀 Getting Started</div>
+          <div id="gsProgressPill" style="font-size:11px;font-weight:800;color:var(--accent);background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);border-radius:999px;padding:3px 10px;">0/6</div>
+          <div style="flex:1;height:6px;background:rgba(255,255,255,0.07);border-radius:4px;overflow:hidden;"><div id="gsProgressBar" style="height:100%;width:0%;background:var(--accent);border-radius:4px;transition:width .4s;"></div></div>
+          <button onclick="gsDismiss()" title="Hide this checklist (reopen from Help)" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:15px;padding:2px 6px;">✕</button>
+        </div>
+        <div id="gsSteps" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px;"></div>
+      </div>
+
       <!-- Status row — at-a-glance health -->
       <div class="grid-4" style="margin-bottom:16px;">
         <div class="stat-card">
@@ -2549,7 +2562,9 @@
             <li>📺 <strong>Overlays show a standby card when idle.</strong> Tournament, Bonus Hunt, and Bonus Battle overlays now render a subtle placeholder when nothing's running — so you can position them in OBS without starting a session. Add <code>&amp;standby=0</code> to the URL to hide it.</li>
             <li>🏆 <strong>Winner reveal cleaned up.</strong> No more double frame around the winner card, the reveal stays fully opaque, viewer profiles open <em>above</em> the popup, and "remove from pool" is instant.</li>
             <li>📌 <strong>Collapsible sidebar sections.</strong> Click a nav section header to fold it — WenBot remembers your layout.</li>
-            <li>🛠 <strong>Verification page:</strong> actions reordered so Save comes before posting the verify message — no more posting stale settings.</li>
+            <li>🛠 <strong>Verification page:</strong> actions reordered so Save comes before posting the verify message — no more posting stale settings, plus a new <strong>🩺 Check role setup</strong> button that tells you exactly why a verified role isn't landing (bot permissions / role order).</li>
+            <li>🚀 <strong>Getting Started checklist.</strong> New streamers get a guided checklist on the Overview — connect Kick, get the bot online, pick a casino, Discord, first overlay, first giveaway — that ticks itself off as you go. Dismiss it anytime; reopen from Help.</li>
+            <li>🛡 <strong>Managing mode fixed for Discord.</strong> Moderators and agency admins now see and change the <em>managed</em> account's Discord channels, roles, and server connection — and giveaway pings from a moderating session post to the right server.</li>
           </ul>
         </div>
 
@@ -2849,6 +2864,7 @@
         <div style="font-size:12px;color:var(--text-dim);margin-top:12px;line-height:1.6;">
           🛟 <strong style="color:var(--bright);">Stuck on anything?</strong> Our support solves it all — open a ticket in the
           <a href="https://discord.gg/wenbot" target="_blank" rel="noopener" style="color:var(--accent);">WenBot Discord</a> or ask for a call. No question is too small.
+          <span style="margin-left:10px;">🚀 <span onclick="gsReopen()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">Reopen the Getting Started checklist</span></span>
         </div>
       </div>
       <div class="grid-2">
@@ -5588,6 +5604,7 @@ function onAuthReady(user) {
   // already computed userPlan from the streamer's profile.
   applyModContextUI();
   buildStreamerSwitcher();
+  gsRender(); // Getting Started checklist (Overview) — needs profile
 
   // Start live bot status listener — drives the stat card, sidebar indicator, and offline banner.
   // Listeners scope to the *active* streamer (fb.activeUid), not the auth user — a moderator
@@ -14945,6 +14962,92 @@ let botStatusUnsub    = null;
 let botStatusData     = undefined; // undefined = listener hasn't fired yet; null = doc doesn't exist
 let botStatusTimer    = null;
 
+// ── GETTING STARTED CHECKLIST ────────────────────────────────────────────────
+// New-streamer onboarding on the Overview page. Steps auto-detect from the
+// profile + bot heartbeat; overlay/giveaway steps can also be marked done by
+// hand. Hidden while moderating (it reflects setup the OWNER does), once every
+// step completes, or after dismissal (profile flag — reopen from Help).
+let _gsSig = '';
+function gsSteps() {
+  const p = profile || {};
+  const hb = botStatusData?.heartbeat || 0;
+  const botOnline = hb && (Date.now() - hb) < 300000;
+  const manual = p.gettingStarted || {};
+  return [
+    { key: 'kick',    icon: '🟢', title: 'Connect your Kick channel',  done: !!p.kickChannel,
+      desc: 'Your channel is the heart of everything.', cta: ['Open Settings', 'settings'] },
+    { key: 'bot',     icon: '🤖', title: 'Get WenBot online',          done: !!botOnline,
+      desc: 'Mod <strong>WenBot</strong> in your Kick chat — the bot joins within a minute.', cta: ['Open Settings', 'settings'] },
+    { key: 'casino',  icon: '🎰', title: 'Pick your casino',           done: !!p.activeProvider,
+      desc: 'Sets which affiliate code viewers verify under.', cta: ['Open Settings', 'settings'] },
+    { key: 'discord', icon: '🎮', title: 'Connect Discord <span style="font-weight:400;color:var(--text-dim);font-size:10px;">(optional)</span>', done: !!(p.discordConfig?.guildId),
+      desc: 'Giveaway pings, verification &amp; slash commands in your server.', cta: ['Open Settings', 'settings'] },
+    { key: 'overlay', icon: '📺', title: 'Add an overlay to OBS',      done: !!(p.overlays && Object.keys(p.overlays).length) || !!manual.overlay,
+      desc: 'Grab any overlay URL from the Studio and drop it in OBS as a browser source.', cta: ['Open Overlay Studio', 'overlays'], manual: true },
+    { key: 'giveaway',icon: '🎁', title: 'Run your first giveaway',    done: ((p.communityStats?.giveawaysRun || 0) > 0) || ((p.communityStats?.winnersDrawn || 0) > 0) || !!manual.giveaway,
+      desc: 'Start one from the Giveaway page or type <code style="color:var(--accent);">!giveaway start</code> in chat.', cta: ['Open Giveaway', 'giveaway'], manual: true },
+  ];
+}
+
+function gsGo(page) {
+  showPage(page, document.querySelector(`.nav-item[onclick*="${page}"]`));
+}
+
+function gsRender() {
+  const card = document.getElementById('gettingStartedCard');
+  if (!card) return;
+  if (!profile || !profile.onboarded || profile.gettingStartedDismissed || fb.isModerating) {
+    card.style.display = 'none';
+    return;
+  }
+  const steps = gsSteps();
+  const doneN = steps.filter(s => s.done).length;
+  if (doneN === steps.length) { card.style.display = 'none'; return; }
+
+  // Cheap signature so the 30s bot-status rerender doesn't thrash the DOM.
+  const sig = steps.map(s => s.done ? '1' : '0').join('');
+  if (sig === _gsSig && card.style.display !== 'none') return;
+  _gsSig = sig;
+
+  document.getElementById('gsProgressPill').textContent = `${doneN}/${steps.length}`;
+  document.getElementById('gsProgressBar').style.width  = Math.round(doneN / steps.length * 100) + '%';
+  document.getElementById('gsSteps').innerHTML = steps.map(s => `
+    <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:${s.done ? 'rgba(83,224,119,0.05)' : 'var(--bg-card)'};border:1px solid ${s.done ? 'rgba(83,224,119,0.25)' : 'var(--border)'};border-radius:9px;${s.done ? 'opacity:.75;' : ''}">
+      <div style="font-size:16px;line-height:1.2;flex-shrink:0;">${s.done ? '✅' : s.icon}</div>
+      <div style="min-width:0;flex:1;">
+        <div style="font-size:12.5px;font-weight:700;color:var(--bright);${s.done ? 'text-decoration:line-through;text-decoration-color:rgba(255,255,255,0.35);' : ''}">${s.title}</div>
+        ${s.done ? '' : `<div style="font-size:11px;color:var(--text-dim);margin-top:2px;line-height:1.5;">${s.desc}</div>
+        <div style="margin-top:6px;display:flex;gap:10px;align-items:center;">
+          <button onclick="gsGo('${s.cta[1]}')" style="background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.3);border-radius:6px;color:var(--accent);font-size:10.5px;font-weight:800;padding:4px 10px;cursor:pointer;">${s.cta[0]} →</button>
+          ${s.manual ? `<span onclick="gsMarkDone('${s.key}')" style="font-size:10.5px;color:var(--text-dim);cursor:pointer;text-decoration:underline;">already did this</span>` : ''}
+        </div>`}
+      </div>
+    </div>`).join('');
+  card.style.display = '';
+}
+
+async function gsMarkDone(key) {
+  const map = { ...(profile?.gettingStarted || {}), [key]: true };
+  if (profile) profile.gettingStarted = map;
+  gsRender();
+  try { await saveStreamerProfile({ gettingStarted: map }); } catch {}
+}
+
+async function gsDismiss() {
+  if (profile) profile.gettingStartedDismissed = true;
+  gsRender();
+  flash('Checklist hidden — reopen it anytime from the Help page.');
+  try { await saveStreamerProfile({ gettingStartedDismissed: true }); } catch {}
+}
+
+async function gsReopen() {
+  if (profile) profile.gettingStartedDismissed = false;
+  _gsSig = '';
+  try { await saveStreamerProfile({ gettingStartedDismissed: false }); } catch {}
+  gsGo('overview');
+  gsRender();
+}
+
 function startBotStatusListener(uid) {
   if (botStatusUnsub) { botStatusUnsub(); botStatusUnsub = null; }
   botStatusUnsub = fb.db.collection('streamers').doc(uid)
@@ -15038,6 +15141,10 @@ function renderBotStatus() {
       : '';
     syncEl.textContent = `${ageStr} · syncs every 5 min${ctx}`;
   }
+
+  // Getting Started card watches the bot heartbeat ("Get WenBot online" step) —
+  // cheap: gsRender no-ops unless a step's done-state actually flipped.
+  gsRender();
 }
 
 function formatAge(sec) {
