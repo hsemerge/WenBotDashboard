@@ -7049,6 +7049,7 @@ async function spinPicker() {
   gwSyncSpinnerFrame();
   const overlay = document.getElementById('gwSpinnerOverlay');
   overlay.classList.add('active');
+  gwGuardCtas(true); // reveal floats over the CTA row — block clicks under it
   overlay.classList.remove('gw-landed'); // dark chrome returns for the next spin
   gwCenterSpinnerOverlay();
   requestAnimationFrame(gwResizeSpinnerFrame);
@@ -7907,6 +7908,21 @@ async function gwRemoveWinnerFromPool(btn) {
 // from pool so they can't win again" (e.g. when re-spinning for more winners).
 let _gwWinnerPopupTimer = null;
 
+// Misclick guard: the reveal + decision card float directly over the control
+// column's Draw / Pause / Finish buttons. While anything is floating there,
+// those buttons are disabled — and stay disabled for a beat after it closes so
+// the second click of a double-click can't land on Finish & Clear.
+let _gwCtaGuardTimer = null;
+function gwGuardCtas(on) {
+  if (_gwCtaGuardTimer) { clearTimeout(_gwCtaGuardTimer); _gwCtaGuardTimer = null; }
+  const apply = (dis) => ['gwMainBtn', 'gwPauseBtn', 'gwFinishBtn'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) { b.disabled = dis; b.style.opacity = dis ? '0.35' : ''; b.style.pointerEvents = dis ? 'none' : ''; }
+  });
+  if (on) apply(true);
+  else _gwCtaGuardTimer = setTimeout(() => { apply(false); _gwCtaGuardTimer = null; }, 450);
+}
+
 // Show the floating winner decision card, docked right under the spinner
 // preview: avatar left, the winner's live chat right, actions below. It's a
 // DECISION point — it stays until the streamer picks Remove or Keep. (The OBS
@@ -7931,6 +7947,7 @@ function showWinnerActionPopup(winner) {
   if (wrap) wrap.style.display = 'none';
 
   card.style.display = 'block';
+  gwGuardCtas(true);
   _positionWinnerPopup();
   clearTimeout(_gwWinnerPopupTimer);
 }
@@ -7974,6 +7991,7 @@ function closeWinnerPopup() {
   const card = document.getElementById('gwWinnerDecision');
   const wasOpen = card && card.style.display === 'block';
   if (card) card.style.display = 'none';
+  gwGuardCtas(false); // release (after a grace beat) — double-clicks can't fall through
   // Decision made — flip Well C back to Participants, ready for the next draw.
   if (wasOpen) gwSetPeopleTab('p');
   // Chat is DISMISSED with the card — no more dropping to the under-stage spot.
@@ -8016,6 +8034,8 @@ function gwClearOverlay() {
   if (_gwOverlayHideTimer) { clearTimeout(_gwOverlayHideTimer); _gwOverlayHideTimer = null; }
   const _ov = document.getElementById('gwSpinnerOverlay');
   if (_ov) { _ov.classList.remove('active'); _ov.classList.remove('gw-landed'); }
+  // Only release the misclick guard when the decision card is down too.
+  if (document.getElementById('gwWinnerDecision')?.style.display !== 'block') gwGuardCtas(false);
   const uid = fb.activeUid;
   if (!uid) return;
   fb.db.collection('streamers').doc(uid).collection('giveaway_state').doc('snapshot')
