@@ -813,11 +813,8 @@
         .gw-status-strip { display:flex; align-items:center; gap:9px; flex-wrap:wrap; border:1px solid var(--border); background:var(--bg-card); border-radius:10px; padding:10px 12px; }
         .gw-status-strip.live { border-color:rgba(83,224,119,0.3); background:rgba(83,224,119,0.05); }
         .gw-bigcount { text-align:center; margin:16px 0 6px; }
-        .gw-bigcount .n { font-family:'Exo 2',sans-serif; font-size:42px; font-weight:900; color:var(--bright); line-height:1; transition:font-size .25s; font-variant-numeric:tabular-nums; }
+        .gw-bigcount .n { font-family:'Exo 2',sans-serif; font-size:42px; font-weight:900; color:var(--bright); line-height:1; font-variant-numeric:tabular-nums; }
         .gw-bigcount .l { font-size:10px; letter-spacing:.15em; text-transform:uppercase; color:var(--text-dim); margin-top:4px; }
-        /* LIVE: same element, same spot — just bigger for on-stream impact. */
-        .gw-bigcount.live-big .n { font-size:64px; }
-        .gw-bigcount.live-big .l { font-size:12px; letter-spacing:.22em; font-weight:800; }
 
         /* Well C — Participants / Winners tabs */
         .gw-people-tabs { display:flex; border-bottom:1px solid rgba(255,255,255,0.06); flex-shrink:0; }
@@ -6504,10 +6501,12 @@ function gwUpdateUI() {
     if (ctlChip && ctlHero && ctlKw) {
       if (live) ctlKw.textContent = kw;
       if (live && paused) {
-        ctlChip.innerHTML = `<span class="gw-chip paused-chip">⏸ Entries paused — draw or reopen</span>`;
+        ctlChip.innerHTML = `<span style="display:inline-block;background:rgba(255,167,38,0.1);border:1px solid rgba(255,167,38,0.45);color:var(--orange,#ffa726);font-size:14px;font-weight:800;border-radius:10px;padding:7px 16px;">⏸ Entries paused — draw or reopen</span>`;
         ctlChip.style.display = '';
       } else if (live && gwEntryMode === 'points') {
-        ctlChip.innerHTML = `<span class="gw-chip pts">🪙 ${fee.toLocaleString()} ${escHtml(cur)} per entry${multiOn ? ' · multi-buy on' : ''}</span>`;
+        // The PRICE is the second thing viewers need after the keyword — make
+        // it stream-readable, not a footnote chip.
+        ctlChip.innerHTML = `<span style="display:inline-block;background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.45);color:var(--gold);font-family:'Exo 2',sans-serif;font-size:19px;font-weight:800;border-radius:12px;padding:9px 20px;">🪙 ${fee.toLocaleString()} ${escHtml(cur)} per entry${multiOn ? ' · multi-buy on' : ''}</span>`;
         ctlChip.style.display = '';
       } else {
         ctlChip.style.display = 'none';
@@ -6658,7 +6657,6 @@ function updateGiveawayStatus(active) {
     const big  = document.getElementById('gwBigcountIdle');
     if (hero) hero.style.display = active ? 'flex' : 'none';
     if (idle) idle.style.display = active ? 'none' : 'flex';
-    if (big)  big.classList.toggle('live-big', active);
     if (active) { const k = document.getElementById('gwCtlKw'); if (k) k.textContent = kw; } }
   if (active) {
     dot.classList.add('online'); dot.classList.remove('offline');
