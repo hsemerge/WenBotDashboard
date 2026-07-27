@@ -853,7 +853,7 @@
         #page-games > *
         { max-width: 1720px; margin-left: auto; margin-right: auto; }
         @keyframes ovAlertPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.9); } }
-        .gw-col { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; min-height: 420px; max-height: 74vh; }
+        .gw-col { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; min-height: 420px; max-height: 82vh; }
         .gw-col-title { font-family:'Exo 2',sans-serif;font-size:13px;font-weight:900;color:var(--bright);letter-spacing:.05em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px; }
         .gw-col-title .gw-count { color:var(--accent);font-size:18px;margin-left:auto; }
         .gw-clear-btn { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-dim); font-size: 11px; padding: 4px 8px; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 600; transition: all 0.15s; }
@@ -903,7 +903,7 @@
            centers it on the stage, not the viewport, so the sidebar doesn't
            skew it) and holds until the streamer acts. No backdrop, no extra
            frame — the reveal graphic provides its own chrome. */
-        .gw-spinner-overlay { position: fixed; top: 36%; transform: translate(-50%, -50%); width: min(680px, 92vw); height: min(420px, 56vh); background: rgba(13,17,23,0.92); border: 1px solid var(--border); border-radius: 14px; display: none; overflow: hidden; z-index: 650; box-shadow: 0 24px 80px rgba(0,0,0,0.7); transition: background 0.4s, border-color 0.4s, box-shadow 0.4s; }
+        .gw-spinner-overlay { position: fixed; top: 31%; transform: translate(-50%, -50%); width: min(680px, 92vw); height: min(420px, 56vh); background: rgba(13,17,23,0.92); border: 1px solid var(--border); border-radius: 14px; display: none; overflow: hidden; z-index: 650; box-shadow: 0 24px 80px rgba(0,0,0,0.7); transition: background 0.4s, border-color 0.4s, box-shadow 0.4s; }
         /* Once the spin has landed: FULLY opaque (nothing behind bleeds
            through) but the frame outline drops so the reveal reads as one
            clean surface instead of a box inside a box. */
@@ -7977,6 +7977,15 @@ function _positionWinnerPopup() {
   }
   left = Math.max(8, Math.min(left, window.innerWidth  - pw - 8));
   top  = Math.max(60, Math.min(top,  window.innerHeight - ph - 8));
+  // Cosmetic clamp: never let the card's bottom reach the control column's
+  // action row — it should float over the empty hero space, not over Draw /
+  // Finish & Clear. If that means covering the reveal's lower edge on a short
+  // window, so be it (the card z-indexes above it cleanly).
+  const cta = document.getElementById('gwMainBtn');
+  if (cta) {
+    const ctaTop = cta.getBoundingClientRect().top;
+    if (ctaTop > 120 && top + ph > ctaTop - 12) top = Math.max(60, ctaTop - 12 - ph);
+  }
   card.style.left   = left + 'px';
   card.style.top    = top + 'px';
   card.style.bottom = 'auto';
