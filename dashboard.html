@@ -1750,6 +1750,29 @@
         </div>
       </div>
 
+      <!-- 🎲 Chat Games quick card — the full settings (limits, edge, per-game
+           toggles) live on the Points page; this is the on/off + command list
+           where streamers naturally look for chat commands. -->
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <div class="card-title" style="margin:0;">🎲 Chat Games</div>
+          <span style="font-size:10px;background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);padding:2px 8px;border-radius:999px;font-weight:800;">BETA</span>
+          <span id="cmdGamesStatus" style="font-size:11px;font-weight:800;border-radius:999px;padding:3px 11px;border:1px solid var(--border);color:var(--text-dim);">Off</span>
+          <div style="margin-left:auto;display:flex;gap:8px;">
+            <button class="btn btn-accent btn-sm" id="cmdGamesBtn" onclick="cmdGamesToggle()">Enable</button>
+            <button class="btn btn-ghost btn-sm" onclick="showPage('points', document.querySelector('.nav-item[onclick*=points]'))">Limits &amp; house edge →</button>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;line-height:1.5;">Casino-style mini-games viewers play with their channel points. Mods can also toggle from chat with <code style="color:var(--accent);">!games on</code> / <code style="color:var(--accent);">!games off</code>.</div>
+        <div class="cmd-list" style="font-size:12.5px;">
+          <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:230px;">!games</code><span style="color:var(--text-dim);">list enabled games, limits &amp; cooldown</span></div>
+          <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:230px;">!coinflip red|blue [amt|all]</code><span style="color:var(--text-dim);">2x on a win</span></div>
+          <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:230px;">!roulette [bet] [amt|all]</code><span style="color:var(--text-dim);">red/black 2x · sec1-3 3x · green 14x · number 36x</span></div>
+          <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:230px;">!limbo [amt] [target]x</code><span style="color:var(--text-dim);">roll over your target, win amt × target</span></div>
+          <div style="display:flex;gap:10px;padding:6px 0;"><code style="color:var(--accent);min-width:230px;">!double [amt] · !take</code><span style="color:var(--text-dim);">ride winnings until you bank (auto-banks in 45s)</span></div>
+        </div>
+      </div>
+
       <!-- ⏰ Timed messages — WenBot posts these on a schedule (Botrix-style
            timers). "Chat lines" gates on activity so a quiet chat isn't spammed. -->
       <div class="card">
@@ -5191,7 +5214,7 @@ function showPage(id, el) {
   if (id === 'gtb') openGTBPage();
   if (id === 'leaderboard') loadLeaderboards();
   if (id === 'store') { loadStoreItems(); loadRedemptions(); }
-  if (id === 'commands') { loadCommands(); loadCommandAliases(); loadTimers(); }
+  if (id === 'commands') { loadCommands(); loadCommandAliases(); loadTimers(); renderCmdGamesCard(); }
   if (id === 'bonushunt')   { loadBonusHunt(); loadBhHistory(); }
   if (id === 'slotpicker')   initSlotPicker();
   if (id === 'slotrequest')  loadSlotRequests();
@@ -7926,6 +7949,32 @@ function loadGamesSettings() {
   gmToggleChanged();
 }
 
+// Commands-page quick card: status pill + one-click enable/disable. Shares
+// the same profile.games field as the Points card; Points holds the limits.
+function renderCmdGamesCard() {
+  const on   = profile?.games?.enabled === true;
+  const pill = document.getElementById('cmdGamesStatus');
+  const btn  = document.getElementById('cmdGamesBtn');
+  if (pill) {
+    pill.textContent = on ? '● On' : 'Off';
+    pill.style.color = on ? 'var(--green)' : 'var(--text-dim)';
+    pill.style.borderColor = on ? 'rgba(83,224,119,0.4)' : 'var(--border)';
+    pill.style.background  = on ? 'rgba(83,224,119,0.08)' : 'transparent';
+  }
+  if (btn) btn.textContent = on ? 'Disable' : 'Enable';
+}
+
+async function cmdGamesToggle() {
+  const games = { ...(profile?.games || {}), enabled: !(profile?.games?.enabled === true) };
+  try {
+    await saveStreamerProfile({ games });
+    if (profile) profile.games = games;
+    renderCmdGamesCard();
+    loadGamesSettings(); // keep the Points card in sync if it's been rendered
+    flash(games.enabled ? 'Chat games enabled — live in your chat within seconds.' : 'Chat games disabled.');
+  } catch (e) { flash('Failed to update: ' + e.message, 'error'); }
+}
+
 async function saveGamesSettings() {
   const games = {
     enabled:      document.getElementById('gmEnabled')?.checked === true,
@@ -7942,6 +7991,7 @@ async function saveGamesSettings() {
   try {
     await saveStreamerProfile({ games });
     if (profile) profile.games = games;
+    renderCmdGamesCard(); // Commands-page quick card mirrors the same field
     flash(games.enabled ? 'Chat games saved — live in your chat within a few seconds.' : 'Chat games saved (disabled).');
   } catch (e) { flash('Failed to save: ' + e.message, 'error'); }
 }
