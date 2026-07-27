@@ -813,8 +813,11 @@
         .gw-status-strip { display:flex; align-items:center; gap:9px; flex-wrap:wrap; border:1px solid var(--border); background:var(--bg-card); border-radius:10px; padding:10px 12px; }
         .gw-status-strip.live { border-color:rgba(83,224,119,0.3); background:rgba(83,224,119,0.05); }
         .gw-bigcount { text-align:center; margin:16px 0 6px; }
-        .gw-bigcount .n { font-family:'Exo 2',sans-serif; font-size:42px; font-weight:900; color:var(--bright); line-height:1; }
+        .gw-bigcount .n { font-family:'Exo 2',sans-serif; font-size:42px; font-weight:900; color:var(--bright); line-height:1; transition:font-size .25s; font-variant-numeric:tabular-nums; }
         .gw-bigcount .l { font-size:10px; letter-spacing:.15em; text-transform:uppercase; color:var(--text-dim); margin-top:4px; }
+        /* LIVE: same element, same spot — just bigger for on-stream impact. */
+        .gw-bigcount.live-big .n { font-size:64px; }
+        .gw-bigcount.live-big .l { font-size:12px; letter-spacing:.22em; font-weight:800; }
 
         /* Well C — Participants / Winners tabs */
         .gw-people-tabs { display:flex; border-bottom:1px solid rgba(255,255,255,0.06); flex-shrink:0; }
@@ -1228,11 +1231,9 @@
             <div style="font-size:11px;font-weight:800;letter-spacing:.28em;text-transform:uppercase;color:var(--text-dim);">Type to enter</div>
             <div id="gwCtlKw" style="font-family:'Exo 2',sans-serif;font-size:50px;font-weight:900;color:var(--accent);line-height:1.05;text-shadow:0 0 28px rgba(0,229,255,0.45);margin-top:2px;max-width:100%;overflow-wrap:anywhere;">!join</div>
             <div id="gwCtlChip" style="display:none;margin-top:12px;"></div>
-            <div style="margin-top:18px;">
-              <div id="gwCtlCount" style="font-size:54px;font-weight:900;color:var(--bright);line-height:1;font-variant-numeric:tabular-nums;">0</div>
-              <div style="font-size:12px;font-weight:800;color:var(--text-dim);letter-spacing:.22em;text-transform:uppercase;margin-top:4px;">Entries</div>
-            </div>
           </div>
+          <!-- Entries count lives HERE in both states (no jump on start) — it
+               just scales up while live for on-stream impact. -->
           <div class="gw-bigcount" id="gwBigcountIdle">
             <div class="n" id="entryCountBadge">0</div>
             <div class="l">Entries</div>
@@ -6657,7 +6658,7 @@ function updateGiveawayStatus(active) {
     const big  = document.getElementById('gwBigcountIdle');
     if (hero) hero.style.display = active ? 'flex' : 'none';
     if (idle) idle.style.display = active ? 'none' : 'flex';
-    if (big)  big.style.display  = active ? 'none' : '';
+    if (big)  big.classList.toggle('live-big', active);
     if (active) { const k = document.getElementById('gwCtlKw'); if (k) k.textContent = kw; } }
   if (active) {
     dot.classList.add('online'); dot.classList.remove('offline');
@@ -6818,11 +6819,9 @@ function renderEntries() {
   const list = document.getElementById('gwParticipantsList');
   const count = entries.length;
   document.getElementById('entryCountLabel').textContent = count;
-  document.getElementById('entryCountBadge').textContent = count;
+  document.getElementById('entryCountBadge').textContent = count.toLocaleString();
   const _heroCnt = document.getElementById('gwHeroCount');
   if (_heroCnt) _heroCnt.textContent = count;
-  const _ctlCnt = document.getElementById('gwCtlCount');
-  if (_ctlCnt) _ctlCnt.textContent = count.toLocaleString();
   const stat = document.getElementById('statEntries');
   if (stat) stat.textContent = count;
   if (!list) return;
