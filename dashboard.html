@@ -6557,6 +6557,29 @@ document.addEventListener('click', (e) => {
   document.querySelectorAll('.gw-info.open').forEach(el => {
     if (!el.contains(e.target)) el.classList.remove('open');
   });
+
+  // Position the just-opened popover as position:fixed so the settings
+  // column's overflow can't clip it, clamped inside the viewport and
+  // flipped above the icon when there's no room below.
+  const info = e.target.closest('.gw-info');
+  if (info && info.classList.contains('open')) {
+    const pop = info.querySelector('.gw-info-pop');
+    if (pop) {
+      const r = info.getBoundingClientRect();
+      const w = Math.min(260, window.innerWidth - 20);
+      pop.style.position  = 'fixed';
+      pop.style.width     = w + 'px';
+      pop.style.bottom    = 'auto';
+      pop.style.transform = 'none';
+      pop.style.left      = Math.max(10, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 10)) + 'px';
+      pop.style.top       = (r.bottom + 8) + 'px';
+      requestAnimationFrame(() => {
+        if (r.bottom + 8 + pop.offsetHeight > window.innerHeight - 10) {
+          pop.style.top = Math.max(10, r.top - 8 - pop.offsetHeight) + 'px';
+        }
+      });
+    }
+  }
 });
 
 // "Pause Entries" (formerly "Close Entries") — stops accepting new entries but
