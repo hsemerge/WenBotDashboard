@@ -7229,6 +7229,17 @@ function wbConfirm(message, { title = 'Are you sure?', confirmText = 'Confirm', 
     });
     document.addEventListener('keydown', onKey);
     document.body.appendChild(wrap);
+    // Center against the visible page content, not the raw viewport — the
+    // sidebar otherwise skews the dialog left of the panels (same correction
+    // the spin reveal makes in gwCenterSpinnerOverlay).
+    try {
+      const content = document.querySelector('.page.active');
+      if (content) {
+        const r = content.getBoundingClientRect();
+        const offset = (r.left + r.width / 2) - window.innerWidth / 2;
+        if (Math.abs(offset) > 4) wrap.firstElementChild.style.transform = `translateX(${offset}px)`;
+      }
+    } catch {}
     wrap.querySelector('[data-act="no"]')?.focus();
   });
 }
