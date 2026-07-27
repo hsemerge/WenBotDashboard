@@ -1083,7 +1083,7 @@
                 <span style="font-size:12px;font-weight:700;color:var(--bright);">Entry cost</span>
                 <input type="number" id="gwEntryFee" value="500" min="1" step="1" oninput="gwUpdateUI()" style="width:100px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--gold);font-size:14px;font-weight:700;padding:7px 10px;">
                 <span style="font-size:11px;color:var(--text-dim);" id="gwFeeCurrencyLabel">points</span>
-                <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();">i
+                <span class="gw-info" onclick="this.classList.toggle('open');">i
                   <span class="gw-info-pop"><strong>Auto-deducted</strong> from the viewer's points when they type the keyword.<br><br><strong>Multiple entries:</strong> typing the keyword again buys another entry — each costs the fee, each is another ticket in the draw.<br><br><strong>Refunds:</strong> everyone gets their points back if you end without drawing a winner. Removing a single entry doesn't refund it.</span>
                 </span>
               </div>
@@ -1105,7 +1105,7 @@
           </div>
           <div class="field gw-lock-when-live">
             <label>Duration
-              <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();" style="margin-left:6px;">i
+              <span class="gw-info" onclick="this.classList.toggle('open');" style="margin-left:6px;">i
                 <span class="gw-info-pop">A timer only <strong>pauses entries</strong> when it ends — drawing is always manual, and you can reopen entries anytime.</span>
               </span>
             </label>
@@ -1125,7 +1125,7 @@
           <div class="toggle-row gw-tight gw-lock-when-live">
             <div class="toggle-info">
               <div class="toggle-label">Followers Only
-                <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();">i
+                <span class="gw-info" onclick="this.classList.toggle('open');">i
                   <span class="gw-info-pop">Only channel followers can enter (following is free).</span>
                 </span>
               </div>
@@ -1135,7 +1135,7 @@
           <div class="toggle-row gw-tight gw-lock-when-live">
             <div class="toggle-info">
               <div class="toggle-label">Wager Eligibility
-                <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();">i
+                <span class="gw-info" onclick="this.classList.toggle('open');">i
                   <span class="gw-info-pop" id="wagerReqDesc">Limit who can enter by recent wagering under your code.</span>
                 </span>
               </div>
@@ -1159,7 +1159,7 @@
             </div>
             <div class="field" style="margin-bottom:0;">
               <label>Wager Luck: <strong id="wagerLuckVal">1x</strong>
-                <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();" style="margin-left:6px;">i
+                <span class="gw-info" onclick="this.classList.toggle('open');" style="margin-left:6px;">i
                   <span class="gw-info-pop">Eligible wagerers get this many entries each (1x = no bonus).</span>
                 </span>
               </label>
@@ -1169,7 +1169,7 @@
           <div class="toggle-row gw-tight gw-lock-when-live">
             <div class="toggle-info">
               <div class="toggle-label">Subscribers Only
-                <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();">i
+                <span class="gw-info" onclick="this.classList.toggle('open');">i
                   <span class="gw-info-pop">Only subscribers can enter (sub badge enforced from chat).</span>
                 </span>
               </div>
@@ -1179,7 +1179,7 @@
           <div class="toggle-row gw-tight gw-lock-when-live">
             <div class="toggle-info">
               <div class="toggle-label">Require Verification
-                <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();">i
+                <span class="gw-info" onclick="this.classList.toggle('open');">i
                   <span class="gw-info-pop">Entrants must be verified — casino, Discord, or both (pick below when enabled).</span>
                 </span>
               </div>
@@ -1202,7 +1202,7 @@
           <div class="gw-sec-label">🍀 Luck bonuses</div>
           <div class="field" style="margin-bottom:0;">
             <label>Subscriber Luck: <strong id="subLuckVal">1x</strong> entries
-              <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();" style="margin-left:6px;">i
+              <span class="gw-info" onclick="this.classList.toggle('open');" style="margin-left:6px;">i
                 <span class="gw-info-pop">Subscribers get this many entries each (1x = no bonus).</span>
               </span>
             </label>
@@ -1210,7 +1210,7 @@
           </div>
           <div class="field" style="margin-top:10px;margin-bottom:0;">
             <label>Code Luck: <strong id="codeLuckVal">1x</strong> entries
-              <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();" style="margin-left:6px;">i
+              <span class="gw-info" onclick="this.classList.toggle('open');" style="margin-left:6px;">i
                 <span class="gw-info-pop">Viewers verified under your casino code get this many entries each (1x = no bonus). <strong>Stacks</strong> with Subscriber Luck.</span>
               </span>
             </label>
@@ -1287,7 +1287,7 @@
           <!-- Removed = blocked for this round. This strip is the escape hatch. -->
           <div id="gwBlockedWrap" style="display:none;border-top:1px solid var(--border);margin-top:10px;padding-top:10px;">
             <div style="display:flex;align-items:center;gap:7px;font-size:10.5px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">🚫 Blocked this giveaway
-              <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();">i
+              <span class="gw-info" onclick="this.classList.toggle('open');">i
                 <span class="gw-info-pop">Removing a viewer — with the ×, or a winner via “can't win or rejoin” — blocks them from re-entering <em>this</em> giveaway. Their keyword is silently ignored.<br><br><strong>Allow back in</strong> lifts the block (they type the keyword again to re-enter). The list clears automatically when you start a new giveaway.</span>
               </span>
             </div>
@@ -1865,14 +1865,14 @@
           <textarea id="timerMessage" maxlength="400" rows="2" placeholder="e.g. 💬 Join the Discord → discord.gg/yourserver" style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:13px;padding:9px 12px;resize:vertical;"></textarea>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:8px;">
             <div>
-              <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">Interval <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();">i<span class="gw-info-pop">How often the message can post. The clock starts when the bot connects.</span></span></label>
+              <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">Interval <span class="gw-info" onclick="this.classList.toggle('open');">i<span class="gw-info-pop">How often the message can post. The clock starts when the bot connects.</span></span></label>
               <select id="timerInterval" style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:13px;padding:8px 10px;">
                 <option value="5">5 min</option><option value="10" selected>10 min</option><option value="15">15 min</option>
                 <option value="20">20 min</option><option value="30">30 min</option><option value="45">45 min</option><option value="60">60 min</option>
               </select>
             </div>
             <div>
-              <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">Chat lines <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();">i<span class="gw-info-pop">Minimum chat messages since the bot's last timed post before it posts again. 0 = always post on schedule, even in a silent chat.</span></span></label>
+              <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">Chat lines <span class="gw-info" onclick="this.classList.toggle('open');">i<span class="gw-info-pop">Minimum chat messages since the bot's last timed post before it posts again. 0 = always post on schedule, even in a silent chat.</span></span></label>
               <select id="timerLines" style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:13px;padding:8px 10px;">
                 <option value="0">0</option><option value="1" selected>1</option><option value="5">5</option><option value="10">10</option><option value="25">25</option>
               </select>
