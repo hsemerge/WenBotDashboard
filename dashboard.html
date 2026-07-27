@@ -6552,34 +6552,49 @@ function gwUpdateUI() {
 // re-runs this once the profile is loaded).
 gwUpdateUI();
 
-// Any click outside an open (i) popover closes it.
+// (i) popovers — portal pattern. position:fixed still clips when any ancestor
+// has a transform (the page containers do), so the ONLY reliable escape is
+// moving the open popover to <body>, positioning it against the viewport, and
+// putting it back on close.
+let _gwPopActive = null; // { info, pop }
+function gwCloseInfoPop() {
+  if (!_gwPopActive) return;
+  const { info, pop } = _gwPopActive;
+  pop.removeAttribute('style');
+  info.appendChild(pop);          // restore into its (i) for next time
+  info.classList.remove('open');
+  _gwPopActive = null;
+}
 document.addEventListener('click', (e) => {
-  document.querySelectorAll('.gw-info.open').forEach(el => {
-    if (!el.contains(e.target)) el.classList.remove('open');
-  });
+  // Clicks inside the floating popover shouldn't close it.
+  if (_gwPopActive && _gwPopActive.pop.contains(e.target)) return;
 
-  // Position the just-opened popover as position:fixed so the settings
-  // column's overflow can't clip it, clamped inside the viewport and
-  // flipped above the icon when there's no room below.
   const info = e.target.closest('.gw-info');
-  if (info && info.classList.contains('open')) {
-    const pop = info.querySelector('.gw-info-pop');
-    if (pop) {
-      const r = info.getBoundingClientRect();
-      const w = Math.min(260, window.innerWidth - 20);
-      pop.style.position  = 'fixed';
-      pop.style.width     = w + 'px';
-      pop.style.bottom    = 'auto';
-      pop.style.transform = 'none';
-      pop.style.left      = Math.max(10, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 10)) + 'px';
-      pop.style.top       = (r.bottom + 8) + 'px';
-      requestAnimationFrame(() => {
-        if (r.bottom + 8 + pop.offsetHeight > window.innerHeight - 10) {
-          pop.style.top = Math.max(10, r.top - 8 - pop.offsetHeight) + 'px';
-        }
-      });
+  gwCloseInfoPop();
+  document.querySelectorAll('.gw-info.open').forEach(el => { if (el !== info) el.classList.remove('open'); });
+  // The inline onclick already toggled 'open' — if it's now off, this click
+  // was a close (or wasn't an (i) at all).
+  if (!info || !info.classList.contains('open')) return;
+
+  const pop = info.querySelector('.gw-info-pop');
+  if (!pop) return;
+  const r = info.getBoundingClientRect();
+  const w = Math.min(260, window.innerWidth - 20);
+  document.body.appendChild(pop);
+  pop.style.display   = 'block';
+  pop.style.position  = 'fixed';
+  pop.style.zIndex    = '999';
+  pop.style.width     = w + 'px';
+  pop.style.bottom    = 'auto';
+  pop.style.transform = 'none';
+  pop.style.left      = Math.max(10, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 10)) + 'px';
+  pop.style.top       = (r.bottom + 8) + 'px';
+  _gwPopActive = { info, pop };
+  requestAnimationFrame(() => {
+    if (_gwPopActive?.pop === pop && r.bottom + 8 + pop.offsetHeight > window.innerHeight - 10) {
+      pop.style.top = Math.max(10, r.top - 8 - pop.offsetHeight) + 'px';
     }
-  }
+  });
 });
 
 // "Pause Entries" (formerly "Close Entries") — stops accepting new entries but
