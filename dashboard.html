@@ -1358,7 +1358,7 @@
               <input type="checkbox" id="gmEnabled" onchange="gmToggleChanged()" style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;">
               <label for="gmEnabled" style="cursor:pointer;flex:1;">
                 <div style="font-size:13px;color:var(--bright);font-weight:600;">Enable chat games</div>
-                <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Viewers get !coinflip, !roulette, !limbo, !double / !take, and !games to list them.</div>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Viewers get !coinflip, !roulette, !limbo, !double / !take, and !games to list them. Mods can also flip this switch from chat with <code style="color:var(--accent);">!games on</code> / <code style="color:var(--accent);">!games off</code>.</div>
               </label>
             </div>
             <div id="gmOptions" style="display:none;">
@@ -2591,7 +2591,7 @@
           </div>
           <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
             <li>🎲 <strong>NEW: Chat Games.</strong> Four casino-style mini-games viewers play right in your Kick chat with their channel points: <strong>🪙 !coinflip</strong> red/blue at 2x, <strong>🎡 !roulette</strong> with colors, exact numbers (36x), sections and green (14x), <strong>🚀 !limbo</strong> with pick-your-own target multipliers, and <strong>🎲 !double</strong> — ride your winnings double-or-nothing until you <strong>!take</strong> (pots auto-bank after 45s so nobody loses a win by walking away). <strong>!games</strong> lists what's on.</li>
-            <li>🎛 <strong>You're in full control.</strong> Off by default — flip them on from the Points page's new Chat Games card, with per-game toggles, min/max bets, a per-viewer cooldown, and a configurable house edge so games stay a slow points sink instead of a printer. Settings go live in your chat within seconds, no restart.</li>
+            <li>🎛 <strong>You're in full control.</strong> Off by default — flip them on from the Points page's new Chat Games card, or right from chat with <code>!games on</code> / <code>!games off</code> (mods). Per-game toggles, min/max bets, a per-viewer cooldown, and a configurable house edge keep games a slow points sink instead of a printer. Settings go live in your chat within seconds, no restart. Full command list on the Help page.</li>
             <li>🛡 <strong>Built like the rest of WenBot:</strong> wagers debit atomically (no double-spends), "all" bets cap at your max, and cooldown nags are throttled so the bot never floods your chat. Points have no cash value; losses are simply burned.</li>
           </ul>
         </div>
@@ -2955,6 +2955,22 @@
               Points are earned per active chat minute (not per message — spam doesn't pay).
               Tune the per-minute rate, min message length, and activity window on the
               <strong>Points</strong> page.
+            </div>
+          </div>
+
+          <div class="card help-section" style="margin-bottom:0;">
+            <h3>🎲 Chat Games <span style="font-size:10px;background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);padding:2px 8px;border-radius:999px;font-weight:800;vertical-align:middle;">BETA</span></h3>
+            <div class="cmd-list">
+              <div class="cmd-row"><div class="cmd-name">!games on / off</div><div class="cmd-desc">Turn chat games on or off (same switch as the Points page card).</div><div class="cmd-who who-mod">MOD</div></div>
+              <div class="cmd-row"><div class="cmd-name">!games</div><div class="cmd-desc">List the enabled games, bet limits, and cooldown.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!coinflip red|blue [amt|all]</div><div class="cmd-desc">Call the flip — 2x on a win.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!roulette [bet] [amt|all]</div><div class="cmd-desc">red / black (2x), sec1-3 (3x), green (14x), or an exact number 0-36 (36x).</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!limbo [amt] [target]x</div><div class="cmd-desc">Pick a target multiplier — roll over it and win amt × target.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!double [amt] · !take</div><div class="cmd-desc">Double or nothing. Wins keep riding on !double until you !take (auto-banks after 45s).</div><div class="cmd-who who-all">ALL</div></div>
+            </div>
+            <div style="margin-top:10px;font-size:11px;color:var(--text-dim);line-height:1.5;">
+              Off by default. Per-game toggles, bet limits, cooldown, and house edge live on the
+              <strong>Points</strong> page. Wagers use your channel points, which have no cash value.
             </div>
           </div>
 
