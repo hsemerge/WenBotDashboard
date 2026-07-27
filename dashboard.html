@@ -513,6 +513,7 @@
         <div class="nav-item" onclick="showPage('points',this)"><span class="icon">🪙</span> Points</div>
         <div class="nav-item" id="nav-store" onclick="showPage('store',this)"><span class="icon">🛒</span> Store <span class="nav-badge red" id="storeBadge" style="display:none;">0</span></div>
         <div class="nav-item" onclick="showPage('raffle',this)"><span class="icon">🎟</span> Raffles</div>
+        <div class="nav-item" onclick="showPage('games',this)"><span class="icon">🎲</span> Games</div>
         <div class="nav-item" onclick="showPage('commands',this)"><span class="icon">💬</span> Commands</div>
         <div class="nav-item" onclick="showPage('overlays',this)"><span class="icon">🖥</span> Overlays</div>
         <div class="nav-item" onclick="showPage('extension',this)"><span class="icon">🧩</span> Companion Extension</div>
@@ -541,7 +542,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.10.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.10.1</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -848,7 +849,8 @@
         #page-leaderboard > *, #page-verified > *, #page-referrals > *,
         #page-activity > *, #page-extension > *, #page-slotpicker > *,
         #page-slotrequest > *, #page-bonusbattle > *, #page-tournament > *,
-        #page-raffle > *, #page-billing > *, #page-settings > *, #page-help > *
+        #page-raffle > *, #page-billing > *, #page-settings > *, #page-help > *,
+        #page-games > *
         { max-width: 1720px; margin-left: auto; margin-right: auto; }
         @keyframes ovAlertPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.9); } }
         .gw-col { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; min-height: 420px; max-height: 74vh; }
@@ -1352,33 +1354,6 @@
           </div>
 
           <div class="card">
-            <div class="card-title">🎲 Chat Games <span style="font-size:10px;background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);padding:2px 8px;border-radius:999px;font-weight:800;vertical-align:middle;">BETA</span></div>
-            <div style="font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:12px;">Casino-style mini-games viewers play in your Kick chat with their points. Off by default. Points have no cash value; losses are simply burned.</div>
-            <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin-bottom:12px;">
-              <input type="checkbox" id="gmEnabled" onchange="gmToggleChanged()" style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;">
-              <label for="gmEnabled" style="cursor:pointer;flex:1;">
-                <div style="font-size:13px;color:var(--bright);font-weight:600;">Enable chat games</div>
-                <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Viewers get !coinflip, !roulette, !limbo, !double / !take, and !games to list them. Mods can also flip this switch from chat with <code style="color:var(--accent);">!games on</code> / <code style="color:var(--accent);">!games off</code>.</div>
-              </label>
-            </div>
-            <div id="gmOptions" style="display:none;">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-                <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;"><input type="checkbox" id="gmCoinflip" checked style="width:15px;height:15px;accent-color:var(--accent);"> 🪙 Coin Flip (2x)</label>
-                <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;"><input type="checkbox" id="gmRoulette" checked style="width:15px;height:15px;accent-color:var(--accent);"> 🎡 Roulette (up to 36x)</label>
-                <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;"><input type="checkbox" id="gmLimbo" checked style="width:15px;height:15px;accent-color:var(--accent);"> 🚀 Limbo (pick a target)</label>
-                <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;"><input type="checkbox" id="gmDouble" checked style="width:15px;height:15px;accent-color:var(--accent);"> 🎲 Double or Nothing</label>
-              </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
-                <div class="field" style="margin:0;"><label>Min bet</label><input type="number" id="gmMinBet" min="1" value="10"></div>
-                <div class="field" style="margin:0;"><label>Max bet</label><input type="number" id="gmMaxBet" min="1" value="25000"></div>
-                <div class="field" style="margin:0;"><label>Cooldown (sec / viewer)</label><input type="number" id="gmCooldown" min="0" max="300" value="15"></div>
-                <div class="field" style="margin:0;"><label>House edge %</label><input type="number" id="gmEdge" min="0" max="15" step="0.5" value="3"><div class="hint" style="margin-top:3px;">Keeps games a slow points sink. 0 = fair coin.</div></div>
-              </div>
-            </div>
-            <button class="btn btn-accent" onclick="saveGamesSettings()" style="width:100%;">Save Chat Games</button>
-          </div>
-
-          <div class="card">
             <div class="card-title">💬 Commands Your Viewers Use</div>
             <div class="cmd-list" style="font-size:12.5px;">
               <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:150px;">!points / !pts</code><span style="color:var(--text-dim);">check their balance</span></div>
@@ -1634,6 +1609,77 @@
     </div>
 
     <!-- ── COMMANDS ── -->
+    <!-- ════ GAMES — chat casino mini-games (settings + command usage) ════ -->
+    <div class="page" id="page-games">
+      <div class="grid-2" style="align-items:start;">
+        <div class="card">
+          <div class="card-title">🎲 Chat Games <span style="font-size:10px;background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);padding:2px 8px;border-radius:999px;font-weight:800;vertical-align:middle;">BETA</span></div>
+          <div style="font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:12px;">Casino-style mini-games viewers play in your Kick chat with their channel points. Off by default. Points have no cash value; losses are simply burned.</div>
+          <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin-bottom:12px;">
+            <input type="checkbox" id="gmEnabled" onchange="gmToggleChanged()" style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;">
+            <label for="gmEnabled" style="cursor:pointer;flex:1;">
+              <div style="font-size:13px;color:var(--bright);font-weight:600;">Enable chat games</div>
+              <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Mods can also flip this switch from chat with <code style="color:var(--accent);">!games on</code> / <code style="color:var(--accent);">!games off</code>. Settings go live within seconds of saving.</div>
+            </label>
+          </div>
+          <div id="gmOptions" style="display:none;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+              <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;"><input type="checkbox" id="gmCoinflip" checked style="width:15px;height:15px;accent-color:var(--accent);"> 🪙 Coin Flip (2x)</label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;"><input type="checkbox" id="gmRoulette" checked style="width:15px;height:15px;accent-color:var(--accent);"> 🎡 Roulette (up to 36x)</label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;"><input type="checkbox" id="gmLimbo" checked style="width:15px;height:15px;accent-color:var(--accent);"> 🚀 Limbo (pick a target)</label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;"><input type="checkbox" id="gmDouble" checked style="width:15px;height:15px;accent-color:var(--accent);"> 🎲 Double or Nothing</label>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+              <div class="field" style="margin:0;"><label>Min bet</label><input type="number" id="gmMinBet" min="1" value="10"></div>
+              <div class="field" style="margin:0;"><label>Max bet</label><input type="number" id="gmMaxBet" min="1" value="25000"></div>
+              <div class="field" style="margin:0;"><label>Cooldown (sec / viewer)</label><input type="number" id="gmCooldown" min="0" max="300" value="15"></div>
+              <div class="field" style="margin:0;"><label>House edge %</label><input type="number" id="gmEdge" min="0" max="15" step="0.5" value="3"><div class="hint" style="margin-top:3px;">Keeps games a slow points sink. 0 = fair coin.</div></div>
+            </div>
+          </div>
+          <button class="btn btn-accent" onclick="saveGamesSettings()" style="width:100%;">Save Chat Games</button>
+          <div class="hint" style="margin-top:8px;">Discord versions of these games are on the roadmap — chat games run in your Kick channel for now.</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📖 How the Commands Work</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.5;">Amounts accept commas and <code style="color:var(--accent);">all</code> (bets your whole balance, capped at the max bet). The bot replies with these usage examples whenever someone types a command wrong.</div>
+
+          <div style="font-weight:700;font-size:13px;color:var(--bright);margin-bottom:6px;">🪙 Coin Flip — 2x</div>
+          <div class="cmd-list" style="font-size:12.5px;margin-bottom:14px;">
+            <div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:200px;">!coinflip red 500</code><span style="color:var(--text-dim);">call red for 500</span></div>
+            <div style="display:flex;gap:10px;padding:5px 0;"><code style="color:var(--accent);min-width:200px;">!coinflip blue all</code><span style="color:var(--text-dim);">call blue with everything you have</span></div>
+          </div>
+
+          <div style="font-weight:700;font-size:13px;color:var(--bright);margin-bottom:6px;">🎡 Roulette — single-zero wheel</div>
+          <div class="cmd-list" style="font-size:12.5px;margin-bottom:14px;">
+            <div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:200px;">!roulette red 500</code><span style="color:var(--text-dim);">includes all red numbers · pays 2x</span></div>
+            <div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:200px;">!roulette black 500</code><span style="color:var(--text-dim);">includes all black numbers · pays 2x</span></div>
+            <div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:200px;">!roulette 36 200</code><span style="color:var(--text-dim);">specific number 0-36 · pays 36x</span></div>
+            <div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:200px;">!roulette sec1 750</code><span style="color:var(--text-dim);">section bet · sec1 = 0-12, sec2 = 13-24, sec3 = 25-36 · pays 3x</span></div>
+            <div style="display:flex;gap:10px;padding:5px 0;"><code style="color:var(--accent);min-width:200px;">!roulette green 50</code><span style="color:var(--text-dim);">green (0) only · pays 14x</span></div>
+          </div>
+
+          <div style="font-weight:700;font-size:13px;color:var(--bright);margin-bottom:6px;">🚀 Limbo — pick your own multiplier</div>
+          <div class="cmd-list" style="font-size:12.5px;margin-bottom:14px;">
+            <div style="display:flex;gap:10px;padding:5px 0;"><code style="color:var(--accent);min-width:200px;">!limbo 500 2.37x</code><span style="color:var(--text-dim);">roll lands at or above 2.37x → win 500 × 2.37. Targets 1.1x to 100x.</span></div>
+          </div>
+
+          <div style="font-weight:700;font-size:13px;color:var(--bright);margin-bottom:6px;">🎲 Double or Nothing</div>
+          <div class="cmd-list" style="font-size:12.5px;margin-bottom:14px;">
+            <div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:200px;">!double 2500</code><span style="color:var(--text-dim);">50/50 — win and your pot doubles</span></div>
+            <div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:200px;">!double</code><span style="color:var(--text-dim);">ride the whole pot again</span></div>
+            <div style="display:flex;gap:10px;padding:5px 0;"><code style="color:var(--accent);min-width:200px;">!take</code><span style="color:var(--text-dim);">bank the pot (auto-banks after 45s so wins are never lost)</span></div>
+          </div>
+
+          <div style="font-weight:700;font-size:13px;color:var(--bright);margin-bottom:6px;">🛠 Everyone / Mods</div>
+          <div class="cmd-list" style="font-size:12.5px;">
+            <div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:200px;">!games</code><span style="color:var(--text-dim);">list enabled games, bet limits &amp; cooldown</span></div>
+            <div style="display:flex;gap:10px;padding:5px 0;"><code style="color:var(--accent);min-width:200px;">!games on / !games off</code><span style="color:var(--text-dim);">mods: master switch, same as the toggle on the left</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="page" id="page-commands">
       <div class="card" style="margin-bottom:16px;">
         <div class="card-title">➕ Add Custom Command</div>
@@ -1750,28 +1796,6 @@
         </div>
       </div>
 
-      <!-- 🎲 Chat Games quick card — the full settings (limits, edge, per-game
-           toggles) live on the Points page; this is the on/off + command list
-           where streamers naturally look for chat commands. -->
-      <div class="card">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-          <div class="card-title" style="margin:0;">🎲 Chat Games</div>
-          <span style="font-size:10px;background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);padding:2px 8px;border-radius:999px;font-weight:800;">BETA</span>
-          <span id="cmdGamesStatus" style="font-size:11px;font-weight:800;border-radius:999px;padding:3px 11px;border:1px solid var(--border);color:var(--text-dim);">Off</span>
-          <div style="margin-left:auto;display:flex;gap:8px;">
-            <button class="btn btn-accent btn-sm" id="cmdGamesBtn" onclick="cmdGamesToggle()">Enable</button>
-            <button class="btn btn-ghost btn-sm" onclick="showPage('points', document.querySelector('.nav-item[onclick*=points]'))">Limits &amp; house edge →</button>
-          </div>
-        </div>
-        <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;line-height:1.5;">Casino-style mini-games viewers play with their channel points. Mods can also toggle from chat with <code style="color:var(--accent);">!games on</code> / <code style="color:var(--accent);">!games off</code>.</div>
-        <div class="cmd-list" style="font-size:12.5px;">
-          <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:230px;">!games</code><span style="color:var(--text-dim);">list enabled games, limits &amp; cooldown</span></div>
-          <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:230px;">!coinflip red|blue [amt|all]</code><span style="color:var(--text-dim);">2x on a win</span></div>
-          <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:230px;">!roulette [bet] [amt|all]</code><span style="color:var(--text-dim);">red/black 2x · sec1-3 3x · green 14x · number 36x</span></div>
-          <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:230px;">!limbo [amt] [target]x</code><span style="color:var(--text-dim);">roll over your target, win amt × target</span></div>
-          <div style="display:flex;gap:10px;padding:6px 0;"><code style="color:var(--accent);min-width:230px;">!double [amt] · !take</code><span style="color:var(--text-dim);">ride winnings until you bank (auto-banks in 45s)</span></div>
-        </div>
-      </div>
 
       <!-- ⏰ Timed messages — WenBot posts these on a schedule (Botrix-style
            timers). "Chat lines" gates on activity so a quiet chat isn't spammed. -->
@@ -2602,9 +2626,20 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.10.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.10.1</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.10.1 — Games gets its own tab</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 27, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🎲 <strong>New Games tab</strong> under Manage — all Chat Games controls moved there from the Points and Commands pages, side by side with a full <strong>How the Commands Work</strong> reference: every bet type spelled out with examples (all five roulette bets, coinflip, limbo targets, the !double / !take flow).</li>
+            <li>💬 <strong>Clearer help in chat too:</strong> when someone types a game command wrong, the bot now replies with the full usage examples for that game instead of a terse one-liner.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -5214,7 +5249,8 @@ function showPage(id, el) {
   if (id === 'gtb') openGTBPage();
   if (id === 'leaderboard') loadLeaderboards();
   if (id === 'store') { loadStoreItems(); loadRedemptions(); }
-  if (id === 'commands') { loadCommands(); loadCommandAliases(); loadTimers(); renderCmdGamesCard(); }
+  if (id === 'commands') { loadCommands(); loadCommandAliases(); loadTimers(); }
+  if (id === 'games') loadGamesSettings();
   if (id === 'bonushunt')   { loadBonusHunt(); loadBhHistory(); }
   if (id === 'slotpicker')   initSlotPicker();
   if (id === 'slotrequest')  loadSlotRequests();
@@ -7949,32 +7985,6 @@ function loadGamesSettings() {
   gmToggleChanged();
 }
 
-// Commands-page quick card: status pill + one-click enable/disable. Shares
-// the same profile.games field as the Points card; Points holds the limits.
-function renderCmdGamesCard() {
-  const on   = profile?.games?.enabled === true;
-  const pill = document.getElementById('cmdGamesStatus');
-  const btn  = document.getElementById('cmdGamesBtn');
-  if (pill) {
-    pill.textContent = on ? '● On' : 'Off';
-    pill.style.color = on ? 'var(--green)' : 'var(--text-dim)';
-    pill.style.borderColor = on ? 'rgba(83,224,119,0.4)' : 'var(--border)';
-    pill.style.background  = on ? 'rgba(83,224,119,0.08)' : 'transparent';
-  }
-  if (btn) btn.textContent = on ? 'Disable' : 'Enable';
-}
-
-async function cmdGamesToggle() {
-  const games = { ...(profile?.games || {}), enabled: !(profile?.games?.enabled === true) };
-  try {
-    await saveStreamerProfile({ games });
-    if (profile) profile.games = games;
-    renderCmdGamesCard();
-    loadGamesSettings(); // keep the Points card in sync if it's been rendered
-    flash(games.enabled ? 'Chat games enabled — live in your chat within seconds.' : 'Chat games disabled.');
-  } catch (e) { flash('Failed to update: ' + e.message, 'error'); }
-}
-
 async function saveGamesSettings() {
   const games = {
     enabled:      document.getElementById('gmEnabled')?.checked === true,
@@ -7991,7 +8001,6 @@ async function saveGamesSettings() {
   try {
     await saveStreamerProfile({ games });
     if (profile) profile.games = games;
-    renderCmdGamesCard(); // Commands-page quick card mirrors the same field
     flash(games.enabled ? 'Chat games saved — live in your chat within a few seconds.' : 'Chat games saved (disabled).');
   } catch (e) { flash('Failed to save: ' + e.message, 'error'); }
 }
