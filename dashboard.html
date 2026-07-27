@@ -1006,6 +1006,20 @@
         .gw-info-pop { display:none; position:absolute; left:50%; bottom:calc(100% + 8px); transform:translateX(-50%); z-index:80; width:260px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; box-shadow:0 12px 36px rgba(0,0,0,0.6); padding:10px 12px; font-size:11.5px; font-weight:400; font-style:normal; color:var(--text); line-height:1.6; text-transform:none; letter-spacing:0; text-align:left; cursor:default; }
         .gw-info.open .gw-info-pop { display:block; }
         .gw-info-pop strong { color:var(--accent); }
+        /* ── Settings-well restyle: section labels, luck blocks, custom ranges ── */
+        .gw-sec-label { display:flex; align-items:center; gap:8px; font-family:'Exo 2',sans-serif; font-size:10.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--text-dim); margin:18px 0 8px; }
+        .gw-sec-label::after { content:''; flex:1; height:1px; background:linear-gradient(90deg, var(--border), transparent); }
+        .gw-luck { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:10px 12px 12px; margin-top:8px; }
+        .gw-luck-head { display:flex; align-items:center; gap:7px; margin-bottom:8px; }
+        .gw-luck-name { font-size:12px; font-weight:700; color:var(--bright); }
+        .gw-luck-val { margin-left:auto; font-family:'Exo 2',sans-serif; font-size:13px; font-weight:900; color:var(--accent); background:rgba(0,229,255,0.08); border:1px solid rgba(0,229,255,0.3); border-radius:8px; padding:2px 10px; min-width:38px; text-align:center; }
+        .gw-luck.boosted .gw-luck-val { color:var(--gold); background:rgba(255,215,0,0.08); border-color:rgba(255,215,0,0.4); }
+        .gw-range { -webkit-appearance:none; appearance:none; width:100%; height:6px; border-radius:4px; outline:none; background:linear-gradient(90deg, var(--accent) 0%, rgba(255,255,255,0.08) 0%); cursor:pointer; }
+        .gw-range::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:17px; height:17px; border-radius:50%; background:var(--bright); border:3px solid var(--accent); box-shadow:0 0 10px rgba(0,229,255,0.55); cursor:grab; }
+        .gw-range::-moz-range-thumb { width:14px; height:14px; border-radius:50%; background:var(--bright); border:3px solid var(--accent); box-shadow:0 0 10px rgba(0,229,255,0.55); cursor:grab; }
+        .gw-range:active::-webkit-slider-thumb { cursor:grabbing; transform:scale(1.12); }
+        .toggle-row.gw-tight { padding:9px 0; }
+        .toggle-row.gw-tight .toggle-label { display:flex; align-items:center; gap:7px; }
 
         /* Blocked-viewer chips (removed = blocked for this round) */
         .gw-bchip { display:inline-flex; align-items:center; gap:8px; background:rgba(255,71,87,0.07); border:1px solid rgba(255,71,87,0.3); border-radius:100px; padding:4px 6px 4px 12px; font-size:12px; font-weight:600; color:var(--bright); }
@@ -1100,10 +1114,13 @@
           <div class="field gw-lock-when-live">
             <label>Entry Keyword</label>
             <input type="text" id="giveawayKeyword" value="!join" placeholder="!join" oninput="document.getElementById('gwKeywordDisplay').textContent=this.value||'!join';gwUpdateUI();">
-            <div class="hint">Viewers type this to enter</div>
           </div>
           <div class="field gw-lock-when-live">
-            <label>Duration</label>
+            <label>Duration
+              <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();" style="margin-left:6px;">i
+                <span class="gw-info-pop">A timer only <strong>pauses entries</strong> when it ends — drawing is always manual, and you can reopen entries anytime.</span>
+              </span>
+            </label>
             <select id="giveawayDuration" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;width:100%;font-family:'Inter',sans-serif;">
               <option value="0">No Timer — run until I end it</option>
               <option value="60">1 minute</option>
@@ -1114,19 +1131,26 @@
               <option value="custom">Custom...</option>
             </select>
             <input type="number" id="giveawayDurationCustom" placeholder="Seconds" min="10" style="display:none;margin-top:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;width:100%;font-family:'Inter',sans-serif;">
-            <div class="hint">A timer only pauses entries when it ends — drawing is always manual, and you can reopen entries anytime.</div>
           </div>
-          <div class="toggle-row gw-lock-when-live">
+
+          <div class="gw-sec-label">Who can enter</div>
+          <div class="toggle-row gw-tight gw-lock-when-live">
             <div class="toggle-info">
-              <div class="toggle-label">Followers Only</div>
-              <div class="toggle-desc" style="font-size:11px;">Only channel followers can enter (free to follow)</div>
+              <div class="toggle-label">Followers Only
+                <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();">i
+                  <span class="gw-info-pop">Only channel followers can enter (following is free).</span>
+                </span>
+              </div>
             </div>
             <div class="toggle" id="toggleFollowerOnly" onclick="toggleOption(this)"></div>
           </div>
-          <div class="toggle-row gw-lock-when-live">
+          <div class="toggle-row gw-tight gw-lock-when-live">
             <div class="toggle-info">
-              <div class="toggle-label">Wager Eligibility</div>
-              <div class="toggle-desc" id="wagerReqDesc" style="font-size:11px;">Limit who can enter by recent wagering</div>
+              <div class="toggle-label">Wager Eligibility
+                <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();">i
+                  <span class="gw-info-pop" id="wagerReqDesc">Limit who can enter by recent wagering under your code.</span>
+                </span>
+              </div>
             </div>
             <div class="toggle" id="toggleWagerReq" onclick="toggleWagerReq(this)"></div>
           </div>
@@ -1145,32 +1169,34 @@
               <input type="number" id="minWagerInput" value="0" min="0" step="50">
               <div class="hint" style="font-size:11px;">0 = any wager in the window counts. Code users matched via affiliate API.</div>
             </div>
-            <div class="field" style="margin-bottom:0;">
-              <label>Luck Multiplier: <strong id="wagerLuckVal">1x</strong></label>
-              <input type="range" id="wagerLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('wagerLuckVal').textContent=this.value+'x'" onchange="if(typeof renderEntries==='function')renderEntries()">
+            <div class="gw-luck" style="margin-bottom:0;">
+              <div class="gw-luck-head">
+                <span class="gw-luck-name">💰 Wager Luck</span>
+                <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();">i
+                  <span class="gw-info-pop">Eligible wagerers get this many entries each (1x = no bonus).</span>
+                </span>
+                <span class="gw-luck-val" id="wagerLuckVal">1x</span>
+              </div>
+              <input type="range" class="gw-range" id="wagerLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('wagerLuckVal').textContent=this.value+'x';gwRangePaint(this)" onchange="if(typeof renderEntries==='function')renderEntries()">
             </div>
           </div>
-          <div class="toggle-row gw-lock-when-live" style="margin-top:10px;">
+          <div class="toggle-row gw-tight gw-lock-when-live">
             <div class="toggle-info">
-              <div class="toggle-label">Subscribers Only</div>
-              <div class="toggle-desc" style="font-size:11px;">Sub-badge enforced</div>
+              <div class="toggle-label">Subscribers Only
+                <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();">i
+                  <span class="gw-info-pop">Only subscribers can enter (sub badge enforced from chat).</span>
+                </span>
+              </div>
             </div>
             <div class="toggle" id="toggleSubOnly" onclick="toggleOption(this)"></div>
           </div>
-          <div class="field" style="margin-top:14px;margin-bottom:0;">
-            <label>Subscriber Luck: <strong id="subLuckVal">1x</strong> entries</label>
-            <input type="range" id="subLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('subLuckVal').textContent=this.value+'x'" onchange="if(typeof renderEntries==='function')renderEntries()">
-            <div class="hint" style="font-size:11px;">Subscribers get this many entries (1x = no bonus).</div>
-          </div>
-          <div class="field" style="margin-top:10px;margin-bottom:0;">
-            <label>Code Luck: <strong id="codeLuckVal">1x</strong> entries</label>
-            <input type="range" id="codeLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('codeLuckVal').textContent=this.value+'x'" onchange="if(typeof renderEntries==='function')renderEntries()">
-            <div class="hint" style="font-size:11px;">Viewers verified under your casino code get this many entries (1x = no bonus). Stacks with Subscriber Luck.</div>
-          </div>
-          <div class="toggle-row gw-lock-when-live" style="margin-top:10px;">
+          <div class="toggle-row gw-tight gw-lock-when-live">
             <div class="toggle-info">
-              <div class="toggle-label">Require Verification</div>
-              <div class="toggle-desc" style="font-size:11px;">Casino and/or Discord</div>
+              <div class="toggle-label">Require Verification
+                <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();">i
+                  <span class="gw-info-pop">Entrants must be verified — casino, Discord, or both (pick below when enabled).</span>
+                </span>
+              </div>
             </div>
             <div class="toggle" id="toggleVerified" onclick="toggleVerifiedReq(this)"></div>
           </div>
@@ -1185,6 +1211,28 @@
                 Discord Verified
               </label>
             </div>
+          </div>
+
+          <div class="gw-sec-label">🍀 Luck bonuses <span style="letter-spacing:0;text-transform:none;font-family:'Inter',sans-serif;font-weight:400;color:var(--text-dim);">(adjustable while live)</span></div>
+          <div class="gw-luck" id="gwLuckSubBlock">
+            <div class="gw-luck-head">
+              <span class="gw-luck-name">⭐ Subscriber Luck</span>
+              <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();">i
+                <span class="gw-info-pop">Subscribers get this many entries each (1x = no bonus).</span>
+              </span>
+              <span class="gw-luck-val" id="subLuckVal">1x</span>
+            </div>
+            <input type="range" class="gw-range" id="subLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('subLuckVal').textContent=this.value+'x';gwRangePaint(this)" onchange="if(typeof renderEntries==='function')renderEntries()">
+          </div>
+          <div class="gw-luck" id="gwLuckCodeBlock">
+            <div class="gw-luck-head">
+              <span class="gw-luck-name">🔑 Code Luck</span>
+              <span class="gw-info" onclick="this.classList.toggle('open');event.stopPropagation();">i
+                <span class="gw-info-pop">Viewers verified under your casino code get this many entries each (1x = no bonus). <strong>Stacks</strong> with Subscriber Luck.</span>
+              </span>
+              <span class="gw-luck-val" id="codeLuckVal">1x</span>
+            </div>
+            <input type="range" class="gw-range" id="codeLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('codeLuckVal').textContent=this.value+'x';gwRangePaint(this)" onchange="if(typeof renderEntries==='function')renderEntries()">
           </div>
 
           <!-- OBS overlay style picker — the streamer picks which spinner
@@ -6516,7 +6564,20 @@ function gwUpdateUI() {
       ctlKw.style.textShadow = (live && paused) ? 'none' : '';
     }
   }
+  gwPaintAllRanges(); // keep luck-slider fills + boosted badges in sync (covers restores)
 }
+
+// Luck-slider polish: paint the track fill up to the thumb and flip the value
+// badge gold when the multiplier is above 1x. Inline oninput calls this per
+// slider; gwUpdateUI repaints all (covers programmatic restores).
+function gwRangePaint(el) {
+  if (!el) return;
+  const min = parseFloat(el.min) || 0, max = parseFloat(el.max) || 100;
+  const pct = ((parseFloat(el.value) - min) / (max - min)) * 100;
+  el.style.background = `linear-gradient(90deg, var(--accent) ${pct}%, rgba(255,255,255,0.08) ${pct}%)`;
+  el.closest('.gw-luck')?.classList.toggle('boosted', parseFloat(el.value) > 1);
+}
+function gwPaintAllRanges() { document.querySelectorAll('.gw-range').forEach(gwRangePaint); }
 
 // Initial paint of the stepper/launch bar (idle defaults; the auth restore path
 // re-runs this once the profile is loaded).
