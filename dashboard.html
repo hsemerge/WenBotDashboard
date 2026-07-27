@@ -6624,7 +6624,9 @@ async function gwClearAndEnd() {
   const feeNote = gwEntryMode === 'points'
     ? ' If no winner was drawn, everyone\'s entry points are refunded automatically.'
     : '';
-  if (!confirm('Finish the giveaway? This wipes the entries list and ends the round.' + feeNote)) return;
+  if (!await wbConfirm('This wipes the entries list and ends the round.' + feeNote, {
+    title: 'Finish this giveaway?', confirmText: '⏹ Finish & Clear', danger: true,
+  })) return;
   giveawayActive = false;
   gwEntriesPaused = false;
   gwBlockedKeys = [];
@@ -7178,7 +7180,7 @@ function startWinnerChatWatch(name, watchAt) {
         return `<div style="font-size:13px;line-height:1.4;">
           <span style="color:var(--text-dim);font-size:10px;margin-right:6px;">${t}</span>
           <span onclick="openViewerProfile('${whoJs}')" title="View ${escapeHtml(who)}'s profile" style="color:var(--gold);font-weight:600;cursor:pointer;text-decoration:underline;">${escapeHtml(who)}:</span>
-          <span style="color:var(--text);"> ${escapeHtml(m.content || '')}</span>
+          <span style="color:var(--text);"> ${renderKickChatHtml(m.content || '')}</span>
         </div>`;
       }).join('');
       msgsEl.scrollTop = msgsEl.scrollHeight;
@@ -7193,6 +7195,42 @@ function stopWinnerChatWatch() {
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+// Kick chat content → HTML: escape everything, then swap Kick's emote tokens
+// ([emote:4148074:HYPERCLAP]) for the real emote images off files.kick.com.
+function renderKickChatHtml(raw) {
+  return escapeHtml(raw).replace(/\[emote:(\d+):([^\]\s]*)\]/g, (_, id, name) =>
+    `<img src="https://files.kick.com/emotes/${id}/fullsize" alt="${name}" title="${name}" style="height:22px;vertical-align:middle;margin:0 1px;" onerror="this.replaceWith(this.alt)">`);
+}
+
+// Styled in-app confirm — replaces the browser's native confirm() popup (the
+// grey "site says" box) for destructive actions. Promise<boolean>; backdrop
+// click and Esc cancel.
+function wbConfirm(message, { title = 'Are you sure?', confirmText = 'Confirm', danger = false } = {}) {
+  return new Promise((resolve) => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(0,0,0,0.62);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px;';
+    wrap.innerHTML = `
+      <div style="background:var(--bg-panel);border:1px solid ${danger ? 'rgba(255,71,87,0.45)' : 'var(--border)'};border-radius:14px;max-width:440px;width:100%;padding:22px 24px;box-shadow:0 24px 80px rgba(0,0,0,0.75);">
+        <div style="font-family:'Exo 2',sans-serif;font-size:17px;font-weight:900;color:${danger ? 'var(--red)' : 'var(--bright)'};margin-bottom:8px;">${escapeHtml(title)}</div>
+        <div style="font-size:13px;color:var(--text);line-height:1.65;margin-bottom:18px;">${escapeHtml(message)}</div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button data-act="no" style="padding:10px 18px;background:none;border:1px solid var(--border);border-radius:9px;color:var(--text-dim);font-size:13px;font-weight:700;cursor:pointer;">Cancel</button>
+          <button data-act="yes" style="padding:10px 20px;background:${danger ? 'rgba(255,71,87,0.14)' : 'var(--accent)'};border:1px solid ${danger ? 'rgba(255,71,87,0.55)' : 'transparent'};border-radius:9px;color:${danger ? 'var(--red)' : '#0d1117'};font-family:'Exo 2',sans-serif;font-size:13px;font-weight:800;cursor:pointer;">${escapeHtml(confirmText)}</button>
+        </div>
+      </div>`;
+    const done = (ok) => { document.removeEventListener('keydown', onKey); wrap.remove(); resolve(ok); };
+    const onKey = (e) => { if (e.key === 'Escape') done(false); };
+    wrap.addEventListener('click', (e) => {
+      if (e.target === wrap) return done(false);
+      const act = e.target.closest('[data-act]')?.getAttribute('data-act');
+      if (act) done(act === 'yes');
+    });
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(wrap);
+    wrap.querySelector('[data-act="no"]')?.focus();
+  });
 }
 
 // ── VIEWER PROFILE ───────────────────────────────────────────────────────────
