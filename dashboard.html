@@ -7262,6 +7262,17 @@ async function openViewerProfile(username) {
   const body  = document.getElementById('vpBody');
   if (!modal || !body) return;
   modal.style.display = 'flex';
+  // Center the card on the visible page content, not the raw viewport — the
+  // sidebar otherwise skews it left of the panels (same fix as wbConfirm).
+  try {
+    const content = document.querySelector('.page.active');
+    const card = modal.firstElementChild;
+    if (content && card) {
+      const r = content.getBoundingClientRect();
+      const offset = (r.left + r.width / 2) - window.innerWidth / 2;
+      card.style.transform = Math.abs(offset) > 4 ? `translateX(${offset}px)` : '';
+    }
+  } catch {}
   const reqId   = ++_vpReqId;
   const kickUrl = 'https://kick.com/' + encodeURIComponent(username);
 
@@ -7672,7 +7683,7 @@ function _vpChatHtml(kick) {
   const fmtT = (t) => { try { return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch { return ''; } };
   return recent.map(m => {
     const old = _vpOpenedAt && m.ts && m.ts < _vpOpenedAt;
-    return `<div style="font-size:12.5px;padding:4px 0;border-top:1px solid rgba(255,255,255,0.04);line-height:1.45;${old ? 'opacity:.55;' : ''}"><span style="color:var(--text-dim);font-size:10.5px;margin-right:7px;">${escHtml(fmtT(m.ts))}</span>${escHtml(m.content)}</div>`;
+    return `<div style="font-size:12.5px;padding:4px 0;border-top:1px solid rgba(255,255,255,0.04);line-height:1.45;${old ? 'opacity:.55;' : ''}"><span style="color:var(--text-dim);font-size:10.5px;margin-right:7px;">${escHtml(fmtT(m.ts))}</span>${renderKickChatHtml(m.content)}</div>`;
   }).join('');
 }
 
