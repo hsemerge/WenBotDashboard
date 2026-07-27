@@ -542,7 +542,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.11.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.11.1</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -1212,9 +1212,26 @@
             <span id="giveawayStatusText" style="font-size:13px;color:var(--text-dim);">No active giveaway</span>
             <span id="gwCountdown" style="display:none;margin-left:auto;font-size:13px;font-weight:700;color:var(--gold);font-family:'Exo 2',sans-serif;"></span>
           </div>
-          <div style="font-size:11.5px;color:var(--text-dim);margin-top:8px;">Viewers type <strong id="gwKeywordDisplay" style="color:var(--accent);">!join</strong> to enter</div>
-          <div class="gw-summary" id="gwSummaryLine" style="margin-top:10px;"></div>
-          <div class="gw-bigcount">
+          <!-- Idle meta — keyword hint + launch summary. Hidden while LIVE (the
+               hero below carries the keyword at stream-readable size instead). -->
+          <div id="gwIdleMeta">
+            <div style="font-size:11.5px;color:var(--text-dim);margin-top:8px;">Viewers type <strong id="gwKeywordDisplay" style="color:var(--accent);">!join</strong> to enter</div>
+            <div class="gw-summary" id="gwSummaryLine" style="margin-top:10px;"></div>
+          </div>
+          <!-- LIVE hero — streamers show this column on stream, so the two facts
+               viewers need (what to type + how many entries) fill the column at
+               distance-readable size. One fee/paused chip max; everything else
+               lives in the status strip or the setup column. -->
+          <div id="gwCtlHero" style="display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:10px 0;">
+            <div style="font-size:11px;font-weight:800;letter-spacing:.28em;text-transform:uppercase;color:var(--text-dim);">Type to enter</div>
+            <div id="gwCtlKw" style="font-family:'Exo 2',sans-serif;font-size:50px;font-weight:900;color:var(--accent);line-height:1.05;text-shadow:0 0 28px rgba(0,229,255,0.45);margin-top:2px;max-width:100%;overflow-wrap:anywhere;">!join</div>
+            <div id="gwCtlChip" style="display:none;margin-top:12px;"></div>
+            <div style="margin-top:18px;">
+              <div id="gwCtlCount" style="font-size:54px;font-weight:900;color:var(--bright);line-height:1;font-variant-numeric:tabular-nums;">0</div>
+              <div style="font-size:12px;font-weight:800;color:var(--text-dim);letter-spacing:.22em;text-transform:uppercase;margin-top:4px;">Entries</div>
+            </div>
+          </div>
+          <div class="gw-bigcount" id="gwBigcountIdle">
             <div class="n" id="entryCountBadge">0</div>
             <div class="l">Entries</div>
           </div>
@@ -2638,9 +2655,20 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.11.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.11.1</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.11.1 — Giveaway Control, built for showing on stream</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 27, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>📺 <strong>While a giveaway is LIVE, the control column becomes a stream-readable display:</strong> your entry keyword in giant letters, the entry count huge beneath it, and one status line up top (LIVE, audience, countdown). Viewers watching your stream can read what to type from across the room.</li>
+            <li>🧹 <strong>Redundancy purged:</strong> the keyword used to appear three times and "taking entries" twice in that column. Now each fact appears once. A single chip shows the entry fee when it's a points giveaway; pausing dims the whole display with a clear PAUSED state. The idle layout is unchanged.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -5923,7 +5951,7 @@ function onAuthReady(user) {
     }
     updateGiveawayStatus(true);
     if (gwEntriesPaused) {
-      document.getElementById('giveawayStatusText').textContent = 'Entries paused — draw a winner or reopen';
+      document.getElementById('giveawayStatusText').textContent = 'PAUSED — draw a winner or reopen';
       document.getElementById('giveawayStatusText').style.color = 'var(--orange)';
     }
     document.getElementById('startGiveawayBtn').style.display = 'none';
@@ -6463,6 +6491,28 @@ function gwUpdateUI() {
       chips.push(`<span class="gw-chip">${durS > 0 ? '⏱ Pauses after ' + Math.round(durS / 60) + ' min' : 'No timer'}</span>`);
     }
     sum.innerHTML = (live ? 'Running: ' : 'Ready to launch: ') + chips.join('');
+
+    // Live hero extras — at most ONE chip under the giant keyword: the entry
+    // fee (info viewers actually need) or the paused notice. Paused also dims
+    // the hero so "not taking entries right now" is unmissable on stream.
+    const ctlChip = document.getElementById('gwCtlChip');
+    const ctlHero = document.getElementById('gwCtlHero');
+    const ctlKw   = document.getElementById('gwCtlKw');
+    if (ctlChip && ctlHero && ctlKw) {
+      if (live) ctlKw.textContent = kw;
+      if (live && paused) {
+        ctlChip.innerHTML = `<span class="gw-chip paused-chip">⏸ Entries paused — draw or reopen</span>`;
+        ctlChip.style.display = '';
+      } else if (live && gwEntryMode === 'points') {
+        ctlChip.innerHTML = `<span class="gw-chip pts">🪙 ${fee.toLocaleString()} ${escHtml(cur)} per entry${multiOn ? ' · multi-buy on' : ''}</span>`;
+        ctlChip.style.display = '';
+      } else {
+        ctlChip.style.display = 'none';
+      }
+      ctlHero.style.opacity  = (live && paused) ? '0.55' : '';
+      ctlKw.style.color      = (live && paused) ? 'var(--text-dim)' : 'var(--accent)';
+      ctlKw.style.textShadow = (live && paused) ? 'none' : '';
+    }
   }
 }
 
@@ -6484,7 +6534,7 @@ document.addEventListener('click', (e) => {
 async function stopGiveaway() {
   stopCountdown();
   gwEntriesPaused = true;
-  document.getElementById('giveawayStatusText').textContent = 'Entries paused — draw a winner or reopen';
+  document.getElementById('giveawayStatusText').textContent = 'PAUSED — draw a winner or reopen';
   document.getElementById('giveawayStatusText').style.color = 'var(--orange)';
   document.getElementById('stopGiveawayBtn').style.display = 'none';
   document.getElementById('clearEndBtn').style.display = '';
@@ -6598,9 +6648,18 @@ function updateGiveawayStatus(active) {
   if (gwBadge) gwBadge.style.display = active ? '' : 'none';
   // Well B status strip tint follows the live state.
   document.getElementById('giveawayStatusBar')?.classList.toggle('live', active);
+  // Live hero vs idle meta — the hero replaces the keyword hint, summary
+  // chips, and small count while a giveaway runs (on-stream readability).
+  { const hero = document.getElementById('gwCtlHero');
+    const idle = document.getElementById('gwIdleMeta');
+    const big  = document.getElementById('gwBigcountIdle');
+    if (hero) hero.style.display = active ? 'flex' : 'none';
+    if (idle) idle.style.display = active ? 'none' : '';
+    if (big)  big.style.display  = active ? 'none' : '';
+    if (active) { const k = document.getElementById('gwCtlKw'); if (k) k.textContent = kw; } }
   if (active) {
     dot.classList.add('online'); dot.classList.remove('offline');
-    txt.textContent = `Giveaway LIVE — ${typeLabel} — collecting entries`;
+    txt.textContent = `LIVE — ${typeLabel}`;
     txt.style.color = 'var(--green)';
     // Update overview card
     document.getElementById('overviewGwInactive').style.display = 'none';
@@ -6760,6 +6819,8 @@ function renderEntries() {
   document.getElementById('entryCountBadge').textContent = count;
   const _heroCnt = document.getElementById('gwHeroCount');
   if (_heroCnt) _heroCnt.textContent = count;
+  const _ctlCnt = document.getElementById('gwCtlCount');
+  if (_ctlCnt) _ctlCnt.textContent = count.toLocaleString();
   const stat = document.getElementById('statEntries');
   if (stat) stat.textContent = count;
   if (!list) return;
