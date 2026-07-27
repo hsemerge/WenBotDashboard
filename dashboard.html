@@ -1809,6 +1809,16 @@
           </div>
         </div>
         <div style="margin-top:14px;">
+          <div style="border-top:1px solid var(--border);margin:14px 0 12px;"></div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;">Bot Messages</div>
+          <div class="field">
+            <label style="font-size:11px;">Giveaway won message
+              <span class="gw-info" onclick="this.classList.toggle('open');" style="margin-left:6px;">i
+                <span class="gw-info-pop">Posted in chat when a giveaway winner is drawn (dashboard draws and <strong>!winner</strong>). Use <strong>{winner}</strong> where the winner's name should go. Leave blank for the default.</span>
+              </span>
+            </label>
+            <input type="text" id="gwWinMsgInput" placeholder="🏆 Congratulations {winner}! You won the giveaway! 🎉" maxlength="240">
+          </div>
           <button class="btn btn-accent" onclick="saveCommandAliases()">Save Command Names</button>
         </div>
       </div>
@@ -7133,7 +7143,9 @@ window.addEventListener('message', (e) => {
     const watchAt = Date.now();
     fb.db.collection('streamers').doc(uid)
       .update({
-        pendingChatMessage: `🏆 Congratulations @${pickedWinner.username}! You won the giveaway! 🎉`,
+        pendingChatMessage: (profile?.gwWinMessage || '').trim()
+          ? profile.gwWinMessage.trim().replace(/\{winner\}/gi, '@' + pickedWinner.username)
+          : `🏆 Congratulations @${pickedWinner.username}! You won the giveaway! 🎉`,
         pendingChatTs:      Date.now() + Math.random(),
         winnerWatch:        pickedWinner.username.toLowerCase(),
         winnerWatchName:    pickedWinner.username,
@@ -8608,6 +8620,8 @@ function loadCommandAliases() {
     const el = document.getElementById('alias_' + k);
     if (el) el.value = aliases[k] || '';
   });
+  const wm = document.getElementById('gwWinMsgInput');
+  if (wm) wm.value = profile?.gwWinMessage || '';
   updateStoreModeLabel();
 }
 
@@ -8617,7 +8631,9 @@ async function saveCommandAliases() {
     const val = (document.getElementById('alias_' + k)?.value || '').trim().toLowerCase().replace(/^!/, '');
     if (val) aliases[k] = val;
   });
-  await saveStreamerProfile({ commandAliases: aliases });
+  const gwWinMessage = (document.getElementById('gwWinMsgInput')?.value || '').trim().slice(0, 240);
+  await saveStreamerProfile({ commandAliases: aliases, gwWinMessage });
+  if (profile) profile.gwWinMessage = gwWinMessage;
   flash('Command names saved! Bot will pick them up within seconds.');
 }
 
