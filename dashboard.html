@@ -1212,10 +1212,12 @@
             <span id="giveawayStatusText" style="font-size:13px;color:var(--text-dim);">No active giveaway</span>
             <span id="gwCountdown" style="display:none;margin-left:auto;font-size:13px;font-weight:700;color:var(--gold);font-family:'Exo 2',sans-serif;"></span>
           </div>
-          <!-- Idle meta — keyword hint + launch summary. Hidden while LIVE (the
-               hero below carries the keyword at stream-readable size instead). -->
-          <div id="gwIdleMeta">
-            <div style="font-size:11.5px;color:var(--text-dim);margin-top:8px;">Viewers type <strong id="gwKeywordDisplay" style="color:var(--accent);">!join</strong> to enter</div>
+          <!-- Idle meta — launch summary chips (the chips already name the
+               keyword, so no separate "viewers type X" line). Hidden while LIVE.
+               flex column + the summary's flex:1 keeps the count + Start button
+               anchored at the bottom of the column, same as it's always been. -->
+          <div id="gwIdleMeta" style="display:flex;flex-direction:column;flex:1;">
+            <span id="gwKeywordDisplay" style="display:none;"></span>
             <div class="gw-summary" id="gwSummaryLine" style="margin-top:10px;"></div>
           </div>
           <!-- LIVE hero — streamers show this column on stream, so the two facts
@@ -6654,7 +6656,7 @@ function updateGiveawayStatus(active) {
     const idle = document.getElementById('gwIdleMeta');
     const big  = document.getElementById('gwBigcountIdle');
     if (hero) hero.style.display = active ? 'flex' : 'none';
-    if (idle) idle.style.display = active ? 'none' : '';
+    if (idle) idle.style.display = active ? 'none' : 'flex';
     if (big)  big.style.display  = active ? 'none' : '';
     if (active) { const k = document.getElementById('gwCtlKw'); if (k) k.textContent = kw; } }
   if (active) {
