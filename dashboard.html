@@ -541,7 +541,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.9.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.10.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -1349,6 +1349,33 @@
               </div>
               <div class="hint">What viewers see in chat when checking their balance</div>
             </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">🎲 Chat Games <span style="font-size:10px;background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);padding:2px 8px;border-radius:999px;font-weight:800;vertical-align:middle;">BETA</span></div>
+            <div style="font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:12px;">Casino-style mini-games viewers play in your Kick chat with their points. Off by default. Points have no cash value; losses are simply burned.</div>
+            <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin-bottom:12px;">
+              <input type="checkbox" id="gmEnabled" onchange="gmToggleChanged()" style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;">
+              <label for="gmEnabled" style="cursor:pointer;flex:1;">
+                <div style="font-size:13px;color:var(--bright);font-weight:600;">Enable chat games</div>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Viewers get !coinflip, !roulette, !limbo, !double / !take, and !games to list them.</div>
+              </label>
+            </div>
+            <div id="gmOptions" style="display:none;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+                <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;"><input type="checkbox" id="gmCoinflip" checked style="width:15px;height:15px;accent-color:var(--accent);"> 🪙 Coin Flip (2x)</label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;"><input type="checkbox" id="gmRoulette" checked style="width:15px;height:15px;accent-color:var(--accent);"> 🎡 Roulette (up to 36x)</label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;"><input type="checkbox" id="gmLimbo" checked style="width:15px;height:15px;accent-color:var(--accent);"> 🚀 Limbo (pick a target)</label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;"><input type="checkbox" id="gmDouble" checked style="width:15px;height:15px;accent-color:var(--accent);"> 🎲 Double or Nothing</label>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+                <div class="field" style="margin:0;"><label>Min bet</label><input type="number" id="gmMinBet" min="1" value="10"></div>
+                <div class="field" style="margin:0;"><label>Max bet</label><input type="number" id="gmMaxBet" min="1" value="25000"></div>
+                <div class="field" style="margin:0;"><label>Cooldown (sec / viewer)</label><input type="number" id="gmCooldown" min="0" max="300" value="15"></div>
+                <div class="field" style="margin:0;"><label>House edge %</label><input type="number" id="gmEdge" min="0" max="15" step="0.5" value="3"><div class="hint" style="margin-top:3px;">Keeps games a slow points sink. 0 = fair coin.</div></div>
+              </div>
+            </div>
+            <button class="btn btn-accent" onclick="saveGamesSettings()" style="width:100%;">Save Chat Games</button>
           </div>
 
           <div class="card">
@@ -2552,9 +2579,21 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.9.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.10.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.10.0 — Chat Games (beta): let your viewers gamble their points</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 27, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🎲 <strong>NEW: Chat Games.</strong> Four casino-style mini-games viewers play right in your Kick chat with their channel points: <strong>🪙 !coinflip</strong> red/blue at 2x, <strong>🎡 !roulette</strong> with colors, exact numbers (36x), sections and green (14x), <strong>🚀 !limbo</strong> with pick-your-own target multipliers, and <strong>🎲 !double</strong> — ride your winnings double-or-nothing until you <strong>!take</strong> (pots auto-bank after 45s so nobody loses a win by walking away). <strong>!games</strong> lists what's on.</li>
+            <li>🎛 <strong>You're in full control.</strong> Off by default — flip them on from the Points page's new Chat Games card, with per-game toggles, min/max bets, a per-viewer cooldown, and a configurable house edge so games stay a slow points sink instead of a printer. Settings go live in your chat within seconds, no restart.</li>
+            <li>🛡 <strong>Built like the rest of WenBot:</strong> wagers debit atomically (no double-spends), "all" bets cap at your max, and cooldown nags are throttled so the bot never floods your chat. Points have no cash value; losses are simply burned.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -5660,6 +5699,7 @@ function onAuthReady(user) {
   { const _sc = document.getElementById('statCurrency'); if (_sc) _sc.textContent = (profile?.currencyName || 'points') + ' total'; }
 
   if (profile?.currencyName) document.getElementById('currencyNameInput').value = profile.currencyName;
+  loadGamesSettings();
   // Points master switch (defaults ON). Reflect it + hide the Store nav when off.
   { const _pe = profile?.pointsEnabled !== false;
     const _t = document.getElementById('pointsEnabledToggle'); if (_t) _t.checked = _pe;
@@ -7845,6 +7885,49 @@ async function saveEarnRates() {
     pointsOnVerify:    firebase.firestore.FieldValue.delete(),
   });
   flash('Earn rates saved!');
+}
+
+// ── Chat Games (beta) — casino mini-games in Kick chat, OFF by default ──
+function gmToggleChanged() {
+  const on = document.getElementById('gmEnabled')?.checked;
+  const opts = document.getElementById('gmOptions');
+  if (opts) opts.style.display = on ? '' : 'none';
+}
+
+function loadGamesSettings() {
+  const g = profile?.games || {};
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.checked = val; };
+  set('gmEnabled',  g.enabled === true);
+  set('gmCoinflip', g.coinflip !== false);
+  set('gmRoulette', g.roulette !== false);
+  set('gmLimbo',    g.limbo    !== false);
+  set('gmDouble',   g.double   !== false);
+  const num = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val; };
+  num('gmMinBet',   g.minBet);
+  num('gmMaxBet',   g.maxBet);
+  num('gmCooldown', g.cooldownSec);
+  num('gmEdge',     g.houseEdgePct);
+  gmToggleChanged();
+}
+
+async function saveGamesSettings() {
+  const games = {
+    enabled:      document.getElementById('gmEnabled')?.checked === true,
+    coinflip:     document.getElementById('gmCoinflip')?.checked !== false,
+    roulette:     document.getElementById('gmRoulette')?.checked !== false,
+    limbo:        document.getElementById('gmLimbo')?.checked !== false,
+    double:       document.getElementById('gmDouble')?.checked !== false,
+    minBet:       Math.max(1, parseInt(document.getElementById('gmMinBet')?.value, 10) || 10),
+    maxBet:       Math.max(1, parseInt(document.getElementById('gmMaxBet')?.value, 10) || 25000),
+    cooldownSec:  Math.min(300, Math.max(0, parseInt(document.getElementById('gmCooldown')?.value, 10) || 0)),
+    houseEdgePct: Math.min(15, Math.max(0, parseFloat(document.getElementById('gmEdge')?.value) || 0)),
+  };
+  if (games.maxBet < games.minBet) { flash('Max bet must be at least the min bet.', 'error'); return; }
+  try {
+    await saveStreamerProfile({ games });
+    if (profile) profile.games = games;
+    flash(games.enabled ? 'Chat games saved — live in your chat within a few seconds.' : 'Chat games saved (disabled).');
+  } catch (e) { flash('Failed to save: ' + e.message, 'error'); }
 }
 
 // ── Points: paginated viewer list + search + reset-all ──
