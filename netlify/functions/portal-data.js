@@ -8,6 +8,7 @@ const { CASINO_NAMES }       = require("./_lib/casinos");
 const { lookupAffiliate }    = require("./_lib/affiliate");
 const { normalizeGambulls, applyPeriod } = require("./_lib/leaderboard");
 const { fetchDegenRace }     = require("./_lib/degen");
+const { fetchRainbetForPeriod, applyRainbetExclusions } = require("./_lib/rainbet");
 const { fetchCsgobigRace }   = require("./_lib/csgobig");
 
 const API_CASINOS = new Set(["gambulls"]);
@@ -468,6 +469,50 @@ exports.handler = async (event) => {
             }
           } catch (err) {
             console.warn("[portal-data] degen fetch failed:", err.message);
+          }
+        }
+      }
+      // Rainbet: key + date range (the range IS the period, so no baselines /
+      // carryover — only manual exclusions apply). Cached 45s per channel so a
+      // busy portal can't hammer the streamer's key.
+      else if (provider === "rainbet") {
+        const provDoc = await db.collection("streamers").doc(uid)
+          .collection("providers").doc("rainbet").get();
+        const rbKey = provDoc.exists ? (provDoc.data().apiKey || "") : "";
+        if (rbKey) {
+          try {
+            const cacheRef = db.collection("_cache").doc(`lb_${channel}_rainbet_live`);
+            let data = null, cachedDoc = null;
+            try {
+              const c = await cacheRef.get();
+              if (c.exists) {
+                cachedDoc = c.data();
+                if (cachedDoc.data && cachedDoc.cachedAt && (Date.now() - cachedDoc.cachedAt) < 45_000) data = cachedDoc.data;
+              }
+            } catch {}
+            if (!data) {
+              data = await fetchRainbetForPeriod(rbKey, profile.leaderboardPeriod || null);
+              if (data) { try { await cacheRef.set({ cachedAt: Date.now(), data }); } catch {} }
+              else if (cachedDoc?.data) data = cachedDoc.data;
+            }
+            if (data) {
+              const applied  = applyRainbetExclusions(data, profile.leaderboardPeriod || null);
+              const lbPrizes = Array.isArray(profile.leaderboardPrizes) ? profile.leaderboardPrizes : [];
+              leaderboard = {
+                period:   { from: data.from, to: data.to },
+                rankings: applied.rankings.map((r) => ({
+                  rank:        r.rank,
+                  name:        r.username,
+                  wagerAmount: r.wagered || 0,
+                  avatarUrl:   null,
+                  prize:       Number(lbPrizes[r.rank - 1]) > 0 ? Number(lbPrizes[r.rank - 1]) : 0,
+                })),
+                totalUsers:   applied.totalUsers,
+                totalWagered: applied.totalWagered,
+              };
+            }
+          } catch (err) {
+            console.warn("[portal-data] rainbet fetch failed:", err.message);
           }
         }
       }

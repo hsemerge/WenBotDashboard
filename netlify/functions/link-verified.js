@@ -14,7 +14,7 @@ const { CASINO_NAMES }        = require("./_lib/casinos");
 const { lookupAffiliate }     = require("./_lib/affiliate");
 const { logAudit }            = require("./_lib/audit");
 
-const API_CASINOS = new Set(["gambulls"]);
+const API_CASINOS = new Set(["gambulls", "rainbet"]);
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});

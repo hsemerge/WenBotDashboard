@@ -6,6 +6,7 @@ const { res: _res }        = require("./_lib/http");
 const { CASINO_NAMES }     = require("./_lib/casinos");
 const { normalizeGambulls, applyPeriod } = require("./_lib/leaderboard");
 const { fetchDegenRace }   = require("./_lib/degen");
+const { fetchRainbetRange, fetchRainbetForPeriod, applyRainbetExclusions } = require("./_lib/rainbet");
 const res = (s, b) => _res(s, b, "*");
 
 async function fetchGambulls(apiKey) {
@@ -128,6 +129,56 @@ exports.handler = async (event) => {
         degen: { raceName: race.raceName, startAt: race.startAt, endAt: race.endAt, prizePool: race.prizePool, fiat: race.fiat, active: race.active },
         rankings: race.rankings.map((r) => ({ rank: r.rank, username: r.username, wagered: r.wagered, avatarUrl: r.avatarUrl, prize: r.prize })),
         totalWagered: race.totalWagered, totalUsers: race.totalUsers,
+      });
+    }
+
+    // Rainbet: key + arbitrary date range. The range IS the period, so there are
+    // no baselines/carryover — we ask Rainbet for the period's exact dates and
+    // only apply WenBot's manual exclusions on top. Cached per channel+range so
+    // a busy portal can't hammer the streamer's key.
+    if (provider === "rainbet") {
+      const provDoc = await db.collection("streamers").doc(streamerDoc.id)
+        .collection("providers").doc("rainbet").get();
+      const apiKey = provDoc.exists ? (provDoc.data().apiKey || "") : "";
+      if (!apiKey) return res(400, { error: "Streamer hasn't configured their Rainbet API key yet." });
+
+      const fromParam = (event.queryStringParameters?.from || "").trim();
+      const toParam   = (event.queryStringParameters?.to   || "").trim();
+      const histRange = fromParam && toParam;
+
+      const cacheRef = db.collection("_cache")
+        .doc(`lb_${channel.toLowerCase()}_rainbet_${histRange ? `${fromParam}_${toParam}` : "live"}`);
+      let data = null, cached = null;
+      try {
+        const doc = await cacheRef.get();
+        if (doc.exists) {
+          cached = doc.data();
+          if (cached.data && cached.cachedAt && (Date.now() - cached.cachedAt) < LB_CACHE_TTL_MS) data = cached.data;
+        }
+      } catch { /* fall through to a live fetch */ }
+
+      if (!data) {
+        data = histRange
+          ? await fetchRainbetRange(apiKey, fromParam, toParam)
+          : await fetchRainbetForPeriod(apiKey, period);
+        if (data) { try { await cacheRef.set({ cachedAt: Date.now(), data }); } catch {} }
+        else if (cached?.data) data = cached.data;   // serve stale rather than fail
+      }
+      if (!data) return res(502, { error: "Failed to fetch from Rainbet API." });
+
+      if (histRange) {
+        return res(200, {
+          success: true, casino: provider, casinoName: CASINO_NAMES[provider], historical: true,
+          period: { from: data.from, to: data.to },
+          rankings: data.rankings, totalWagered: data.totalWagered, totalUsers: data.totalUsers,
+        });
+      }
+      // raw=1 skips exclusions (wager raffle applies its own logic).
+      const out = event.queryStringParameters?.raw === "1" ? data : applyRainbetExclusions(data, period);
+      return res(200, {
+        success: true, casino: provider, casinoName: CASINO_NAMES[provider], period,
+        rankings: out.rankings, totalWagered: out.totalWagered, totalUsers: out.totalUsers,
+        rangeFrom: data.from, rangeTo: data.to, casinoUpdatedAt: data.cacheUpdatedAt || null,
       });
     }
 

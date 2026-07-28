@@ -96,9 +96,47 @@ function findMatch(rankings, target, knownUid) {
 
 // opts: { uid } — when provided, match by provider UID (durable, masking-proof).
 async function lookupAffiliate(provider, apiKey, affiliateUsername, diagnostics = null, opts = {}) {
-  if (provider !== "gambulls") return null;
   const target   = (affiliateUsername || "").toLowerCase().trim();
   const knownUid = opts && opts.uid != null ? String(opts.uid) : null;
+
+  // ── Rainbet ────────────────────────────────────────────────────────────────
+  // Real usernames + stable ids, so matching is exact (no masking to unpick).
+  // We look back ~4 months (the API's max range) so someone who plays under the
+  // code but hasn't wagered this week still resolves as under-code.
+  if (provider === "rainbet") {
+    const diag = { type: "rainbet-4mo", target, knownUid };
+    try {
+      const { fetchRainbetRange, clampRange } = require("./rainbet");
+      const range = clampRange(0, Date.now());   // clamps to the max window ending today
+      const board = await fetchRainbetRange(apiKey, range.from, range.to);
+      if (!board) {
+        diag.error = "fetch failed (bad key or API error)";
+        if (diagnostics) diagnostics.push(diag);
+        return null;
+      }
+      diag.totalEntries = board.rankings.length;
+      diag.totalWagered = board.totalWagered;
+      diag.sample       = board.rankings.slice(0, 5).map(r => r.username);
+      const hit = (knownUid && board.rankings.find(r => String(r.uid) === knownUid))
+               || board.rankings.find(r => (r.username || "").toLowerCase().trim() === target);
+      diag.matched = !!hit;
+      if (diagnostics) diagnostics.push(diag);
+      if (!hit) return null;
+      return {
+        uid:             hit.uid,
+        username:        hit.username,
+        wagerAmount:     hit.wagered || 0,
+        leaderboardType: "rainbet",
+        matchedViaMask:  false,
+      };
+    } catch (err) {
+      diag.error = err.message;
+      if (diagnostics) diagnostics.push(diag);
+      return null;
+    }
+  }
+
+  if (provider !== "gambulls") return null;
 
   for (const type of LB_TYPES_BY_PROVIDER.gambulls) {
     const diag = { type, target, knownUid, limit: LIMIT_PER_LB };

@@ -26,6 +26,12 @@ const CASINO_NAMES = {
 // leaderboard fetchers read exactly that. Casinos NOT listed here have no
 // leaderboard integration yet (the UI tells the streamer so).
 const CASINO_CREDENTIALS = {
+  rainbet: {
+    field:       "apiKey",
+    label:       "Rainbet Affiliate API Key",
+    placeholder: "e.g. Md93...",
+    hint:        "From your Rainbet affiliate dashboard (API access). Powers your live leaderboard, verification and wager giveaways.",
+  },
   gambulls: {
     field:       "apiKey",
     label:       "Gambulls Streamer API Key",

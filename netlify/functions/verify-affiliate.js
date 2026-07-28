@@ -16,7 +16,7 @@ const { getKickUser }          = require("./_lib/kick");
 const crypto                   = require("crypto");
 
 // Casinos with live API verification
-const API_CASINOS = new Set(["gambulls"]);
+const API_CASINOS = new Set(["gambulls", "rainbet"]);
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
