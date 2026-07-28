@@ -542,7 +542,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.12.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.13.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -2380,6 +2380,37 @@
             <input type="text" id="discordGiveallAuthorId" placeholder="Your Discord user ID (e.g. 123456789012345678)">
             <div class="hint">Only this exact Discord account can run <strong>/giveall</strong> in your server (drops points to every active chatter). In Discord, enable Developer Mode, then right-click your name → <em>Copy User ID</em>. Leave blank to keep the command disabled.</div>
           </div>
+          <!-- 🔴 Go-live announcement — bot posts when the Kick channel goes live -->
+          <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px;">
+            <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;">
+              <input type="checkbox" id="dgoEnabled" onchange="dgoToggleChanged()" style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;">
+              <label for="dgoEnabled" style="cursor:pointer;flex:1;">
+                <div style="font-size:13px;color:var(--bright);font-weight:600;">🔴 Announce in Discord when I go live</div>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">WenBot posts a "we're live" card with your stream title, category and a Watch button, the moment Kick reports you live (checked every 2 minutes). One post per stream.</div>
+              </label>
+            </div>
+            <div id="dgoOptions" style="display:none;margin-top:10px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="field" style="margin:0;">
+                  <label>Announcement channel</label>
+                  <select id="dgoChannelId"><option value="">— use the channel above —</option></select>
+                </div>
+                <div class="field" style="margin:0;">
+                  <label>Ping</label>
+                  <select id="dgoPingRoleId">
+                    <option value="">No ping</option>
+                    <option value="everyone">@everyone</option>
+                  </select>
+                  <div class="hint">Role pings need WenBot's role to be allowed to mention it.</div>
+                </div>
+              </div>
+              <div class="field" style="margin-top:10px;margin-bottom:0;">
+                <label>Message <span style="color:var(--text-dim);font-weight:400;font-size:11px;">optional — <code>{channel}</code>, <code>{title}</code>, <code>{url}</code></span></label>
+                <input type="text" id="dgoMessage" maxlength="240" placeholder="🔴 {channel} is now LIVE on Kick!">
+              </div>
+            </div>
+          </div>
+
           <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap;">
             <button class="btn btn-accent" onclick="saveDiscordSettings()">Save Discord Settings</button>
             <button class="btn" onclick="populateDiscordChannels()" style="font-size:13px;padding:8px 16px;">↺ Refresh Channels</button>
@@ -2695,7 +2726,7 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.12.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.13.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
         </div>
@@ -3106,6 +3137,7 @@
           <div class="card help-section" style="margin-bottom:0;">
             <h3>🪙 Points & Engagement</h3>
             <div class="cmd-list">
+              <div class="cmd-row"><div class="cmd-name">!hunt</div><div class="cmd-desc">Live bonus hunt tally (start balance, opened, winnings, P/L, best hit). Silent when no hunt is running.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!points</div><div class="cmd-desc">Check your own balance.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!points @user</div><div class="cmd-desc">Check another viewer's balance.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!give / !pgive @user [amount]</div><div class="cmd-desc">Gift points to another viewer.</div><div class="cmd-who who-all">ALL</div></div>
@@ -11988,6 +12020,14 @@ async function startBonusHunt() {
       });
     bhHunt = { active: true, totalCost: cost, bonuses: [] };
     bhRender();
+    // Announce the hunt: Kick chat via the bot's pendingChatMessage relay, and
+    // Discord (if they've set an announcement channel). Both are best-effort —
+    // never block starting the hunt.
+    fb.db.collection('streamers').doc(fb.activeUid).set({
+      pendingChatMessage: `🎰 BONUS HUNT IS LIVE! $${cost.toLocaleString()} start balance — type !hunt for the live tally.`,
+      pendingChatTs:      Date.now(),
+    }, { merge: true }).catch(() => {});
+    discordNotify('hunt_start', { totalCost: cost });
     flash('Bonus hunt started!');
     ccBumpStat('huntsRun');
   } catch (e) {
@@ -12609,6 +12649,7 @@ async function loadDiscordSettings() {
   renderDiscordCmdToggles();
   document.getElementById('discordDailyPoints').value = cfg.dailyPoints || '';
   loadVerifySettings();
+  loadGoLiveSettings();
 }
 
 // Per-server Discord command on/off toggles (config.discordConfig.commands).
@@ -12655,6 +12696,8 @@ async function populateDiscordChannels(selectedGiveaway, selectedAnnouncement) {
   const aSel = document.getElementById('discordAnnouncementChannelId');
   const cSel = document.getElementById('dvGateChannelId');
   const rSel = document.getElementById('dvRoleId');
+  const goC  = document.getElementById('dgoChannelId');
+  const goR  = document.getElementById('dgoPingRoleId');
   gSel.innerHTML = '<option value="">Loading channels…</option>';
   aSel.innerHTML = '<option value="">Loading channels…</option>';
   try {
@@ -12674,6 +12717,13 @@ async function populateDiscordChannels(selectedGiveaway, selectedAnnouncement) {
     if (cSel) cSel.innerHTML = blankC + chanOpts;
     if (rSel) rSel.innerHTML = '<option value="">— select a role —</option>' +
       (roles || []).map(r => `<option value="${r.id}">@${escHtml(r.name)}</option>`).join('');
+    // Go-live announcement selects share the same channel/role lists.
+    if (goC) goC.innerHTML = '<option value="">— use the announcement channel —</option>' + chanOpts;
+    if (goR) goR.innerHTML = '<option value="">No ping</option><option value="everyone">@everyone</option>' +
+      (roles || []).map(r => `<option value="${r.id}">@${escHtml(r.name)}</option>`).join('');
+    { const g = (profile?.discordConfig?.goLive) || {};
+      if (goC && g.channelId)  goC.value = g.channelId;
+      if (goR && g.pingRoleId) goR.value = g.pingRoleId; }
     if (selectedGiveaway)    gSel.value = selectedGiveaway;
     if (selectedAnnouncement) aSel.value = selectedAnnouncement;
     // Restore the verify-card selections too (their values come from the same lists).
@@ -12684,6 +12734,22 @@ async function populateDiscordChannels(selectedGiveaway, selectedAnnouncement) {
     gSel.innerHTML = '<option value="">Failed to load channels</option>';
     aSel.innerHTML = '<option value="">Failed to load channels</option>';
   }
+}
+
+// ── Discord go-live announcement ──
+function dgoToggleChanged() {
+  const on = document.getElementById('dgoEnabled')?.checked;
+  const opts = document.getElementById('dgoOptions');
+  if (opts) opts.style.display = on ? '' : 'none';
+}
+
+function loadGoLiveSettings() {
+  const g = (profile?.discordConfig?.goLive) || {};
+  const en = document.getElementById('dgoEnabled'); if (en) en.checked = g.enabled === true;
+  const ch = document.getElementById('dgoChannelId'); if (ch && g.channelId) ch.value = g.channelId;
+  const pr = document.getElementById('dgoPingRoleId'); if (pr && g.pingRoleId) pr.value = g.pingRoleId;
+  const ms = document.getElementById('dgoMessage'); if (ms) ms.value = g.message || '';
+  dgoToggleChanged();
 }
 
 // ── Discord Verification & Roles ──
@@ -12816,9 +12882,20 @@ async function saveDiscordSettings() {
     return;
   }
 
+  const goLive = {
+    enabled:    document.getElementById('dgoEnabled')?.checked === true,
+    channelId:  document.getElementById('dgoChannelId')?.value || '',
+    pingRoleId: document.getElementById('dgoPingRoleId')?.value || '',
+    message:    (document.getElementById('dgoMessage')?.value || '').trim().slice(0, 240),
+  };
+  if (goLive.enabled && !goLive.channelId && !announcementChannelId) {
+    flash('Pick a channel for the go-live announcement (or set an announcement channel).', 'error');
+    return;
+  }
+
   try {
     // Preserve verify settings (managed by the Verification & Roles card).
-    const discordConfig = { ...(profile?.discordConfig || {}), guildId, giveawayChannelId, announcementChannelId, giveallAuthorId };
+    const discordConfig = { ...(profile?.discordConfig || {}), guildId, giveawayChannelId, announcementChannelId, giveallAuthorId, goLive };
     await saveStreamerProfile({ discordConfig });
     if (profile) profile.discordConfig = discordConfig;
     updateDiscordStatusBadge(guildId);

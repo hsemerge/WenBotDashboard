@@ -114,6 +114,26 @@ exports.handler = async (event) => {
   if (!cfg.guildId) return res(200, { skipped: "No Discord configured for this streamer" });
 
   try {
+    // Bonus hunt started — announce in the streamer's announcement channel
+    // (falls back to the giveaway channel) so Discord knows the hunt is live.
+    if (type === "hunt_start") {
+      const chan = cfg.announcementChannelId || cfg.giveawayChannelId;
+      if (!chan) return res(200, { skipped: "No announcement channel configured" });
+      const cost = Number(data?.totalCost) || 0;
+      const chan_name = profile.displayName || profile.kickChannel || "The streamer";
+      await discordPost(`/channels/${chan}/messages`, {
+        embeds: [{
+          color:       0xffd700,
+          title:       "🎰 Bonus Hunt is LIVE!",
+          description: `**${chan_name}** just started a bonus hunt with a **$${cost.toLocaleString()}** start balance.`
+            + (profile.kickChannel ? `\n\n[▶ Watch on Kick](https://kick.com/${encodeURIComponent(profile.kickChannel)})` : ""),
+          timestamp:   new Date().toISOString(),
+          footer:      { text: "WenBot" },
+        }],
+      });
+      return res(200, { success: true });
+    }
+
     if (type === "giveaway_start") {
       if (!cfg.giveawayChannelId) return res(200, { skipped: "No giveaway channel configured" });
 
