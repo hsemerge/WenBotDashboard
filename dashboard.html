@@ -542,7 +542,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.13.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.13.1</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -2728,9 +2728,32 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.13.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.13.1</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.13.1 — <code>!uptime</code></h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 28, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>⏱️ <strong>Viewers can ask how long you've been live.</strong> <code>!uptime</code> (or <code>!live</code>) replies with the stream duration and the current viewer count, and says so plainly when you're offline. It reads the real stream start time from Kick rather than counting from when the bot connected, so it stays accurate even if the bot restarts mid-stream.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.13.0 — Go-live announcements, bonus hunt in chat, Rainbet</h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 28, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🔴 <strong>Discord knows when you go live.</strong> Discord page → turn on the go-live announcement, pick the channel and an optional @everyone/role ping. The card carries your stream title, category, avatar and the live preview thumbnail, with a Watch on Kick button.</li>
+            <li>🎰 <strong>Bonus hunts announce themselves.</strong> Starting a hunt posts to your Kick chat and your Discord announcement channel, and anyone can type <code>!hunt</code> for the live tally (start balance, opened, winnings, P/L, best hit). Prefer it quiet? There's a toggle on the Bonus Hunt page.</li>
+            <li>📊 <strong>Rainbet leaderboards.</strong> Rainbet joins the supported affiliate APIs — paste your key and wagers pull straight in, for any date range.</li>
+            <li>🌐 <strong>Community in one command.</strong> <code>!community</code> in chat (or <code>/community</code> in Discord) links the WenBot hub, and the hub itself now explains exactly what WenPoints are and how to earn them.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -3141,6 +3164,7 @@
             <div class="cmd-list">
               <div class="cmd-row"><div class="cmd-name">!community</div><div class="cmd-desc">Links the WenBot community hub where viewers see their WenPoints, wins and tickets across every creator. Also <code>/community</code> in Discord.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!hunt</div><div class="cmd-desc">Live bonus hunt tally (start balance, opened, winnings, P/L, best hit). Silent when no hunt is running.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!uptime</div><div class="cmd-desc">How long you have been live, plus the current viewer count. Reads the real stream start time from Kick, so it stays accurate even if the bot restarts mid-stream. <code>!live</code> works too.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!points</div><div class="cmd-desc">Check your own balance.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!points @user</div><div class="cmd-desc">Check another viewer's balance.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!give / !pgive @user [amount]</div><div class="cmd-desc">Gift points to another viewer.</div><div class="cmd-who who-all">ALL</div></div>
