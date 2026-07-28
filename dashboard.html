@@ -3868,6 +3868,12 @@
               <label>Total Amount Spent on Bonuses ($)</label>
               <input type="number" id="bhCostInput" class="form-input" placeholder="e.g. 25000" min="0" step="1">
             </div>
+            <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--text);margin:10px 0 4px;cursor:pointer;">
+              <input type="checkbox" id="bhAnnounceToggle" checked onchange="saveHuntAnnounce(this.checked)" style="width:15px;height:15px;margin-top:1px;accent-color:var(--accent);flex-shrink:0;">
+              <span>📣 Announce when I start a hunt
+                <div class="hint" style="margin-top:2px;">Posts "Bonus hunt is live" in your Kick chat and your Discord announcement channel. Viewers can always type <code style="color:var(--accent);">!hunt</code> for the tally either way.</div>
+              </span>
+            </label>
             <button onclick="startBonusHunt()" class="btn btn-accent" style="width:100%;margin-top:4px;padding:13px;">🎰 Start Bonus Hunt</button>
           </div>
         </div>
@@ -5912,6 +5918,7 @@ function onAuthReady(user) {
   { const _sc = document.getElementById('statCurrency'); if (_sc) _sc.textContent = (profile?.currencyName || 'points') + ' total'; }
 
   if (profile?.currencyName) document.getElementById('currencyNameInput').value = profile.currencyName;
+  { const _ha = document.getElementById('bhAnnounceToggle'); if (_ha) _ha.checked = profile?.huntAnnounce !== false; }
   loadGamesSettings();
   // Points master switch (defaults ON). Reflect it + hide the Store nav when off.
   { const _pe = profile?.pointsEnabled !== false;
@@ -12005,6 +12012,19 @@ async function bankReset() {
   } catch (e) { flash('Failed to reset: ' + e.message, 'error'); }
 }
 
+// Hunt announcement toggle — saves immediately (same pattern as the points
+// master switch). Default ON; viewers can always pull !hunt regardless.
+async function saveHuntAnnounce(on) {
+  try {
+    await saveStreamerProfile({ huntAnnounce: !!on });
+    if (profile) profile.huntAnnounce = !!on;
+    flash(on ? 'Hunt announcements on.' : 'Hunt announcements off — starting a hunt stays quiet.');
+  } catch (e) {
+    flash('Failed to save: ' + e.message, 'error');
+    const t = document.getElementById('bhAnnounceToggle'); if (t) t.checked = !on;
+  }
+}
+
 async function startBonusHunt() {
   const cost = parseFloat(document.getElementById('bhCostInput').value);
   if (!cost || cost <= 0) { flash('Enter the total amount spent on bonuses', 'error'); return; }
@@ -12024,11 +12044,13 @@ async function startBonusHunt() {
     // Announce the hunt: Kick chat via the bot's pendingChatMessage relay, and
     // Discord (if they've set an announcement channel). Both are best-effort —
     // never block starting the hunt.
-    fb.db.collection('streamers').doc(fb.activeUid).set({
-      pendingChatMessage: `🎰 BONUS HUNT IS LIVE! $${cost.toLocaleString()} start balance — type !hunt for the live tally.`,
-      pendingChatTs:      Date.now(),
-    }, { merge: true }).catch(() => {});
-    discordNotify('hunt_start', { totalCost: cost });
+    if (profile?.huntAnnounce !== false) {
+      fb.db.collection('streamers').doc(fb.activeUid).set({
+        pendingChatMessage: `🎰 BONUS HUNT IS LIVE! $${cost.toLocaleString()} start balance — type !hunt for the live tally.`,
+        pendingChatTs:      Date.now(),
+      }, { merge: true }).catch(() => {});
+      discordNotify('hunt_start', { totalCost: cost });
+    }
     flash('Bonus hunt started!');
     ccBumpStat('huntsRun');
   } catch (e) {
