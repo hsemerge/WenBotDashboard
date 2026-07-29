@@ -114,6 +114,35 @@ exports.handler = async (event) => {
     // Non-fatal — fall through and let the write proceed rather than block setup
   }
 
+  // 3b. Resolve the channel's REAL slug from the official Channels API.
+  // kickUser.name is the OAuth display name, which is NOT always the channel
+  // slug — Kick uses hyphens where a name may have underscores or spaces (a live
+  // example: display name "Swanny_Gamba", actual slug "swanny-gamba"). Storing the
+  // display name silently breaks live-status polling (slug-keyed) and every
+  // kick.com/{name} link we build. Best-effort: on any failure we keep the old
+  // derivation, and the bot's hourly reconcileChannelSlugs() corrects it later.
+  let channelSlug = (kickUser.name || "").toLowerCase();
+  try {
+    const chResp = await fetch(
+      `https://api.kick.com/public/v1/channels?broadcaster_user_id=${encodeURIComponent(kickUser.user_id)}`,
+      { headers: { Authorization: `Bearer ${tokens.access_token}`, Accept: "application/json" } }
+    );
+    if (chResp.ok) {
+      const chData = await chResp.json();
+      const real = Array.isArray(chData?.data) ? chData.data[0]?.slug : null;
+      if (real) {
+        if (real.toLowerCase() !== channelSlug) {
+          console.log(`[kick-streamer-finalize] slug from API "${real}" != derived "${channelSlug}" — using API value`);
+        }
+        channelSlug = String(real).toLowerCase();
+      }
+    } else {
+      console.warn(`[kick-streamer-finalize] slug lookup failed: ${chResp.status}`);
+    }
+  } catch (err) {
+    console.warn("[kick-streamer-finalize] slug lookup error:", err.message);
+  }
+
   // 4. Store via admin SDK (bypasses client-side write rules on protected fields)
   try {
     await db.collection("streamers").doc(uid).set({
@@ -124,7 +153,7 @@ exports.handler = async (event) => {
       kickAccessToken:    tokens.access_token,
       kickRefreshToken:   tokens.refresh_token,
       kickTokenExpiresAt: Date.now() + (tokens.expires_in * 1000),
-      kickChannel:        (kickUser.name || "").toLowerCase(),
+      kickChannel:        channelSlug,
       kickConnectedAt:    Date.now(),
     }, { merge: true });
   } catch (err) {
