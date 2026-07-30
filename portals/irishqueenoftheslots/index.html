@@ -1102,8 +1102,10 @@
     const sub = document.getElementById('dcSub');
     if (!btn || !sub) return;
     if (!viewer) {
-      btn.textContent = 'SIGN IN'; btn.disabled = false;
-      sub.textContent = 'Sign in with Kick to claim your free daily points.';
+      // Match the store's convention ("Sign in to buy") rather than adding a
+      // second bare "Sign in" button next to the one already in the nav.
+      btn.textContent = '🟢 SIGN IN TO CLAIM'; btn.disabled = false;
+      sub.textContent = 'Free points every day, just for showing up.';
     } else if (_dcClaimedToday) {
       btn.textContent = 'CLAIMED'; btn.disabled = true;
       sub.textContent = 'Already claimed today. Come back tomorrow!';
