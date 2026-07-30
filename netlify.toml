@@ -469,11 +469,6 @@
   to     = "/.netlify/functions/kick-login"
   status = 200
 
-[[redirects]]
-  from   = "/api/kick-user"
-  to     = "/.netlify/functions/kick-user"
-  status = 200
-
 # Streamer portal — catch-all rewrites. wenbot.gg/<channel> shows that
 # streamer's public hub. Static files take precedence (Netlify serves real
 # files first), so /dashboard.html, /signup.html, etc. continue working
@@ -505,6 +500,12 @@
 [[edge_functions]]
   function = "kick-channel"
   path = "/api/kick-channel"
+
+# Viewer profile card + follow dates. MUST be an edge function: Lambda 403s on
+# kick.com/api/v2 (that is why the old netlify/functions/kick-user.js went dead).
+[[edge_functions]]
+  function = "kick-user"
+  path = "/api/kick-user"
 
 [[edge_functions]]
   function = "kick-token"

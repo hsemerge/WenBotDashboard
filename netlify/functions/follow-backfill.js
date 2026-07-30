@@ -1,15 +1,12 @@
 // POST /api/follow-backfill
-// Stores follow dates that the DASHBOARD BROWSER collected from Kick.
+// Fills in follow dates for viewers who followed BEFORE WenBot joined a channel.
 //
-// Why the browser and not the server: the only place `following_since` is exposed
-// is the unofficial endpoint
+// The only place `following_since` is exposed is the unofficial endpoint
 //   GET https://kick.com/api/v2/channels/{channel}/users/{username}
-// which Cloudflare hard-403s from every datacenter IP (verified from Railway AND
-// Netlify/AWS — a nonexistent channel id returns byte-identical output, so the
-// block lands at the edge before routing). It answers fine from a residential
-// connection, needs no auth, and reflects CORS
-// (`access-control-allow-origin: https://wenbot.gg`), so the streamer's own
-// browser can read it and hand us the result.
+// which Cloudflare 403s from Lambda and from Railway. Netlify's EDGE runtime
+// (Deno) is not blocked, so this Lambda resolves each viewer through our own
+// /api/kick-user edge function rather than calling Kick directly. Verified
+// 2026-07-30: edge returns 200 with `following_since` across multiple channels.
 //
 // This is BACKFILL ONLY. The live source of truth stays the official
 // `channel.followed` webhook, which the bot already consumes. Without this,
@@ -17,16 +14,21 @@
 // channel — so every newly onboarded streamer would start from zero forever,
 // which defeats the feature.
 //
-// Two actions, so the whole flow needs one function and one redirect:
-//   { action: "list", uid? }    -> { channel, usernames: [...] }  viewers still
-//                                  missing a follow date (the browser's work list)
-//   { action: "save", uid?, entries: [{ username, followingSince }] }  (max 200)
+// Two actions:
+//   { action: "list", uid? }  -> { channel, usernames: [...] }  viewers still
+//                                missing a follow date (the work list)
+//   { action: "fetch", uid?, usernames: [...] }  (max 40 per call)
+//                             -> resolves each via our own /api/kick-user EDGE
+//                                endpoint and writes the results
+//
+// The browser only ORCHESTRATES — it sends usernames and gets counts back. It
+// never supplies follow dates, so a client can't forge them.
 // Auth: Firebase ID token (streamer, or an account delegated to manage them)
 
 const { getDb, admin }        = require("./_lib/firebase");
 const { res, checkRateLimit } = require("./_lib/http");
 
-const MAX_ENTRIES = 200;
+const MAX_BATCH = 40;   // usernames resolved per invocation (Lambda timeout headroom)
 // Kick launched in 2022; anything earlier (or in the future) is a bad payload.
 const MIN_FOLLOW_MS = Date.parse("2022-01-01T00:00:00Z");
 
@@ -83,9 +85,49 @@ exports.handler = async (event) => {
     }
   }
 
-  const entries = Array.isArray(body.entries) ? body.entries : null;
-  if (!entries || !entries.length) return res(400, { error: "Missing entries" });
-  if (entries.length > MAX_ENTRIES) return res(400, { error: `Max ${MAX_ENTRIES} entries per request` });
+  // ── action: fetch — resolve a batch server-side, then write ────────────────
+  if (body.action !== "fetch") return res(400, { error: "Unknown action" });
+
+  const wanted = Array.isArray(body.usernames) ? body.usernames : null;
+  if (!wanted || !wanted.length) return res(400, { error: "Missing usernames" });
+  if (wanted.length > MAX_BATCH) return res(400, { error: `Max ${MAX_BATCH} usernames per request` });
+
+  const streamerSnap = await db.collection("streamers").doc(uid).get();
+  const channel = streamerSnap.exists ? (streamerSnap.data().kickChannel || "") : "";
+  if (!channel) return res(400, { error: "Streamer has no kickChannel" });
+
+  // Resolve through our OWN edge endpoint. It has to be the edge one: this Lambda
+  // cannot reach kick.com/api/v2 directly (403 from every datacenter IP), which is
+  // exactly why the old Lambda kick-user went dead. The edge runtime can.
+  const origin = process.env.PUBLIC_BASE_URL || `https://${event.headers.host || "wenbot.gg"}`;
+  const entries = [];
+  let unreachable = 0;
+
+  async function resolveOne(username) {
+    const u = `${origin}/api/kick-user?channel=${encodeURIComponent(channel)}&user=${encodeURIComponent(username)}`;
+    try {
+      const r = await fetch(u, { headers: { Accept: "application/json" } });
+      if (r.status === 404) { entries.push({ username, followingSince: null }); return; } // definitively not a follower
+      if (!r.ok) { unreachable++; return; }
+      const d = await r.json();
+      entries.push({ username, followingSince: d.followingSince || null });
+    } catch { unreachable++; }
+  }
+
+  // Modest concurrency: polite to Kick and comfortably inside the Lambda timeout
+  // for a batch this size.
+  const CONCURRENCY = 5;
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, wanted.length) }, async () => {
+    while (cursor < wanted.length) {
+      const name = String(wanted[cursor++] || "").trim().toLowerCase();
+      if (name) await resolveOne(name);
+    }
+  }));
+
+  if (!entries.length) {
+    return res(200, { ok: true, written: 0, unchanged: 0, skipped: 0, misses: 0, unreachable });
+  }
 
   const now = Date.now();
   let written = 0, skipped = 0, unchanged = 0;
@@ -155,7 +197,7 @@ exports.handler = async (event) => {
       followBackfillCount: admin.firestore.FieldValue.increment(written),
     }, { merge: true });
 
-    return res(200, { ok: true, written, unchanged, skipped, misses });
+    return res(200, { ok: true, written, unchanged, skipped, misses, unreachable });
   } catch (err) {
     console.error("[follow-backfill] error:", err.message);
     return res(500, { error: "Backfill failed" });

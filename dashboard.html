@@ -4849,10 +4849,10 @@ async function discordNotify(type, data) {
 }
 
 // ── FOLLOW DATE BACKFILL ─────────────────────────────────────────────────────
-// Kick only exposes a viewer's `following_since` on kick.com/api/v2, which
-// Cloudflare 403s from every datacenter IP — so our servers can never read it.
-// It answers fine from a normal browser and sends permissive CORS headers, so we
-// do the lookups HERE, in the streamer's own browser, and post the results back.
+// Fills in follow dates for viewers who followed before WenBot joined. The data
+// lives on kick.com/api/v2, which Cloudflare 403s from Lambda and Railway but NOT
+// from Netlify's edge runtime — so the server resolves everything through our own
+// /api/kick-user edge function. This browser code only drives the loop.
 //
 // Without this, !followage can only see follows that happened after WenBot joined
 // the channel, which means a brand-new streamer's followage is empty forever.
@@ -4883,51 +4883,26 @@ async function runFollowBackfill() {
     const names = list.usernames || [];
     if (!names.length) { say('✅ Everyone already has a follow date.'); return; }
 
-    say(`Looking up ${names.length} viewer${names.length === 1 ? '' : 's'} on Kick…`);
-
-    // Small concurrency: this is the streamer's home connection, not a server
-    // farm. Kick tolerated 10 rapid sequential + 5 concurrent in testing; 4 keeps
-    // it comfortably polite while still finishing a 400-viewer channel quickly.
-    const CONCURRENCY = 4, CHUNK = 200;
-    const results = [];
-    let done = 0, found = 0, failed = 0;
-    let cursor = 0;
-
-    async function worker() {
-      while (cursor < names.length) {
-        const name = names[cursor++];
-        try {
-          const r = await fetch(
-            `https://kick.com/api/v2/channels/${encodeURIComponent(list.channel)}/users/${encodeURIComponent(name)}`,
-            { headers: { 'Accept': 'application/json' } }
-          );
-          if (r.ok) {
-            const d = await r.json();
-            // null (not undefined) tells the server "Kick answered: not a
-            // follower", so it can stop asking about them next time.
-            const fs = d && d.following_since ? d.following_since : null;
-            results.push({ username: name, followingSince: fs });
-            if (fs) found++;
-          } else {
-            failed++;
-          }
-        } catch { failed++; }
-        done++;
-        if (done % 10 === 0 || done === names.length) {
-          say(`Looking up on Kick… ${done}/${names.length} (${found} found)`);
-        }
+    // The BROWSER ONLY ORCHESTRATES. It sends batches of usernames and gets
+    // counts back; the server resolves every follow date itself (via our edge
+    // endpoint), so nothing here can supply or forge a date.
+    const BATCH = 40;
+    let written = 0, misses = 0, unreachable = 0, done = 0;
+    for (let i = 0; i < names.length; i += BATCH) {
+      const slice = names.slice(i, i + BATCH);
+      try {
+        const d = await post({ action: 'fetch', usernames: slice });
+        written     += d.written || 0;
+        misses      += d.misses || 0;
+        unreachable += d.unreachable || 0;
+      } catch (e) {
+        unreachable += slice.length;
       }
-    }
-    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, names.length) }, worker));
-
-    say(`Saving ${results.length} result${results.length === 1 ? '' : 's'}…`);
-    let written = 0;
-    for (let i = 0; i < results.length; i += CHUNK) {
-      const d = await post({ action: 'save', entries: results.slice(i, i + CHUNK) });
-      written += d.written || 0;
+      done += slice.length;
+      say(`Looking up follow dates… ${done}/${names.length} (${written} found)`);
     }
 
-    const note = failed ? ` (${failed} couldn't be checked)` : '';
+    const note = unreachable ? ` (${unreachable} couldn't be checked)` : '';
     say(`✅ Added ${written} follow date${written === 1 ? '' : 's'}${note}. !followage is now accurate for them.`);
     if (typeof flash === 'function') flash(`Follow dates updated — ${written} added`);
   } catch (e) {
