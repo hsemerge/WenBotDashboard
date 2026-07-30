@@ -542,7 +542,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.13.1</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.13.2</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -2728,9 +2728,19 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.13.1</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.13.2</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.13.2 — <code>!followage</code></h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 30, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>💜 <strong>New <code>!followage</code>.</strong> Viewers can check how long they've followed you, or ask about someone else with <code>!followage @user</code>. Also <code>/followage</code> in Discord. It's built from Kick's real follow events rather than a guess, so the date is exact. One honest caveat: it can only see follows from the day WenBot joined your channel onward, because Kick currently gives no way to look up older follow dates. Those show as "no date on record" instead of a wrong number, and coverage grows every day.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -3165,6 +3175,7 @@
               <div class="cmd-row"><div class="cmd-name">!community</div><div class="cmd-desc">Links the WenBot community hub where viewers see their WenPoints, wins and tickets across every creator. Also <code>/community</code> in Discord.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!hunt</div><div class="cmd-desc">Live bonus hunt tally (start balance, opened, winnings, P/L, best hit). Silent when no hunt is running.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!uptime</div><div class="cmd-desc">How long you have been live, plus the current viewer count. Reads the real stream start time from Kick, so it stays accurate even if the bot restarts mid-stream. <code>!live</code> works too.</div><div class="cmd-who who-all">ALL</div></div>
+              <div class="cmd-row"><div class="cmd-name">!followage [@user]</div><div class="cmd-desc">How long someone has followed your channel. Built from Kick's follow events, so it covers follows from the day WenBot joined onward; older follows show as "no date on record" because Kick has no way to look them up yet. Also <code>/followage</code> in Discord.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!points</div><div class="cmd-desc">Check your own balance.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!points @user</div><div class="cmd-desc">Check another viewer's balance.</div><div class="cmd-who who-all">ALL</div></div>
               <div class="cmd-row"><div class="cmd-name">!give / !pgive @user [amount]</div><div class="cmd-desc">Gift points to another viewer.</div><div class="cmd-who who-all">ALL</div></div>
