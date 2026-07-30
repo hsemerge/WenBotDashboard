@@ -28,10 +28,18 @@ function ymd(ms) {
 
 // Clamp a requested window to Rainbet's max range, keeping the END fixed (the
 // most recent data is what a live board cares about).
+//
+// `startMs` of 0 (or null) means "as far back as the API allows". Do NOT write
+// `startMs || end` here: 0 is falsy, so that collapsed the window to end→end,
+// i.e. TODAY ONLY. That silently broke every Rainbet verification — a viewer who
+// hadn't wagered today read as "not under the affiliate code".
 function clampRange(startMs, endMs) {
-  const end   = Math.min(endMs || Date.now(), Date.now());
-  let   start = Math.min(startMs || end, end);
-  if (end - start > MAX_RANGE_DAYS * DAY_MS) start = end - MAX_RANGE_DAYS * DAY_MS;
+  const end     = Math.min(endMs || Date.now(), Date.now());
+  const maxBack = end - MAX_RANGE_DAYS * DAY_MS;
+  let   start   = (startMs === null || startMs === undefined) ? maxBack : Number(startMs);
+  if (!Number.isFinite(start)) start = maxBack;
+  if (start > end)             start = end;
+  if (end - start > MAX_RANGE_DAYS * DAY_MS) start = maxBack;
   return { from: ymd(start), to: ymd(end) };
 }
 
