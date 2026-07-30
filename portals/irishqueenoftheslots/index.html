@@ -227,6 +227,46 @@
   .rw-prize .rw-place { display:block; font-size:12px; color:var(--dim); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
   .rw-prize .rw-amt { font-size:24px; }
   .rw-footnote { font-size:12px; color:var(--dim); line-height:1.6; text-align:center; max-width:680px; margin:8px auto 0; font-style:italic; }
+  /* ── Daily reward ────────────────────────────────────────────────────────── */
+  .daily-claim { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+    background:linear-gradient(120deg, rgba(255,216,77,.10), rgba(196,59,255,.08)); border:1px solid rgba(255,216,77,.38);
+    border-radius:16px; padding:16px 20px; margin:14px 0 4px; }
+  .dc-title { font-family:'Exo 2',sans-serif; font-weight:900; font-size:17px; color:var(--gold); letter-spacing:.02em; }
+  .dc-sub { font-size:13px; color:var(--dim); margin-top:3px; }
+  .dc-btn { font-family:'Exo 2',sans-serif; font-weight:900; font-size:15px; letter-spacing:.06em; cursor:pointer;
+    color:#241a00; background:linear-gradient(90deg,var(--gold),#ffe98a); border:0; border-radius:12px; padding:12px 30px;
+    box-shadow:0 6px 22px rgba(255,216,77,.28); transition:transform .12s ease, box-shadow .12s ease, filter .12s ease; }
+  .dc-btn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 8px 26px rgba(255,216,77,.4); }
+  .dc-btn:disabled { cursor:default; filter:grayscale(.55) brightness(.8); box-shadow:none; }
+
+  .dc-overlay { position:fixed; inset:0; background:rgba(4,2,12,.86); backdrop-filter:blur(6px);
+    display:none; align-items:center; justify-content:center; padding:20px; z-index:9999; }
+  .dc-overlay.open { display:flex; }
+  .dc-modal { position:relative; width:min(560px,100%); background:var(--bg-card);
+    border:1px solid rgba(255,216,77,.42); border-radius:20px; overflow:hidden;
+    box-shadow:0 24px 70px rgba(0,0,0,.6); animation:dcIn .22s ease-out; }
+  @keyframes dcIn { from { opacity:0; transform:translateY(10px) scale(.98); } to { opacity:1; transform:none; } }
+  .dc-close { position:absolute; top:10px; right:10px; z-index:2; width:32px; height:32px; border-radius:50%;
+    border:1px solid rgba(255,255,255,.18); background:rgba(0,0,0,.45); color:#fff; font-size:14px; cursor:pointer; line-height:1; }
+  .dc-video { display:block; width:100%; max-height:56vh; background:#000; object-fit:cover; }
+  .dc-result { padding:18px 22px 24px; text-align:center; }
+  .dc-spinner { font-size:14px; color:var(--dim); padding:10px 0; }
+  .dc-congrats { font-family:'Exo 2',sans-serif; font-weight:800; font-size:15px; color:var(--bright); letter-spacing:.03em; }
+  /* The number is the point of the whole modal — make it unmissable. */
+  .dc-amount { font-family:'Exo 2',sans-serif; font-weight:900; font-size:58px; line-height:1.05; margin:6px 0 2px;
+    color:var(--gold); text-shadow:0 0 34px rgba(255,216,77,.5); animation:dcPop .38s cubic-bezier(.2,1.4,.4,1); }
+  @keyframes dcPop { from { opacity:0; transform:scale(.6); } to { opacity:1; transform:none; } }
+  .dc-currency { font-size:15px; color:var(--gold); font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+  .dc-foot { font-size:13px; color:var(--dim); margin-top:12px; }
+  .dc-bal { font-size:13px; color:var(--text); margin-top:4px; }
+  .dc-error { font-size:14px; color:#ff8f8f; padding:6px 0; }
+  @media (max-width:520px) {
+    .daily-claim { justify-content:center; text-align:center; }
+    .dc-btn { width:100%; }
+    .dc-amount { font-size:46px; }
+    .dc-video { max-height:44vh; }
+  }
+
   /* Viewer auth bar (Kick login / balance) */
   .viewer-bar { display:flex; align-items:center; gap:10px; font-size:13px; }
   .btn-kick { display:inline-flex; align-items:center; gap:7px; background:#53fc18; color:#0b1402; font-weight:800; border:none; border-radius:9px; padding:9px 16px; cursor:pointer; font-size:13px; }
@@ -379,6 +419,30 @@
        and stays visible across every view. Renders nothing (collapses) when
        nothing is live. -->
   <div class="chips" id="activeChips"></div>
+
+  <!-- Daily reward. Sits above the hero so it's the first thing a returning
+       viewer sees. The amount is rolled server-side by /api/portal-daily-claim;
+       this markup only reveals what came back. -->
+  <div class="daily-claim" id="dailyClaim">
+    <div class="dc-left">
+      <div class="dc-title">🎁 Daily Reward</div>
+      <div class="dc-sub" id="dcSub">Claim free points once every day.</div>
+    </div>
+    <button class="dc-btn" id="dcBtn" onclick="openDailyClaim()">CLAIM</button>
+  </div>
+
+  <!-- Claim modal: video plays, amount reveals underneath -->
+  <div class="dc-overlay" id="dcOverlay" onclick="if(event.target===this)closeDailyClaim()">
+    <div class="dc-modal">
+      <button class="dc-close" onclick="closeDailyClaim()" aria-label="Close">✕</button>
+      <video class="dc-video" id="dcVideo" playsinline preload="auto">
+        <source src="/portals/irishqueenoftheslots/assets/daily-reward.mp4" type="video/mp4">
+      </video>
+      <div class="dc-result" id="dcResult">
+        <div class="dc-spinner" id="dcSpinner">Opening your reward…</div>
+      </div>
+    </div>
+  </div>
 
   <div id="mainView">
   <div class="hero">
@@ -1007,7 +1071,121 @@
     // Re-render the store so the buy buttons reflect the current sign-in state
     // immediately (no manual refresh needed). Only if a state was already loaded.
     if (window.__S) renderStore(window.__S);
+    refreshDailyClaimUI();
+    checkDailyClaimStatus();
   }
+
+  // ── Daily reward ──────────────────────────────────────────────────────────
+  // Click CLAIM -> POST to the server, which decides the amount and enforces
+  // once-per-day. The video is pure presentation: it starts immediately so the
+  // modal never feels dead, and the amount reveals underneath once the request
+  // returns (with a small floor delay so it lands as a reveal, not a flash).
+  let _dcBusy = false, _dcClaimedToday = false;
+
+  // Ask whether today's claim is already used, so the button is honest on load.
+  async function checkDailyClaimStatus() {
+    if (!viewer) { _dcClaimedToday = false; refreshDailyClaimUI(); return; }
+    try {
+      const r = await fetch('/api/portal-daily-claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'status', channel: CHANNEL, kickUsername: viewer.kickUsername, accessToken: viewer.accessToken }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) _dcClaimedToday = !!d.claimedToday;
+    } catch { /* leave as-is; the claim call is authoritative anyway */ }
+    refreshDailyClaimUI();
+  }
+
+  function refreshDailyClaimUI() {
+    const btn = document.getElementById('dcBtn');
+    const sub = document.getElementById('dcSub');
+    if (!btn || !sub) return;
+    if (!viewer) {
+      btn.textContent = 'SIGN IN'; btn.disabled = false;
+      sub.textContent = 'Sign in with Kick to claim your free daily points.';
+    } else if (_dcClaimedToday) {
+      btn.textContent = 'CLAIMED'; btn.disabled = true;
+      sub.textContent = 'Already claimed today. Come back tomorrow!';
+    } else {
+      btn.textContent = 'CLAIM'; btn.disabled = false;
+      sub.textContent = 'Claim free points once every day.';
+    }
+  }
+
+  window.openDailyClaim = async function () {
+    if (_dcBusy) return;
+    if (!viewer) { viewerLogin(); return; }
+    if (_dcClaimedToday) return;
+    _dcBusy = true;
+
+    const overlay = document.getElementById('dcOverlay');
+    const result  = document.getElementById('dcResult');
+    const video   = document.getElementById('dcVideo');
+    result.innerHTML = '<div class="dc-spinner">Opening your reward…</div>';
+    overlay.classList.add('open');
+
+    // Restart and play. A click is a user gesture so sound is normally allowed;
+    // if the browser still refuses, retry muted rather than showing nothing.
+    try {
+      video.currentTime = 0;
+      await video.play();
+    } catch {
+      try { video.muted = true; await video.play(); } catch { /* poster only */ }
+    }
+
+    const startedAt = Date.now();
+    let data = null, httpStatus = 0;
+    try {
+      const r = await fetch('/api/portal-daily-claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: CHANNEL, kickUsername: viewer.kickUsername, accessToken: viewer.accessToken }),
+      });
+      httpStatus = r.status;
+      data = await r.json().catch(() => ({}));
+      if (r.status === 401) { clearKickViewerSession(); viewer = null; refreshViewerUI(); }
+    } catch {
+      data = { error: 'network' };
+    }
+
+    // Let the video breathe for a beat so the number feels revealed.
+    const wait = Math.max(0, 1400 - (Date.now() - startedAt));
+    setTimeout(() => {
+      if (httpStatus === 200 && data && data.ok) {
+        _dcClaimedToday = true;
+        result.innerHTML =
+          '<div class="dc-congrats">🎉 Congratulations, you won</div>' +
+          '<div class="dc-amount">' + Number(data.awarded).toLocaleString() + '</div>' +
+          '<div class="dc-currency">' + esc(data.currency || 'points') + '</div>' +
+          '<div class="dc-bal">New balance: <strong>' + Number(data.balance).toLocaleString() + '</strong> ' + esc(data.currency || 'points') + '</div>' +
+          '<div class="dc-foot">Come back tomorrow to claim again.</div>';
+        fetchBalance();
+      } else if (httpStatus === 409) {
+        _dcClaimedToday = true;
+        result.innerHTML =
+          '<div class="dc-congrats">Already claimed today</div>' +
+          '<div class="dc-foot">' + esc(data.message || 'Come back tomorrow to claim again.') + '</div>';
+      } else {
+        result.innerHTML =
+          '<div class="dc-error">' + esc((data && (data.message || data.error)) === 'network'
+            ? 'Connection problem — please try again.'
+            : (data && data.error) || 'Could not claim right now.') + '</div>';
+      }
+      refreshDailyClaimUI();
+      _dcBusy = false;
+    }, wait);
+  };
+
+  window.closeDailyClaim = function () {
+    const overlay = document.getElementById('dcOverlay');
+    const video   = document.getElementById('dcVideo');
+    overlay.classList.remove('open');
+    try { video.pause(); video.currentTime = 0; } catch {}
+  };
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeDailyClaim();
+  });
   async function fetchBalance() {
     if (!viewer) return;
     try {

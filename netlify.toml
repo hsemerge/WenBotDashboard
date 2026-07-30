@@ -100,6 +100,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/portal-daily-claim"
+  to     = "/.netlify/functions/portal-daily-claim"
+  status = 200
+
+[[redirects]]
   from   = "/api/store-buy"
   to     = "/.netlify/functions/store-buy"
   status = 200
