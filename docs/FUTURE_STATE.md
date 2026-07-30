@@ -3,7 +3,7 @@
 Items intentionally deferred from the security/architecture reviews (May 2026).
 Each has a trigger ("do this when…") so we know when to revisit.
 
-Last updated: 2026-05-18
+Last updated: 2026-07-30
 
 ---
 
@@ -54,20 +54,59 @@ endpoints; keep per-IP for public ones.
 
 ## 🟡 Stability / quality — defer until pain
 
-### Move `getChannelInfo` to official Kick API
-**Current state**: Uses unofficial `kick.com/api/v2/channels/{slug}` for chatroom
-lookup at bot startup. Now handles 429s and logs failures explicitly, but if Kick
-breaks the unofficial endpoint, bot startup breaks too.
+### ~~Move `getChannelInfo` to official Kick API~~ — RESOLVED DIFFERENTLY (Jul 30 2026)
+The official API **does not expose a chatroom id at all** (verified against
+`/public/v1/channels` with both an app token and the broadcaster's own user token
+— no `chatroom` field in any response), so this migration was impossible as
+written. The unofficial endpoint is now hard-403 from every datacenter IP, which
+broke first connect for every new signup.
 
-**What full mitigation looks like**:
-- Use `api.kick.com/public/v1/channels?slug=...` with WenBot's own OAuth token
-- Fall back to unofficial if no token
-- Test that the official response has the chatroom_id we need
+Shipped instead: **webhook chat mode**. When the chatroom resolve fails but
+`kickUserId` is known, the bot subscribes to the official `chat.message.sent`
+event, which is keyed on `broadcaster_user_id` and needs no chatroom id.
+Pusher-mode bots are untouched. See `streamer-bot.js` (`chatMode`) and
+`kick-events.js`. Remaining exposure is that Pusher itself is unofficial — see
+the full migration item below.
 
-**Trigger**: When the unofficial endpoint returns 4xx/5xx persistently or Kick
-announces deprecation.
+---
 
-**Effort**: ~1 hour (response shape verification + token handling).
+### Follow-date backfill for `!followage` — TABLED on ToS grounds (Jul 30 2026)
+**Current state**: `!followage` works but is thin. It can only see follows that
+happened *after* WenBot joined a channel, because the official `channel.followed`
+webhook is forward-only with no history. This is a permanent ceiling, not a
+warm-up: every newly onboarded streamer starts from zero followage forever.
+
+**What was built and then parked**: branch `followage-backfill` in BOTH repos
+(GiveawayBot `9323ba3`, WenBotServer `8ffa32f`). Complete and tested — a
+dashboard button that fetches `following_since` from
+`kick.com/api/v2/channels/{channel}/users/{username}` **in the streamer's own
+browser** (that endpoint is 403 from datacenter IPs but fine from residential,
+needs no auth, isn't rate limited, and reflects CORS for `https://wenbot.gg` —
+all verified directly), then posts results to `/api/follow-backfill`.
+
+**Why it's tabled**: the Kick Developer Agreement (dev.kick.com/terms-of-service)
+says *"you will not access undocumented Program Materials … without Kick's prior
+written permission"* and prohibits circumventing "controls that limit use", with
+a stated penalty of permanent API suspension at Kick's sole discretion. WenBot's
+whole product depends on that API access, so the risk/reward on a vanity stat is
+bad. Kick also closed issue #389 (which asked for exactly this data officially)
+on 2026-07-29 with *"This will not be done."*
+
+**Trigger to revisit — any ONE of**:
+1. Kick grants written permission for the v2 read (the agreement contemplates
+   this; ask via dev Discord / developer platform team, NOT GitHub).
+2. Issue #104 ships **with a `followed_at`/`following_since` timestamp** — note
+   its current proposed schema is `{id, name}` only, which would NOT be enough.
+   A follower LIST with timestamps solves backfill completely and is the shape
+   Kick has actually roadmapped.
+3. Kick ships any per-user follow lookup (unlikely — that's the #389 shape).
+
+**Useful pattern for the re-ask**: Kick keeps *list* endpoints alive (#104, #87
+both open and "on our roadmap") and killed the *per-user profile lookup* (#389).
+When #370 asked a per-user question they redirected it into #104 rather than
+rejecting it. So ask for a field on the list, never for a per-user endpoint.
+
+**Effort to un-table**: ~0. Merge the branch, redeploy. It was finished.
 
 ---
 
