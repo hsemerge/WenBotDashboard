@@ -1102,14 +1102,17 @@
     const sub = document.getElementById('dcSub');
     if (!btn || !sub) return;
     if (!viewer) {
-      // Match the store's convention ("Sign in to buy") rather than adding a
-      // second bare "Sign in" button next to the one already in the nav.
-      btn.textContent = '🟢 SIGN IN TO CLAIM'; btn.disabled = false;
-      sub.textContent = 'Free points every day, just for showing up.';
+      // No button at all when signed out. The nav already has "Sign in with
+      // Kick"; a second button doing the identical thing is just noise. The card
+      // stays visible so the feature still advertises itself.
+      btn.style.display = 'none';
+      sub.textContent = 'Free points every day, just for showing up. Sign in with Kick to start.';
     } else if (_dcClaimedToday) {
+      btn.style.display = '';
       btn.textContent = 'CLAIMED'; btn.disabled = true;
       sub.textContent = 'Already claimed today. Come back tomorrow!';
     } else {
+      btn.style.display = '';
       btn.textContent = 'CLAIM'; btn.disabled = false;
       sub.textContent = 'Claim free points once every day.';
     }
