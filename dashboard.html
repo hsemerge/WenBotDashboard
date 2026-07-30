@@ -542,7 +542,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.13.2</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.13.3</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -1410,7 +1410,20 @@
               <div style="display:flex;gap:10px;padding:6px 0;"><code style="color:var(--accent);min-width:150px;">!store · !buy item</code><span style="color:var(--text-dim);">spend points in your store</span></div>
             </div>
             <div style="display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--border);"><code style="color:var(--accent);min-width:150px;">!community</code><span style="color:var(--text-dim);">WenBot community hub + their WenPoints</span></div>
+            <div style="display:flex;gap:10px;padding:6px 0;"><code style="color:var(--accent);min-width:150px;">!followage</code><span style="color:var(--text-dim);">how long they've followed you</span></div>
             <div style="font-size:11px;color:var(--text-dim);margin-top:10px;">Discord (after <code>/register</code>): <code>/points</code>, <code>/daily</code>, <code>/buy</code>, <code>/myraffles</code></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">💜 Follow Dates</div>
+            <div style="font-size:12.5px;color:var(--text-dim);line-height:1.6;">
+              WenBot learns follow dates from Kick as people follow you, so <code style="color:var(--accent);">!followage</code> only knows follows since WenBot joined your channel. Running this fills in everyone who followed <em>before</em> that, straight from Kick.
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;">
+              <button class="btn" id="followBackfillBtn" onclick="runFollowBackfill()">💜 Fill in follow dates</button>
+              <span id="followBackfillStatus" style="font-size:12px;color:var(--text-dim);"></span>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:10px;">Runs in your browser and can take a minute on a big channel. Keep this tab open until it finishes.</div>
           </div>
 
           <div class="card">
@@ -2728,9 +2741,19 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.13.2</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.13.3</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.13.3 — Real follow dates for <code>!followage</code></h3>
+            <span style="font-size:12px;color:var(--text-dim);">July 30, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>💜 <strong>Fill in follow dates.</strong> Points page → Follow Dates → one button pulls every viewer's real follow date straight from Kick, including everyone who followed long before WenBot ever joined your channel. <code>!followage</code> goes from knowing almost nobody to knowing your whole chat, and it can now tell the difference between "not following" and "no idea".</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -4823,6 +4846,96 @@ async function discordNotify(type, data) {
       body: JSON.stringify({ type, data, uid: fb.activeUid }),
     }).catch(() => {});
   } catch {}
+}
+
+// ── FOLLOW DATE BACKFILL ─────────────────────────────────────────────────────
+// Kick only exposes a viewer's `following_since` on kick.com/api/v2, which
+// Cloudflare 403s from every datacenter IP — so our servers can never read it.
+// It answers fine from a normal browser and sends permissive CORS headers, so we
+// do the lookups HERE, in the streamer's own browser, and post the results back.
+//
+// Without this, !followage can only see follows that happened after WenBot joined
+// the channel, which means a brand-new streamer's followage is empty forever.
+let _followBackfillRunning = false;
+
+async function runFollowBackfill() {
+  if (_followBackfillRunning) return;
+  const btn    = document.getElementById('followBackfillBtn');
+  const status = document.getElementById('followBackfillStatus');
+  const say    = (t) => { if (status) status.textContent = t; };
+  _followBackfillRunning = true;
+  if (btn) { btn.disabled = true; btn.style.opacity = '.6'; }
+
+  try {
+    const token = await fb.currentUser.getIdToken();
+    const post  = (bodyObj) => fetch('/api/follow-backfill', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ uid: fb.activeUid, ...bodyObj }),
+    }).then(async (r) => {
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+      return d;
+    });
+
+    say('Checking who needs a follow date…');
+    const list = await post({ action: 'list' });
+    const names = list.usernames || [];
+    if (!names.length) { say('✅ Everyone already has a follow date.'); return; }
+
+    say(`Looking up ${names.length} viewer${names.length === 1 ? '' : 's'} on Kick…`);
+
+    // Small concurrency: this is the streamer's home connection, not a server
+    // farm. Kick tolerated 10 rapid sequential + 5 concurrent in testing; 4 keeps
+    // it comfortably polite while still finishing a 400-viewer channel quickly.
+    const CONCURRENCY = 4, CHUNK = 200;
+    const results = [];
+    let done = 0, found = 0, failed = 0;
+    let cursor = 0;
+
+    async function worker() {
+      while (cursor < names.length) {
+        const name = names[cursor++];
+        try {
+          const r = await fetch(
+            `https://kick.com/api/v2/channels/${encodeURIComponent(list.channel)}/users/${encodeURIComponent(name)}`,
+            { headers: { 'Accept': 'application/json' } }
+          );
+          if (r.ok) {
+            const d = await r.json();
+            // null (not undefined) tells the server "Kick answered: not a
+            // follower", so it can stop asking about them next time.
+            const fs = d && d.following_since ? d.following_since : null;
+            results.push({ username: name, followingSince: fs });
+            if (fs) found++;
+          } else {
+            failed++;
+          }
+        } catch { failed++; }
+        done++;
+        if (done % 10 === 0 || done === names.length) {
+          say(`Looking up on Kick… ${done}/${names.length} (${found} found)`);
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, names.length) }, worker));
+
+    say(`Saving ${results.length} result${results.length === 1 ? '' : 's'}…`);
+    let written = 0;
+    for (let i = 0; i < results.length; i += CHUNK) {
+      const d = await post({ action: 'save', entries: results.slice(i, i + CHUNK) });
+      written += d.written || 0;
+    }
+
+    const note = failed ? ` (${failed} couldn't be checked)` : '';
+    say(`✅ Added ${written} follow date${written === 1 ? '' : 's'}${note}. !followage is now accurate for them.`);
+    if (typeof flash === 'function') flash(`Follow dates updated — ${written} added`);
+  } catch (e) {
+    say('❌ ' + (e.message || 'Backfill failed'));
+  } finally {
+    _followBackfillRunning = false;
+    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+  }
 }
 
 // ── NAV ──
