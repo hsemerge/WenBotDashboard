@@ -70,7 +70,24 @@ the full migration item below.
 
 ---
 
-### Follow-date backfill for `!followage` — TABLED on ToS grounds (Jul 30 2026)
+### ~~Follow-date backfill for `!followage`~~ — UN-TABLED AND SHIPPED (Jul 30 2026)
+Reinstated the same day it was tabled, on a better architecture. **Netlify's EDGE
+runtime (Deno) is not blocked by Kick's WAF** — Lambda and Railway both 403, edge
+returns 200. So the backfill is now ordinary server-side work: `follow-backfill`
+resolves each viewer through our own `/api/kick-user` **edge** function instead of
+having the streamer's browser call Kick. The browser only sends usernames and gets
+counts, so client-supplied dates (and the forgery caveat) are gone.
+
+**Hard-won rule: anything touching `kick.com/api/v2` MUST be a Netlify edge
+function.** `netlify/functions/kick-user.js` was a Lambda, silently started 403ing
+when Kick began blocking datacenter IPs, and sat orphaned with zero callers while
+the dashboard's viewer profile card quietly did nothing. Don't move it back.
+
+The ToS reasoning below is kept because it still applies — it's the same v2
+surface either way, and the decision to proceed was a judgement call, not a
+finding that the concern evaporated. Note the correction on "Program Materials".
+
+<details><summary>Original tabling rationale (kept for the record)</summary>
 **Current state**: `!followage` works but is thin. It can only see follows that
 happened *after* WenBot joined a channel, because the official `channel.followed`
 webhook is forward-only with no history. This is a permanent ceiling, not a
@@ -106,7 +123,22 @@ both open and "on our roadmap") and killed the *per-user profile lookup* (#389).
 When #370 asked a per-user question they redirected it into #104 rather than
 rejecting it. So ask for a field on the list, never for a per-user endpoint.
 
-**Effort to un-table**: ~0. Merge the branch, redeploy. It was finished.
+**Correction on the ToS reading**: "Program Materials" is defined in the agreement
+as things "made available under this Agreement … pursuant to the program you
+participate in" — i.e. defined by how you received it, not by who owns it.
+`kick.com/api/v2` is the website's own backend and was never made available under
+the developer program, so the "no accessing undocumented Program Materials" clause
+probably does not reach it. Counter-argument: the phrase "undocumented Program
+Materials" becomes near-meaningless under that narrow reading, which is weak
+evidence the narrow reading is wrong. Genuinely unresolved from the text. The main
+`kick.com/terms-of-service` (which would govern site use) could not be retrieved —
+it 403s automated fetchers; read it in a browser if this ever matters.
+
+**Also note**: edge working is probably a gap in Kick's bot classification, not a
+sanctioned path. Keep usage to one-time backfills per channel. Continuous polling
+of every viewer is what would ever get noticed.
+
+</details>
 
 ---
 
