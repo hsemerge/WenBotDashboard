@@ -80,6 +80,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/follow-backfill"
+  to     = "/.netlify/functions/follow-backfill"
+  status = 200
+
+[[redirects]]
   from   = "/api/kick-streamer-finalize"
   to     = "/.netlify/functions/kick-streamer-finalize"
   status = 200
