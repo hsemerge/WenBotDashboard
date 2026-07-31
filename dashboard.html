@@ -4075,6 +4075,7 @@
                     <option value="provider">Provider (A–Z)</option>
                     <option value="bet-desc">Bet (high → low)</option>
                     <option value="multi-desc">Multiplier (high → low)</option>
+                    <option value="supers-last">Supers last 🔥</option>
                   </select>
                 </div>
               </div>
@@ -4085,6 +4086,13 @@
                   <div id="bhDropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;z-index:100;max-height:240px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
                   <input type="hidden" id="bhSlotName">
                   <input type="hidden" id="bhSlotProvider">
+                </div>
+                <!-- Optional badge for the NEXT slot added. Unset by default so the
+                     common case stays one click, and it resets after each add. -->
+                <div style="display:flex;gap:4px;align-items:center;flex-shrink:0;" id="bhBadgePicker">
+                  <button type="button" data-badge="super"    onclick="bhPickBadge('super')"    title="Mark as a super bonus" style="background:none;border:1px solid var(--border);color:var(--text-dim);font-size:10.5px;font-weight:800;border-radius:7px;padding:9px 9px;cursor:pointer;line-height:1;white-space:nowrap;">SUPER</button>
+                  <button type="button" data-badge="5scatter" onclick="bhPickBadge('5scatter')" title="Mark as a 5-scatter" style="background:none;border:1px solid var(--border);color:var(--text-dim);font-size:10.5px;font-weight:800;border-radius:7px;padding:9px 9px;cursor:pointer;line-height:1;white-space:nowrap;">5 SCAT</button>
+                  <button type="button" data-badge="custom"   onclick="bhPickBadge('custom')"   title="Custom label" style="background:none;border:1px solid var(--border);color:var(--text-dim);font-size:11px;font-weight:800;border-radius:7px;padding:9px 10px;cursor:pointer;line-height:1;">✎</button>
                 </div>
                 <input type="number" id="bhBetSize" class="form-input" placeholder="Bet $" min="0.01" step="0.01" onkeydown="if(event.key==='Enter'){event.preventDefault();bhAddSlot();}" style="width:90px;">
                 <button onclick="bhAddSlot()" class="btn btn-accent" style="padding:11px 16px;white-space:nowrap;">＋ Add</button>
@@ -4155,15 +4163,10 @@
                 <button onclick="bhEndHunt()" style="background:linear-gradient(135deg,var(--green),#00c96a);border:none;border-radius:9px;color:#0d1117;font-size:13px;font-weight:800;font-family:'Exo 2',sans-serif;cursor:pointer;padding:11px;">✓ End Hunt</button>
                 <a href="#" target="_blank" id="bhOverlayLink" style="text-align:center;font-size:12px;color:var(--accent);text-decoration:none;font-weight:600;border:1px solid var(--border);border-radius:9px;padding:9px;">🖥 Bonus Hunt Overlay (OBS)</a>
                 <a href="#" target="_blank" id="bhPreviewLink" style="text-align:center;font-size:12px;color:var(--text-dim);text-decoration:none;border:1px solid var(--border);border-radius:9px;padding:9px;">▶ Preview overlay</a>
-                <!-- Hunt-level setting, so it lives with the hunt controls rather
-                     than on the opening card (which stays purely about speed).
-                     Mirrors the copy on the pre-hunt screen via bhSyncResultAnnounce. -->
-                <label style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text);cursor:pointer;border:1px solid var(--border);border-radius:9px;padding:11px;margin-top:2px;">
-                  <input type="checkbox" id="bhResultAnnounceLive" onchange="saveHuntResultAnnounce(this.checked)" style="width:17px;height:17px;accent-color:var(--accent);flex-shrink:0;cursor:pointer;">
-                  <span style="line-height:1.35;">🎰 Post each result to chat
-                    <div style="font-size:10.5px;color:var(--text-dim);margin-top:1px;">As you hit Save → next</div>
-                  </span>
-                </label>
+                <!-- Hunt-level setting, styled as a button so it matches the rest of
+                     this stack. A checkbox among solid buttons read as an odd one out. -->
+                <button id="bhResultAnnounceLive" onclick="saveHuntResultAnnounce(!(profile&&profile.huntResultAnnounce))"
+                  style="text-align:center;font-size:12px;border-radius:9px;padding:9px;cursor:pointer;border:1px solid var(--border);background:none;color:var(--text-dim);">🎰 Result posts: OFF</button>
                 <button onclick="bhResetHunt()" style="background:none;border:1px solid rgba(255,71,87,0.3);border-radius:9px;color:var(--red);font-size:12px;cursor:pointer;padding:9px;">🗑 Discard hunt</button>
               </div>
             </div>
@@ -11767,6 +11770,76 @@ async function srDismissFromBh(id) {
   } catch (e) { flash('Failed to dismiss: ' + e.message, 'error'); }
 }
 
+// ── Bonus badges ────────────────────────────────────────────────────────────
+// One badge per bonus (super / 5scatter / a custom label). One-per-slot keeps the
+// click cost at one and covers how streamers actually tag — a bonus is "the super
+// one" or it isn't. Streamers were already typing "super" into Notes; this makes
+// it structured so sorting and the overlay can read it.
+const BH_BADGES = {
+  super:    { label: 'SUPER',   color: '#ff4757', bg: 'rgba(255,71,87,0.14)'  },
+  '5scatter': { label: '5 SCAT', color: '#ffd84d', bg: 'rgba(255,216,77,0.14)' },
+};
+let bhPendingBadge = null;   // applies to the NEXT slot added, then clears
+
+function bhBadgeStyle(key, custom) {
+  const b = BH_BADGES[key] || { label: (custom || key || '').toUpperCase(), color: 'var(--accent)', bg: 'rgba(0,229,255,0.14)' };
+  return b;
+}
+
+// Small pill used in the list rows and (later) the overlay.
+function bhBadgeHtml(bonus) {
+  if (!bonus || !bonus.badge) return '';
+  const b = bhBadgeStyle(bonus.badge, bonus.badgeLabel);
+  return `<span style="display:inline-flex;align-items:center;font-size:9px;font-weight:900;letter-spacing:.06em;color:${b.color};background:${b.bg};border:1px solid ${b.color}55;border-radius:5px;padding:2px 5px;margin-left:6px;vertical-align:middle;white-space:nowrap;">${escHtml(b.label)}</span>`;
+}
+
+window.bhPickBadge = function (key) {
+  if (key === 'custom') {
+    const txt = prompt('Custom badge label (short — e.g. BUY, BONUS BUY):', '');
+    if (txt == null) return;
+    const t = txt.trim();
+    bhPendingBadge = t ? { key: 'custom', label: t.slice(0, 12) } : null;
+  } else {
+    // Clicking the active one clears it, so it's a toggle not a trap.
+    bhPendingBadge = (bhPendingBadge && bhPendingBadge.key === key) ? null : { key, label: null };
+  }
+  bhRenderBadgePicker();
+};
+
+function bhRenderBadgePicker() {
+  const wrap = document.getElementById('bhBadgePicker');
+  if (!wrap) return;
+  wrap.querySelectorAll('button[data-badge]').forEach((btn) => {
+    const k      = btn.dataset.badge;
+    const active = bhPendingBadge && (bhPendingBadge.key === k || (k === 'custom' && bhPendingBadge.key === 'custom'));
+    const st     = bhBadgeStyle(k === 'custom' ? 'custom' : k, bhPendingBadge && bhPendingBadge.label);
+    btn.style.color       = active ? st.color : 'var(--text-dim)';
+    btn.style.background  = active ? st.bg : 'none';
+    btn.style.borderColor = active ? st.color : 'var(--border)';
+    if (k === 'custom' && active && bhPendingBadge.label) btn.textContent = bhPendingBadge.label;
+    else if (k === 'custom') btn.textContent = '✎';
+  });
+}
+
+// Change a badge from the list, so slots taken quickly from chat can be tagged
+// afterwards without breaking the add rhythm.
+window.bhCycleBadge = async function (id) {
+  if (!bhHunt) return;
+  const order = [null, 'super', '5scatter'];
+  const bonuses = (bhHunt.bonuses || []).map((b) => {
+    if (b.id !== id) return b;
+    const i = order.indexOf(b.badge || null);
+    const nextKey = order[(i + 1) % order.length];
+    return { ...b, badge: nextKey, badgeLabel: null };
+  });
+  bhHunt.bonuses = bonuses;
+  bhRender();
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid)
+      .collection('bonus_hunt').doc('current').update({ bonuses, updatedAt: Date.now() });
+  } catch (e) { flash('Failed to save badge: ' + e.message, 'error'); }
+};
+
 // Copy the current slot's name. navigator.clipboard needs a secure context and
 // can still be blocked, so fall back to a hidden textarea + execCommand rather
 // than failing silently — this runs mid-stream and has to just work.
@@ -11950,7 +12023,7 @@ function bhRender() {
       if (entry)    entry.style.display    = openingMode ? 'flex' : 'none';
       document.getElementById('bhNpLabel').textContent =
         (openingMode ? (opened > 0 ? '▶ Now playing' : '▶ Opening') : '▶ Up next') + ` · #${idx + 1} of ${total}`;
-      document.getElementById('bhNpName').textContent  = next.name || '—';
+      document.getElementById('bhNpName').innerHTML   = escHtml(next.name || '—') + bhBadgeHtml(next);
       const metaBits = [next.provider || null, next.betSize != null ? '$' + next.betSize + ' bet' : null, next.notes || null].filter(Boolean);
       document.getElementById('bhNpMeta').textContent  = metaBits.join(' · ');
       const th = document.getElementById('bhNpThumb');
@@ -12017,7 +12090,8 @@ function bhRender() {
       ${slotImgTag(b, 28, 28)}
       <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(b.name)}</span>
       <span style="font-size:10px;flex-shrink:0;opacity:0.6;">✏️</span>
-    </button>`;
+    </button>` + `<span onclick="bhCycleBadge('${b.id}')" title="Click to tag: none → SUPER → 5 SCAT"
+      style="cursor:pointer;display:inline-block;">${b.badge ? bhBadgeHtml(b) : '<span style="font-size:9px;color:var(--text-dim);opacity:.45;margin-left:6px;border:1px dashed var(--border);border-radius:5px;padding:2px 5px;">+tag</span>'}</span>`;
     const betCell = `<div style="display:inline-flex;align-items:center;gap:3px;">
       <span style="color:var(--text-dim);font-size:12px;">$</span>
       <input type="number" draggable="false" value="${b.betSize}" data-id="${b.id}" data-field="betSize" min="0.01" step="0.01"
@@ -12278,9 +12352,14 @@ async function bankReset() {
 // Hunt announcement toggle — saves immediately (same pattern as the points
 // master switch). Default ON; viewers can always pull !hunt regardless.
 function bhSyncResultAnnounce(on) {
-  for (const id of ['bhResultAnnounceToggle', 'bhResultAnnounceLive']) {
-    const el = document.getElementById(id);
-    if (el) el.checked = !!on;
+  const cb = document.getElementById('bhResultAnnounceToggle');   // pre-hunt screen (checkbox)
+  if (cb) cb.checked = !!on;
+  const btn = document.getElementById('bhResultAnnounceLive');    // hunt controls (button)
+  if (btn) {
+    btn.textContent   = on ? '🎰 Result posts: ON' : '🎰 Result posts: OFF';
+    btn.style.color       = on ? 'var(--green)' : 'var(--text-dim)';
+    btn.style.borderColor = on ? 'var(--green)' : 'var(--border)';
+    btn.style.background  = on ? 'rgba(83,224,119,0.10)' : 'none';
   }
 }
 
@@ -12446,7 +12525,11 @@ async function bhAddSlot() {
     playedAt:     null,
     thumbnailUrl: slotMeta.thumbnailUrl || null,
     gameId:       slotMeta.gameId       || null,
+    badge:        bhPendingBadge ? bhPendingBadge.key   : null,
+    badgeLabel:   bhPendingBadge ? bhPendingBadge.label : null,
   };
+  bhPendingBadge = null;          // one-shot: most bonuses aren't badged
+  bhRenderBadgePicker();
 
   const bonuses = [...(bhHunt.bonuses || []), bonus];
   try {
@@ -12774,6 +12857,13 @@ async function bhSortBy(mode) {
   if (mode === 'provider')        arr.sort((a, b) => (a.provider || '').localeCompare(b.provider || '') || (a.name || '').localeCompare(b.name || ''));
   else if (mode === 'bet-desc')   arr.sort((a, b) => (b.betSize || 0) - (a.betSize || 0));
   else if (mode === 'multi-desc') arr.sort((a, b) => (b.multiplier || 0) - (a.multiplier || 0));
+  // Save the badged bonuses for the end — viewers stay for the supers. Order
+  // within each group is preserved, so it's a stable partition not a reshuffle.
+  else if (mode === 'supers-last') {
+    const badged = arr.filter(b => !!b.badge);
+    const plain  = arr.filter(b => !b.badge);
+    arr.length = 0; arr.push(...plain, ...badged);
+  }
   else return;
   try {
     await fb.db.collection('streamers').doc(fb.activeUid)
