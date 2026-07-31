@@ -4057,13 +4057,6 @@
               </span>
             </div>
           </div>
-          <!-- Same setting as the one on the pre-hunt screen, mirrored here because
-               that screen is hidden once a hunt is live — which is exactly when a
-               streamer wants to flip it. bhSyncResultAnnounce keeps the pair in step. -->
-          <label style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text-dim);cursor:pointer;margin:14px 0 0;padding-top:12px;border-top:1px solid rgba(83,224,119,0.18);">
-            <input type="checkbox" id="bhResultAnnounceLive" onchange="saveHuntResultAnnounce(this.checked)" style="width:14px;height:14px;accent-color:var(--accent);flex-shrink:0;">
-            <span>🎰 Post each result to chat as I save it</span>
-          </label>
         </div>
 
         <!-- Two columns: list hero left, rail right. Cards drag between columns
@@ -4162,6 +4155,15 @@
                 <button onclick="bhEndHunt()" style="background:linear-gradient(135deg,var(--green),#00c96a);border:none;border-radius:9px;color:#0d1117;font-size:13px;font-weight:800;font-family:'Exo 2',sans-serif;cursor:pointer;padding:11px;">✓ End Hunt</button>
                 <a href="#" target="_blank" id="bhOverlayLink" style="text-align:center;font-size:12px;color:var(--accent);text-decoration:none;font-weight:600;border:1px solid var(--border);border-radius:9px;padding:9px;">🖥 Bonus Hunt Overlay (OBS)</a>
                 <a href="#" target="_blank" id="bhPreviewLink" style="text-align:center;font-size:12px;color:var(--text-dim);text-decoration:none;border:1px solid var(--border);border-radius:9px;padding:9px;">▶ Preview overlay</a>
+                <!-- Hunt-level setting, so it lives with the hunt controls rather
+                     than on the opening card (which stays purely about speed).
+                     Mirrors the copy on the pre-hunt screen via bhSyncResultAnnounce. -->
+                <label style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text);cursor:pointer;border:1px solid var(--border);border-radius:9px;padding:11px;margin-top:2px;">
+                  <input type="checkbox" id="bhResultAnnounceLive" onchange="saveHuntResultAnnounce(this.checked)" style="width:17px;height:17px;accent-color:var(--accent);flex-shrink:0;cursor:pointer;">
+                  <span style="line-height:1.35;">🎰 Post each result to chat
+                    <div style="font-size:10.5px;color:var(--text-dim);margin-top:1px;">As you hit Save → next</div>
+                  </span>
+                </label>
                 <button onclick="bhResetHunt()" style="background:none;border:1px solid rgba(255,71,87,0.3);border-radius:9px;color:var(--red);font-size:12px;cursor:pointer;padding:9px;">🗑 Discard hunt</button>
               </div>
             </div>
@@ -11810,8 +11812,14 @@ document.addEventListener('keydown', function bhHotkeyHandler(e) {
     e.preventDefault();
     return;
   }
+  // C copies from inside the result box too. It's a number field, so "c" was
+  // never going to type anything there — and the result box is where you're
+  // sitting when you realise you need the slot name.
+  if (e.key === 'c' || e.key === 'C') {
+    if (!typing || inResultBox) { bhCopySlotName(); e.preventDefault(); }
+    return;
+  }
   if (typing) return;                                            // Enter is handled by the input itself
-  if (e.key === 'c' || e.key === 'C') { bhCopySlotName(); e.preventDefault(); return; }
 });
 
 window.bhCopySlotName = function () {
