@@ -4025,7 +4025,15 @@
             <div id="bhNpThumb" style="width:48px;height:48px;border-radius:10px;background:var(--bg-card);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;overflow:hidden;">🎰</div>
             <div style="min-width:0;">
               <div id="bhNpLabel" style="font-size:9.5px;font-weight:800;letter-spacing:.1em;color:var(--green);text-transform:uppercase;">▶ Up next</div>
-              <div id="bhNpName" style="font-size:16px;font-weight:900;color:var(--bright);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</div>
+              <div style="display:flex;align-items:center;gap:7px;min-width:0;">
+                <div id="bhNpName" style="font-size:16px;font-weight:900;color:var(--bright);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</div>
+                <!-- Copy the slot name straight to the clipboard: streamers retype
+                     it into the casino's search on every single bonus. -->
+                <button id="bhNpCopy" onclick="bhCopySlotName()" title="Copy slot name"
+                  style="flex-shrink:0;display:inline-flex;align-items:center;gap:4px;background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim);font-size:10.5px;font-weight:700;border-radius:7px;padding:3px 7px;cursor:pointer;line-height:1;transition:all .12s ease;"
+                  onmouseover="this.style.color='var(--bright)';this.style.borderColor='var(--accent)';"
+                  onmouseout="if(!this._ok){this.style.color='var(--text-dim)';this.style.borderColor='var(--border)';}">⧉ copy</button>
+              </div>
               <div id="bhNpMeta" style="font-size:11px;color:var(--text-dim);"></div>
             </div>
             <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
@@ -11736,6 +11744,47 @@ async function srDismissFromBh(id) {
     slotReqActOn(id);
   } catch (e) { flash('Failed to dismiss: ' + e.message, 'error'); }
 }
+
+// Copy the current slot's name. navigator.clipboard needs a secure context and
+// can still be blocked, so fall back to a hidden textarea + execCommand rather
+// than failing silently — this runs mid-stream and has to just work.
+window.bhCopySlotName = function () {
+  const btn  = document.getElementById('bhNpCopy');
+  const name = (document.getElementById('bhNpName')?.textContent || '').trim();
+  if (!name || name === '—') return;
+  const done = (ok) => {
+    if (!btn) return;
+    btn._ok = true;
+    btn.textContent = ok ? '✓ copied' : '✕ failed';
+    btn.style.color = ok ? 'var(--green)' : 'var(--red)';
+    btn.style.borderColor = ok ? 'var(--green)' : 'var(--red)';
+    clearTimeout(btn._t);
+    btn._t = setTimeout(() => {
+      btn._ok = false;
+      btn.textContent = '⧉ copy';
+      btn.style.color = 'var(--text-dim)';
+      btn.style.borderColor = 'var(--border)';
+    }, 1400);
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(name).then(() => done(true)).catch(() => done(legacyCopy(name)));
+  } else {
+    done(legacyCopy(name));
+  }
+};
+function legacyCopy(text) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-9999px;opacity:0;';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch { return false; }
+}
+
 
 function bhRender() {
   if (bhDragging) return;   // don't rebuild the table mid-drag (snapshots can fire)
