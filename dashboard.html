@@ -4026,37 +4026,44 @@
         </div>
 
         <!-- ▶ Up next / Now playing — the next unplayed slot with a big result box -->
-        <div id="bhNowPlay" style="display:none;border:1px solid rgba(83,224,119,0.35);background:rgba(83,224,119,0.04);border-radius:12px;padding:13px 16px;margin-bottom:14px;">
-          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-            <div id="bhNpThumb" style="width:48px;height:48px;border-radius:10px;background:var(--bg-card);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;overflow:hidden;">🎰</div>
+        <div id="bhNowPlay" style="display:none;border:1px solid rgba(83,224,119,0.35);background:rgba(83,224,119,0.04);border-radius:14px;padding:20px 22px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+            <!-- Bigger art: at 48px the slot was barely readable on stream. -->
+            <div id="bhNpThumb" style="width:76px;height:76px;border-radius:12px;background:var(--bg-card);display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;overflow:hidden;">🎰</div>
             <div style="min-width:0;">
               <div id="bhNpLabel" style="font-size:9.5px;font-weight:800;letter-spacing:.1em;color:var(--green);text-transform:uppercase;">▶ Up next</div>
-              <div id="bhNpName" style="font-size:16px;font-weight:900;color:var(--bright);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</div>
-              <div id="bhNpMeta" style="font-size:11px;color:var(--text-dim);"></div>
+              <div id="bhNpName" style="font-size:21px;font-weight:900;color:var(--bright);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;margin:1px 0 2px;">—</div>
+              <div id="bhNpMeta" style="font-size:11.5px;color:var(--text-dim);"></div>
             </div>
-            <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
-              <!-- Copy the slot name to the clipboard. Streamers retype it into the
-                   casino's search on every single bonus, so it lives out here on
-                   the right with the other actions rather than tucked by the name. -->
+            <!-- Slot-scoped controls sit WITH the slot, not out by the result entry. -->
+            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
               <button id="bhNpCopy" onclick="bhCopySlotName()" title="Copy slot name (C)"
-                style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,229,255,0.10);border:1px solid rgba(0,229,255,0.45);color:var(--accent);font-size:12.5px;font-weight:800;border-radius:9px;padding:9px 14px;cursor:pointer;line-height:1;white-space:nowrap;transition:all .12s ease;"
+                style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,229,255,0.10);border:1px solid rgba(0,229,255,0.45);color:var(--accent);font-size:12px;font-weight:800;border-radius:8px;padding:8px 12px;cursor:pointer;line-height:1;white-space:nowrap;transition:all .12s ease;"
                 onmouseover="if(!this._ok){this.style.background='rgba(0,229,255,0.20)';}"
-                onmouseout="if(!this._ok){this.style.background='rgba(0,229,255,0.10)';}">⧉ Copy name <span style="opacity:.6;font-size:10px;border:1px solid currentColor;border-radius:4px;padding:1px 4px;">C</span></button>
-              <!-- Step back/forward through bonuses without leaving the card -->
+                onmouseout="if(!this._ok){this.style.background='rgba(0,229,255,0.10)';}">⧉ copy <span style="opacity:.55;font-size:9.5px;border:1px solid currentColor;border-radius:3px;padding:1px 3px;">C</span></button>
               <button id="bhNpPrev" onclick="bhNpStep(-1)" title="Previous bonus (←)"
-                style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim);font-size:14px;border-radius:9px;width:34px;height:34px;cursor:pointer;line-height:1;">←</button>
+                style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim);font-size:13px;border-radius:8px;width:30px;height:30px;cursor:pointer;line-height:1;">←</button>
               <button id="bhNpNext" onclick="bhNpStep(1)" title="Next bonus (→)"
-                style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim);font-size:14px;border-radius:9px;width:34px;height:34px;cursor:pointer;line-height:1;">→</button>
+                style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-dim);font-size:13px;border-radius:8px;width:30px;height:30px;cursor:pointer;line-height:1;">→</button>
               <button onclick="bhShowHotkeys()" title="Keyboard shortcuts"
-                style="background:transparent;border:1px solid var(--border);color:var(--text-dim);font-size:12px;border-radius:9px;padding:8px 10px;cursor:pointer;line-height:1;">⌨</button>
+                style="background:transparent;border:1px solid var(--border);color:var(--text-dim);font-size:12px;border-radius:8px;padding:7px 9px;cursor:pointer;line-height:1;">⌨</button>
+            </div>
+            <div style="margin-left:auto;display:flex;gap:10px;align-items:center;">
               <!-- Collecting phase: one explicit "go" button before any result entry -->
-              <button id="bhNpStartBtn" onclick="bhStartOpening()" style="display:none;background:var(--accent);color:#06222a;font-weight:800;font-size:13px;border:none;border-radius:9px;padding:10px 20px;cursor:pointer;white-space:nowrap;">▶ Start Opening</button>
-              <span id="bhNpEntry" style="display:none;gap:8px;align-items:center;">
-                <input type="number" id="bhNpInput" placeholder="$ result" min="0" step="0.01" onkeydown="if(event.key==='Enter'){event.preventDefault();bhNpSave();}" style="width:110px;background:var(--bg-card);border:1px solid var(--border);border-radius:9px;color:var(--gold);font-size:15px;font-weight:800;padding:9px 11px;text-align:center;">
-                <button onclick="bhNpSave()" style="background:var(--green);color:#04220e;font-weight:800;font-size:13px;border:none;border-radius:9px;padding:10px 16px;cursor:pointer;white-space:nowrap;">Save → next</button>
+              <button id="bhNpStartBtn" onclick="bhStartOpening()" style="display:none;background:var(--accent);color:#06222a;font-weight:800;font-size:14px;border:none;border-radius:10px;padding:14px 26px;cursor:pointer;white-space:nowrap;">▶ Start Opening</button>
+              <span id="bhNpEntry" style="display:none;gap:10px;align-items:center;">
+                <input type="number" id="bhNpInput" placeholder="$ result" min="0" step="0.01" onkeydown="if(event.key==='Enter'){event.preventDefault();bhNpSave();}" style="width:150px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;color:var(--gold);font-size:20px;font-weight:800;padding:13px 14px;text-align:center;">
+                <button onclick="bhNpSave()" style="background:var(--green);color:#04220e;font-weight:800;font-size:14px;border:none;border-radius:10px;padding:14px 22px;cursor:pointer;white-space:nowrap;">Save → next</button>
               </span>
             </div>
           </div>
+          <!-- Same setting as the one on the pre-hunt screen, mirrored here because
+               that screen is hidden once a hunt is live — which is exactly when a
+               streamer wants to flip it. bhSyncResultAnnounce keeps the pair in step. -->
+          <label style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text-dim);cursor:pointer;margin:14px 0 0;padding-top:12px;border-top:1px solid rgba(83,224,119,0.18);">
+            <input type="checkbox" id="bhResultAnnounceLive" onchange="saveHuntResultAnnounce(this.checked)" style="width:14px;height:14px;accent-color:var(--accent);flex-shrink:0;">
+            <span>🎰 Post each result to chat as I save it</span>
+          </label>
         </div>
 
         <!-- Two columns: list hero left, rail right. Cards drag between columns
@@ -6076,7 +6083,7 @@ function onAuthReady(user) {
 
   if (profile?.currencyName) document.getElementById('currencyNameInput').value = profile.currencyName;
   { const _ha = document.getElementById('bhAnnounceToggle'); if (_ha) _ha.checked = profile?.huntAnnounce !== false; }
-  { const _hr = document.getElementById('bhResultAnnounceToggle'); if (_hr) _hr.checked = profile?.huntResultAnnounce === true; }
+  bhSyncResultAnnounce(profile?.huntResultAnnounce === true);
   loadGamesSettings();
   // Points master switch (defaults ON). Reflect it + hide the Store nav when off.
   { const _pe = profile?.pointsEnabled !== false;
@@ -11794,10 +11801,17 @@ document.addEventListener('keydown', function bhHotkeyHandler(e) {
     if (typing && t.blur) { t.blur(); e.preventDefault(); }
     return;
   }
+  // Arrows also work while the RESULT box is focused — that's where your hands
+  // are the whole time, so making them dead there defeated the point. Only when
+  // the box is empty, so they still move the cursor when you're editing a number.
+  const inResultBox = t.id === 'bhNpInput';
+  if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && (!typing || (inResultBox && !t.value))) {
+    bhNpStep(e.key === 'ArrowLeft' ? -1 : 1);
+    e.preventDefault();
+    return;
+  }
   if (typing) return;                                            // Enter is handled by the input itself
   if (e.key === 'c' || e.key === 'C') { bhCopySlotName(); e.preventDefault(); return; }
-  if (e.key === 'ArrowLeft')  { bhNpStep(-1); e.preventDefault(); return; }
-  if (e.key === 'ArrowRight') { bhNpStep(1);  e.preventDefault(); return; }
 });
 
 window.bhCopySlotName = function () {
@@ -12255,14 +12269,22 @@ async function bankReset() {
 
 // Hunt announcement toggle — saves immediately (same pattern as the points
 // master switch). Default ON; viewers can always pull !hunt regardless.
+function bhSyncResultAnnounce(on) {
+  for (const id of ['bhResultAnnounceToggle', 'bhResultAnnounceLive']) {
+    const el = document.getElementById(id);
+    if (el) el.checked = !!on;
+  }
+}
+
 async function saveHuntResultAnnounce(on) {
   try {
     await saveStreamerProfile({ huntResultAnnounce: !!on });
     if (profile) profile.huntResultAnnounce = !!on;
+    bhSyncResultAnnounce(on);
     flash(on ? 'Bonus results will post to chat.' : 'Bonus results stay off chat.');
   } catch (e) {
     flash('Failed to save: ' + e.message, 'error');
-    const t = document.getElementById('bhResultAnnounceToggle'); if (t) t.checked = !on;
+    bhSyncResultAnnounce(!on);
   }
 }
 
