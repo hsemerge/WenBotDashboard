@@ -41,9 +41,33 @@ exports.handler = async (event) => {
     const discordConfig = { ...existing, guildId, connectedAt: Date.now() };
 
     await db.collection("streamers").doc(uid).set({ discordConfig }, { merge: true });
-    await db.collection("discord_guilds").doc(guildId).set({ uid, connectedAt: Date.now() }, { merge: true });
 
-    return res(200, { success: true, guildId });
+    // APPEND, never overwrite. This used to `set({ uid })`, so when a second
+    // streamer linked the same server the first was silently replaced — their
+    // Discord integration would stop resolving with no error anywhere. That
+    // matters now that several streamers share one server.
+    //
+    // `uids` is the real list; `uid` is kept in sync as uids[0] so the many
+    // existing single-streamer readers keep working untouched.
+    const gRef = db.collection("discord_guilds").doc(guildId);
+    const linked = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(gRef);
+      const cur  = snap.exists ? snap.data() : {};
+      // Legacy docs only have `uid`; treat that as a one-element list.
+      const uids = Array.isArray(cur.uids) ? [...cur.uids] : (cur.uid ? [cur.uid] : []);
+      if (!uids.includes(uid)) uids.push(uid);
+      tx.set(gRef, { uid: uids[0], uids, connectedAt: Date.now() }, { merge: true });
+      return uids;
+    });
+
+    return res(200, {
+      success: true,
+      guildId,
+      // Lets the dashboard tell the streamer they're sharing a server, which is
+      // when channel-level setup starts to matter.
+      streamersInGuild: linked.length,
+      sharedGuild: linked.length > 1,
+    });
   } catch (e) {
     console.error("[discord-save-guild] error:", e.message);
     return res(500, { error: "Internal server error" });
