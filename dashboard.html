@@ -10033,19 +10033,53 @@ async function startLeaderboard() {
     liveSnapshot: {},
     carryMonth:   new Date().toISOString().slice(0, 7),
   };
-  await saveStreamerProfile({ leaderboardPeriod: lp });
-  if (profile) profile.leaderboardPeriod = lp;
+  await saveLeaderboardPeriod(lp);
   renderLeaderboardPeriodUI();
   if (typeof loadLeaderboards === 'function') loadLeaderboards();
   flash(`Leaderboard started — board reset to 0 (${_lbDurationLabel(duration)}).`);
+}
+
+// Save a leaderboard period AND mirror it onto the streamer's primary board doc.
+//
+// The public portal reads streamers/{uid}/leaderboards/{id} now, so writing only
+// leaderboardPeriod would leave the two disagreeing — a streamer could start a new
+// period here and watch the portal keep showing the old window with stale
+// baselines. Same reason the bot's scheduler mirrors its rolls.
+//
+// leaderboardPeriod stays the field this dashboard edits; the board is kept in
+// step. A mirror failure is surfaced but doesn't fail the save, since the streamer
+// doc is still authoritative and the scheduler re-mirrors on its next pass.
+async function saveLeaderboardPeriod(lp) {
+  await saveStreamerProfile({ leaderboardPeriod: lp });
+  if (profile) profile.leaderboardPeriod = lp;
+
+  try {
+    const provider = String(profile?.activeProvider || '').toLowerCase();
+    if (!provider) return;
+    const col  = fb.db.collection('streamers').doc(fb.activeUid).collection('leaderboards');
+    const snap = await col.get();
+    const target = snap.docs.find(d => String((d.data() || {}).provider || '').toLowerCase() === provider);
+    if (!target) return;   // not migrated — the portal still falls back to leaderboardPeriod
+
+    const fields = {};
+    // period.* mirrors the window; the rest live at the top of the board doc.
+    ['startAt', 'endAt', 'active', 'duration', 'autoRenew'].forEach(k => {
+      if (lp[k] !== undefined) fields['period.' + k] = lp[k];
+    });
+    ['baselines', 'carryover', 'liveSnapshot', 'excluded', 'anchorMonth', 'carryMonth'].forEach(k => {
+      if (lp[k] !== undefined) fields[k] = lp[k];
+    });
+    if (Object.keys(fields).length) await target.ref.update(fields);
+  } catch (e) {
+    console.warn('[dashboard] board mirror failed:', e.message);
+  }
 }
 
 async function toggleLeaderboardAutoRenew() {
   const lp = { ...(profile?.leaderboardPeriod || {}) };
   if (!lp.duration) return; // nothing running yet
   lp.autoRenew = document.getElementById('lbAutoRenew').checked;
-  await saveStreamerProfile({ leaderboardPeriod: lp });
-  if (profile) profile.leaderboardPeriod = lp;
+  await saveLeaderboardPeriod(lp);
   renderLeaderboardPeriodUI();
 }
 
@@ -10053,8 +10087,7 @@ async function stopLeaderboardTimer() {
   const lp = { ...(profile?.leaderboardPeriod || {}) };
   if (!lp.duration) return;
   lp.active = false;
-  await saveStreamerProfile({ leaderboardPeriod: lp });
-  if (profile) profile.leaderboardPeriod = lp;
+  await saveLeaderboardPeriod(lp);
   renderLeaderboardPeriodUI();
   flash('Leaderboard period stopped.');
 }
@@ -10114,8 +10147,7 @@ async function excludeLbUser(key, displayName) {
   const excluded = Array.isArray(lp.excluded) ? lp.excluded.slice() : [];
   if (!excluded.includes(key)) excluded.push(key);
   lp.excluded = excluded;
-  await saveStreamerProfile({ leaderboardPeriod: lp });
-  if (profile) profile.leaderboardPeriod = lp;
+  await saveLeaderboardPeriod(lp);
   if (typeof logAction === 'function') logAction('leaderboard_exclude', { key, username: who });
   renderLeaderboardPeriodUI();
   loadLeaderboards();
@@ -10143,8 +10175,7 @@ async function clearLbExclusions() {
   if (!lp.excluded || !lp.excluded.length) return;
   if (!confirm('Restore all removed users to the leaderboard?')) return;
   lp.excluded = [];
-  await saveStreamerProfile({ leaderboardPeriod: lp });
-  if (profile) profile.leaderboardPeriod = lp;
+  await saveLeaderboardPeriod(lp);
   renderLeaderboardPeriodUI();
   loadLeaderboards();
   flash('All removed users restored.');
