@@ -142,6 +142,61 @@ of every viewer is what would ever get noticed.
 
 ---
 
+### Multi-leaderboard support + multi-streamer Discord servers — DESIGNED, not built (Aug 1 2026)
+**Why**: streamers increasingly run more than one leaderboard (Meg has Degen +
+CSGOBig), and the model has room for exactly one. `leaderboardPeriod` is a single
+object on the streamer doc; her second board only exists because it is HARDCODED
+in `PORTAL_PRESETS` in `netlify/functions/portal-data.js`. Changing its window,
+prizes or dates needs a code change and a deploy — that is what made the 1 Aug
+CSGOBig incident slow to fix, and neither the streamer nor the owner could do it.
+
+**Phase 1 — leaderboards become a collection** (everything else depends on this)
+```
+streamers/{uid}/leaderboards/{boardId}
+  label "CSGOBig Race"   order 1   enabled true
+  provider  csgobig | rainbet | gambulls | degen | manual
+  credential { refCode | apiKey }
+  period { mode: cycle|fixed|rolling, cycleDay, startAt, endAt, duration, autoRenew }
+  prizes [2000, 1000, 500, ...]
+  baselines · carryover · excluded · liveSnapshot
+```
+Every board gets the full machinery the primary has today (snapshots, carryover
+across casino month-resets, exclusions) instead of the primary being special.
+Migrate existing `leaderboardPeriod` in as board #1 so nothing breaks. The three
+period modes cover every case hit so far: **cycle** (Meg's 16th→16th), **fixed**
+(one-off race), **rolling** (weekly/monthly auto-renew, what most use now).
+
+**Phase 2 — `/lb` picker.** One board renders directly as now; more than one shows
+buttons (`custom_id: lb:{uid}:{boardId}`). Cheap: component interactions already
+route through `custom_id` for `join_giveaway` and `drop_claim`.
+
+**Phase 3 — multiple streamers in ONE Discord** (owner has 4 streamers heading
+into one server). Resolution order, no configuration required to work:
+1. Channel is claimed by a streamer -> resolve automatically, no buttons.
+2. Otherwise -> buttons per streamer. Channel claiming is an OPTIONAL optimisation
+   that only removes a click; a shared server works out of the box without it.
+3. `/points` does NOT show buttons — it aggregates: "Meg 1,240 · Bama 450 · Zucs
+   8,900". A viewer in a shared server genuinely has a balance with each, so
+   answering all of them beats making them pick.
+4. Buttons only where the command ACTS on one streamer: /store, /buy, /daily.
+5. Picker should be EPHEMERAL, then post the chosen board publicly — a public
+   picker lets anyone click anyone's button.
+6. Do NOT cache a per-member "active streamer" for reads; a remembered choice
+   silently showing the wrong streamer is worse than one extra click. Only
+   consider it for /daily.
+
+**BLOCKER to fix first, independent of all the above**: `discord_guilds/{guildId}`
+holds a SINGLE `uid`. In a shared server the next streamer to link silently
+overwrites the previous one. That is a live data-loss bug today — it just hasn't
+fired because no guild is currently shared (verified 1 Aug 2026: 8 guild docs,
+7 streamers, 0 shared). Make it a list before anyone shares a server.
+
+**Trigger**: any streamer asking for a second leaderboard, or the four-streamer
+shared Discord going live. Phase 1 is the substantial piece (new model, migration,
+dashboard section); phases 2 and 3 are small once it exists.
+
+---
+
 ### Dashboard.html splitting (6000+ lines)
 **Current state**: All dashboard logic in one file. Hard to navigate, hard to test,
 hard to onboard collaborators. Lots of global state and cross-function references.
