@@ -18,6 +18,12 @@ const CASINO_NAMES = {
   duelbits:   "Duelbits",
   rollbit:    "Rollbit",
   chipsgg:    "Chips.gg",
+  // Deliberately NOT in the browser copy (/js/casinos.js). That list populates the
+  // dashboard's primary-casino picker, and CSGOBig is only supported as an
+  // ADDITIONAL board (no verification or affiliate-matching flow behind it) — so
+  // offering it there would let a streamer pick a provider half the app can't
+  // serve. It lives here so leaderboard-live will accept casino=csgobig.
+  csgobig:    "CSGOBig",
 };
 
 module.exports = { CASINO_NAMES };

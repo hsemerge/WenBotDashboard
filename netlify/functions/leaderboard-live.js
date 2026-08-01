@@ -6,6 +6,7 @@ const { res: _res }        = require("./_lib/http");
 const { CASINO_NAMES }     = require("./_lib/casinos");
 const { normalizeGambulls, applyPeriod } = require("./_lib/leaderboard");
 const { fetchDegenRace }   = require("./_lib/degen");
+const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards");
 const { fetchRainbetRange, fetchRainbetForPeriod, applyRainbetExclusions } = require("./_lib/rainbet");
 const res = (s, b) => _res(s, b, "*");
 
@@ -129,6 +130,48 @@ exports.handler = async (event) => {
         degen: { raceName: race.raceName, startAt: race.startAt, endAt: race.endAt, prizePool: race.prizePool, fiat: race.fiat, active: race.active },
         rankings: race.rankings.map((r) => ({ rank: r.rank, username: r.username, wagered: r.wagered, avatarUrl: r.avatarUrl, prize: r.prize })),
         totalWagered: race.totalWagered, totalUsers: race.totalUsers,
+      });
+    }
+
+    // CSGOBig: served STRICTLY from the cache portal-data fills — this branch
+    // never calls CSGOBig itself.
+    //
+    // Their rate limit is keyed per REFERRAL CODE, not per IP, so every consumer
+    // of a streamer's code shares one quota, and the block appears to re-arm on
+    // each rejected attempt. A second independent fetcher would double the upstream
+    // attempts and could starve the quota indefinitely, blanking the public board.
+    // portal-data stays the sole refresher; /lb and the dashboard read what it
+    // already fetched, keyed on the same race window.
+    if (provider === "csgobig") {
+      const bSnap = await db.collection("streamers").doc(streamerDoc.id).collection("leaderboards").get();
+      const board = sortBoards(bSnap.docs.map((d) => normalizeBoard(d.data(), d.id)))
+        .find((b) => b.provider === "csgobig");
+      const code = board && board.credential && board.credential.refCode;
+      if (!code) return res(400, { error: "Streamer hasn't configured their CSGOBig referral code yet." });
+
+      const win = boardWindow(board) || {};
+      const from = win.from || null, to = win.to || null;
+      const prizes = Array.isArray(board.prizes) ? board.prizes : [];
+      const prizeFor = (rank) => (Number(prizes[rank - 1]) > 0 ? Number(prizes[rank - 1]) : 0);
+
+      let cached = null;
+      try {
+        const c = await db.collection("_cache").doc(`csgobig_${code}_${from}-${to}`).get();
+        if (c.exists) cached = c.data().data || null;
+      } catch {}
+
+      const rankings = (cached?.rankings || []).map((r) => ({
+        rank: r.rank, username: r.username, wagered: r.wagered, avatarUrl: r.avatarUrl, prize: prizeFor(r.rank),
+      }));
+      return res(200, {
+        success: true, casino: provider, casinoName: CASINO_NAMES[provider] || "CSGOBig",
+        period: { active: board.period.active, startAt: from, endAt: to },
+        rankings,
+        totalWagered: cached?.totalWagered || 0,
+        totalUsers:   cached?.totalUsers   || 0,
+        // Tells a caller the difference between "race has no wagers" and "we haven't
+        // fetched this window yet", which otherwise look identical.
+        pending: !cached,
       });
     }
 
