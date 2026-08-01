@@ -10,6 +10,7 @@ const { normalizeGambulls, applyPeriod } = require("./_lib/leaderboard");
 const { fetchDegenRace }     = require("./_lib/degen");
 const { fetchRainbetForPeriod, applyRainbetExclusions } = require("./_lib/rainbet");
 const { fetchCsgobigRace }   = require("./_lib/csgobig");
+const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards");
 
 const API_CASINOS = new Set(["gambulls"]);
 
@@ -321,6 +322,16 @@ exports.handler = async (event) => {
       return res(404, { error: "Portal not available" });
     }
 
+    // Per-board config from Firestore (streamers/{uid}/leaderboards). Falls back
+    // to PORTAL_PRESETS / leaderboardPeriod for anyone not migrated, so this can
+    // ship before every reader and the dashboard UI exist.
+    let boards = [];
+    try {
+      const bSnap = await streamer.ref.collection("leaderboards").get();
+      boards = sortBoards(bSnap.docs.map((d) => normalizeBoard(d.data(), d.id)));
+    } catch (e) { console.warn("[portal-data] boards load failed:", e.message); }
+    const boardFor = (provider) => boards.find((b) => b.provider === provider) || null;
+
     const isOwner    = OWNER_CHANNELS.has(channel);
     const presetMain = PORTAL_PRESETS[channel] || {};
     // White-label override = owner, a seeded preset, a manual Firestore flag, or
@@ -591,23 +602,28 @@ exports.handler = async (event) => {
       // flickers with API availability. CSGOBig rate-limits hard (~15 min), so cache
       // 10 min in _cache and serve the last good copy on any failure; if there's no
       // data at all the board simply shows "no wager data yet" under a live toggle.
-      if (presetMain.csgobigRefCode) {
+      // Board doc wins; the preset is the fallback until everyone is migrated.
+      const cbBoard  = boardFor("csgobig");
+      const cbRef    = (cbBoard && cbBoard.credential && cbBoard.credential.refCode) || presetMain.csgobigRefCode;
+      const cbLadder = (cbBoard && cbBoard.prizes && cbBoard.prizes.length) ? cbBoard.prizes : presetMain.csgobigPrizes;
+
+      if (cbRef && !(cbBoard && cbBoard.enabled === false)) {
         const now  = new Date();
-        // Cycle-day races (16th → 16th) roll themselves; explicit From/To still wins
-        // for one-offs; calendar month remains the last-resort default.
-        const cyc  = presetMain.csgobigCycleDay
-          ? csgobigCycleWindow(presetMain.csgobigCycleDay, Date.now())
-          : null;
-        const from = presetMain.csgobigFrom || (cyc ? cyc.from : Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
+        // Window from the board's period when it has one, else the preset's
+        // cycle/pinned dates, else the calendar month as a last resort.
+        const bWin = cbBoard ? boardWindow(cbBoard, Date.now()) : null;
+        const cyc  = bWin ? bWin
+          : (presetMain.csgobigCycleDay ? csgobigCycleWindow(presetMain.csgobigCycleDay, Date.now()) : null);
+        const from = bWin ? bWin.from : (presetMain.csgobigFrom || (cyc ? cyc.from : Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0)));
         // Clamp to "now": a pinned race END is in the future while the race runs,
         // and CSGOBig returns nothing for a future `to`. The race window still
         // drives the countdown via raceEnd below; this is only the query bound.
-        const to   = Math.min(presetMain.csgobigTo || Date.now(), Date.now());
+        const to   = Math.min(bWin ? bWin.to : (presetMain.csgobigTo || Date.now()), Date.now());
         // Race END for the countdown = end of the calendar month (last ms), which
         // is distinct from `to` (the up-to-now query window for current standings).
-        const raceEnd = presetMain.csgobigTo || (cyc ? cyc.to : (Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0) - 1));
+        const raceEnd = bWin ? bWin.to : (presetMain.csgobigTo || (cyc ? cyc.to : (Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0) - 1)));
         // Rank-indexed prize ladder (coins) from the preset.
-        const cbPrizes = Array.isArray(presetMain.csgobigPrizes) ? presetMain.csgobigPrizes : [];
+        const cbPrizes = Array.isArray(cbLadder) ? cbLadder : [];
         const cbPrizeFor = (rank) => (Number(cbPrizes[rank - 1]) > 0 ? Number(cbPrizes[rank - 1]) : 0);
         // Base (empty) board — keeps the switch visible regardless of the fetch.
         leaderboard2 = {
@@ -621,7 +637,7 @@ exports.handler = async (event) => {
           // — and worse, after pinning a window the old month doc would still be
           // served, showing the wrong totals. Window-keyed means changing the race
           // window naturally invalidates the cache.
-          const key = `csgobig_${presetMain.csgobigRefCode}_${from}-${raceEnd}`;
+          const key = `csgobig_${cbRef}_${from}-${raceEnd}`;
           const cacheRef = db.collection("_cache").doc(key);
           // 20-min TTL: CSGOBig's rate limit is keyed PER REF CODE (not per IP), so
           // every consumer of her code shares one quota. Their 429 penalty appears
@@ -635,7 +651,7 @@ exports.handler = async (event) => {
             const lastTry = (cdoc && cdoc.lastAttemptAt) || 0;
             if (Date.now() - lastTry > 16 * 60 * 1000) {
               try { await cacheRef.set({ lastAttemptAt: Date.now() }, { merge: true }); } catch {}
-              const race = await fetchCsgobigRace(presetMain.csgobigRefCode, from, to);
+              const race = await fetchCsgobigRace(cbRef, from, to);
               if (race) { cb = race; try { await cacheRef.set({ cachedAt: Date.now(), data: race }, { merge: true }); } catch {} }
             }
             if (!cb && cdoc && cdoc.data) cb = cdoc.data; // serve stale
@@ -662,10 +678,10 @@ exports.handler = async (event) => {
         try {
           let aFrom = null, aTo = null;
           if (cyc)                                   { aFrom = cyc.prevFrom; aTo = cyc.prevTo; }
-          else if (presetMain.csgobigTo && Date.now() > raceEnd) { aFrom = from; aTo = raceEnd; }
+          else if ((bWin || presetMain.csgobigTo) && Date.now() > raceEnd) { aFrom = from; aTo = raceEnd; }
 
           if (aFrom && aTo && Date.now() > aTo) {
-            const aRef  = db.collection("_cache").doc(`csgobig_${presetMain.csgobigRefCode}_${aFrom}-${aTo}`);
+            const aRef  = db.collection("_cache").doc(`csgobig_${cbRef}_${aFrom}-${aTo}`);
             const aSnap = await aRef.get();
             const ad    = aSnap.exists ? aSnap.data() : null;
             if (ad && !ad.archived && ad.data && (ad.data.rankings || []).length) {
