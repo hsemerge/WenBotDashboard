@@ -1980,6 +1980,20 @@
         </div>
       </div>
 
+      <!-- Additional leaderboards — boards beyond the main one above. Hidden
+           entirely unless the streamer actually has one, so the common
+           single-board setup sees no extra chrome. -->
+      <div class="card" id="extraBoardsCard" style="margin-bottom:16px;display:none;">
+        <div class="card-title" style="justify-content:space-between;">
+          <span>🏁 Additional Leaderboards</span>
+          <span id="extraBoardsCount" style="font-size:11px;color:var(--text-dim);font-weight:600;"></span>
+        </div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px;">
+          Extra races running alongside your main leaderboard — a second casino, or a race on its own schedule. These show on your public portal below the main board.
+        </div>
+        <div id="extraBoardsList"></div>
+      </div>
+
       <!-- Internal wager + points view -->
       <div class="grid-2">
         <div class="card">
@@ -5560,7 +5574,7 @@ function showPage(id, el) {
   if (id === 'referrals') loadReferrals();
   if (id === 'points') loadTopViewers();
   if (id === 'gtb') openGTBPage();
-  if (id === 'leaderboard') loadLeaderboards();
+  if (id === 'leaderboard') { loadLeaderboards(); loadExtraBoards(); }
   if (id === 'store') { loadStoreItems(); loadRedemptions(); }
   if (id === 'commands') { loadCommands(); loadCommandAliases(); loadTimers(); }
   if (id === 'games') loadGamesSettings();
@@ -10037,6 +10051,199 @@ async function startLeaderboard() {
   renderLeaderboardPeriodUI();
   if (typeof loadLeaderboards === 'function') loadLeaderboards();
   flash(`Leaderboard started — board reset to 0 (${_lbDurationLabel(duration)}).`);
+}
+
+// ── Additional leaderboards ──────────────────────────────────────────────────
+// Boards other than the main one, which the card above already edits. Until now
+// these only existed hardcoded in the portal's presets, so changing a race's
+// dates meant a code change and a deploy — this is what makes them self-serve.
+//
+// Deliberately a smaller surface than the main board: no Start/baseline capture,
+// because these races follow the casino's own numbers for a date window rather
+// than resetting to zero on our side.
+let _extraBoards = [];
+
+async function loadExtraBoards() {
+  const card = document.getElementById('extraBoardsCard');
+  if (!card || !fb?.activeUid) return;
+  try {
+    const snap = await fb.db.collection('streamers').doc(fb.activeUid).collection('leaderboards').get();
+    const main = String(profile?.activeProvider || '').toLowerCase();
+    // The main board is edited above; everything else belongs here. A disabled
+    // board still shows, or it would be invisible and unrecoverable.
+    _extraBoards = snap.docs
+      .map(d => ({ id: d.id, ...(d.data() || {}) }))
+      .filter(b => String(b.provider || '').toLowerCase() !== main)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
+  } catch (e) {
+    console.warn('[dashboard] extra boards load failed:', e.message);
+    _extraBoards = [];
+  }
+  renderExtraBoards();
+}
+
+function renderExtraBoards() {
+  const card = document.getElementById('extraBoardsCard');
+  const list = document.getElementById('extraBoardsList');
+  const count = document.getElementById('extraBoardsCount');
+  if (!card || !list) return;
+
+  if (!_extraBoards.length) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  if (count) count.textContent = _extraBoards.length + (_extraBoards.length === 1 ? ' board' : ' boards');
+
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  list.innerHTML = _extraBoards.map(b => {
+    const p     = b.period || {};
+    const mode  = p.mode || 'provider';
+    const on    = b.enabled !== false;
+    const ref   = (b.credential && b.credential.refCode) || '';
+    const prize = Array.isArray(b.prizes) ? b.prizes.filter(n => Number(n) > 0) : [];
+    const win   = _boardWindowLabel(b);
+    return `
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-family:'Exo 2',sans-serif;font-size:15px;font-weight:800;color:var(--bright);">${esc(b.label || b.provider)}</span>
+            <span style="font-size:10px;font-weight:700;background:var(--bg-panel);border:1px solid var(--border);color:var(--text-dim);padding:2px 8px;border-radius:20px;letter-spacing:.05em;text-transform:uppercase;">${esc(b.provider)}</span>
+            ${on ? '' : '<span style="font-size:10px;font-weight:700;color:var(--red);letter-spacing:.05em;">HIDDEN</span>'}
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);cursor:pointer;" title="Show this board on your public portal.">
+            <input type="checkbox" ${on ? 'checked' : ''} onchange="setExtraBoardEnabled('${esc(b.id)}', this.checked)" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">
+            Show on portal
+          </label>
+        </div>
+
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
+          ${mode === 'cycle' ? `
+            <label style="font-size:11px;color:var(--text-dim);display:flex;flex-direction:column;gap:3px;">
+              Resets on day of month
+              <input type="number" min="1" max="28" value="${p.cycleDay || 1}" id="ebDay_${esc(b.id)}"
+                     style="width:80px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;">
+            </label>` : `
+            <label style="font-size:11px;color:var(--text-dim);display:flex;flex-direction:column;gap:3px;">
+              Start
+              <input type="datetime-local" id="ebStart_${esc(b.id)}" value="${_toLocalInput(p.startAt)}"
+                     style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;color-scheme:dark;">
+            </label>
+            <label style="font-size:11px;color:var(--text-dim);display:flex;flex-direction:column;gap:3px;">
+              End
+              <input type="datetime-local" id="ebEnd_${esc(b.id)}" value="${_toLocalInput(p.endAt)}"
+                     style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;color-scheme:dark;">
+            </label>`}
+          ${ref !== '' ? `
+            <label style="font-size:11px;color:var(--text-dim);display:flex;flex-direction:column;gap:3px;">
+              Referral code
+              <input type="text" id="ebRef_${esc(b.id)}" value="${esc(ref)}"
+                     style="width:210px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;">
+            </label>` : ''}
+          <button class="btn btn-accent btn-sm" onclick="saveExtraBoard('${esc(b.id)}')">Save</button>
+          <button onclick="openExtraBoardPrizes('${esc(b.id)}')" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:12px;font-weight:600;padding:0 0 6px;">💰 Prizes${prize.length ? ' (' + prize.length + ')' : ''}</button>
+        </div>
+
+        <div style="font-size:11px;color:var(--text-dim);margin-top:10px;">${win}</div>
+      </div>`;
+  }).join('');
+}
+
+// Mirrors boardWindow() in netlify/functions/_lib/leaderboards.js — shown so the
+// streamer can see the window their settings actually produce before saving.
+function _boardWindowLabel(b) {
+  const p = b.period || {};
+  // Cycle boundaries are defined in UTC, so render them in UTC — formatting a
+  // 16th-00:00-UTC boundary in a negative-offset timezone reads as "the 15th",
+  // which is exactly the off-by-one the streamer would then take to the casino.
+  // Fixed dates were entered in local time, so those stay local.
+  const opt  = { month: 'short', day: 'numeric', year: 'numeric' };
+  const fmtU = ms => new Date(ms).toLocaleDateString(undefined, { ...opt, timeZone: 'UTC' });
+  const fmt  = ms => new Date(ms).toLocaleDateString(undefined, opt);
+  if (p.mode === 'cycle' && p.cycleDay) {
+    const d = new Date(), y = d.getUTCFullYear(), m = d.getUTCMonth();
+    const sm = d.getUTCDate() >= p.cycleDay ? m : m - 1;
+    const from = Date.UTC(y, sm, p.cycleDay), to = Date.UTC(y, sm + 1, p.cycleDay) - 1;
+    return `🔁 Currently running ${fmtU(from)} → ${fmtU(to)}, then repeats automatically.`;
+  }
+  if (p.startAt && p.endAt) {
+    const ended = Date.now() > p.endAt;
+    return `${ended ? '⏹' : '⏳'} ${fmt(p.startAt)} → ${fmt(p.endAt)}${ended ? ' (ended)' : ''}`;
+  }
+  return '📊 Follows the casino\'s own leaderboard window.';
+}
+
+// datetime-local wants local wall-clock, not UTC — offset before slicing.
+function _toLocalInput(ms) {
+  if (!ms) return '';
+  const d = new Date(ms - new Date().getTimezoneOffset() * 60000);
+  return d.toISOString().slice(0, 16);
+}
+
+async function setExtraBoardEnabled(id, enabled) {
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid).collection('leaderboards').doc(id)
+      .update({ enabled: !!enabled });
+    const b = _extraBoards.find(x => x.id === id);
+    if (b) b.enabled = !!enabled;
+    renderExtraBoards();
+    if (typeof logAction === 'function') logAction('leaderboard_board_toggle', { board: id, enabled: !!enabled });
+    flash(enabled ? 'Board shown on your portal.' : 'Board hidden from your portal.');
+  } catch (e) {
+    flash('Failed to update: ' + e.message, 'error');
+  }
+}
+
+async function saveExtraBoard(id) {
+  const b = _extraBoards.find(x => x.id === id);
+  if (!b) return;
+  const p = b.period || {};
+  const fields = {};
+
+  if ((p.mode || 'provider') === 'cycle') {
+    const day = parseInt(document.getElementById('ebDay_' + id)?.value, 10);
+    // Capped at 28 so every month has the day — a 31st cycle would silently skip
+    // February and shift the race.
+    if (!(day >= 1 && day <= 28)) { flash('Reset day must be between 1 and 28.', 'error'); return; }
+    fields['period.cycleDay'] = day;
+  } else {
+    const s = document.getElementById('ebStart_' + id)?.value;
+    const e = document.getElementById('ebEnd_' + id)?.value;
+    const sMs = s ? new Date(s).getTime() : null;
+    const eMs = e ? new Date(e).getTime() : null;
+    if (sMs && eMs && eMs <= sMs) { flash('End must be after start.', 'error'); return; }
+    fields['period.startAt'] = sMs;
+    fields['period.endAt']   = eMs;
+    if (sMs && eMs) fields['period.mode'] = 'fixed';
+  }
+
+  const refEl = document.getElementById('ebRef_' + id);
+  if (refEl) fields['credential.refCode'] = refEl.value.trim();
+
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid).collection('leaderboards').doc(id).update(fields);
+    if (typeof logAction === 'function') logAction('leaderboard_board_save', { board: id });
+    await loadExtraBoards();
+    flash('Leaderboard updated.');
+  } catch (e) {
+    flash('Failed to save: ' + e.message, 'error');
+  }
+}
+
+// Prizes reuse the same per-rank editor as the main board, pointed at this doc.
+function openExtraBoardPrizes(id) {
+  const b = _extraBoards.find(x => x.id === id);
+  if (!b) return;
+  const cur = (Array.isArray(b.prizes) ? b.prizes : []).join(', ');
+  const val = prompt(
+    `Prizes for ${b.label || b.provider}, in rank order.\n\nComma-separated, e.g. 2000, 1000, 500. Leave blank for none.`,
+    cur
+  );
+  if (val === null) return;
+  const arr = val.split(',').map(s => Number(String(s).replace(/[^0-9.]/g, ''))).filter(n => n > 0);
+  fb.db.collection('streamers').doc(fb.activeUid).collection('leaderboards').doc(id)
+    .update({ prizes: arr })
+    .then(() => { b.prizes = arr; renderExtraBoards(); flash(arr.length ? `${arr.length} prizes saved.` : 'Prizes cleared.'); })
+    .catch(e => flash('Failed to save prizes: ' + e.message, 'error'));
 }
 
 // Save a leaderboard period AND mirror it onto the streamer's primary board doc.
