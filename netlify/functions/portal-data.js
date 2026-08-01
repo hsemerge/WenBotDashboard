@@ -354,7 +354,7 @@ exports.handler = async (event) => {
         !some(board.baselines) && !some(board.carryover) && !board.excluded.length;
       if (bare) return null;
       return {
-        active:    true,                       // sortBoards() already dropped disabled boards
+        active:    board.period.active,         // a finished race stops applying its baselines
         duration:  board.period.duration,
         autoRenew: board.period.autoRenew,
         startAt:   win ? win.from : board.period.startAt,

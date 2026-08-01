@@ -50,6 +50,11 @@ function normalizeBoard(raw, id) {
     credential: b.credential || null,
     period: {
       mode,
+      // Whether the window is still running. Distinct from `enabled`: a finished
+      // race stays visible (active:false) until the streamer takes it down, and
+      // once inactive its baselines/carryover stop being applied — same meaning
+      // `leaderboardPeriod.active` has today, so the scheduler can mirror it.
+      active:    period.active !== false,
       // rolling
       duration:  period.duration  || null,
       autoRenew: period.autoRenew !== false,
