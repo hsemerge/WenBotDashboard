@@ -29,6 +29,25 @@ const OWNER_CHANNELS = new Set(["emergeonkick"]);
 // A code-seeded preset gets a client live immediately; a Firestore
 // `whiteLabel:true` flag or the agency plan also unlocks it; and `profile.portal`
 // (set later from the dashboard) overrides the preset field-by-field.
+// CSGOBig races run on a day-of-month cycle (e.g. 16th → 16th), not calendar
+// months. Returns the window CONTAINING `now`, plus the one before it.
+//
+// The end is the last millisecond before the next cycle day, so consecutive races
+// never overlap and no wager can land in two races. Date.UTC normalises month
+// overflow/underflow, so December → January and month 0 → previous December both
+// work without special cases.
+function csgobigCycleWindow(cycleDay, now) {
+  const d   = new Date(now);
+  const y   = d.getUTCFullYear();
+  const m   = d.getUTCMonth();
+  // Before the cycle day means we're still in the race that began LAST month.
+  const sm  = d.getUTCDate() >= cycleDay ? m : m - 1;
+  const from = Date.UTC(y, sm,     cycleDay, 0, 0, 0);
+  const to   = Date.UTC(y, sm + 1, cycleDay, 0, 0, 0) - 1;
+  const prevFrom = Date.UTC(y, sm - 1, cycleDay, 0, 0, 0);
+  return { from, to, prevFrom, prevTo: from - 1 };
+}
+
 const PORTAL_PRESETS = {
   skslots: {
     theme: {
@@ -148,8 +167,10 @@ const PORTAL_PRESETS = {
     // board reset on 1 Aug and archive premature "July winners" for a race that was
     // still running. Roll these forward at the end of each race.
     csgobigRefCode:    "MEG74637HDKOCUR8464",
-    csgobigFrom:       Date.UTC(2026, 6, 16, 0, 0, 0),      // 16 Jul 2026 00:00 UTC
-    csgobigTo:         Date.UTC(2026, 7, 16, 23, 59, 59),   // 16 Aug 2026 23:59:59 UTC
+    // Races run 16th → 16th (UTC) and roll on their own, so there's nothing to
+    // update each month. csgobigFrom/csgobigTo still override this if a one-off
+    // window is ever needed.
+    csgobigCycleDay:   16,
     // Monthly CSGOBig prize ladder, in COINS, rank-indexed (1st → 13th; 5,000 total).
     csgobigPrizes:     [2000, 1000, 500, 400, 300, 250, 200, 150, 100, 50, 25, 15, 10],
     theme: {
@@ -572,14 +593,19 @@ exports.handler = async (event) => {
       // data at all the board simply shows "no wager data yet" under a live toggle.
       if (presetMain.csgobigRefCode) {
         const now  = new Date();
-        const from = presetMain.csgobigFrom || Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0);
+        // Cycle-day races (16th → 16th) roll themselves; explicit From/To still wins
+        // for one-offs; calendar month remains the last-resort default.
+        const cyc  = presetMain.csgobigCycleDay
+          ? csgobigCycleWindow(presetMain.csgobigCycleDay, Date.now())
+          : null;
+        const from = presetMain.csgobigFrom || (cyc ? cyc.from : Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
         // Clamp to "now": a pinned race END is in the future while the race runs,
         // and CSGOBig returns nothing for a future `to`. The race window still
         // drives the countdown via raceEnd below; this is only the query bound.
         const to   = Math.min(presetMain.csgobigTo || Date.now(), Date.now());
         // Race END for the countdown = end of the calendar month (last ms), which
         // is distinct from `to` (the up-to-now query window for current standings).
-        const raceEnd = presetMain.csgobigTo || (Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0) - 1);
+        const raceEnd = presetMain.csgobigTo || (cyc ? cyc.to : (Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0) - 1));
         // Rank-indexed prize ladder (coins) from the preset.
         const cbPrizes = Array.isArray(presetMain.csgobigPrizes) ? presetMain.csgobigPrizes : [];
         const cbPrizeFor = (rank) => (Number(cbPrizes[rank - 1]) > 0 ? Number(cbPrizes[rank - 1]) : 0);
@@ -622,33 +648,40 @@ exports.handler = async (event) => {
           }
         } catch (err) { console.warn("[portal-data] csgobig fetch failed:", err.message); }
 
-        // Archive the race's final standings once it has ACTUALLY ENDED.
+        // Archive a race's final standings once it has ACTUALLY ENDED.
         //
         // This used to fire on the calendar-month roll, which declared winners for
         // a race that was still running: on 1 Aug 2026 it published 13 "July
         // Monthly Race" winners with prizes while the real race ran to 16 Aug.
-        // Now it only archives once the pinned race window has passed, and it
-        // refuses to archive at all without a pinned window — no window means we
-        // don't know when the race ends, so we must not guess.
+        //
+        // With a rolling cycle the window flips ON the cycle day, so the race that
+        // just finished is the PREVIOUS window — archiving the current one would
+        // never fire. With an explicit From/To we archive that window once it has
+        // passed. With neither we don't archive at all: no window means we don't
+        // know when the race ends, and guessing is what caused the incident.
         try {
-          if (presetMain.csgobigTo && Date.now() > raceEnd) {
-            const cRef  = db.collection("_cache").doc(`csgobig_${presetMain.csgobigRefCode}_${from}-${raceEnd}`);
-            const cSnap = await cRef.get();
-            const cd    = cSnap.exists ? cSnap.data() : null;
-            if (cd && !cd.archived && cd.data && (cd.data.rankings || []).length) {
+          let aFrom = null, aTo = null;
+          if (cyc)                                   { aFrom = cyc.prevFrom; aTo = cyc.prevTo; }
+          else if (presetMain.csgobigTo && Date.now() > raceEnd) { aFrom = from; aTo = raceEnd; }
+
+          if (aFrom && aTo && Date.now() > aTo) {
+            const aRef  = db.collection("_cache").doc(`csgobig_${presetMain.csgobigRefCode}_${aFrom}-${aTo}`);
+            const aSnap = await aRef.get();
+            const ad    = aSnap.exists ? aSnap.data() : null;
+            if (ad && !ad.archived && ad.data && (ad.data.rankings || []).length) {
               const fmt = (ms) => new Date(ms).toLocaleDateString("en-US", { day: "numeric", month: "short", timeZone: "UTC" });
               await db.collection("streamers").doc(uid).collection("leaderboard_periods")
-                .doc(`csgobig_${from}-${raceEnd}`).set({
+                .doc(`csgobig_${aFrom}-${aTo}`).set({
                   casino: "csgobig", casinoName: "CSGOBig",
-                  period:  `${fmt(from)} – ${fmt(raceEnd)} Race`,
-                  startAt: from,
-                  endDate: raceEnd,
-                  winners: cd.data.rankings.slice(0, 13).map((r) => ({
+                  period:  `${fmt(aFrom)} – ${fmt(aTo)} Race`,
+                  startAt: aFrom,
+                  endDate: aTo,
+                  winners: ad.data.rankings.slice(0, 13).map((r) => ({
                     rank: r.rank, username: r.username, wagered: r.wagered,
                     prize: cbPrizeFor(r.rank), avatarUrl: r.avatarUrl || null,
                   })),
                 }, { merge: true });
-              await cRef.set({ archived: true }, { merge: true });
+              await aRef.set({ archived: true }, { merge: true });
             }
           }
         } catch (err) { console.warn("[portal-data] csgobig archive failed:", err.message); }
