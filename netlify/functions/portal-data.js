@@ -332,6 +332,42 @@ exports.handler = async (event) => {
     } catch (e) { console.warn("[portal-data] boards load failed:", e.message); }
     const boardFor = (provider) => boards.find((b) => b.provider === provider) || null;
 
+    // Present a board in the legacy `leaderboardPeriod` shape so applyPeriod(),
+    // fetchRainbetForPeriod() and applyRainbetExclusions() keep working untouched
+    // — the board document becomes another way to SOURCE a period, not a second
+    // set of period mechanics to maintain.
+    //
+    // Empty baselines/carryover/exclusions are collapsed back to null on purpose:
+    // applyPeriod short-circuits on `!baselines && !carryover && !excluded.size`,
+    // and `{}` is truthy, so passing empty objects would push provider-mode boards
+    // (the five streamers who follow the casino's own window) down the merge path
+    // they skip today.
+    const periodOfBoard = (board) => {
+      if (!board) return null;
+      const win  = boardWindow(board);
+      const some = (o) => (o && Object.keys(o).length ? o : null);
+      // A provider-mode board with no window and no adjustments IS "no period" —
+      // return null rather than an object of nulls, or `leaderboardTimer` flips
+      // from null to a truthy object and the portal renders an empty countdown
+      // for the streamers who simply follow the casino's own window.
+      const bare = !win && !board.period.startAt && !board.period.endAt &&
+        !some(board.baselines) && !some(board.carryover) && !board.excluded.length;
+      if (bare) return null;
+      return {
+        active:    true,                       // sortBoards() already dropped disabled boards
+        duration:  board.period.duration,
+        autoRenew: board.period.autoRenew,
+        startAt:   win ? win.from : board.period.startAt,
+        endAt:     win ? win.to   : board.period.endAt,
+        baselines:    some(board.baselines),
+        carryover:    some(board.carryover),
+        liveSnapshot: some(board.liveSnapshot),
+        excluded:     board.excluded,
+        anchorMonth:  board.anchorMonth,
+        carryMonth:   board.carryMonth,
+      };
+    };
+
     const isOwner    = OWNER_CHANNELS.has(channel);
     const presetMain = PORTAL_PRESETS[channel] || {};
     // White-label override = owner, a seeded preset, a manual Firestore flag, or
@@ -367,6 +403,10 @@ exports.handler = async (event) => {
     // clients); otherwise the streamer's dashboard choice. Never assume Gambulls —
     // if none is set, leave it empty so the portal simply shows no casino section.
     const provider = (presetMain.provider || profile.activeProvider || "").toLowerCase();
+    // The primary board's period, falling back to the streamer doc for anyone the
+    // migration hasn't reached. Same value everywhere the old code read
+    // profile.leaderboardPeriod, so the two sources can't disagree mid-request.
+    const mainPeriod = periodOfBoard(boardFor(provider)) || profile.leaderboardPeriod || null;
 
     // Public-safe streamer info. Anything sensitive is NOT included here.
     const publicProfile = {
@@ -526,12 +566,12 @@ exports.handler = async (event) => {
               }
             } catch {}
             if (!data) {
-              data = await fetchRainbetForPeriod(rbKey, profile.leaderboardPeriod || null);
+              data = await fetchRainbetForPeriod(rbKey, mainPeriod);
               if (data) { try { await cacheRef.set({ cachedAt: Date.now(), data }); } catch {} }
               else if (cachedDoc?.data) data = cachedDoc.data;
             }
             if (data) {
-              const applied  = applyRainbetExclusions(data, profile.leaderboardPeriod || null);
+              const applied  = applyRainbetExclusions(data, mainPeriod);
               const lbPrizes = Array.isArray(profile.leaderboardPrizes) ? profile.leaderboardPrizes : [];
               leaderboard = {
                 period:   { from: data.from, to: data.to },
@@ -573,7 +613,7 @@ exports.handler = async (event) => {
                   totalUsers:   data.responseObject.totalUsers || 0,
                   totalWagered: data.responseObject.totalWagered || 0,
                 };
-                const applied = applyPeriod(raw, profile.leaderboardPeriod || null);
+                const applied = applyPeriod(raw, mainPeriod);
                 const lbPrizes = Array.isArray(profile.leaderboardPrizes) ? profile.leaderboardPrizes : [];
                 leaderboard = {
                   period:       data.responseObject.period,
@@ -770,7 +810,7 @@ exports.handler = async (event) => {
       leaderboardPeriods,
       // Countdown config set from the dashboard (weekly / bi-weekly / monthly).
       // Distinct from leaderboard.period (a string label) to avoid collision.
-      leaderboardTimer: profile.leaderboardPeriod || null,
+      leaderboardTimer: mainPeriod,
       store,
       pastWinners,
       giveawayWinners,
