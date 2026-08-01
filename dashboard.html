@@ -2395,6 +2395,17 @@
               </select>
               <div class="hint">WenBot posts giveaway announcements + Join button here</div>
             </div>
+            <!-- Only meaningful when several streamers share one server, so it's
+                 hidden until that's actually the case (see renderSharedGuildField). -->
+            <div class="field" id="discordMyChannelsField" style="display:none;grid-column:1/-1;">
+              <label>Your Channels</label>
+              <select id="discordMyChannels" multiple size="5" style="min-height:110px;"></select>
+              <div class="hint">
+                <strong>You're sharing this server with another streamer.</strong>
+                Pick the channels that are yours, and commands typed there answer for you with no extra step.
+                Anywhere else, WenBot asks which streamer the viewer means. Ctrl/Cmd-click to select more than one.
+              </div>
+            </div>
             <div class="field">
               <label>Announcements Channel</label>
               <select id="discordAnnouncementChannelId">
@@ -13417,7 +13428,7 @@ async function populateDiscordChannels(selectedGiveaway, selectedAnnouncement) {
     const resp = await fetch('/api/discord-channels?uid=' + encodeURIComponent(fb.activeUid || ''), {
       headers: { 'Authorization': 'Bearer ' + idToken },
     });
-    const { channels, roles, error } = await resp.json();
+    const { channels, roles, error, streamersInGuild } = await resp.json();
     if (error) throw new Error(error);
     const blankC = '<option value="">— select a channel —</option>';
     const chanOpts = (channels || []).map(c =>
@@ -13435,6 +13446,17 @@ async function populateDiscordChannels(selectedGiveaway, selectedAnnouncement) {
     { const g = (profile?.discordConfig?.goLive) || {};
       if (goC && g.channelId)  goC.value = g.channelId;
       if (goR && g.pingRoleId) goR.value = g.pingRoleId; }
+    // "Your channels" uses the same list; selections are restored below.
+    const mySel = document.getElementById('discordMyChannels');
+    // Only worth showing when the server genuinely has more than one streamer —
+    // otherwise every command already resolves to this account with no ambiguity.
+    const myField = document.getElementById('discordMyChannelsField');
+    if (myField) myField.style.display = (streamersInGuild > 1) ? '' : 'none';
+    if (mySel) {
+      mySel.innerHTML = chanOpts;
+      const mine = (profile?.discordConfig?.channelIds) || [];
+      Array.from(mySel.options).forEach(o => { o.selected = mine.includes(o.value); });
+    }
     if (selectedGiveaway)    gSel.value = selectedGiveaway;
     if (selectedAnnouncement) aSel.value = selectedAnnouncement;
     // Restore the verify-card selections too (their values come from the same lists).
@@ -13606,7 +13628,14 @@ async function saveDiscordSettings() {
 
   try {
     // Preserve verify settings (managed by the Verification & Roles card).
-    const discordConfig = { ...(profile?.discordConfig || {}), guildId, giveawayChannelId, announcementChannelId, giveallAuthorId, goLive };
+    // Channels this streamer claims in a shared server. Read straight from the
+    // multi-select; if the field was never shown (the normal one-streamer case)
+    // the existing value carries through untouched rather than being cleared.
+    const myChannelsEl = document.getElementById('discordMyChannels');
+    const channelIds = myChannelsEl && myChannelsEl.options.length
+      ? Array.from(myChannelsEl.selectedOptions).map(o => o.value)
+      : ((profile?.discordConfig || {}).channelIds || []);
+    const discordConfig = { ...(profile?.discordConfig || {}), guildId, giveawayChannelId, announcementChannelId, giveallAuthorId, goLive, channelIds };
     await saveStreamerProfile({ discordConfig });
     if (profile) profile.discordConfig = discordConfig;
     updateDiscordStatusBadge(guildId);

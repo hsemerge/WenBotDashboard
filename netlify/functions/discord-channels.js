@@ -62,7 +62,20 @@ exports.handler = async (event) => {
         .map(r => ({ id: r.id, name: r.name }));
     }
 
-    return res(200, { channels: text, roles, guildId });
+    // How many streamers share this server. The dashboard only surfaces the
+    // "your channels" picker when the answer is more than one, so a normal
+    // single-streamer setup never sees a control it has no use for.
+    let streamersInGuild = 1;
+    try {
+      const g = await db.collection("discord_guilds").doc(guildId).get();
+      if (g.exists) {
+        const d = g.data() || {};
+        const uids = Array.isArray(d.uids) ? d.uids : (d.uid ? [d.uid] : []);
+        streamersInGuild = uids.length || 1;
+      }
+    } catch (e) { console.warn("[discord-channels] guild lookup failed:", e.message); }
+
+    return res(200, { channels: text, roles, guildId, streamersInGuild });
   } catch (e) {
     console.error("[discord-channels] error:", e.message);
     return res(500, { error: "Internal server error" });
