@@ -573,7 +573,10 @@ exports.handler = async (event) => {
       if (presetMain.csgobigRefCode) {
         const now  = new Date();
         const from = presetMain.csgobigFrom || Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0);
-        const to   = presetMain.csgobigTo   || Date.now();
+        // Clamp to "now": a pinned race END is in the future while the race runs,
+        // and CSGOBig returns nothing for a future `to`. The race window still
+        // drives the countdown via raceEnd below; this is only the query bound.
+        const to   = Math.min(presetMain.csgobigTo || Date.now(), Date.now());
         // Race END for the countdown = end of the calendar month (last ms), which
         // is distinct from `to` (the up-to-now query window for current standings).
         const raceEnd = presetMain.csgobigTo || (Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0) - 1);
