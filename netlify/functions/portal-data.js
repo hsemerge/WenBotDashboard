@@ -144,9 +144,12 @@ const PORTAL_PRESETS = {
     provider:          "degen",
     degenReferralCode: "meg",
     // Second (switchable) leaderboard: CSGOBig partner API, keyless (ref code in URL).
-    // Window defaults to the current calendar month; set csgobigFrom/csgobigTo (ms) to
-    // pin a fixed race window instead.
+    // Her race runs 16th → 16th, NOT calendar months. Leaving these unset made the
+    // board reset on 1 Aug and archive premature "July winners" for a race that was
+    // still running. Roll these forward at the end of each race.
     csgobigRefCode:    "MEG74637HDKOCUR8464",
+    csgobigFrom:       Date.UTC(2026, 6, 16, 0, 0, 0),      // 16 Jul 2026 00:00 UTC
+    csgobigTo:         Date.UTC(2026, 7, 16, 23, 59, 59),   // 16 Aug 2026 23:59:59 UTC
     // Monthly CSGOBig prize ladder, in COINS, rank-indexed (1st → 13th; 5,000 total).
     csgobigPrizes:     [2000, 1000, 500, 400, 300, 250, 200, 150, 100, 50, 25, 15, 10],
     theme: {
@@ -584,7 +587,12 @@ exports.handler = async (event) => {
           prizePool: cbPrizes.reduce((s, v) => s + (Number(v) || 0), 0), // coins
         };
         try {
-          const key = `csgobig_${presetMain.csgobigRefCode}_${now.getUTCFullYear()}-${now.getUTCMonth() + 1}`;
+          // Key on the RACE WINDOW, not the month. A 16th→16th race spans two
+          // calendar months, so a month key split one race across two cache docs
+          // — and worse, after pinning a window the old month doc would still be
+          // served, showing the wrong totals. Window-keyed means changing the race
+          // window naturally invalidates the cache.
+          const key = `csgobig_${presetMain.csgobigRefCode}_${from}-${raceEnd}`;
           const cacheRef = db.collection("_cache").doc(key);
           // 20-min TTL: CSGOBig's rate limit is keyed PER REF CODE (not per IP), so
           // every consumer of her code shares one quota. Their 429 penalty appears
@@ -611,28 +619,34 @@ exports.handler = async (event) => {
           }
         } catch (err) { console.warn("[portal-data] csgobig fetch failed:", err.message); }
 
-        // Archive last month's final CSGOBig standings once (Winners page). The
-        // per-month cache doc naturally holds the last standings seen before the
-        // month rolled; `archived` marks it done so this runs exactly once.
+        // Archive the race's final standings once it has ACTUALLY ENDED.
+        //
+        // This used to fire on the calendar-month roll, which declared winners for
+        // a race that was still running: on 1 Aug 2026 it published 13 "July
+        // Monthly Race" winners with prizes while the real race ran to 16 Aug.
+        // Now it only archives once the pinned race window has passed, and it
+        // refuses to archive at all without a pinned window — no window means we
+        // don't know when the race ends, so we must not guess.
         try {
-          const pm = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
-          const pRef = db.collection("_cache")
-            .doc(`csgobig_${presetMain.csgobigRefCode}_${pm.getUTCFullYear()}-${pm.getUTCMonth() + 1}`);
-          const pSnap = await pRef.get();
-          const pd = pSnap.exists ? pSnap.data() : null;
-          if (pd && !pd.archived && pd.data && (pd.data.rankings || []).length) {
-            const monthName = pm.toLocaleString("en-US", { month: "long", timeZone: "UTC" }) + " " + pm.getUTCFullYear();
-            await db.collection("streamers").doc(uid).collection("leaderboard_periods")
-              .doc(`csgobig_${pm.getUTCFullYear()}-${pm.getUTCMonth() + 1}`).set({
-                casino: "csgobig", casinoName: "CSGOBig",
-                period:  monthName + " Monthly Race",
-                endDate: Date.UTC(pm.getUTCFullYear(), pm.getUTCMonth() + 1, 1) - 1,
-                winners: pd.data.rankings.slice(0, 13).map((r) => ({
-                  rank: r.rank, username: r.username, wagered: r.wagered,
-                  prize: cbPrizeFor(r.rank), avatarUrl: r.avatarUrl || null,
-                })),
-              }, { merge: true });
-            await pRef.set({ archived: true }, { merge: true });
+          if (presetMain.csgobigTo && Date.now() > raceEnd) {
+            const cRef  = db.collection("_cache").doc(`csgobig_${presetMain.csgobigRefCode}_${from}-${raceEnd}`);
+            const cSnap = await cRef.get();
+            const cd    = cSnap.exists ? cSnap.data() : null;
+            if (cd && !cd.archived && cd.data && (cd.data.rankings || []).length) {
+              const fmt = (ms) => new Date(ms).toLocaleDateString("en-US", { day: "numeric", month: "short", timeZone: "UTC" });
+              await db.collection("streamers").doc(uid).collection("leaderboard_periods")
+                .doc(`csgobig_${from}-${raceEnd}`).set({
+                  casino: "csgobig", casinoName: "CSGOBig",
+                  period:  `${fmt(from)} – ${fmt(raceEnd)} Race`,
+                  startAt: from,
+                  endDate: raceEnd,
+                  winners: cd.data.rankings.slice(0, 13).map((r) => ({
+                    rank: r.rank, username: r.username, wagered: r.wagered,
+                    prize: cbPrizeFor(r.rank), avatarUrl: r.avatarUrl || null,
+                  })),
+                }, { merge: true });
+              await cRef.set({ archived: true }, { merge: true });
+            }
           }
         } catch (err) { console.warn("[portal-data] csgobig archive failed:", err.message); }
       }
