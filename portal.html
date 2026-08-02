@@ -220,6 +220,21 @@
     .wagered-cell { color: var(--text-dim); font-size: 13px; }
     .prize-cell { font-family: 'Exo 2', sans-serif; font-weight: 800; font-size: 14px; color: var(--accent); }
 
+    /* Board switcher — only rendered when a streamer runs more than one race. */
+    .lb-switch { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+    .lb-switch-btn {
+      background: var(--bg-card); border: 1px solid var(--border); color: var(--text-dim);
+      font-family: inherit; font-size: 13px; font-weight: 700;
+      padding: 7px 16px; border-radius: 999px; cursor: pointer;
+      transition: color .15s, border-color .15s, background .15s;
+    }
+    .lb-switch-btn:hover { color: var(--bright); border-color: var(--accent); }
+    .lb-switch-btn.active {
+      background: var(--accent); border-color: var(--accent);
+      color: var(--bg); /* accent is a light cyan, so text goes dark for contrast */
+    }
+    .lb-switch-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
     /* Past leaderboard periods */
     .lb-periods { margin-top: 36px; }
     .lb-periods-title {
@@ -953,21 +968,54 @@
   }
   setInterval(tickPortalLbCountdown, 1000);
 
+  // Which board the viewer is looking at. A streamer can run several races at
+  // once, so the leaderboard tab shows the primary plus one tab per extra board.
+  let _portalBoardIdx = 0;
+  function selectPortalBoard(i) {
+    _portalBoardIdx = i;
+    renderTabContent('leaderboard');   // same path the tab bar uses
+  }
+
   function renderLeaderboard(s) {
     _portalLbPeriod = s.leaderboardTimer || null;
     setTimeout(tickPortalLbCountdown, 0); // update once the tab HTML is in the DOM
     if (!s.features.leaderboard) {
       return lockedState('Leaderboard', 'This streamer is on a plan that doesn’t include the public leaderboard.');
     }
-    if (!s.leaderboard) {
+
+    // Primary board first, then any extras the streamer configured.
+    const extras = Array.isArray(s.boards) ? s.boards : [];
+    const all = [
+      ...(s.leaderboard ? [{
+        label:    s.streamer.providerName,
+        period:   s.leaderboard.period || 'Monthly',
+        rankings: s.leaderboard.rankings || [],
+        totalUsers: s.leaderboard.totalUsers, totalWagered: s.leaderboard.totalWagered,
+        casinoName: s.streamer.providerName, primary: true,
+      }] : []),
+      ...extras,
+    ];
+    if (_portalBoardIdx >= all.length) _portalBoardIdx = 0;
+    const board = all[_portalBoardIdx] || null;
+
+    // Tabs only when there's a genuine choice — one board looks exactly as before.
+    const switcherHtml = all.length > 1 ? `
+      <div class="lb-switch">
+        ${all.map((b, i) => `
+          <button class="lb-switch-btn${i === _portalBoardIdx ? ' active' : ''}"
+                  onclick="selectPortalBoard(${i})">${esc(b.label || b.casinoName || 'Board')}</button>
+        `).join('')}
+      </div>` : '';
+
+    if (!board) {
       // Live leaderboard might not be available (no API key, fetch failed), but
       // past periods can still render — show those if we have them.
       const past = renderPastPeriodsHtml(s.leaderboardPeriods, s.streamer.providerName);
       const live = emptyState('📊', 'Leaderboard not available right now.');
-      return `<div class="panel">${live}</div>${past}`;
+      return `<div class="panel">${switcherHtml}${live}</div>${past}`;
     }
-    const period   = s.leaderboard.period || 'Monthly';
-    const rankings = s.leaderboard.rankings || [];
+    const period   = board.period || 'Monthly';
+    const rankings = board.rankings || [];
 
     const podiumHtml = renderPodiumHtml(rankings.slice(0, 3));
     const hasPrizes  = rankings.some(r => r.prize > 0);
@@ -1001,18 +1049,19 @@
 
     return `
       <div class="panel">
+        ${switcherHtml}
         <div class="section-title">Wager Leaderboard · ${esc(period)}</div>
         <div class="lb-stats">
           <div class="stat-box">
-            <div class="stat-value">${fmtMoney(s.leaderboard.totalWagered)}</div>
+            <div class="stat-value">${fmtMoney(board.totalWagered)}</div>
             <div class="stat-label">Total Wagered</div>
           </div>
           <div class="stat-box">
-            <div class="stat-value">${fmtNum(s.leaderboard.totalUsers)}</div>
+            <div class="stat-value">${fmtNum(board.totalUsers)}</div>
             <div class="stat-label">Players</div>
           </div>
           <div class="stat-box">
-            <div class="stat-value">${esc(s.streamer.providerName)}</div>
+            <div class="stat-value">${esc(board.casinoName || s.streamer.providerName)}</div>
             <div class="stat-label">Casino</div>
           </div>
           <div class="stat-box">

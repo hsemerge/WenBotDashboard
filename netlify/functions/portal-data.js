@@ -8,7 +8,7 @@ const { CASINO_NAMES }       = require("./_lib/casinos");
 const { lookupAffiliate }    = require("./_lib/affiliate");
 const { normalizeGambulls, applyPeriod } = require("./_lib/leaderboard");
 const { fetchDegenRace }     = require("./_lib/degen");
-const { fetchRainbetForPeriod, applyRainbetExclusions } = require("./_lib/rainbet");
+const { fetchRainbetForPeriod, fetchRainbetRange, applyRainbetExclusions, ymd: rbYmd } = require("./_lib/rainbet");
 const { fetchCsgobigRace }   = require("./_lib/csgobig");
 const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards");
 
@@ -487,6 +487,10 @@ exports.handler = async (event) => {
     // Elite+ features: live leaderboard, bonus battle / tournament state
     let leaderboard = null;
     let leaderboard2 = null; // secondary switchable board (e.g. CSGOBig)
+    // Every additional board beyond the primary, in display order. leaderboard2 is
+    // kept alongside it because Meg's bespoke portal renders that field directly;
+    // new portals read `boards` and can show any number.
+    let extraBoards = [];
     let leaderboardPeriods = null; // past monthly winners
     if (tier >= TIER_RANK.elite) {
       // Degen passthrough — the live race (period + per-rank prizes) comes straight
@@ -743,6 +747,91 @@ exports.handler = async (event) => {
         } catch (err) { console.warn("[portal-data] csgobig archive failed:", err.message); }
       }
 
+      // ── Additional boards, any provider ────────────────────────────────────
+      //
+      // The block above handles CSGOBig specifically (its cache and archive
+      // behaviour are load-bearing and deliberately left alone). This builds every
+      // OTHER extra board a streamer has configured, so adding a second race is a
+      // dashboard action rather than a code change — which is the whole point of
+      // boards being data.
+      //
+      // Each board is independent: its own credential, window and prize ladder. A
+      // failure is contained to that board, so one dead API can't take down the
+      // portal or the other races.
+      try {
+        const extras = boards.filter((b) => b.provider && b.provider !== provider && b.provider !== "csgobig");
+        for (const b of extras) {
+          const win  = boardWindow(b);
+          const from = win ? win.from : (b.period.startAt || null);
+          const to   = win ? win.to   : (b.period.endAt   || null);
+          const ladder   = Array.isArray(b.prizes) ? b.prizes : [];
+          const prizeFor = (rank) => (Number(ladder[rank - 1]) > 0 ? Number(ladder[rank - 1]) : 0);
+
+          const entry = {
+            key: b.id, label: b.label || CASINO_NAMES[b.provider] || b.provider,
+            casinoName: CASINO_NAMES[b.provider] || b.provider,
+            period: "Race", startAt: from, endAt: to,
+            rankings: [], totalUsers: 0, totalWagered: 0,
+            prizePool: ladder.reduce((s, v) => s + (Number(v) || 0), 0),
+          };
+
+          try {
+            // Credential on the board wins; otherwise inherit providers/{provider}
+            // so a streamer who already configured that casino doesn't re-enter a key.
+            let cred = (b.credential && (b.credential.apiKey || b.credential.refCode)) || null;
+            if (!cred) {
+              const pd = await db.collection("streamers").doc(uid).collection("providers").doc(b.provider).get();
+              if (pd.exists) cred = pd.data().apiKey || pd.data().referralCode || null;
+            }
+            if (!cred) { extraBoards.push(entry); continue; } // configured but unusable — still list it
+
+            // Cached per board+window: extra boards are polled by every portal
+            // visitor, and none of these APIs should be hit once per page view.
+            const ckey = `board_${uid}_${b.id}_${from}-${to}`;
+            const cref = db.collection("_cache").doc(ckey);
+            let data = null, cdoc = null;
+            try { const c = await cref.get(); if (c.exists) cdoc = c.data(); } catch {}
+            if (cdoc && cdoc.data && (Date.now() - cdoc.cachedAt) < 5 * 60 * 1000) data = cdoc.data;
+
+            if (!data) {
+              if (b.provider === "degen") {
+                const race = await fetchDegenRace(cred);
+                if (race) data = { rankings: race.rankings.map((r) => ({ rank: r.rank, username: r.username, wagered: r.wagered, avatarUrl: r.avatarUrl })), totalUsers: race.totalUsers, totalWagered: race.totalWagered };
+              } else if (b.provider === "rainbet" && from && to) {
+                // Rainbet takes YYYY-MM-DD, not milliseconds — passing raw
+                // timestamps silently returns nothing.
+                const rb = await fetchRainbetRange(cred, rbYmd(from), rbYmd(to));
+                if (rb) data = { rankings: (rb.rankings || []).map((r) => ({ rank: r.rank, username: r.username, wagered: r.wagered, avatarUrl: null })), totalUsers: rb.totalUsers, totalWagered: rb.totalWagered };
+              } else if (b.provider === "gambulls") {
+                const resp = await fetch("https://api.gambulls.com/api/public/streamer/leaderboard?type=monthly&limit=100",
+                  { headers: { "x-streamer-api-key": cred, "Accept": "application/json" } });
+                if (resp.ok) {
+                  const j = await resp.json();
+                  if (j.success && j.responseObject?.rankings) {
+                    const rows = normalizeGambulls(j.responseObject);
+                    data = { rankings: rows, totalUsers: j.responseObject.totalUsers || 0, totalWagered: j.responseObject.totalWagered || 0 };
+                  }
+                }
+              }
+              if (data) { try { await cref.set({ cachedAt: Date.now(), data }); } catch {} }
+              else if (cdoc && cdoc.data) data = cdoc.data;   // serve stale over blank
+            }
+
+            if (data) {
+              entry.rankings     = (data.rankings || []).map((r) => ({
+                rank: r.rank, name: r.username, wagerAmount: r.wagered || 0,
+                avatarUrl: r.avatarUrl || null, prize: prizeFor(r.rank),
+              }));
+              entry.totalUsers   = data.totalUsers   || 0;
+              entry.totalWagered = data.totalWagered || 0;
+            }
+          } catch (e) {
+            console.warn(`[portal-data] extra board ${b.id} failed:`, e.message);
+          }
+          extraBoards.push(entry);
+        }
+      } catch (err) { console.warn("[portal-data] extra boards failed:", err.message); }
+
       // Past leaderboard periods (same data /api/leaderboard-winners exposes).
       // ALL casinos, not just the primary provider — a streamer can run multiple
       // boards (e.g. Meg's Degen + CSGOBig) and every finished period belongs on
@@ -807,6 +896,9 @@ exports.handler = async (event) => {
       active,
       leaderboard,
       leaderboard2,
+      // leaderboard2 first so the existing bespoke portal and the generic one
+      // agree on ordering when a streamer has both a CSGOBig race and others.
+      boards: [...(leaderboard2 ? [leaderboard2] : []), ...extraBoards],
       leaderboardPeriods,
       // Countdown config set from the dashboard (weekly / bi-weekly / monthly).
       // Distinct from leaderboard.period (a string label) to avoid collision.
