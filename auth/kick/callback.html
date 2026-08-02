@@ -214,19 +214,33 @@
             accessToken:  tokens.access_token,
             expiresAt:    Date.now() + (tokens.expires_in * 1000),
           };
+          let sessionPersisted = true;
           try {
             localStorage.setItem("kick_viewer_session", JSON.stringify(viewerSession));
           } catch (e) {
-            // Storage full or blocked. On a same-origin return this is fatal (the
-            // destination page reads the session from storage), but a cross-domain
-            // handoff carries the session in the minted code and still works — so
-            // don't abort here, let the branch below decide.
+            // Storage full or blocked. A cross-domain handoff carries the session
+            // inside the minted code and still works, so this isn't fatal there —
+            // but a same-origin return IS fatal, because the destination page reads
+            // the session from storage. Record it and let each branch decide, rather
+            // than swallowing it and leaving the viewer looking logged-out.
+            sessionPersisted = false;
             console.warn("[callback] could not persist viewer session:", e && e.message);
           }
 
           showCheck();
           setStatus(`Welcome, @${kickUser.name}!`, "success");
           setDetail("Redirecting back...");
+
+          // Same-origin destinations read the session from storage, so if the write
+          // failed there is nothing to return TO. Say so plainly instead of sending
+          // them onward to a page that will look signed-out for no visible reason.
+          // The cross-domain branch below is unaffected and deliberately not gated.
+          if (!sessionPersisted && !(statePayload && statePayload.returnOrigin)) {
+            hideSpinner();
+            setStatus("Couldn't save your sign-in", "error");
+            setDetail("Your browser is blocking site storage (this is common in private mode, or when storage is full). Enable site data for wenbot.gg and try again.");
+            return;
+          }
 
           if (isVerify) {
             const vp = new URLSearchParams({
