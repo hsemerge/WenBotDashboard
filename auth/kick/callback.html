@@ -57,6 +57,7 @@
     const state      = urlParams.get("state");
     const kickError  = urlParams.get("error");
     let   statePayload = null; // populated inside run() from localStorage
+    let   viewerSession = null; // built in run(); used directly by the cross-domain handoff
 
     function setStatus(msg, type) {
       const el = document.getElementById("status");
@@ -200,12 +201,28 @@
 
           // Unified session — used by verify.html, bonus-battle.html, tournament.html
           // Identity only — channel/casino are per-page context, not stored here.
-          localStorage.setItem("kick_viewer_session", JSON.stringify({
+          //
+          // Kept in a variable as well as in localStorage. The cross-domain handoff
+          // below used to WRITE this and immediately READ IT BACK before minting,
+          // which meant a browser that wouldn't persist the value returned null and
+          // the handoff dead-ended with "Missing session" — even though the Kick
+          // login had fully succeeded. Nothing needs the round-trip: we already have
+          // the object here.
+          viewerSession = {
             kickUsername: kickUser.name,
             kickUserId:   kickUser.user_id,
             accessToken:  tokens.access_token,
             expiresAt:    Date.now() + (tokens.expires_in * 1000),
-          }));
+          };
+          try {
+            localStorage.setItem("kick_viewer_session", JSON.stringify(viewerSession));
+          } catch (e) {
+            // Storage full or blocked. On a same-origin return this is fatal (the
+            // destination page reads the session from storage), but a cross-domain
+            // handoff carries the session in the minted code and still works — so
+            // don't abort here, let the branch below decide.
+            console.warn("[callback] could not persist viewer session:", e && e.message);
+          }
 
           showCheck();
           setStatus(`Welcome, @${kickUser.name}!`, "success");
@@ -228,7 +245,11 @@
             // localStorage isn't readable on their domain.
             if (statePayload.returnOrigin) {
               try {
-                const sess = JSON.parse(localStorage.getItem("kick_viewer_session"));
+                // Use the session built above, not a re-read of localStorage.
+                const sess = viewerSession;
+                if (!sess || !sess.accessToken || !sess.kickUsername) {
+                  throw new Error("Your Kick session didn't come through. Please try signing in again.");
+                }
                 const mintResp = await fetch("/api/kick-session-mint", {
                   method:  "POST",
                   headers: { "Content-Type": "application/json" },
