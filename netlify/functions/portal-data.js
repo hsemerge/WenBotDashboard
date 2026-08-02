@@ -759,7 +759,13 @@ exports.handler = async (event) => {
       // failure is contained to that board, so one dead API can't take down the
       // portal or the other races.
       try {
-        const extras = boards.filter((b) => b.provider && b.provider !== provider && b.provider !== "csgobig");
+        // Exclude the PRIMARY BOARD by id, not every board on that casino. Filtering
+        // by provider silently dropped a second race on the same casino — which is
+        // the most ordinary case there is (two Gambulls races on different
+        // schedules), and it would have looked like the board simply didn't work.
+        const primaryBoard = boardFor(provider);
+        const extras = boards.filter((b) =>
+          b.provider && b.provider !== "csgobig" && b.id !== (primaryBoard && primaryBoard.id));
         for (const b of extras) {
           const win  = boardWindow(b);
           const from = win ? win.from : (b.period.startAt || null);
