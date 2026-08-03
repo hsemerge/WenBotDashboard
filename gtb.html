@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WenBot — Guess the Balance</title>
+  <meta name="description" content="Every guess in the current Guess the Balance round.">
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Self-contained — /css/styles.css is the dashboard app shell and locks
+       scrolling via html,body{overflow:hidden}. */
+    :root {
+      --bg:#0d1117; --bg-panel:#141a23; --bg-card:#1a212c; --border:#263041;
+      --text:#c9d4e3; --dim:#8496ad; --bright:#f0f6fc;
+      --accent:#00e5ff; --gold:#f5c518; --green:#53e077;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin:0; padding:0; height:auto; min-height:100%;
+      overflow-x:hidden; overflow-y:auto;
+      background:var(--bg); color:var(--text);
+      font-family:'Inter', system-ui, sans-serif; -webkit-font-smoothing:antialiased;
+    }
+    a { color:var(--accent); }
+    .wrap { max-width:860px; margin:0 auto; padding:0 20px 80px; }
+
+    .hero { text-align:center; padding:40px 0 20px; }
+    .hero img { height:52px; max-width:190px; object-fit:contain; }
+    h1 {
+      font-family:'Exo 2',sans-serif; font-weight:900; font-size:clamp(26px,5vw,38px);
+      color:var(--bright); margin:14px 0 8px; letter-spacing:-.02em;
+    }
+    .who { font-size:15px; color:var(--dim); }
+    .who b { color:var(--accent); font-weight:700; }
+
+    .state {
+      display:inline-flex; align-items:center; gap:8px; margin-top:16px;
+      border-radius:999px; padding:7px 18px; font-size:13.5px; font-weight:700;
+      border:1px solid var(--border); background:var(--bg-card); color:var(--dim);
+    }
+    .state.open   { color:var(--green); border-color:rgba(83,224,119,.35); background:rgba(83,224,119,.08); }
+    .state.closed { color:var(--gold);  border-color:rgba(245,197,24,.35); background:rgba(245,197,24,.08); }
+
+    .stats { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:20px; }
+    .stat {
+      background:var(--bg-card); border:1px solid var(--border); border-radius:10px;
+      padding:12px 20px; min-width:110px;
+    }
+    .stat .v {
+      font-family:'Exo 2',sans-serif; font-size:22px; font-weight:800; color:var(--bright);
+      font-variant-numeric:tabular-nums;
+    }
+    .stat .l { font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.07em; margin-top:3px; }
+    .stat.win .v { color:var(--gold); }
+
+    .search {
+      display:block; width:100%; max-width:320px; margin:26px auto 0;
+      background:var(--bg-card); border:1px solid var(--border); border-radius:999px;
+      color:var(--text); padding:11px 18px; font:400 14px 'Inter',sans-serif;
+    }
+    .search::placeholder { color:var(--dim); }
+    .search:focus { outline:none; border-color:var(--accent); }
+
+    .list { margin-top:24px; border-top:1px solid var(--border); }
+    .row {
+      display:grid; grid-template-columns:52px minmax(0,1fr) auto;
+      gap:16px; align-items:center;
+      padding:13px 12px; border-bottom:1px solid var(--border);
+      transition:background .12s;
+    }
+    .row:hover { background:rgba(255,255,255,.022); }
+    .row.win { background:rgba(245,197,24,.07); }
+    .rank { font-size:13px; font-weight:700; color:var(--dim); font-variant-numeric:tabular-nums; }
+    .row.win .rank { color:var(--gold); }
+    .name { font-size:14.5px; color:var(--bright); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .amt {
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:15px; font-weight:600;
+      color:var(--accent); font-variant-numeric:tabular-nums; text-align:right;
+    }
+    .row.win .amt { color:var(--gold); }
+    .diff { font-size:12px; color:var(--dim); font-variant-numeric:tabular-nums; }
+
+    .note {
+      background:var(--bg-card); border:1px dashed var(--border); border-radius:10px;
+      padding:16px; margin-top:22px; font-size:13.5px; color:var(--dim); line-height:1.6; text-align:center;
+    }
+    .empty { text-align:center; color:var(--dim); padding:56px 0; font-size:15px; }
+    .pagefoot { text-align:center; margin-top:44px; font-size:13px; color:var(--dim); }
+    .pagefoot a { text-decoration:none; }
+    .pagefoot a:hover { text-decoration:underline; }
+
+    @media (max-width:560px) {
+      .row { grid-template-columns:40px minmax(0,1fr) auto; gap:10px; }
+      .stats { gap:8px; }
+      .stat { padding:10px 14px; min-width:0; flex:1; }
+    }
+    @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <img src="/img/logo.png" alt="WenBot">
+      <h1>Guess the Balance</h1>
+      <div class="who" id="who"></div>
+      <div id="stateBox"></div>
+      <div class="stats" id="stats"></div>
+    </div>
+
+    <input class="search" id="q" type="search" placeholder="Find your name…" oninput="render()" autocomplete="off">
+    <div id="out"><div class="empty">Loading guesses…</div></div>
+
+    <div class="pagefoot">Powered by <a href="/">WenBot</a> · <a href="/commands">Commands</a></div>
+  </div>
+
+  <script>
+    const params  = new URLSearchParams(location.search);
+    const pathBit = location.pathname.replace(/^\/gtb\/?/, "").replace(/\/$/, "");
+    const CHANNEL = (params.get("channel") || pathBit || "").toLowerCase().trim();
+
+    let DATA = null;
+    const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+      ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+    const money = (n) => "$" + Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 0 });
+
+    function render() {
+      const box = document.getElementById("out");
+      if (!DATA) return;
+      const q = (document.getElementById("q").value || "").toLowerCase().trim();
+      const all = DATA.guesses || [];
+      const rows = q ? all.filter((g) => String(g.username).toLowerCase().includes(q)) : all;
+
+      if (!all.length) {
+        box.innerHTML = '<div class="empty">No guesses in this round yet.</div>';
+        return;
+      }
+      if (!rows.length) {
+        box.innerHTML = '<div class="empty">Nobody matching that name guessed this round.</div>';
+        return;
+      }
+
+      const settled = DATA.session && DATA.session.actual != null;
+      const winner  = DATA.session && DATA.session.winner ? String(DATA.session.winner.kickUsername || "").toLowerCase() : null;
+
+      box.innerHTML = '<div class="list">' + rows.map((g, i) => {
+        const isWin = winner && String(g.username).toLowerCase() === winner;
+        // Once the round is settled the list is ordered by closeness, so the rank
+        // means "closest", not "highest guess" — show the gap to make that obvious.
+        const right = settled
+          ? `<div><div class="amt">${money(g.guess)}</div><div class="diff">${money(g.diff)} off</div></div>`
+          : `<div class="amt">${money(g.guess)}</div>`;
+        return `
+          <div class="row${isWin ? " win" : ""}">
+            <div class="rank">${isWin ? "🏆" : "#" + (all.indexOf(g) + 1)}</div>
+            <div class="name">${esc(g.username)}</div>
+            ${right}
+          </div>`;
+      }).join("") + "</div>"
+      + (DATA.truncated ? '<div class="note">Showing the first 500 guesses.</div>' : "");
+    }
+
+    function header() {
+      document.getElementById("who").innerHTML =
+        "Round run by <b>" + esc(DATA.displayName || DATA.channel) + "</b>";
+
+      const settled = DATA.session && DATA.session.actual != null;
+      const st = document.getElementById("stateBox");
+      if (settled)      st.innerHTML = '<div class="state closed">🏁 Round finished</div>';
+      else if (DATA.open) st.innerHTML = '<div class="state open">🟢 Entries are open — type !gtb in chat</div>';
+      else              st.innerHTML = '<div class="state closed">🔒 Entries are closed</div>';
+
+      const s = [];
+      s.push(`<div class="stat"><div class="v">${(DATA.guesses || []).length}</div><div class="l">Guesses</div></div>`);
+      if (settled) {
+        s.push(`<div class="stat"><div class="v">${money(DATA.session.actual)}</div><div class="l">Actual</div></div>`);
+        if (DATA.session.winner)
+          s.push(`<div class="stat win"><div class="v">${esc(DATA.session.winner.kickUsername)}</div><div class="l">Winner</div></div>`);
+      }
+      document.getElementById("stats").innerHTML = s.join("");
+    }
+
+    async function load() {
+      if (!CHANNEL) {
+        document.getElementById("out").innerHTML =
+          '<div class="empty">Add a channel to see its guesses, e.g. /gtb?channel=yourchannel</div>';
+        return;
+      }
+      try {
+        const r = await fetch("/api/gtb-guesses?channel=" + encodeURIComponent(CHANNEL));
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "Failed");
+        DATA = d;
+      } catch (e) {
+        document.getElementById("out").innerHTML =
+          '<div class="empty">Couldn\'t load this round. Please refresh.</div>';
+        return;
+      }
+      if (!DATA.sessionId) {
+        document.getElementById("who").innerHTML =
+          "Round run by <b>" + esc(DATA.displayName || DATA.channel) + "</b>";
+        document.getElementById("out").innerHTML =
+          '<div class="empty">This channel hasn\'t run a Guess the Balance round yet.</div>';
+        return;
+      }
+      header();
+      render();
+    }
+
+    load();
+    // Refresh while entries are open so a viewer watching the page sees guesses
+    // arrive. Stops once the round closes — nothing changes after that.
+    setInterval(() => { if (DATA && DATA.open) load(); }, 15000);
+  </script>
+</body>
+</html>

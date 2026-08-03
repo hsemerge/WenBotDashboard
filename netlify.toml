@@ -75,6 +75,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/gtb"
+  to     = "/gtb.html"
+  status = 200
+
+[[redirects]]
   from   = "/commands"
   to     = "/commands.html"
   status = 200
@@ -437,6 +442,11 @@
 [[redirects]]
   from   = "/api/stripe-webhook"
   to     = "/.netlify/functions/stripe-webhook"
+  status = 200
+
+[[redirects]]
+  from   = "/api/gtb-guesses"
+  to     = "/.netlify/functions/gtb-guesses"
   status = 200
 
 [[redirects]]
