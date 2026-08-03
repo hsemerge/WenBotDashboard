@@ -75,6 +75,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/commands"
+  to     = "/commands.html"
+  status = 200
+
+[[redirects]]
   from   = "/community"
   to     = "/community.html"
   status = 200
@@ -432,6 +437,11 @@
 [[redirects]]
   from   = "/api/stripe-webhook"
   to     = "/.netlify/functions/stripe-webhook"
+  status = 200
+
+[[redirects]]
+  from   = "/api/commands-data"
+  to     = "/.netlify/functions/commands-data"
   status = 200
 
 [[redirects]]
