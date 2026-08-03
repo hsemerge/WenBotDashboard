@@ -20,7 +20,7 @@ const { res, checkRateLimit } = require("./_lib/http");
 const { getKickUser }         = require("./_lib/kick");
 
 const MIN_AWARD = 10;
-const MAX_AWARD = 1000;
+const MAX_AWARD = 500;
 
 // "Today" as YYYY-MM-DD in the streamer's timezone if set, else UTC. Mirrors
 // todayStr() in WenBotServer/src/commands/points.js — keep them in step.

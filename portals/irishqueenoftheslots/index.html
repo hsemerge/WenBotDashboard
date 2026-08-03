@@ -1080,11 +1080,18 @@
   // once-per-day. The video is pure presentation: it starts immediately so the
   // modal never feels dead, and the amount reveals underneath once the request
   // returns (with a small floor delay so it lands as a reveal, not a flash).
-  let _dcBusy = false, _dcClaimedToday = false;
+  // Tri-state, not a boolean. A boolean defaulted to "not claimed", so on every
+  // sign-in the button rendered as a live CLAIM for the second or two the status
+  // request took, then flipped to CLAIMED underneath the viewer's cursor. Starting
+  // at 'unknown' means we never invite a click we're about to take away.
+  let _dcBusy = false;
+  let _dcState = 'unknown';      // 'unknown' | 'ready' | 'claimed'
+  let _dcNextAt = 0;             // epoch ms when the next claim unlocks
+  let _dcTicker = null;
 
   // Ask whether today's claim is already used, so the button is honest on load.
   async function checkDailyClaimStatus() {
-    if (!viewer) { _dcClaimedToday = false; refreshDailyClaimUI(); return; }
+    if (!viewer) { _dcState = 'unknown'; refreshDailyClaimUI(); return; }
     try {
       const r = await fetch('/api/portal-daily-claim', {
         method: 'POST',
@@ -1092,36 +1099,82 @@
         body: JSON.stringify({ action: 'status', channel: CHANNEL, kickUsername: viewer.kickUsername, accessToken: viewer.accessToken }),
       });
       const d = await r.json().catch(() => ({}));
-      if (r.ok) _dcClaimedToday = !!d.claimedToday;
-    } catch { /* leave as-is; the claim call is authoritative anyway */ }
+      if (r.ok) {
+        _dcState  = d.claimedToday ? 'claimed' : 'ready';
+        _dcNextAt = Date.now() + (Number(d.nextClaimInMs) || 0);
+      }
+      // A failed status check leaves it 'unknown' — the button stays disabled
+      // rather than guessing. The claim endpoint is authoritative either way.
+    } catch { /* keep 'unknown' */ }
     refreshDailyClaimUI();
+  }
+
+  // "5h 12m" / "48s" — enough precision to be useful without ticking noisily.
+  function _dcCountdown(ms) {
+    if (ms <= 0) return null;
+    const s = Math.floor(ms / 1000);
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    if (h > 0) return h + 'h ' + m + 'm';
+    if (m > 0) return m + 'm ' + sec + 's';
+    return sec + 's';
   }
 
   function refreshDailyClaimUI() {
     const btn = document.getElementById('dcBtn');
     const sub = document.getElementById('dcSub');
     if (!btn || !sub) return;
+
+    if (_dcTicker) { clearInterval(_dcTicker); _dcTicker = null; }
+
     if (!viewer) {
       // No button at all when signed out. The nav already has "Sign in with
       // Kick"; a second button doing the identical thing is just noise. The card
       // stays visible so the feature still advertises itself.
       btn.style.display = 'none';
       sub.textContent = 'Free points every day, just for showing up. Sign in with Kick to start.';
-    } else if (_dcClaimedToday) {
+      return;
+    }
+
+    if (_dcState === 'unknown') {
+      btn.style.display = '';
+      btn.textContent = 'CHECKING…'; btn.disabled = true;
+      sub.textContent = 'Checking your daily reward…';
+      return;
+    }
+
+    if (_dcState === 'claimed') {
       btn.style.display = '';
       btn.textContent = 'CLAIMED'; btn.disabled = true;
-      sub.textContent = 'Already claimed today. Come back tomorrow!';
-    } else {
-      btn.style.display = '';
-      btn.textContent = 'CLAIM'; btn.disabled = false;
-      sub.textContent = 'Claim free points once every day.';
+      // Live countdown to the next unlock. Resets are UTC midnight (the server
+      // sends the exact remaining ms, so the two can't disagree).
+      const tick = () => {
+        const left = _dcNextAt - Date.now();
+        const txt  = _dcCountdown(left);
+        if (!txt) {
+          // Rolled over while the page was open — go straight to claimable.
+          _dcState = 'ready';
+          refreshDailyClaimUI();
+          return;
+        }
+        sub.textContent = 'Already claimed today. Next reward in ' + txt + '.';
+      };
+      tick();
+      _dcTicker = setInterval(tick, 1000);
+      return;
     }
+
+    btn.style.display = '';
+    btn.textContent = 'CLAIM'; btn.disabled = false;
+    sub.textContent = 'Claim free points once every day.';
   }
 
   window.openDailyClaim = async function () {
     if (_dcBusy) return;
     if (!viewer) { viewerLogin(); return; }
-    if (_dcClaimedToday) return;
+    // Only 'ready' opens the modal. 'unknown' matters as much as 'claimed': if the
+    // status check hasn't answered yet, a click shouldn't start the reveal video
+    // for a claim that may already be spent.
+    if (_dcState !== 'ready') return;
     _dcBusy = true;
 
     const overlay = document.getElementById('dcOverlay');
@@ -1158,7 +1211,8 @@
     const wait = Math.max(0, 1400 - (Date.now() - startedAt));
     setTimeout(() => {
       if (httpStatus === 200 && data && data.ok) {
-        _dcClaimedToday = true;
+        _dcState  = 'claimed';
+        _dcNextAt = Date.now() + (Number(data.nextClaimInMs) || 0);
         result.innerHTML =
           '<div class="dc-congrats">🎉 Congratulations, you won</div>' +
           '<div class="dc-amount">' + Number(data.awarded).toLocaleString() + '</div>' +
@@ -1167,7 +1221,8 @@
           '<div class="dc-foot">Come back tomorrow to claim again.</div>';
         fetchBalance();
       } else if (httpStatus === 409) {
-        _dcClaimedToday = true;
+        _dcState  = 'claimed';
+        _dcNextAt = Date.now() + (Number(data && data.nextClaimInMs) || 0);
         result.innerHTML =
           '<div class="dc-congrats">Already claimed today</div>' +
           '<div class="dc-foot">' + esc(data.message || 'Come back tomorrow to claim again.') + '</div>';
