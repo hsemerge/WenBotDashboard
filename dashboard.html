@@ -7237,7 +7237,7 @@ function _gwBadgesFor(entry) {
     // does NOT satisfy a casino requirement — say so rather than implying it does.
     const provs   = (_gwVerifiedBoards[key] || []).filter(p => p !== 'none');
     const kickOnly = !provs.length;
-    const label   = kickOnly ? 'Kick verified only — no casino account linked'
+    const label   = kickOnly ? 'Kick verified only, no casino account linked'
                              : 'Casino verified: ' + provs.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(', ');
     html += `<span class="gw-badge gw-badge-casino" title="${label}">${kickOnly ? '✓' : '✓'}</span>`;
   }

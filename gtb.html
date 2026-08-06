@@ -166,7 +166,7 @@
       const settled = DATA.session && DATA.session.actual != null;
       const st = document.getElementById("stateBox");
       if (settled)      st.innerHTML = '<div class="state closed">🏁 Round finished</div>';
-      else if (DATA.open) st.innerHTML = '<div class="state open">🟢 Entries are open — type !gtb in chat</div>';
+      else if (DATA.open) st.innerHTML = '<div class="state open">🟢 Entries are open, type !gtb in chat</div>';
       else              st.innerHTML = '<div class="state closed">🔒 Entries are closed</div>';
 
       const s = [];
