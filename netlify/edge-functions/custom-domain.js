@@ -47,11 +47,16 @@ export default async (request, context) => {
     return;
   }
 
-  // Bespoke portal: a single self-contained page (hash-routed — #store, #winners,
-  // etc.), so there are NO server-side sub-paths. Serve the bespoke page for every
-  // page request, including arbitrary paths like /admin123 or /yazo — otherwise
-  // they'd fall through to the standard portal.html below and leak the old portal
-  // + leaderboard. (Assets, /api/*, /.netlify/* already returned above.)
+  // Bespoke portal: a single self-contained page, so there are NO server-side
+  // sub-paths. Serve the bespoke page for every page request, including arbitrary
+  // paths like /admin123 or /yazo — otherwise they'd fall through to the standard
+  // portal.html below and leak the old portal + leaderboard. (Assets, /api/*,
+  // /.netlify/* already returned above.)
+  //
+  // The page routes CLIENT-side off both the hash and the path, so /store and
+  // #store both open the store, the same way /csgobig and /degen already work.
+  // That's what lets a shared link read as megrewards.com/store rather than
+  // megrewards.com/store#store, where the path segment did nothing.
   const bespoke = SLUG_TO_PAGE[slug];
   if (bespoke) {
     if (path.startsWith("/portals/")) return; // already the page itself

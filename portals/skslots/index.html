@@ -914,7 +914,16 @@
     // not on the 60s refresh (which would yank the viewer out of their current view).
     if (!window.__routedOnce) {
       window.__routedOnce = true;
-      const initial = location.hash.replace(/^#/, '');
+      // Path routes as well as hashes, so /store works and not just #store —
+      // matches the other bespoke portal and the generic one, so a link built for
+      // any streamer has the same shape. Non-view paths (/leaderboard) fall
+      // through to the main view, which is the leaderboard.
+      // Match ANY path segment, because the same portal is reachable two ways:
+      // megrewards.com/store (custom domain) and wenbot.gg/<slug>/store, where
+      // the first segment is the slug rather than the view.
+      const segs     = location.pathname.replace(/^\/+|\/+$/g, '').split('/').map((x) => x.toLowerCase());
+      const fromPath = segs.find((x) => PAGE_IDS.has(x));
+      const initial  = location.hash.replace(/^#/, '') || fromPath || '';
       if (PAGE_IDS.has(initial)) showView(initial);
     }
 

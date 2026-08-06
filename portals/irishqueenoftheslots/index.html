@@ -1510,7 +1510,18 @@
     // not on the 60s refresh (which would yank the viewer out of their current view).
     if (!window.__routedOnce) {
       window.__routedOnce = true;
-      const initial = location.hash.replace(/^#/, '');
+      // Accept a PATH route as well as a hash, so /store works and not just
+      // #store. Links shared elsewhere (the bot's !store reply, Discord) read as
+      // a normal URL that way instead of megrewards.com/store#store, where the
+      // path segment did nothing and only the hash was doing the work.
+      // Anything not a standalone view — /leaderboard included — falls through to
+      // the main view, which IS the leaderboard here.
+      // Match ANY path segment, because the same portal is reachable two ways:
+      // megrewards.com/store (custom domain) and wenbot.gg/<slug>/store, where
+      // the first segment is the slug rather than the view.
+      const segs     = location.pathname.replace(/^\/+|\/+$/g, '').split('/').map((x) => x.toLowerCase());
+      const fromPath = segs.find((x) => PAGE_IDS.has(x));
+      const initial  = location.hash.replace(/^#/, '') || fromPath || '';
       if (PAGE_IDS.has(initial)) showView(initial);
     }
 
