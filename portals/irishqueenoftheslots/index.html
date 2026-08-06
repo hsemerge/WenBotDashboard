@@ -718,12 +718,11 @@
   window.navBoard = function (which) {
     renderBoard(which);
     showView('main');
-    // Keep the URL shareable + consistent on reload. If we arrived via a path
-    // deep link (/csgobig or /degen — custom domain), update the PATH so a reload
-    // stays on the same board; otherwise use the hash (works on any origin).
-    const onPathRoute = /^\/(csgobig|degen)\/?$/.test(location.pathname);
-    if (onPathRoute) history.replaceState(null, '', '/' + which);
-    else history.replaceState(null, '', which === 'csgobig' ? '#csgobig' : '#degen');
+    // Always the PATH, never a hash. The old version only wrote a path when the
+    // viewer had ARRIVED on one, so switching boards from /store produced
+    // /store#csgobig — a url describing two different pages at once. The page
+    // reads both forms on load, so existing #csgobig links still work.
+    history.replaceState(null, '', '/' + which);
     window.scrollTo(0, 0); // instant — no scroll animation, just show the page from the top
     return false;
   };
@@ -735,11 +734,18 @@
   // instead of stacking under the leaderboard.
   const PAGE_VIEWS = { rewards: 'rewardsView', store: 'storeView', winners: 'winnersView' };
   const PAGE_IDS = new Set(Object.keys(PAGE_VIEWS));
+  // Always write an ABSOLUTE path. Passing a bare "#store" to replaceState
+  // resolves it against the CURRENT url, so navigating from /store to Winners
+  // produced /store#winners — the path and hash both accumulated and the address
+  // bar stopped describing the page. Absolute paths keep every url clean and
+  // shareable: /store, /winners, /rewards, / for the leaderboard home.
   function goTo(hash) {
     const id = hash.replace(/^#/, '');
-    if (PAGE_IDS.has(id)) { showView(id); history.replaceState(null, '', hash); return false; }
+    if (PAGE_IDS.has(id)) { showView(id); history.replaceState(null, '', '/' + id); return false; }
     showView('main');
-    history.replaceState(null, '', hash);
+    // In-page anchors live on the main view, so anchor off the root, not off
+    // whatever page the viewer happened to arrive from.
+    history.replaceState(null, '', id ? '/#' + id : '/');
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return false;

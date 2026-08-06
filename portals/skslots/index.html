@@ -471,11 +471,15 @@
   // instead of stacking under the leaderboard.
   const PAGE_VIEWS = { rewards: 'rewardsView', store: 'storeView', winners: 'winnersView' };
   const PAGE_IDS = new Set(Object.keys(PAGE_VIEWS));
+  // Absolute paths, never a bare hash. replaceState resolves "#store" against the
+  // CURRENT url, so navigating from /store to Winners produced /store#winners —
+  // path and hash accumulating until the address bar described two pages at once.
   function goTo(hash) {
     const id = hash.replace(/^#/, '');
-    if (PAGE_IDS.has(id)) { showView(id); history.replaceState(null, '', hash); return false; }
+    if (PAGE_IDS.has(id)) { showView(id); history.replaceState(null, '', '/' + id); return false; }
     showView('main');
-    history.replaceState(null, '', hash);
+    // In-page anchors belong to the main view, so anchor off the root.
+    history.replaceState(null, '', id ? '/#' + id : '/');
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return false;
