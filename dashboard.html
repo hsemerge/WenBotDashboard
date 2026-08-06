@@ -7178,6 +7178,7 @@ function gwAvatarHtml(entry) {
 // _gwSubscribeVerifiedIfNeeded so the badges stay accurate without forcing
 // a Firestore read on every page load.
 let _gwVerifiedCasinoSet  = new Set();
+let _gwVerifiedBoards     = {};   // kick → ['degen','csgobig','none']
 let _gwVerifiedDiscordSet = new Set();
 let _gwUnderCodeSet       = new Set();
 let _gwVerifiedCasinoUnsub  = null;
@@ -7193,17 +7194,22 @@ function _gwSubscribeVerifiedIfNeeded() {
   // doc on every wager-sync write — a top read-cost driver. Refreshed on account
   // switch; that's plenty for a cosmetic badge.
   fb.db.collection('streamers').doc(uid).collection('verified_users').get().then(snap => {
-    const next = new Set(), codeNext = new Set();
+    const next = new Set(), codeNext = new Set(), boards = {};
     snap.docs.forEach(d => {
       const data = d.data() || {};
       if (data.kickName) {
         const k = data.kickName.toLowerCase();
         next.add(k);
         if (data.underAffiliate) codeNext.add(k);
+        // Track WHICH board(s), so the tick can say why someone qualifies. A bare
+        // ✓ meant any of three different things — Kick-only, one board, or both.
+        const prov = (data.provider || 'none').toLowerCase();
+        (boards[k] = boards[k] || []).push(prov);
       }
     });
     _gwVerifiedCasinoSet = next;
     _gwUnderCodeSet = codeNext;
+    _gwVerifiedBoards = boards;
     if (typeof renderEntries === 'function') renderEntries();
   }).catch(() => {});
   fb.db.collection('streamers').doc(uid).collection('discord_links').get().then(snap => {
@@ -7226,7 +7232,15 @@ function _gwBadgesFor(entry) {
   const discord = _gwVerifiedDiscordSet.has(key);
   const code    = _gwUnderCodeSet.has(key);
   let html = '';
-  if (casino)  html += '<span class="gw-badge gw-badge-casino"  title="Casino verified">✓</span>';
+  if (casino) {
+    // Name the board(s) in the tooltip. "none" is a Kick-only verification, which
+    // does NOT satisfy a casino requirement — say so rather than implying it does.
+    const provs   = (_gwVerifiedBoards[key] || []).filter(p => p !== 'none');
+    const kickOnly = !provs.length;
+    const label   = kickOnly ? 'Kick verified only — no casino account linked'
+                             : 'Casino verified: ' + provs.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(', ');
+    html += `<span class="gw-badge gw-badge-casino" title="${label}">${kickOnly ? '✓' : '✓'}</span>`;
+  }
   if (discord) html += '<span class="gw-badge gw-badge-discord" title="Discord linked">D</span>';
   if (code)    html += '<span class="gw-badge gw-badge-code"    title="Under your affiliate code">C</span>';
   if (entry.isSub) html += '<span class="gw-badge gw-badge-sub" title="Subscriber — sub-luck applied">S</span>';
