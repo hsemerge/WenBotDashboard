@@ -48,7 +48,7 @@ const CATALOG = [
   { alias: "buy",   discord: "buy",   group: "Store", needs: "points", desc: "Buy a store item or raffle tickets", usage: "{cmd} <item>" },
 
   // Leaderboard
-  { chat: null, discord: "lb",  group: "Leaderboard", desc: "Current wager leaderboard" },
+  { chat: "!lb", discord: "lb", group: "Leaderboard", desc: "Current wager leaderboard", also: ["!leaderboard"] },
   { chat: null, discord: "plb", group: "Leaderboard", needs: "points", desc: "{currency} leaderboard (top 20)" },
 
   // Channel
