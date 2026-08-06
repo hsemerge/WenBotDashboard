@@ -44,6 +44,41 @@ exports.handler = async (event) => {
       return res(200, { kickUsername, verified: false, provider: null, noCasino: true, casinoRequired, discordLinkedAny: false });
     }
 
+    // Every board this streamer runs, with the viewer's status on each. A
+    // streamer can run more than one race (Meg: Degen + CSGOBig), and a viewer
+    // may play one, the other, or both — verifications are stored per provider
+    // (`${kickKey}_${provider}`), so all of this is representable. Until now the
+    // page only ever offered the ACTIVE provider, so a viewer who plays the second
+    // casino had no way to verify against it.
+    //
+    // Additive: every field below this is unchanged, so the existing single-board
+    // page keeps working exactly as it does today.
+    let boards = [];
+    try {
+      const bSnap = await db.collection("streamers").doc(uid).collection("leaderboards").get();
+      const enabled = bSnap.docs
+        .map((d) => ({ id: d.id, ...(d.data() || {}) }))
+        .filter((b) => b.enabled !== false && b.provider)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+      boards = await Promise.all(enabled.map(async (b) => {
+        const prov = String(b.provider).toLowerCase();
+        const vs   = await db.collection("streamers").doc(uid)
+          .collection("verified_users").doc(`${kickKey}_${prov}`).get();
+        const v = vs.exists ? vs.data() : null;
+        return {
+          provider:         prov,
+          label:            b.label || prov,
+          isPrimary:        prov === activeProvider,
+          verified:         !!v,
+          providerUsername: v ? (v.providerUsername || null) : null,
+          underAffiliate:   v ? !!v.underAffiliate : false,
+        };
+      }));
+    } catch (e) {
+      console.warn("[verify-status] boards lookup failed:", e.message);
+    }
+
     // Direct lookups by the known doc ID format — `${kickKey}_${provider}`,
     // plus the Kick-only doc (`${kickKey}_none`) written by the skip path.
     const [verifySnap, skipSnap, discordSnap] = await Promise.all([
@@ -62,6 +97,7 @@ exports.handler = async (event) => {
         providerUsername: v.providerUsername || null,
         underAffiliate:   !!v.underAffiliate,
         casinoRequired,
+        boards,
         discordLinkedAny: !discordSnap.empty,
       });
     }
@@ -77,6 +113,7 @@ exports.handler = async (event) => {
         providerUsername: null,
         underAffiliate:   false,
         casinoRequired,
+        boards,
         discordLinkedAny: !discordSnap.empty,
       });
     }
@@ -86,6 +123,7 @@ exports.handler = async (event) => {
       verified:     false,
       provider:     activeProvider,
       casinoRequired,
+      boards,
       discordLinkedAny: !discordSnap.empty,
     });
   } catch (err) {
