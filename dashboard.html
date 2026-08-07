@@ -9150,7 +9150,12 @@ function loadVerifiedUsers() {
     // tick (which reads all of them) said they were verified.
     .get().then(snap => {
       verifiedCache = snap.docs.map(d => ({ id: d.id, data: d.data() }));
-      document.getElementById('statVerified').textContent = snap.size;
+      // Distinct VIEWERS, not documents. Verifications are one doc per board, so
+      // on a multi-board channel someone verified on both counted twice and the
+      // stat over-reported. Single-board channels have one doc per viewer, so this
+      // is identical to snap.size for them.
+      document.getElementById('statVerified').textContent =
+        new Set(snap.docs.map(d => (d.data().kickName || d.id).toLowerCase())).size;
       renderVerifiedFromCache();
     }).catch(e => {
       tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--red);padding:16px;">Error: ${escHtml(e.message)}</td></tr>`;
