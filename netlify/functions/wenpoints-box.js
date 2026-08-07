@@ -37,23 +37,40 @@ const ELITE_BADGES = new Set(["wenbot", "gg"]);
 // box paying at most 500 back would feel like a scam.
 const VOUCHERS = [5, 10, 20, 25, 50, 75, 100, 250, 375, 500];
 
-// TEMPORARY TEST PRICING. Set WENPOINTS_BOX_TEST=1 in Netlify env to make boxes
-// cost 10/25/50 so the flow can be exercised without grinding a real balance.
-// REMOVE THE ENV VAR before anyone else uses this — it is the only thing standing
-// between a 1,000 WP box and a 10 WP one.
-const TEST = process.env.WENPOINTS_BOX_TEST === "1";
-const price = (real, test) => (TEST ? test : real);
+// TEMPORARY TEST PRICING, scoped to named accounts.
+//
+//   WENPOINTS_BOX_TEST = emergeonkick        (comma-separate for several)
+//
+// Per-USER rather than a global on/off switch on purpose. /community is public, so
+// a global switch would let any signed-in viewer who wandered past buy the whole
+// collection for pocket change — and because a 10 WP box can return a 250 voucher,
+// they'd mint WenPoints while doing it. Neither unwinds cleanly: badges are
+// granted permanently and balances would need hand-editing.
+//
+// Still remove the variable when finished. This bounds the blast radius; it isn't
+// a reason to leave it on.
+const TEST_USERS = new Set(
+  String(process.env.WENPOINTS_BOX_TEST || "")
+    .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)
+);
+const isTester = (kickUsername) => TEST_USERS.has(String(kickUsername || "").toLowerCase());
+
+const TEST_PRICES = { bronze: 10, silver: 25, wenbot: 50 };
 
 const TIERS = {
-  bronze: { price: price(1000, 10), name: "Bronze Chest",
+  bronze: { price: 1000, name: "Bronze Chest",
     // weight -> outcome. Vouchers return WenPoints, so a box is never a total
     // write-off, but the expected return sits below the price on purpose.
     table: [ [45, "badge"], [30, "voucher:100"], [15, "voucher:250"], [10, "nothing"] ] },
-  silver: { price: price(2000, 25), name: "Silver Chest",
+  silver: { price: 2000, name: "Silver Chest",
     table: [ [55, "badge"], [25, "voucher:250"], [15, "voucher:375"], [5, "nothing"] ] },
-  wenbot: { price: price(3500, 50), name: "WenBot Chest", elite: true,
+  wenbot: { price: 3500, name: "WenBot Chest", elite: true,
     table: [ [70, "badge"], [20, "voucher:375"], [10, "voucher:500"] ] },
 };
+
+/** The price THIS viewer pays. Everyone but a named tester pays the real one. */
+const priceFor = (tierId, kickUsername) =>
+  (isTester(kickUsername) ? TEST_PRICES[tierId] : TIERS[tierId].price);
 
 // crypto RNG, not Math.random — this decides what someone paid for.
 function pick(table) {
@@ -85,9 +102,12 @@ exports.handler = async (event) => {
   // advertised 2,500/5,000 while this charged 2,000/3,500 — and a price that
   // lies to the buyer is the worst kind of bug in a paid feature.
   if (event.httpMethod === "GET") {
+    // ?kick= only affects the price SHOWN. The POST below re-derives it from the
+    // verified token, so spoofing this changes a label and nothing else.
+    const who = (event.queryStringParameters || {}).kick || "";
     return res(200, {
       tiers: Object.entries(TIERS).map(([id, t]) => ({
-        id, name: t.name, price: t.price,
+        id, name: t.name, price: priceFor(id, who),
         blurb: t.elite ? "Best odds • only tier with WenBot & GG"
              : id === "silver" ? "Better odds, bigger vouchers" : "Badges, vouchers",
       })),
@@ -125,8 +145,11 @@ exports.handler = async (event) => {
       const snap    = await tx.get(ref);
       const d       = snap.exists ? snap.data() : {};
       const balance = d.balance || 0;
-      if (balance < tier.price) {
-        throw { code: 402, msg: `Not enough WenPoints — ${tier.price} needed, you have ${balance}` };
+      // Derived from the username the Kick token resolved to, not from anything
+      // the client sent.
+      const cost = priceFor(tierId, lookup.user.name);
+      if (balance < cost) {
+        throw { code: 402, msg: `Not enough WenPoints — ${cost} needed, you have ${balance}` };
       }
 
       const owned = { ...(d.owned || {}) };
@@ -156,7 +179,7 @@ exports.handler = async (event) => {
         granted = { kind: "nothing" };
       }
 
-      const delta = refund - tier.price;
+      const delta = refund - cost;
       tx.set(ref, {
         balance: admin.firestore.FieldValue.increment(delta),
         owned,
@@ -171,7 +194,7 @@ exports.handler = async (event) => {
       ok: true,
       tier: tierId,
       tierName: tier.name,
-      price: tier.price,
+      price: priceFor(tierId, lookup.user.name),
       prize: result.granted,
       balance: result.balance,
       owned: result.owned,

@@ -725,7 +725,11 @@ let BOXES = null;
 async function loadBoxes() {
   if (BOXES) return BOXES;
   try {
-    const r = await fetch('/api/wenpoints-box');
+    // Username is passed so the displayed price matches what this viewer will be
+    // charged (test accounts see test pricing). Display only — the POST re-derives
+    // the price from the verified token.
+    const who = SESSION ? '?kick=' + encodeURIComponent(SESSION.kickUsername) : '';
+    const r = await fetch('/api/wenpoints-box' + who);
     const d = await r.json();
     if (r.ok && Array.isArray(d.tiers)) BOXES = d.tiers;
   } catch { /* renderBoxes shows nothing rather than a wrong price */ }
