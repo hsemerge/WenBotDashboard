@@ -1192,6 +1192,12 @@
                 <input type="checkbox" id="verifiedCasinoCheck" checked style="accent-color:var(--accent);width:14px;height:14px;">
                 Casino Verified
               </label>
+              <!-- Which board that verification has to be on. Hidden unless the
+                   streamer runs more than one — with a single board there is no
+                   choice to make, and "any board" is exactly today's behaviour. -->
+              <select id="verifiedBoardSelect" title="Which leaderboard the verification must be on" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:11px;padding:3px 6px;font-family:'Inter',sans-serif;cursor:pointer;">
+                <option value="">any board</option>
+              </select>
               <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text);cursor:pointer;">
                 <input type="checkbox" id="verifiedDiscordCheck" style="accent-color:var(--accent);width:14px;height:14px;">
                 Discord Verified
@@ -2065,6 +2071,7 @@
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:8px;flex-wrap:wrap;">
             <div class="card-title" style="margin-bottom:0;">🏆 Wager Rankings</div>
             <div style="display:flex;align-items:center;gap:6px;">
+              <select id="lbBoardSelect" onchange="loadWagerRankings()" title="Which leaderboard" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:11px;padding:4px 6px;font-family:'Inter',sans-serif;cursor:pointer;"></select>
               <select id="lbPeriodSelect" onchange="loadWagerRankings()" title="View a past period" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:11px;padding:4px 6px;font-family:'Inter',sans-serif;cursor:pointer;"><option value="">Current</option></select>
               <select id="lbCountSelect" onchange="loadWagerRankings()" title="How many to show" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:11px;padding:4px 6px;font-family:'Inter',sans-serif;cursor:pointer;"><option value="15">Top 15</option><option value="50">Top 50</option><option value="all">All</option></select>
               <span id="lbPlatformNote" style="font-size:11px;color:var(--text-dim);"></span>
@@ -6309,6 +6316,8 @@ function onAuthReady(user) {
       document.getElementById('toggleVerified').classList.add('on');
       document.getElementById('verifiedReqFields').style.display = 'block';
       document.getElementById('verifiedCasinoCheck').checked = !!profile.giveawayVerifiedCasino;
+      const _vb = document.getElementById('verifiedBoardSelect');
+      if (_vb) _vb.value = String(profile.giveawayVerifiedBoard || '');
       document.getElementById('verifiedDiscordCheck').checked = !!profile.giveawayVerifiedDiscord;
     }
     // Restore entry mode + fee (start-frozen, so these reflect the live round)
@@ -6691,6 +6700,8 @@ async function startGiveaway() {
     giveawaySubOnly:         subOnly,
     giveawayFollowerOnly:    followerOnly,
     giveawayVerifiedCasino:  verifiedCasino,
+    // '' = any board (the default, and what every single-board channel sends).
+    giveawayVerifiedBoard:   document.getElementById('verifiedBoardSelect')?.value || '',
     giveawayVerifiedDiscord: verifiedDiscord,
     giveawayDuration:        duration,
     giveawayStartedAt:       Date.now(),
@@ -9945,7 +9956,10 @@ async function loadWagerRankings() {
   const wrap = document.getElementById('wagerLeaderboard');
   if (!wrap) return;
   const channel = profile?.kickChannel;
-  const casino  = profile?.activeProvider || '';
+  // Which board this card shows. The selector only exists and is only visible when
+  // the streamer runs more than one, so single-board channels fall straight through
+  // to activeProvider exactly as before.
+  const casino  = document.getElementById('lbBoardSelect')?.value || profile?.activeProvider || '';
   if (!channel) { wrap.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Set your Kick channel in Settings first.</div>'; return; }
   const periodVal = document.getElementById('lbPeriodSelect')?.value || '';
   const countSel  = document.getElementById('lbCountSelect')?.value || '15';
@@ -10211,6 +10225,39 @@ const BOARD_PROVIDERS = [
     hint: 'Your CSGOBig referral code.' },
 ];
 
+// Fill the Wager Rankings board selector. Hidden unless the streamer runs more
+// than one board — with a single board there's nothing to choose, and showing a
+// one-option dropdown would be noise on 30 of 32 channels.
+function renderBoardSelector() {
+  const sel = document.getElementById('lbBoardSelect');
+  if (!sel) return;
+  const main = String(profile?.activeProvider || '').toLowerCase();
+  const mainLabel = (typeof CASINO_NAMES !== 'undefined' && CASINO_NAMES[main]) || main;
+  const others = (_extraBoards || []).filter(b => b.enabled !== false && b.provider);
+
+  if (!others.length || !main) { sel.style.display = 'none'; sel.innerHTML = ''; return; }
+
+  const prev = sel.value;
+  sel.innerHTML = [{ provider: main, label: mainLabel }]
+    .concat(others.map(b => ({ provider: b.provider, label: b.label || b.provider })))
+    .map(b => `<option value="${b.provider}">${escHtml(b.label)}</option>`).join('');
+  // Keep the streamer's choice across refreshes rather than snapping back.
+  if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+  sel.style.display = '';
+
+  // Same list drives the giveaway's "which board must they be verified on"
+  // dropdown. "any board" stays the default and is exactly today's behaviour.
+  const vb = document.getElementById('verifiedBoardSelect');
+  if (vb) {
+    const keep = vb.value;
+    vb.innerHTML = '<option value="">any board</option>' +
+      [...sel.options].map(o => `<option value="${o.value}">${escHtml(o.textContent)}</option>`).join('');
+    if (keep && [...vb.options].some(o => o.value === keep)) vb.value = keep;
+    else vb.value = String(profile?.giveawayVerifiedBoard || '');
+    vb.style.display = '';
+  }
+}
+
 async function loadExtraBoards() {
   const card = document.getElementById('extraBoardsCard');
   if (!card || !fb?.activeUid) return;
@@ -10228,6 +10275,7 @@ async function loadExtraBoards() {
     _extraBoards = [];
   }
   renderExtraBoards();
+  renderBoardSelector();   // the Wager Rankings picker reads the same list
 }
 
 function renderExtraBoards() {
