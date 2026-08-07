@@ -654,7 +654,16 @@ function renderStore() {
    still out there. Greying is CSS (grayscale + dimmed) rather than a second set
    of grey images — same file, half the bytes, and it can't drift out of sync
    with the colour art. */
-const BADGE_COUNT = 32;
+// Ids match the filenames built by WenBotServer/scripts/build-game-assets.js.
+// Named rather than numbered so ownership records read sensibly in Firestore.
+const BADGES = [
+  'pharaoh', 'moss',      'samurai',  'warlord',  'amethyst', 'jungle',  'mecha',  'valkyrie',
+  'voidflame','ember',    'circuit',  'clockwork','storm',    'emerald', 'laurel', 'hex',
+  'demon',   'wildfire',  'dragon',   'frostorb', 'rose',     'crown',   'regal',  'knight',
+  'chrome',  'spiked',    'obsidian', 'verdant',  'gold',     'glacier', 'wenbot', 'gg',
+];
+const label = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
 function renderBadges() {
   const el = document.getElementById('badgesPanel');
   if (!el) return;
@@ -662,8 +671,8 @@ function renderBadges() {
 
   const owned = new Set((WP && WP.owned && WP.owned.badge) || []);
   let cells = '';
-  for (let i = 1; i <= BADGE_COUNT; i++) {
-    const id  = 'badge_' + String(i).padStart(2, '0');
+  for (const name of BADGES) {
+    const id  = 'badge_' + name;
     const has = owned.has(id);
     cells += `<div title="${has ? 'Collected' : 'Not collected yet'}" style="aspect-ratio:1;display:flex;`
       + `align-items:center;justify-content:center;padding:8px;border-radius:10px;`
@@ -675,7 +684,7 @@ function renderBadges() {
 
   el.innerHTML = `
     <div style="font-size:10.5px;font-weight:900;color:var(--dim);letter-spacing:.06em;text-transform:uppercase;margin:14px 0 8px;">
-      🏅 Badge Collection <span style="font-weight:600;letter-spacing:0;text-transform:none;">— ${owned.size} of ${BADGE_COUNT} collected</span></div>
+      🏅 Badge Collection <span style="font-weight:600;letter-spacing:0;text-transform:none;">— ${owned.size} of ${BADGES.length} collected</span></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px;">${cells}</div>
     <div style="font-size:10.5px;color:var(--dim);margin-top:9px;">Badges come from Mystery Boxes. Cosmetic only.</div>`;
 }
