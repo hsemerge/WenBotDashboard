@@ -718,16 +718,26 @@ const label = (s) => s.charAt(0).toUpperCase() + s.slice(1);
    Three chest tiers. Higher tiers cost more, drop badges more often, and only
    the top one can roll the two brand marks. Badges never duplicate — the server
    rolls from what you don't own yet. */
-const BOXES = [
-  { id: 'bronze', name: 'Bronze Chest', price: 1000, blurb: 'Badges, vouchers' },
-  { id: 'silver', name: 'Silver Chest', price: 2500, blurb: 'Better odds, bigger vouchers' },
-  { id: 'wenbot', name: 'WenBot Chest', price: 5000, blurb: 'Best odds • only tier with WenBot &amp; GG' },
-];
+// Prices come from /api/wenpoints-box, never a copy here — the two drifted apart
+// once already (the page advertised 2,500 while the server charged 2,000), and a
+// button that lies about a price is the worst kind of bug in a paid feature.
+let BOXES = null;
+async function loadBoxes() {
+  if (BOXES) return BOXES;
+  try {
+    const r = await fetch('/api/wenpoints-box');
+    const d = await r.json();
+    if (r.ok && Array.isArray(d.tiers)) BOXES = d.tiers;
+  } catch { /* renderBoxes shows nothing rather than a wrong price */ }
+  return BOXES;
+}
 
-function renderBoxes() {
+async function renderBoxes() {
   const el = document.getElementById('boxesPanel');
   if (!el) return;
   if (!SESSION) { el.innerHTML = ''; return; }
+  await loadBoxes();
+  if (!BOXES) { el.innerHTML = ''; return; }
   const bal = (WP && WP.balance) || 0;
 
   const cards = BOXES.map((b) => {

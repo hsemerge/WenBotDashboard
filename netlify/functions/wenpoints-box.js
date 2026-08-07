@@ -37,14 +37,21 @@ const ELITE_BADGES = new Set(["wenbot", "gg"]);
 // box paying at most 500 back would feel like a scam.
 const VOUCHERS = [5, 10, 20, 25, 50, 75, 100, 250, 375, 500];
 
+// TEMPORARY TEST PRICING. Set WENPOINTS_BOX_TEST=1 in Netlify env to make boxes
+// cost 10/25/50 so the flow can be exercised without grinding a real balance.
+// REMOVE THE ENV VAR before anyone else uses this — it is the only thing standing
+// between a 1,000 WP box and a 10 WP one.
+const TEST = process.env.WENPOINTS_BOX_TEST === "1";
+const price = (real, test) => (TEST ? test : real);
+
 const TIERS = {
-  bronze: { price: 1000, name: "Bronze Chest",
+  bronze: { price: price(1000, 10), name: "Bronze Chest",
     // weight -> outcome. Vouchers return WenPoints, so a box is never a total
     // write-off, but the expected return sits below the price on purpose.
     table: [ [45, "badge"], [30, "voucher:100"], [15, "voucher:250"], [10, "nothing"] ] },
-  silver: { price: 2000, name: "Silver Chest",
+  silver: { price: price(2000, 25), name: "Silver Chest",
     table: [ [55, "badge"], [25, "voucher:250"], [15, "voucher:375"], [5, "nothing"] ] },
-  wenbot: { price: 3500, name: "WenBot Chest", elite: true,
+  wenbot: { price: price(3500, 50), name: "WenBot Chest", elite: true,
     table: [ [70, "badge"], [20, "voucher:375"], [10, "voucher:500"] ] },
 };
 
@@ -72,6 +79,21 @@ for (const [id, t] of Object.entries(TIERS)) {
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
+
+  // GET returns the tier list so the page renders prices from HERE rather than
+  // keeping its own copy. They had already drifted apart once — the client
+  // advertised 2,500/5,000 while this charged 2,000/3,500 — and a price that
+  // lies to the buyer is the worst kind of bug in a paid feature.
+  if (event.httpMethod === "GET") {
+    return res(200, {
+      tiers: Object.entries(TIERS).map(([id, t]) => ({
+        id, name: t.name, price: t.price,
+        blurb: t.elite ? "Best odds • only tier with WenBot & GG"
+             : id === "silver" ? "Better odds, bigger vouchers" : "Badges, vouchers",
+      })),
+    });
+  }
+
   if (event.httpMethod !== "POST")    return res(405, { error: "POST only" });
 
   let body = {};
