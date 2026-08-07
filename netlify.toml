@@ -65,6 +65,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/wenpoints-box"
+  to     = "/.netlify/functions/wenpoints-box"
+  status = 200
+
+[[redirects]]
   from   = "/api/wenpoints-spend"
   to     = "/.netlify/functions/wenpoints-spend"
   status = 200
