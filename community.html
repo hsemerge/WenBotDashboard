@@ -213,6 +213,7 @@
   <div class="band" id="passBand" style="display:none;">
     <div class="band-flex" id="passBandBody"><div style="color:var(--dim);font-size:12.5px;">Loading your passport…</div></div>
     <div id="storePanel"></div>
+    <div id="badgesPanel"></div>
   </div>
 
   <!-- ════ HOME: creators hub + rail ════ -->
@@ -647,6 +648,38 @@ function renderStore() {
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;">${themes}${flairs}</div>
     <div style="font-size:10.5px;color:var(--dim);margin-top:9px;">Earn ⚡ by chatting on any WenBot creator's live stream + the daily check-in. Sponsored raffles &amp; plan-discount vouchers coming soon.</div>`;
 }
+/* ── Badge collection ──────────────────────────────────────────────────────
+   Badges are WON from Mystery Boxes, not bought, so this shows the whole set:
+   collected ones in colour, the rest greyed out, so a viewer can see what's
+   still out there. Greying is CSS (grayscale + dimmed) rather than a second set
+   of grey images — same file, half the bytes, and it can't drift out of sync
+   with the colour art. */
+const BADGE_COUNT = 32;
+function renderBadges() {
+  const el = document.getElementById('badgesPanel');
+  if (!el) return;
+  if (!SESSION) { el.innerHTML = ''; return; }
+
+  const owned = new Set((WP && WP.owned && WP.owned.badge) || []);
+  let cells = '';
+  for (let i = 1; i <= BADGE_COUNT; i++) {
+    const id  = 'badge_' + String(i).padStart(2, '0');
+    const has = owned.has(id);
+    cells += `<div title="${has ? 'Collected' : 'Not collected yet'}" style="aspect-ratio:1;display:flex;`
+      + `align-items:center;justify-content:center;padding:8px;border-radius:10px;`
+      + `background:${has ? 'rgba(0,229,255,.05)' : 'transparent'};`
+      + `border:1px solid ${has ? 'rgba(0,229,255,.25)' : 'var(--line)'};">`
+      + `<img src="/img/mysterybox/${id}.png" alt="" loading="lazy" style="width:100%;height:100%;`
+      + `object-fit:contain;${has ? '' : 'filter:grayscale(1) brightness(.45);opacity:.5;'}"></div>`;
+  }
+
+  el.innerHTML = `
+    <div style="font-size:10.5px;font-weight:900;color:var(--dim);letter-spacing:.06em;text-transform:uppercase;margin:14px 0 8px;">
+      🏅 Badge Collection <span style="font-weight:600;letter-spacing:0;text-transform:none;">— ${owned.size} of ${BADGE_COUNT} collected</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px;">${cells}</div>
+    <div style="font-size:10.5px;color:var(--dim);margin-top:9px;">Badges come from Mystery Boxes. Cosmetic only.</div>`;
+}
+
 async function wpSpend(action, kind, id, btn) {
   if (!SESSION) return;
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
@@ -658,7 +691,7 @@ async function wpSpend(action, kind, id, btn) {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Failed');
     WP = { ...(WP || {}), balance: d.balance, owned: d.owned, equipped: d.equipped };
-    renderAuth(); renderPassBand(); renderStore();
+    renderAuth(); renderPassBand(); renderStore(); renderBadges();
     document.getElementById('storePanel').style.display = 'block';
   } catch (e) { alert(e.message); renderStore(); }
 }
@@ -695,6 +728,7 @@ async function loadPassport() {
     WP = d.wenpoints || { balance: 0, lifetime: 0 };
     renderAuth();
     renderPassBand();
+    renderBadges();
     renderHome();
   } catch (e) {
     document.getElementById('passBand').style.display = 'block';
