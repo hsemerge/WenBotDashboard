@@ -355,6 +355,10 @@
   // Two tiers: Verified (Kick + casino linked, or Kick-only via skip) and
   // ✦ Fully Verified (Discord linked too). Updated from verify-status on load
   // and again after every successful link on this page.
+  // Extra boards this streamer runs beyond the primary casino, from
+  // verify-status. A viewer may play one, the other, or both, so these are
+  // OPTIONAL rows: linking one is never required to be Fully Verified.
+  let vfBoards = [];
   const vfState = { kickName: null, casinoLinked: false, casinoSkipped: false, casinoUser: null, discordLinked: false, discordDeclined: false, discordAvailable: true };
   // "Maybe later" on the Discord step is remembered per channel — no nagging
   // "1 step left" on every return visit.
@@ -399,6 +403,20 @@
     if (vfState.casinoLinked)       rows.push(vfRow('done', '✓', escHtml(cn), escHtml(vfState.casinoUser || ''), 'Linked', 'var(--green)'));
     else if (vfState.casinoSkipped) rows.push(vfRow('skip', '–', escHtml(cn), 'Add anytime for code-based activities', 'Skipped', '#ffa726'));
     else                            rows.push(vfRow('cur',  '2', escHtml(cn), 'Enter your username below' + (vsCasinoRequired ? '' : ', or skip'), "← You're here", 'var(--accent)'));
+    // Additional boards. Shown after the main casino and before Discord so the
+    // numbered steps still read 1-2-3; these carry no number because they are
+    // optional and must not look like a blocked step.
+    vfBoards.filter(b => !b.isPrimary).forEach(b => {
+      const bn = escHtml(b.label || b.provider);
+      if (b.verified) {
+        rows.push(vfRow('done', '✓', bn, escHtml(b.providerUsername || ''), 'Linked', 'var(--green)'));
+      } else {
+        rows.push(vfRow('next', '+', bn, 'Optional, link if you play here',
+          `<a href="#" onclick="linkBoard('${escHtml(b.provider)}'); return false;" style="color:var(--accent);text-decoration:underline;">Link</a>`,
+          'var(--accent)'));
+      }
+    });
+
     if (dAvail) {
       if (vfState.discordLinked)        rows.push(vfRow('done', '✓', dcName, 'Role + /points & /buy', 'Linked', 'var(--green)'));
       else if (vfState.discordDeclined) rows.push(vfRow('skip', '–', dcName, 'Connect anytime for role + /points & /buy', 'Skipped', '#ffa726'));
@@ -513,6 +531,9 @@
         vfState.casinoSkipped = !!sData.casinoSkipped;
         vfState.casinoUser    = sData.providerUsername || null;
         vfState.discordLinked = !!sData.discordLinkedAny;
+        // Extra boards, so a viewer who plays the streamer's second casino can
+        // link that too. Absent for single-board streamers, which is most of them.
+        vfBoards = Array.isArray(sData.boards) ? sData.boards : [];
         if (sData.verified && sData.providerUsername) {
           document.getElementById('formSection').style.display = 'none';
           // Name every linked account, not just the casino.
@@ -566,6 +587,21 @@
 
   // Reveal the casino-entry form when the streamer clicks "change casino username"
   // on the already-verified short-circuit card.
+  // Point the casino form at a DIFFERENT board and reopen it. The form already
+  // posts whatever `casino` holds and verify-affiliate takes a casino param, so
+  // switching boards needs no new submit path, just the right provider and
+  // labels. Verifications are stored as `<kick>_<provider>`, so linking a second
+  // board ADDS a record rather than replacing the first.
+  function linkBoard(provider) {
+    casino     = String(provider || '').toLowerCase();
+    casinoName = CASINO_NAMES[casino] || casino;
+    applyCasinoText();
+    document.getElementById('affiliateInput').value = '';
+    revealCasinoForm();
+    renderVfProgress();
+  }
+  window.linkBoard = linkBoard;
+
   function revealCasinoForm() {
     document.getElementById('alreadyVerifiedSection').style.display = 'none';
     document.getElementById('formSection').style.display = 'block';
