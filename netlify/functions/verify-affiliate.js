@@ -171,9 +171,32 @@ exports.handler = async (event) => {
       return res(400, { error: "This streamer hasn't set up a casino yet — verification isn't available until they do." });
     }
     if (!provider) provider = activeProvider; // client omitted casino → use the streamer's actual one
-    if (provider !== activeProvider) {
-      const activeName = CASINO_NAMES[activeProvider] || activeProvider;
-      return res(400, { error: `This streamer is currently streaming at ${activeName}. Please verify your ${activeName} username instead.` });
+
+    // Accept any board the streamer actually RUNS, not just the active one. A
+    // streamer can run several races at once and a viewer may play the second
+    // casino, so rejecting anything but activeProvider made second-board
+    // verification impossible — the page offered a Link action the server then
+    // refused. Verifications are stored per provider (`<kick>_<provider>`), so a
+    // second board adds a record rather than replacing the first.
+    const allowed = new Set([activeProvider]);
+    try {
+      const bSnap = await db.collection("streamers").doc(streamerUid).collection("leaderboards").get();
+      bSnap.docs.forEach((d) => {
+        const b = d.data() || {};
+        if (b.enabled !== false && b.provider) allowed.add(String(b.provider).toLowerCase());
+      });
+    } catch (e) {
+      console.warn("[verify-affiliate] boards lookup failed:", e.message);
+    }
+
+    if (!allowed.has(provider)) {
+      // Name what they CAN verify, rather than only the active casino — on a
+      // multi-board channel that message would have been wrong.
+      const names = [...allowed].map((p) => CASINO_NAMES[p] || p);
+      const list  = names.length === 1
+        ? names[0]
+        : names.slice(0, -1).join(", ") + " or " + names[names.length - 1];
+      return res(400, { error: `This streamer runs ${list}. Please verify your ${list} username instead.` });
     }
 
     // Check if this casino username is already claimed by a different Kick account.

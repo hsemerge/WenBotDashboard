@@ -253,6 +253,11 @@
   // resolve the channel's real casino from portal-data (see initCasino below).
   let casino     = (params.get('casino') || '').toLowerCase();
   let casinoName = casino ? (CASINO_NAMES[casino] || casino) : '';
+  // The primary casino's display name, fixed once. `casinoName` follows whatever
+  // board the FORM is pointed at, so using it for the checklist made clicking Link
+  // relabel the already-linked primary row (and the page header) to the board
+  // being added.
+  let primaryCasinoName = casinoName;
   const discordMode   = !!dtoken;
   const kickConnected = params.get('kick') === 'connected';
   // Where the viewer came from — whitelisted keys only (never a raw URL, so
@@ -322,6 +327,7 @@
       return; // leave the form unconfigured rather than defaulting to the wrong casino
     }
     casinoName = CASINO_NAMES[casino] || casino;
+    primaryCasinoName = casinoName;
     applyCasinoText();
   }
   initCasino();
@@ -389,7 +395,7 @@
   function renderVfProgress() {
     const card = document.getElementById('vfProgress');
     if (!card || !vfState.kickName) return;
-    const cn         = casinoName || 'Casino';
+    const cn         = primaryCasinoName || casinoName || 'Casino';
     const dAvail     = vfState.discordAvailable;
     const casinoDone = vfState.casinoLinked || vfState.casinoSkipped;
     const dcDone     = vfState.discordLinked || vfState.discordDeclined || !dAvail;
@@ -453,7 +459,7 @@
         if (icon) icon.textContent = gold ? '✦' : '✅';
         t.textContent   = gold ? "You're Fully Verified" : "You're Verified";
         dsc.textContent = gold
-          ? `Kick, ${casinoName}, and Discord are all linked. You're set for everything.`
+          ? `Kick, ${primaryCasinoName || casinoName}, and Discord are all linked. You're set for everything.`
           : (vfState.casinoSkipped
               ? `Verified with ${vfState.discordLinked ? 'Kick and Discord' : 'Kick only'}. Add your ${casinoName} username anytime for code-based activities.`
               : `Kick and ${casinoName} are linked.` + (dAvail && vfState.discordDeclined ? ' Connect Discord anytime for your role, /points and /buy.' : ''));
@@ -539,7 +545,7 @@
           // Name every linked account, not just the casino.
           if (sData.discordLinkedAny) {
             const line = document.getElementById('alreadyVerifiedCasino').parentElement;
-            if (line) line.innerHTML = `You're verified with <strong>Kick</strong>, <strong>${escHtml(casinoName)}</strong> (${escHtml(sData.providerUsername)}), and <strong>Discord</strong>.`;
+            if (line) line.innerHTML = `You're verified with <strong>Kick</strong>, <strong>${escHtml(primaryCasinoName || casinoName)}</strong> (${escHtml(sData.providerUsername)}), and <strong>Discord</strong>.`;
           } else {
             document.getElementById('alreadyVerifiedCasino').textContent = casinoName;
             document.getElementById('alreadyVerifiedUsername').textContent = sData.providerUsername;
