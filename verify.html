@@ -372,6 +372,15 @@
 
   // One step row. state: done | cur | next | skip — cur glows cyan with
   // "← You're here", done is a green check circle, skip an amber dash.
+  // Every casino the viewer has actually linked, for the header copy. Naming only
+  // the primary read as though a linked second board wasn't linked.
+  // Plain comma join: the sentence supplies the final "and", so joining with
+  // "and" here would read "...Degen and CSGOBig, and Discord".
+  function vfLinkedCasinos() {
+    const linked = vfBoards.filter(b => b.verified).map(b => b.label || b.provider);
+    return linked.length ? linked.join(', ') : (primaryCasinoName || casinoName || 'your casino');
+  }
+
   function vfRow(state, num, label, sub, right, rightColor) {
     const numStyle = {
       done: 'background:rgba(0,255,136,0.12);color:var(--green);border:1px solid rgba(0,255,136,0.4);',
@@ -459,7 +468,7 @@
         if (icon) icon.textContent = gold ? '✦' : '✅';
         t.textContent   = gold ? "You're Fully Verified" : "You're Verified";
         dsc.textContent = gold
-          ? `Kick, ${primaryCasinoName || casinoName}, and Discord are all linked. You're set for everything.`
+          ? `Kick, ${vfLinkedCasinos()}, and Discord are all linked. You're set for everything.`
           : (vfState.casinoSkipped
               ? `Verified with ${vfState.discordLinked ? 'Kick and Discord' : 'Kick only'}. Add your ${casinoName} username anytime for code-based activities.`
               : `Kick and ${casinoName} are linked.` + (dAvail && vfState.discordDeclined ? ' Connect Discord anytime for your role, /points and /buy.' : ''));

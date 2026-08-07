@@ -9144,7 +9144,10 @@ function loadVerifiedUsers() {
   // 'none' = Kick-only verifications (casino step skipped — casinoRequired off).
   fb.db.collection('streamers').doc(uid)
     .collection('verified_users')
-    .where('provider', 'in', activeProvider ? [activeProvider, 'none'] : ['none'])
+    // Every board, not just the active one. Filtering to [activeProvider,'none']
+    // hid verifications for a streamer's SECOND leaderboard entirely — a viewer
+    // verified on CSGOBig simply didn't appear in the table, while the giveaway
+    // tick (which reads all of them) said they were verified.
     .get().then(snap => {
       verifiedCache = snap.docs.map(d => ({ id: d.id, data: d.data() }));
       document.getElementById('statVerified').textContent = snap.size;

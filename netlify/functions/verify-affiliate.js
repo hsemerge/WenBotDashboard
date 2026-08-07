@@ -12,6 +12,7 @@ const { CASINO_NAMES }         = require("./_lib/casinos");
 const { logAudit }             = require("./_lib/audit");
 const { lookupAffiliate }      = require("./_lib/affiliate");
 const { lookupDegen }          = require("./_lib/degen");
+const { normalizeBoard, boardWindow } = require("./_lib/leaderboards");
 const { getKickUser }          = require("./_lib/kick");
 const crypto                   = require("crypto");
 
@@ -256,6 +257,39 @@ exports.handler = async (event) => {
           underAffiliate = true;
           wagerAmount    = m.wagerAmount || 0;
         }
+      }
+    } else if (provider === "csgobig") {
+      // CSGOBig has no per-user lookup, but the race standings carry usernames —
+      // same shape as the Degen check. Without this a CSGOBig verification fell
+      // through to honor-system and was accepted with no check at all, so a name
+      // that had never wagered under the code still came back "verified".
+      //
+      // Read the CACHED race that portal-data maintains rather than calling
+      // CSGOBig here: their rate limit is per REFERRAL CODE and re-arms on every
+      // blocked attempt, so a second live caller could starve the quota and blank
+      // the public board. portal-data stays the only fetcher.
+      try {
+        const bSnap = await db.collection("streamers").doc(streamerUid).collection("leaderboards").get();
+        const board = bSnap.docs
+          .map((d) => normalizeBoard(d.data(), d.id))
+          .find((b) => b.provider === "csgobig" && b.enabled !== false);
+        const code = board && board.credential && board.credential.refCode;
+        const win  = board ? boardWindow(board) : null;
+        if (code && win) {
+          const c = await db.collection("_cache").doc(`csgobig_${code}_${win.from}-${win.to}`).get();
+          const rows = c.exists ? ((c.data().data || {}).rankings || []) : [];
+          const claimed = affiliateUsername.trim().toLowerCase();
+          const hit = rows.find((r) => String(r.username || "").trim().toLowerCase() === claimed);
+          if (hit) {
+            resultUsername = hit.username || affiliateUsername;
+            underAffiliate = true;
+            wagerAmount    = hit.wagered || 0;
+          }
+        }
+        // No cache yet, or no board/code → we genuinely can't check, so the name is
+        // saved unverified rather than wrongly marked under-code.
+      } catch (e) {
+        console.warn("[verify-affiliate] csgobig check failed:", e.message);
       }
     } else {
       // Honor-system casino — no API check, username taken at face value
