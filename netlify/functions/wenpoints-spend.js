@@ -37,8 +37,14 @@ exports.handler = async (event) => {
   const kind   = String(body.kind || "");
   const id     = String(body.id || "");
   if (!kickUsername || !accessToken) return res(400, { error: "Missing sign-in" });
-  if (!["buy", "equip", "unequip"].includes(action) || !CATALOG[kind]) return res(400, { error: "Bad request" });
-  if (action !== "unequip" && !CATALOG[kind][id]) return res(400, { error: "Unknown item" });
+  // Badges are EQUIPPABLE but not BUYABLE — they only come from Mystery Boxes, so
+  // they have no catalogue entry and no price. Equip still checks ownership below,
+  // which is the guard that matters: you can't display what you haven't won.
+  const equipOnly = kind === "badge";
+  if (!["buy", "equip", "unequip"].includes(action)) return res(400, { error: "Bad request" });
+  if (equipOnly && action === "buy") return res(400, { error: "Badges come from Mystery Boxes, not the store" });
+  if (!equipOnly && !CATALOG[kind]) return res(400, { error: "Bad request" });
+  if (!equipOnly && action !== "unequip" && !CATALOG[kind][id]) return res(400, { error: "Unknown item" });
   const userKey = kickUsername.toLowerCase();
 
   try {
