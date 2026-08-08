@@ -488,8 +488,9 @@
 // shell gives the streamer something to position against while they're not
 // broadcasting, and takes itself off once they go live.
 if (!isEmbed) Standby.init({
-  icon: '🎉', label: 'Giveaway Spinner overlay', mode: 'setup',
-  note: 'stays hidden until a giveaway is drawn',
+  icon: '🎉', label: 'Giveaway Spinner', mode: 'setup',
+  note: 'Position it here',
+  hint: 'Hidden on stream until a giveaway is drawn',
 }).track('#widget');
 </script>
 </body>

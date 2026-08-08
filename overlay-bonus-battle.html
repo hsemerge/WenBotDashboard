@@ -143,8 +143,9 @@
   // sitting on stream. js/overlay-standby.js only shows it when they aren't
   // actually live, which is the state it was ever meant for.
   Standby.init({
-    icon: '⚔️', label: 'Bonus Battle overlay',
-    note: 'fills automatically when a battle starts',
+    icon: '⚔️', label: 'Bonus Battle',
+    note: 'No battle started yet',
+    hint: 'Start one from your dashboard and this fills in',
   });
   function ovStandby(show, note) {
     if (show) Standby.show(note); else Standby.hide();
@@ -165,8 +166,8 @@
     if (!live) {
       card.className = 'hidden';
       ovStandby(true, matches.length
-        ? 'battle running · waiting for the next match'
-        : 'battle open · add matches to start');
+        ? 'Waiting for the next match'
+        : 'Battle open · waiting for matches');
       return;
     }
 

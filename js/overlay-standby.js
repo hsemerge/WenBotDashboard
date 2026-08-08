@@ -55,7 +55,8 @@
   var force = new URLSearchParams(location.search).get("standby");
   var cfg = {
     icon: "📺", label: "WenBot overlay",
-    note: "fills automatically when it goes live",
+    note: "Waiting for data",
+    hint: "This fills in automatically",
     // Persistent is the default because it's the safe one: the shell staying
     // visible is what a streamer placing a source expects. Only the overlays
     // that live on screen all stream opt into hiding themselves.
@@ -97,20 +98,38 @@
     return el;
   }
 
+  // Built to read as the overlay it stands in for, not as a debug label. A
+  // streamer adding the source before their stream should see the panel's real
+  // shape and styling, so they know what they're positioning and what it will
+  // look like once it fills. It inherits the overlay's own theme variables, so
+  // a custom accent colour carries through to the placeholder too.
   function paint() {
     var e = build();
-    var accent = isError ? "rgba(255,120,120,0.55)" : "rgba(255,255,255,0.28)";
-    var text = isError ? "#ffb4b4" : "var(--ov-text,#fff)";
-    // The outline traces the source bounds, which is what makes the shell
-    // useful for sizing rather than just reassuring.
-    e.innerHTML =
-      '<div style="position:absolute;inset:6px;border:1px dashed ' + accent + ';border-radius:14px;opacity:0.5;"></div>' +
-      '<div style="display:inline-flex;align-items:center;gap:9px;background:var(--ov-panel,rgba(13,17,23,0.93));' +
-      "border:1px dashed " + accent + ';border-radius:12px;padding:11px 18px;opacity:0.62;' +
-      "font-family:var(--ov-font-heading,'Exo 2',sans-serif);color:" + text + ';font-size:13px;font-weight:800;">' +
-      esc(isError ? "⚠️" : cfg.icon) + " " + esc(cfg.label) +
-      '<span style="font-family:var(--ov-font,Inter,sans-serif);font-weight:600;font-size:11px;' +
-      'color:rgba(255,255,255,0.55);">— ' + esc(note || cfg.note) + "</span></div>";
+    var accent = isError ? "255,120,120" : "var(--ov-accent-rgb,0,229,255)";
+    var edge = isError ? "rgba(255,120,120,0.45)" : "rgba(" + accent + ",0.32)";
+    var eyebrow = isError ? "#ff9d9d" : "rgba(" + accent + ",1)";
+
+    var panel =
+      '<div style="background:var(--ov-panel,rgba(13,17,23,0.93));border:1px solid ' + edge + ';' +
+      "border-radius:14px;padding:18px 22px;text-align:center;max-width:82%;" +
+      'box-shadow:0 8px 32px rgba(0,0,0,0.55);backdrop-filter:blur(12px);">' +
+        '<div style="font-family:var(--ov-font-heading,\'Exo 2\',sans-serif);font-size:12px;font-weight:800;' +
+        "letter-spacing:.12em;text-transform:uppercase;color:" + eyebrow + ';margin-bottom:8px;">' +
+          esc(isError ? "⚠️" : cfg.icon) + " " + esc(cfg.label) + "</div>" +
+        '<div style="font-family:var(--ov-font-heading,\'Exo 2\',sans-serif);font-size:17px;font-weight:900;' +
+        'color:var(--ov-text,#fff);line-height:1.25;">' + esc(note || cfg.note) + "</div>" +
+        '<div style="font-family:var(--ov-font,Inter,sans-serif);font-size:11.5px;font-weight:500;' +
+        'color:rgba(255,255,255,0.5);margin-top:7px;">' + esc(cfg.hint || "This fills in automatically") + "</div>" +
+      "</div>";
+
+    // The dashed bounds only appear while they aren't broadcasting. It's a
+    // sizing aid for setup, and it's the one part of this that would look like
+    // a mistake if it ever reached a live stream.
+    var bounds = broadcasting ? "" :
+      '<div style="position:absolute;inset:4px;border:1px dashed rgba(' + accent + ',0.3);' +
+      'border-radius:16px;"></div>';
+
+    e.innerHTML = bounds + panel;
   }
 
   function esc(s) {

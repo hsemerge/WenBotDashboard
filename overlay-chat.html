@@ -264,8 +264,9 @@
   // a few seconds, so a quiet moment mid-stream would pop a shell onto a live
   // broadcast. Flip to persistent if the waiting state is worth more than that.
   Standby.init({
-    icon: '💬', label: 'Chat overlay', mode: 'setup',
-    note: 'connected · messages appear here as chat comes in',
+    icon: '💬', label: 'Chat', mode: 'setup',
+    note: 'Waiting for chat',
+    hint: 'Messages appear here as chat comes in',
   });
   (function watchMessages() {
     var chatEl = document.getElementById('chat');

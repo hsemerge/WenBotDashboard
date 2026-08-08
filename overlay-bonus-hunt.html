@@ -392,8 +392,9 @@
   // local copy stayed up through an entire broadcast whenever no hunt was
   // running. See js/overlay-standby.js.
   Standby.init({
-    icon: '🎰', label: 'Bonus Hunt overlay',
-    note: 'fills automatically when a hunt starts',
+    icon: '🎰', label: 'Bonus Hunt',
+    note: 'No hunt started yet',
+    hint: 'Start a hunt from your dashboard and this fills in',
   });
   function ovStandby(show) {
     if (show) Standby.show(); else Standby.hide();
