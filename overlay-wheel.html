@@ -502,6 +502,9 @@ if (!isEmbed) Standby.init({
   icon: '🎡', label: 'Giveaway Wheel', mode: 'setup',
   note: 'Position it here',
   hint: 'Appears once a giveaway has entries',
+  // Matches the wheel canvas (700px square), so the placeholder marks the real
+  // footprint rather than a box the wheel will later burst out of.
+  width: '700px', minHeight: 180,
 }).track('#wheelWrap');
 </script>
 </body>

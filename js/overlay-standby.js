@@ -57,6 +57,11 @@
     icon: "📺", label: "WenBot overlay",
     note: "Waiting for data",
     hint: "This fills in automatically",
+    // Left null so the shell inherits the body's declared width, which is the
+    // overlay's real footprint. Only the overlays whose body is a full-viewport
+    // flex centre need to state one.
+    width: null,
+    minHeight: 120,
     // Persistent is the default because it's the safe one: the shell staying
     // visible is what a streamer placing a source expects. Only the overlays
     // that live on screen all stream opt into hiding themselves.
@@ -87,13 +92,17 @@
     if (el) return el;
     el = document.createElement("div");
     el.id = "ovStandbyShell";
-    // Fixed and centred rather than in flow: the fourteen overlays have wildly
-    // different body layouts and the shell must land predictably in all of them.
-    el.style.cssText = [
-      "position:fixed", "inset:0", "z-index:2147483000",
-      "display:flex", "align-items:center", "justify-content:center",
-      "pointer-events:none",
-    ].join(";");
+    // In flow rather than fixed and centred. Every overlay body already
+    // declares the size of the thing it draws — 500px for the bonus hunt, 680
+    // for the battle, 560 for the spinners — so an in-flow child inherits the
+    // real overlay's width and position for free. A viewport-centred layer
+    // ignored all of that and produced a placeholder that was both far wider
+    // than the panel it stood in for and in the wrong place, which is no use
+    // for judging where the source will sit.
+    //
+    // The two overlays whose body is a full-viewport flex centre (winner,
+    // wheel) centre this automatically, and pass an explicit width instead.
+    el.style.cssText = "pointer-events:none;" + (cfg.width ? "width:" + cfg.width + ";" : "");
     document.body.appendChild(el);
     return el;
   }
@@ -109,27 +118,39 @@
     var edge = isError ? "rgba(255,120,120,0.45)" : "rgba(" + accent + ",0.32)";
     var eyebrow = isError ? "#ff9d9d" : "rgba(" + accent + ",1)";
 
-    var panel =
+    // Mirrors the real panel: same chrome, a header row carrying the overlay's
+    // own title, then the waiting message centred in the empty body. The height
+    // comes from minHeight so the box occupies roughly the footprint the live
+    // overlay will, rather than collapsing to a strip of text.
+    e.innerHTML =
       '<div style="background:var(--ov-panel,rgba(13,17,23,0.93));border:1px solid ' + edge + ';' +
-      "border-radius:14px;padding:18px 22px;text-align:center;max-width:82%;" +
-      'box-shadow:0 8px 32px rgba(0,0,0,0.55);backdrop-filter:blur(12px);">' +
-        '<div style="font-family:var(--ov-font-heading,\'Exo 2\',sans-serif);font-size:12px;font-weight:800;' +
-        "letter-spacing:.12em;text-transform:uppercase;color:" + eyebrow + ';margin-bottom:8px;">' +
-          esc(isError ? "⚠️" : cfg.icon) + " " + esc(cfg.label) + "</div>" +
-        '<div style="font-family:var(--ov-font-heading,\'Exo 2\',sans-serif);font-size:17px;font-weight:900;' +
-        'color:var(--ov-text,#fff);line-height:1.25;">' + esc(note || cfg.note) + "</div>" +
-        '<div style="font-family:var(--ov-font,Inter,sans-serif);font-size:11.5px;font-weight:500;' +
-        'color:rgba(255,255,255,0.5);margin-top:7px;">' + esc(cfg.hint || "This fills in automatically") + "</div>" +
+      "border-radius:14px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.55);" +
+      'backdrop-filter:blur(12px);">' +
+        // Header, styled like every overlay's header strip.
+        '<div style="padding:13px 18px;border-bottom:1px solid ' + edge + ';' +
+        "font-family:var(--ov-font-heading,'Exo 2',sans-serif);font-size:13px;font-weight:800;" +
+        "letter-spacing:.1em;text-transform:uppercase;color:" + eyebrow + ';">' +
+          esc(isError ? "⚠️" : cfg.icon) + " " + esc(headerText()) + "</div>" +
+        // Empty body with the state message where the data will appear.
+        '<div style="min-height:' + (cfg.minHeight || 120) + "px;display:flex;flex-direction:column;" +
+        'align-items:center;justify-content:center;text-align:center;padding:20px 18px;">' +
+          '<div style="font-family:var(--ov-font-heading,\'Exo 2\',sans-serif);font-size:16px;' +
+          'font-weight:900;color:var(--ov-text,#fff);line-height:1.25;">' + esc(note || cfg.note) + "</div>" +
+          '<div style="font-family:var(--ov-font,Inter,sans-serif);font-size:11.5px;font-weight:500;' +
+          'color:rgba(255,255,255,0.45);margin-top:6px;">' + esc(cfg.hint || "This fills in automatically") + "</div>" +
+        "</div>" +
       "</div>";
+  }
 
-    // The dashed bounds only appear while they aren't broadcasting. It's a
-    // sizing aid for setup, and it's the one part of this that would look like
-    // a mistake if it ever reached a live stream.
-    var bounds = broadcasting ? "" :
-      '<div style="position:absolute;inset:4px;border:1px dashed rgba(' + accent + ',0.3);' +
-      'border-radius:16px;"></div>';
-
-    e.innerHTML = bounds + panel;
+  // A streamer who renamed their overlay via ?header= should see that name on
+  // the placeholder too — showing "Bonus Hunt" on a source they've branded
+  // "THE GRAILS HUNT" makes it look like a different, broken overlay. The theme
+  // script only rewrites [data-ov-header] elements that exist at load, so read
+  // the param directly rather than relying on it to reach this markup.
+  function headerText() {
+    if (isError) return cfg.label;
+    var h = new URLSearchParams(location.search).get("header");
+    return (h && h.trim()) || cfg.label;
   }
 
   function esc(s) {

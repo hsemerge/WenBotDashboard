@@ -438,6 +438,9 @@ if (!isEmbed) Standby.init({
   icon: '🏆', label: 'Giveaway Winner', mode: 'setup',
   note: 'Position it here',
   hint: 'Hidden on stream until a winner is drawn',
+  // Body is a full-viewport flex centre, so state the machine's own width
+  // rather than inheriting 100vw.
+  width: '380px', minHeight: 150,
 }).track('#machine');
 </script>
 </body>
