@@ -435,7 +435,7 @@ else if (!demoMode) poll();
 // flashes empty before a spin — which also means the source is invisible until
 // a winner is drawn. Tracks opacity, not display: .machine fades in.
 if (!isEmbed) Standby.init({
-  icon: '🏆', label: 'Winner overlay',
+  icon: '🏆', label: 'Winner overlay', mode: 'setup',
   note: 'stays hidden until a winner is drawn',
 }).track('#machine');
 </script>

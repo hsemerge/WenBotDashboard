@@ -259,8 +259,12 @@
   // with nothing in it, which is precisely the state that looks broken. A quiet
   // chat and a disconnected one produce the identical blank source, so the
   // shell keys off whether any message has actually arrived.
+  // 'setup' rather than persistent, because chat is the one always-on overlay
+  // that empties itself by design: with ?fade= set, messages are removed after
+  // a few seconds, so a quiet moment mid-stream would pop a shell onto a live
+  // broadcast. Flip to persistent if the waiting state is worth more than that.
   Standby.init({
-    icon: '💬', label: 'Chat overlay',
+    icon: '💬', label: 'Chat overlay', mode: 'setup',
     note: 'connected · messages appear here as chat comes in',
   });
   (function watchMessages() {

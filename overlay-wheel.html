@@ -499,7 +499,7 @@ else if (!demoMode) poll();
 // The wheel only becomes visible once a giveaway has entries to draw from, so
 // a streamer setting the source up outside a giveaway sees nothing at all.
 if (!isEmbed) Standby.init({
-  icon: '🎡', label: 'Wheel overlay',
+  icon: '🎡', label: 'Wheel overlay', mode: 'setup',
   note: 'appears once a giveaway has entries',
 }).track('#wheelWrap');
 </script>

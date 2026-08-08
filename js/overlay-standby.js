@@ -6,28 +6,38 @@
  * the browser source, sees an empty rectangle, and has no way to size or
  * position it — or concludes the overlay doesn't work and gives up.
  *
- * The obvious fix is a permanent placeholder, and it's wrong. A "waiting for a
- * spin" box parked on screen for a four-hour stream is worse than a blank one.
+ * Which behaviour is right depends on how the overlay is used, and the two
+ * cases are genuinely different:
  *
- * So the shell keys off what the streamer is actually doing:
+ * mode 'persistent' (default) — feature overlays a streamer turns on for a
+ *   segment: bonus hunt, bonus battle, tournament, slot requests. They add the
+ *   source when they want that feature and hide it when they're done, so an
+ *   idle shell is not clutter — it's how they place the source before going
+ *   live, and how they see the overlay is alive and waiting for the command.
+ *   The shell simply shows whenever there's nothing to draw.
  *
- *   not broadcasting   →  show it. They're setting up; that's the whole point.
- *   broadcasting       →  hide it, EXCEPT for the first few seconds after the
- *                         page loads. A fresh load means they just added or
- *                         refreshed the source, which is the one moment they
- *                         need to see it mid-stream. It then clears itself, so
- *                         it can never linger on a live broadcast.
+ * mode 'setup' — overlays that stay enabled for the whole stream and appear
+ *   only for a moment: the giveaway spinner, wheel, winner, request spinner and
+ *   slot picker. A placeholder parked on screen for four hours is worse than a
+ *   blank one, so here the shell keys off whether the streamer is broadcasting:
  *
- * OBS exposes window.obsstudio to browser sources, which reports streaming and
- * recording state and fires events on transitions. Outside OBS the object is
- * absent — that's a streamer previewing the link in a normal browser, where
- * "not broadcasting" is exactly right and the shell shows.
+ *     not broadcasting  →  show it. They're setting up; that's the point.
+ *     broadcasting      →  hide it, EXCEPT for the first few seconds after the
+ *                          page loads. A fresh load means they just added or
+ *                          refreshed the source, which is the one moment they
+ *                          need it mid-stream. It then clears itself, so it can
+ *                          never linger on a live broadcast.
+ *
+ *   OBS exposes window.obsstudio to browser sources, which reports streaming
+ *   and recording state and fires events on transitions. Outside OBS the object
+ *   is absent — that's a streamer previewing the link in a normal browser,
+ *   where "not broadcasting" is exactly right and the shell shows.
  *
  * ?standby=0 forces it off for good. ?standby=1 forces it on, for anyone who
  * wants it while live regardless.
  *
  * Usage:
- *   Standby.init({ icon: '🎡', label: 'Wheel overlay',
+ *   Standby.init({ icon: '🎡', label: 'Wheel overlay', mode: 'setup',
  *                  note: 'fills automatically when a spin starts' });
  *   Standby.show()            // nothing to draw right now
  *   Standby.show('custom')    // ...with a reason specific to the state
@@ -43,7 +53,14 @@
   var LIVE_GRACE_MS = 25000;
 
   var force = new URLSearchParams(location.search).get("standby");
-  var cfg = { icon: "📺", label: "WenBot overlay", note: "fills automatically when it goes live" };
+  var cfg = {
+    icon: "📺", label: "WenBot overlay",
+    note: "fills automatically when it goes live",
+    // Persistent is the default because it's the safe one: the shell staying
+    // visible is what a streamer placing a source expects. Only the overlays
+    // that live on screen all stream opt into hiding themselves.
+    mode: "persistent",
+  };
 
   var el = null;
   var wanted = false;         // does the overlay currently have nothing to draw?
@@ -56,11 +73,12 @@
     return Date.now() - loadedAt < LIVE_GRACE_MS;
   }
 
-  // The shell is allowed on screen when the streamer isn't broadcasting, or
-  // briefly after a load while they are.
   function allowed() {
     if (force === "0") return false;
     if (force === "1") return true;
+    // Persistent overlays are turned on and off by the streamer as they need
+    // the feature, so an idle shell is wanted whether or not they're live.
+    if (cfg.mode !== "setup") return true;
     return !broadcasting || inGrace();
   }
 
