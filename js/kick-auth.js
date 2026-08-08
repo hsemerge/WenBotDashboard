@@ -77,7 +77,13 @@ async function initiateKickAuth(purpose = "streamer", payload = "") {
       purpose: "wenbot", adminKey, createdAt: Date.now(),
     }));
     state  = `wenbot_${nonce}`;
-    scopes = "chat:write user:read";
+    // The WenBot bot account's own token — ONE token used for every channel.
+    // The moderation scopes power automod (delete / timeout / ban); they only
+    // work in channels where WenBot has actually been made a moderator, so
+    // adding them here is safe for channels that haven't.
+    // NOTE: changing this string requires re-authorizing the WenBot account
+    // (admin page) — existing tokens keep their old, narrower scope set.
+    scopes = "chat:write user:read moderation:ban moderation:chat_message:manage";
 
   } else if (purpose === "viewer") {
     // payload is either a channel string, or { channel, returnOrigin } for the

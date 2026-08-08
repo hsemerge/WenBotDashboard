@@ -332,6 +332,14 @@
     }
     .toggle.on::after { left: 19px; }
 
+    /* Automod exemption checkboxes + escalation ladder rows */
+    .mod-chk { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--bright); cursor: pointer; }
+    .mod-chk input { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+    .mod-step { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(48,54,61,0.5); }
+    .mod-step:last-child { border-bottom: none; }
+    .mod-step .mod-step-n { font-size: 12px; color: var(--text-dim); min-width: 74px; }
+    .mod-step select { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; color: var(--bright); font-size: 13px; padding: 7px 10px; }
+
     /* ── RANGE SLIDER ── */
     input[type=range] {
       -webkit-appearance: none; width: 100%; height: 4px;
@@ -357,6 +365,7 @@
     .badge-green { background: rgba(0,255,136,0.12); color: var(--green); }
     .badge-accent { background: rgba(0,229,255,0.1); color: var(--accent); }
     .badge-orange { background: rgba(255,179,71,0.12); color: var(--orange); }
+    .badge-red { background: rgba(255,77,79,0.12); color: var(--red); }
 
     /* ── GTB ── */
     .gtb-status-card {
@@ -515,6 +524,7 @@
         <div class="nav-item" onclick="showPage('raffle',this)"><span class="icon">🎟</span> Raffles</div>
         <div class="nav-item" onclick="showPage('games',this)"><span class="icon">🎲</span> Games</div>
         <div class="nav-item" onclick="showPage('commands',this)"><span class="icon">💬</span> Commands</div>
+        <div class="nav-item" onclick="showPage('moderation',this)"><span class="icon">🛡️</span> Moderation</div>
         <div class="nav-item" onclick="showPage('overlays',this)"><span class="icon">🖥</span> Overlays</div>
         <div class="nav-item" onclick="showPage('extension',this)"><span class="icon">🧩</span> Companion Extension</div>
       </div>
@@ -542,7 +552,7 @@
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.15.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.16.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -1917,6 +1927,151 @@
       </div>
     </div>
 
+    <!-- ── MODERATION ──
+         Automod. The bot evaluates every message in memory (zero Firestore
+         reads); only a confirmed violation writes anything. Rules live in
+         streamers/{uid}/moderation/config and the bot holds a live listener,
+         so saving here takes effect in chat within seconds. -->
+    <div class="page" id="page-moderation">
+
+      <!-- WenBot can only delete/timeout in channels where it's a MODERATOR.
+           Shown when the bot has actually been refused by Kick. -->
+      <div class="card" id="modNeedsModBanner" style="display:none;border-color:var(--red);">
+        <div class="card-title" style="color:var(--red);">⚠️ WenBot isn't a moderator in your chat</div>
+        <div style="font-size:13px;color:var(--text);line-height:1.6;">
+          Kick refused a moderation action because WenBot doesn't have mod powers in your channel.
+          Automod can detect rule-breaking messages but can't remove them until you fix this.
+          <div style="margin-top:10px;">In your Kick chat, type: <code style="background:var(--bg-card);padding:3px 8px;border-radius:5px;color:var(--accent);">/mod wenbot</code></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🛡️ Automod <span style="font-weight:400;color:var(--text-dim);font-size:12px;margin-left:6px;">(chat rules WenBot enforces for you)</span></div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.5;">
+          Turn on the filters you want. A message that breaks a rule is deleted, and repeat offenders
+          escalate up the ladder below. Everything is off by default — nothing is enforced until you switch it on.
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-label">Enable automod
+              <span class="gw-info" onclick="this.classList.toggle('open');">i<span class="gw-info-pop">The master switch. When off, WenBot ignores chat rules entirely — individual filters below stay saved.</span></span>
+            </div>
+          </div>
+          <div class="toggle" id="modEnabled" onclick="toggleOption(this)"></div>
+        </div>
+
+        <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 8px;">Who is exempt</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;">
+          <label class="mod-chk"><input type="checkbox" id="modExemptMods" checked> Moderators</label>
+          <label class="mod-chk"><input type="checkbox" id="modExemptSubs"> Subscribers</label>
+          <label class="mod-chk"><input type="checkbox" id="modExemptVips"> VIPs</label>
+          <label class="mod-chk"><input type="checkbox" id="modExemptVerified"> Verified viewers</label>
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">You (the broadcaster) are always exempt.</div>
+      </div>
+
+      <!-- Rule cards -->
+      <div class="card">
+        <div class="card-title">🔗 Links</div>
+        <div class="toggle-row">
+          <div class="toggle-info"><div class="toggle-label">Block links</div></div>
+          <div class="toggle" id="modLinksEnabled" onclick="toggleOption(this)"></div>
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label>Allowed domains <span style="color:var(--text-dim);font-weight:400;">(comma separated — subdomains included automatically)</span></label>
+          <input type="text" id="modLinksAllowlist" placeholder="kick.com, youtube.com, your-site.com"
+            style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label>!permit duration (seconds)</label>
+          <input type="number" id="modLinksPermit" min="10" max="600" value="60"
+            style="width:120px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+          <div style="font-size:11px;color:var(--text-dim);margin-top:5px;">Mods type <code>!permit username</code> to let someone post one link.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🚫 Banned phrases</div>
+        <div class="toggle-row">
+          <div class="toggle-info"><div class="toggle-label">Block banned words &amp; phrases</div></div>
+          <div class="toggle" id="modPhrasesEnabled" onclick="toggleOption(this)"></div>
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label>Blocked terms <span style="color:var(--text-dim);font-weight:400;">(one per line, case-insensitive)</span></label>
+          <textarea id="modPhrasesTerms" rows="4" placeholder="cheap followers&#10;free giveaway dm me"
+            style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:13px;padding:9px 12px;resize:vertical;"></textarea>
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label>Advanced patterns <span style="color:var(--text-dim);font-weight:400;">(regex, one per line — leave empty if unsure)</span></label>
+          <textarea id="modPhrasesRegexes" rows="2" placeholder="free\s+nitro"
+            style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:13px;padding:9px 12px;resize:vertical;"></textarea>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:5px;">An invalid pattern is ignored rather than breaking the filter.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔠 Excessive caps</div>
+        <div class="toggle-row">
+          <div class="toggle-info"><div class="toggle-label">Block ALL-CAPS messages</div></div>
+          <div class="toggle" id="modCapsEnabled" onclick="toggleOption(this)"></div>
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;">
+          <div class="field"><label>Ignore messages shorter than</label>
+            <input type="number" id="modCapsMinLength" min="4" max="100" value="10" style="width:110px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+          </div>
+          <div class="field"><label>Trigger at % caps</label>
+            <input type="number" id="modCapsMaxPercent" min="30" max="100" value="70" style="width:110px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">💨 Flood &amp; repetition</div>
+        <div class="toggle-row">
+          <div class="toggle-info"><div class="toggle-label">Block spam &amp; repeated messages</div></div>
+          <div class="toggle" id="modFloodEnabled" onclick="toggleOption(this)"></div>
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;">
+          <div class="field"><label>Max messages</label>
+            <input type="number" id="modFloodMax" min="2" max="30" value="5" style="width:100px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+          </div>
+          <div class="field"><label>…per (seconds)</label>
+            <input type="number" id="modFloodWindow" min="3" max="120" value="10" style="width:100px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+          </div>
+          <div class="field"><label>Max identical messages</label>
+            <input type="number" id="modFloodRepeats" min="2" max="10" value="3" style="width:130px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📈 Escalation</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.5;">
+          What happens on a viewer's 1st, 2nd, 3rd and 4th+ offence. The offending message is always deleted.
+          Strikes reset after a quiet period.
+        </div>
+        <div id="modLadder"></div>
+        <div class="field" style="margin-top:12px;">
+          <label>Forget strikes after (minutes)</label>
+          <input type="number" id="modStrikeExpiry" min="5" max="10080" value="60" style="width:120px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-bottom:18px;">
+        <button class="btn btn-accent" onclick="saveModeration()">Save moderation settings</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📜 Recent automod actions
+          <button class="btn btn-ghost btn-sm" style="float:right;" onclick="loadModActions()">Refresh</button>
+        </div>
+        <div id="modActionsList">
+          <div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Nothing yet</div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── LEADERBOARD ── -->
     <div class="page" id="page-leaderboard">
 
@@ -2838,9 +2993,25 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.15.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.16.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.16.0 — WenBot moderates your chat</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 8, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🛡️ <strong>Automod is here.</strong> New <strong>Moderation</strong> page. Block links, banned words, ALL-CAPS shouting and spam — WenBot deletes the message and handles repeat offenders for you.</li>
+            <li>📈 <strong>Escalation you control.</strong> Set what happens on a viewer's 1st, 2nd, 3rd and 4th offence — from a warning up to a timeout or a ban. Strikes fade after a quiet spell, so a one-off slip doesn't follow someone around.</li>
+            <li>🎟 <strong>Exemptions.</strong> Mods are exempt by default; you can also exempt subs, VIPs and verified viewers. You're never actioned in your own channel.</li>
+            <li>🔗 <strong><code>!permit username</code></strong> lets your mods wave a link through without turning the filter off.</li>
+            <li>📜 <strong>An action log</strong> shows every automod decision — who, which rule, what it did, and the message itself.</li>
+            <li>⚠️ <strong>One thing to do:</strong> WenBot needs to be a moderator in your chat to remove messages. Type <code>/mod wenbot</code> in your Kick chat. The Moderation page tells you if it's missing.</li>
+            <li>🔕 Everything is <strong>off by default</strong> — nothing changes in your chat until you switch it on.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -5663,7 +5834,7 @@ function showPage(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotpicker:'Slot Picker', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', settings:'Settings', activity:'Activity Log', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade', referrals:'Invite & Earn', extension:'Companion Extension', whatsnew:"What's New", creators:'Creators' };
+  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', moderation:'Moderation', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotpicker:'Slot Picker', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', settings:'Settings', activity:'Activity Log', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade', referrals:'Invite & Earn', extension:'Companion Extension', whatsnew:"What's New", creators:'Creators' };
   document.getElementById('topbarTitle').textContent = titles[id] || id;
   // Re-evaluate the top billing banners for this page (hidden on stream-shown pages).
   _activePage = id;
@@ -5688,6 +5859,7 @@ function showPage(id, el) {
   if (id === 'leaderboard') { loadLeaderboards(); loadExtraBoards(); }
   if (id === 'store') { loadStoreItems(); loadRedemptions(); }
   if (id === 'commands') { loadCommands(); loadCommandAliases(); loadTimers(); }
+  if (id === 'moderation') { loadModeration(); loadModActions(); }
   if (id === 'games') loadGamesSettings();
   if (id === 'bonushunt')   { loadBonusHunt(); loadBhHistory(); }
   if (id === 'slotpicker')   initSlotPicker();
@@ -9041,6 +9213,198 @@ async function deleteCommand(id) {
   await fb.db.collection('streamers').doc(fb.activeUid).update({ commandsUpdatedAt: Date.now() }).catch(() => {});
   flash('Command deleted.');
   loadCommands();
+}
+
+// ── MODERATION (automod) ────────────────────────────────────────────────────
+// streamers/{uid}/moderation/config — one doc, live-watched by the bot, so a
+// save here reaches chat in seconds. mod_actions is the bot-written audit log
+// (read-only to the dashboard; rules forbid client writes).
+
+// Actions a ladder step can take. "none" lets a streamer stop escalating —
+// e.g. delete every time, never time anyone out.
+const MOD_ACTIONS = [
+  { v: 'delete',  label: 'Delete + warn' },
+  { v: 'timeout', label: 'Timeout' },
+  { v: 'ban',     label: 'Permanent ban' },
+  { v: 'none',    label: 'Do nothing' },
+];
+const MOD_TIMEOUTS = [1, 5, 10, 30, 60, 360, 1440, 10080];
+const MOD_LADDER_LABELS = ['1st offence', '2nd offence', '3rd offence', '4th+ offence'];
+// Mirrors DEFAULT_LADDER in WenBotServer/src/moderation.js — keep in sync.
+const MOD_DEFAULT_LADDER = [
+  { action: 'delete',  warn: true },
+  { action: 'timeout', minutes: 5 },
+  { action: 'timeout', minutes: 60 },
+  { action: 'timeout', minutes: 1440 },
+];
+
+function _modTimeoutLabel(m) {
+  if (m >= 1440) return (m / 1440) + 'd';
+  if (m >= 60)   return (m / 60) + 'h';
+  return m + 'm';
+}
+
+function renderModLadder(ladder) {
+  const steps = (ladder && ladder.length ? ladder : MOD_DEFAULT_LADDER);
+  document.getElementById('modLadder').innerHTML = MOD_LADDER_LABELS.map((label, i) => {
+    const step = steps[i] || { action: 'none' };
+    const opts = MOD_ACTIONS.map(a => `<option value="${a.v}"${a.v === step.action ? ' selected' : ''}>${a.label}</option>`).join('');
+    const mins = MOD_TIMEOUTS.map(m => `<option value="${m}"${m === (step.minutes || 5) ? ' selected' : ''}>${_modTimeoutLabel(m)}</option>`).join('');
+    return `<div class="mod-step">
+      <span class="mod-step-n">${label}</span>
+      <select id="modStepAction${i}" onchange="renderModLadderMinutes(${i})">${opts}</select>
+      <select id="modStepMinutes${i}" style="${step.action === 'timeout' ? '' : 'display:none;'}">${mins}</select>
+    </div>`;
+  }).join('');
+}
+
+// Show the duration picker only for timeout steps.
+function renderModLadderMinutes(i) {
+  const action = document.getElementById('modStepAction' + i).value;
+  document.getElementById('modStepMinutes' + i).style.display = action === 'timeout' ? '' : 'none';
+}
+
+function _readModLadder() {
+  return MOD_LADDER_LABELS.map((_, i) => {
+    const action = document.getElementById('modStepAction' + i).value;
+    const step = { action };
+    if (action === 'timeout') step.minutes = parseInt(document.getElementById('modStepMinutes' + i).value, 10) || 5;
+    if (action === 'delete')  step.warn = true;
+    return step;
+  });
+}
+
+async function loadModeration() {
+  try {
+    const doc = await fb.db.collection('streamers').doc(fb.activeUid)
+      .collection('moderation').doc('config').get();
+    const c = doc.exists ? doc.data() : {};
+    const r = c.rules || {};
+    const setTog = (id, on) => document.getElementById(id).classList.toggle('on', !!on);
+
+    setTog('modEnabled', c.enabled);
+    const ex = c.exempt || { mods: true };
+    document.getElementById('modExemptMods').checked     = ex.mods !== false;
+    document.getElementById('modExemptSubs').checked     = !!ex.subs;
+    document.getElementById('modExemptVips').checked     = !!ex.vips;
+    document.getElementById('modExemptVerified').checked = !!ex.verified;
+
+    setTog('modLinksEnabled', r.links?.enabled);
+    document.getElementById('modLinksAllowlist').value = (r.links?.allowlist || []).join(', ');
+    document.getElementById('modLinksPermit').value    = r.links?.permitSeconds || 60;
+
+    setTog('modPhrasesEnabled', r.phrases?.enabled);
+    document.getElementById('modPhrasesTerms').value   = (r.phrases?.terms   || []).join('\n');
+    document.getElementById('modPhrasesRegexes').value = (r.phrases?.regexes || []).join('\n');
+
+    setTog('modCapsEnabled', r.caps?.enabled);
+    document.getElementById('modCapsMinLength').value  = r.caps?.minLength  || 10;
+    document.getElementById('modCapsMaxPercent').value = r.caps?.maxPercent || 70;
+
+    setTog('modFloodEnabled', r.flood?.enabled);
+    document.getElementById('modFloodMax').value     = r.flood?.maxMessages || 5;
+    document.getElementById('modFloodWindow').value  = r.flood?.windowSec   || 10;
+    document.getElementById('modFloodRepeats').value = r.flood?.maxRepeats  || 3;
+
+    document.getElementById('modStrikeExpiry').value = c.strikeExpiryMin || 60;
+    renderModLadder(c.ladder);
+
+    // "WenBot isn't a mod" — written by the bot the first time Kick refuses an action.
+    const sDoc = await fb.db.collection('streamers').doc(fb.activeUid).get();
+    const needsMod = sDoc.exists && sDoc.data().moderationStatus?.needsMod;
+    document.getElementById('modNeedsModBanner').style.display = needsMod ? '' : 'none';
+  } catch (e) {
+    flash('Could not load moderation settings.', 'error');
+  }
+}
+
+async function saveModeration() {
+  const on   = id => document.getElementById(id).classList.contains('on');
+  const val  = id => document.getElementById(id).value;
+  const num  = (id, def) => parseInt(val(id), 10) || def;
+  const list = id => val(id).split('\n').map(s => s.trim()).filter(Boolean);
+
+  const cfg = {
+    enabled: on('modEnabled'),
+    exempt: {
+      mods:     document.getElementById('modExemptMods').checked,
+      subs:     document.getElementById('modExemptSubs').checked,
+      vips:     document.getElementById('modExemptVips').checked,
+      verified: document.getElementById('modExemptVerified').checked,
+    },
+    rules: {
+      links: {
+        enabled: on('modLinksEnabled'),
+        // Stored as bare hostnames — strip any scheme/path a streamer pastes in.
+        allowlist: val('modLinksAllowlist').split(',').map(s =>
+          s.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0]
+        ).filter(Boolean),
+        permitSeconds: num('modLinksPermit', 60),
+      },
+      phrases: {
+        enabled: on('modPhrasesEnabled'),
+        terms:   list('modPhrasesTerms').map(s => s.toLowerCase()),
+        regexes: list('modPhrasesRegexes'),
+      },
+      caps: {
+        enabled:    on('modCapsEnabled'),
+        minLength:  num('modCapsMinLength', 10),
+        maxPercent: num('modCapsMaxPercent', 70),
+      },
+      flood: {
+        enabled:     on('modFloodEnabled'),
+        maxMessages: num('modFloodMax', 5),
+        windowSec:   num('modFloodWindow', 10),
+        maxRepeats:  num('modFloodRepeats', 3),
+      },
+    },
+    ladder: _readModLadder(),
+    strikeExpiryMin: num('modStrikeExpiry', 60),
+    updatedAt: Date.now(),
+  };
+
+  // Warn before saving a regex the bot will silently drop.
+  const bad = cfg.rules.phrases.regexes.filter(src => {
+    try { new RegExp(src); return false; } catch { return true; }
+  });
+  if (bad.length && !confirm(`These patterns aren't valid and will be ignored:\n\n${bad.join('\n')}\n\nSave anyway?`)) return;
+
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid)
+      .collection('moderation').doc('config').set(cfg, { merge: true });
+    flash('Moderation settings saved — live in chat within seconds.');
+    logAction('moderation_settings_save', { enabled: cfg.enabled });
+  } catch (e) {
+    flash('Save failed.', 'error');
+  }
+}
+
+async function loadModActions() {
+  const el = document.getElementById('modActionsList');
+  try {
+    const snap = await fb.db.collection('streamers').doc(fb.activeUid)
+      .collection('mod_actions').orderBy('ts', 'desc').limit(50).get();
+    if (snap.empty) {
+      el.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">No automod actions yet</div>';
+      return;
+    }
+    const RULE_LABEL = { links: '🔗 Link', phrases: '🚫 Phrase', caps: '🔠 Caps', flood: '💨 Flood' };
+    el.innerHTML = snap.docs.map(d => {
+      const a = d.data();
+      const when = new Date(a.ts).toLocaleString();
+      const what = a.action === 'timeout' ? `Timeout ${a.minutes}m` : a.action === 'ban' ? 'Banned' : 'Deleted';
+      return `<div style="display:flex;align-items:center;gap:12px;padding:9px 12px;background:var(--bg-card);border-radius:6px;margin-bottom:4px;flex-wrap:wrap;">
+        <span style="font-weight:700;color:var(--accent);min-width:130px;">${escHtml(a.kickName || '')}</span>
+        <span style="font-size:12px;min-width:90px;">${RULE_LABEL[a.rule] || escHtml(a.rule || '')}</span>
+        <span style="font-size:12px;color:var(--text-dim);flex:1;min-width:160px;">${escHtml(a.content || '')}</span>
+        <span class="badge ${a.action === 'ban' ? 'badge-red' : 'badge-orange'}">${what}</span>
+        <span style="font-size:11px;color:var(--text-dim);">strike ${a.strikes || 1}</span>
+        <span style="font-size:11px;color:var(--text-dim);">${when}</span>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    el.innerHTML = '<div style="color:var(--red);font-size:12px;text-align:center;padding:20px;">Could not load the action log</div>';
+  }
 }
 
 // ── TIMED MESSAGES (Botrix-style timers) ────────────────────────────────────

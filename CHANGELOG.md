@@ -11,6 +11,41 @@ When you bump the version, update both this file AND the `<span id="appVersionNu
 
 ---
 
+## [1.16.0] — 2026-08-08
+
+Automod — the chat-moderation layer. WenBot can now enforce chat rules itself,
+closing the gap that forced streamers to run a second bot alongside it.
+
+Scoped MINOR rather than MAJOR: the OAuth scope change applies only to the
+WenBot bot account (a single re-auth we perform), no existing streamer flow
+changes, and every filter ships switched off.
+
+### Added
+
+- **Automod engine** — [WenBotServer/src/moderation.js](../WenBotServer/src/moderation.js). Four filters: links (with domain allowlist + `!permit`), banned phrases/regex, excessive caps, and flood/repetition.
+- **Escalation ladder** — configurable per-offence actions (delete + warn → timeout → ban), with strikes that decay after a quiet period.
+- **Exemptions** — mods (default on), subs, VIPs, verified viewers. The broadcaster is always exempt and can never be actioned.
+- **`!permit <user>`** — mods grant a temporary pass on the link filter.
+- **Moderation dashboard page** — rule config plus a read-only action log (`mod_actions`).
+- **Kick moderation API client** — `banUser` / `unbanUser` / `deleteMessage` in `kick-client.js`.
+- **`test/moderation.test.js`** — 26 rule-engine assertions, no emulator or creds needed (`node test/moderation.test.js`).
+
+### Changed
+
+- **WenBot account OAuth scopes** now include `moderation:ban` and `moderation:chat_message:manage` ([js/kick-auth.js](js/kick-auth.js)). **Requires re-authorizing the WenBot account** — one account, not per-streamer, because a single bot token serves every channel.
+- `onMessage` runs automod before command handling, so a rule-breaking message can't also run a command, earn points, or enter a giveaway.
+
+### Security
+
+- `mod_actions` and `mod_strikes` are server-write-only in [firestore.rules](firestore.rules) and excluded from the single-level catch-all — a client can't forge an action log entry or reset their own strikes.
+
+### Operational notes
+
+- WenBot must be a **moderator** in a channel for removals to work. When Kick refuses an action the bot sets `moderationStatus.needsMod` on the streamer doc and the dashboard shows a fix-it banner.
+- The hot path does **zero Firestore reads per message** (config is cached via `onSnapshot`, flood state is in-memory). Firestore is touched only on a confirmed violation, in one transaction that doubles as cross-instance dedup.
+
+---
+
 ## [1.0.0] — 2026-05-19
 
 First documented stable release. This consolidates a large security/architecture hardening pass and feature work into a single named milestone.

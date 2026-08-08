@@ -204,6 +204,23 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
+      // mod_actions — the automod audit trail. Bot-written via admin SDK; the
+      // dashboard's Moderation log only reads. A streamer can clear the log,
+      // but can never forge or edit an entry.
+      match /mod_actions/{doc} {
+        allow read, delete: if isOwnerOrMod(uid);
+        allow create, update: if false;
+      }
+
+      // mod_strikes — the escalation counter, and the cross-instance dedup
+      // record the bot transacts on. Entirely bot-owned; a client write here
+      // would let someone reset their own strikes. Delete is allowed so the
+      // dashboard can offer "forgive strikes" for a viewer.
+      match /mod_strikes/{doc} {
+        allow read, delete: if isOwnerOrMod(uid);
+        allow create, update: if false;
+      }
+
       // GTB guesses live one level deeper than the single-level catch-all
       // below can reach (gtb_sessions/{id}/guesses/{id}). Viewer guesses are
       // written by the bot via admin SDK; the dashboard only needs to read.
@@ -223,7 +240,8 @@ service cloud.firestore {
         allow read, write: if isOwnerOrMod(uid)
           && !(subcollection in [
             'referrals', 'payments', 'verified_users', 'discord_links', 'audit_logs',
-            'bot_status', 'bb_votes', 'store_redemptions', 'bot_locks', 'invoices'
+            'bot_status', 'bb_votes', 'store_redemptions', 'bot_locks', 'invoices',
+            'mod_actions', 'mod_strikes'
           ]);
       }
     }
