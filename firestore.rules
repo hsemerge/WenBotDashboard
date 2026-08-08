@@ -161,7 +161,17 @@ service cloud.firestore {
       }
       match /bb_votes/{doc} {
         allow read: if isOwnerOrMod(uid);
-        allow create, update: if false;
+        // Votes are cast by the bot and can never be forged or edited from a
+        // client. Settling a match is the one exception: paying out, voiding a
+        // match and refunding all each stamp the settlement fields on every
+        // vote in a batch. Restricting the diff to those three keys keeps the
+        // stake, choice and voter immutable, so a streamer still can't rewrite
+        // who bet what after seeing the result. Grants no new power over points
+        // — owner + mods already write /viewers directly.
+        allow update: if isOwnerOrMod(uid)
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                            .hasOnly(['paid', 'payout', 'refunded']);
+        allow create: if false;
         allow delete: if isOwnerOrMod(uid);
       }
       match /store_redemptions/{doc} {
