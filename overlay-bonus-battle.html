@@ -72,11 +72,13 @@
     .hidden { display: none; }
   </style>
   <script src="/js/overlay-theme.js"></script>
-  <script src="/js/overlay-standby.js"></script>
 </head>
 <body>
 <div class="overlay" id="overlay">
-  <div class="hidden" id="matchCard">
+  <!-- Not hidden to start: the markup's own defaults (—, 0, 50/50) are a valid
+       idle card, so the source has something in it from the first paint rather
+       than staying blank for the length of the first poll. -->
+  <div id="matchCard">
     <div class="match-card">
       <div class="match-top">
         <div class="battle-title" id="ovBattleTitle">Bonus Battle</div>
@@ -132,47 +134,31 @@
     } catch {}
   }
 
-  // Standby shell — its own element, so the real card's markup (which render()
-  // mutates in place) is never touched. ?standby=0 restores the old full hide.
-  // `note` describes WHY nothing is showing. There are two different reasons and
-  // they need different words: no battle at all, versus a battle that's running
-  // but between matches (or not yet populated).
-  // Delegates to the shared shell. The local copy this replaced showed itself
-  // whenever no match was live, including all the way through a broadcast —
-  // so a streamer with a battle open but no match running had a standby box
-  // sitting on stream. js/overlay-standby.js only shows it when they aren't
-  // actually live, which is the state it was ever meant for.
-  Standby.init({
-    icon: '⚔️', label: 'Bonus Battle',
-    note: 'No battle started yet',
-    hint: 'Start one from your dashboard and this fills in',
-    minHeight: 170,
-  });
-  function ovStandby(show, note) {
-    if (show) Standby.show(note); else Standby.hide();
-  }
-
   function render(battle) {
     const card = document.getElementById('matchCard');
-    if (!battle?.active) { card.className = 'hidden'; ovStandby(true); return; }
-    ovStandby(false);
-
-    const matches = battle.matches || [];
+    const matches = battle?.matches || [];
     // Show the most recent non-complete match, or the last complete one
-    const live = matches.find(m => m.status === 'voting' || m.status === 'locked')
-               || matches.filter(m => m.status === 'complete').slice(-1)[0];
-    // A battle can be active with nothing to show — no matches added yet, or
-    // between matches. Without a shell here the overlay went completely blank,
-    // which looks broken in OBS and gives a streamer nothing to position against.
-    if (!live) {
-      card.className = 'hidden';
-      ovStandby(true, matches.length
-        ? 'Waiting for the next match'
-        : 'Battle open · waiting for matches');
-      return;
+    let live = matches.find(m => m.status === 'voting' || m.status === 'locked')
+             || matches.filter(m => m.status === 'complete').slice(-1)[0];
+
+    // Two states used to blank the overlay completely: no battle at all, and a
+    // battle that's active with nothing to show (no matches yet, or between
+    // matches). Rather than hide the card or stand something else in its place,
+    // render the real card against an empty match. Every figure has a zero
+    // state, so the idle overlay is the live overlay with nothing in it — and
+    // the box a streamer sizes in OBS is exactly the box they get mid-battle.
+    const idle = !battle?.active || !live;
+    if (idle) {
+      live = {
+        id: '__idle', status: '__idle',
+        slot1: { name: '—', provider: '' }, slot2: { name: '—', provider: '' },
+        slot1Pool: 0, slot2Pool: 0, slot1Votes: 0, slot2Votes: 0,
+        slot1Multiplier: null, slot2Multiplier: null, winner: null,
+      };
     }
 
-    // Animate in on new match
+    // Animate in on new match, but never on the idle card — its id is constant,
+    // so it settles once and doesn't flicker on every poll.
     if (live.id !== lastMatchId) { lastMatchId = live.id; card.className = 'hidden'; setTimeout(() => { card.className = ''; }, 50); }
     else { card.className = ''; }
 
@@ -181,9 +167,19 @@
     const s2pct = 100 - s1pct;
 
     const statusMap = { voting: ['🟢 VOTING OPEN', 'pill-voting'], locked: ['🔒 LOCKED', 'pill-locked'], complete: ['✅ COMPLETE', 'pill-complete'] };
+    // The pill is the one place the idle card can say which kind of nothing
+    // this is — no battle at all reads very differently to a battle that's
+    // running and between matches.
+    if (idle) {
+      statusMap.__idle = [
+        !battle?.active ? '⏳ NO BATTLE YET'
+          : matches.length ? '⏳ NEXT MATCH SOON' : '⏳ WAITING FOR MATCHES',
+        'pill-locked',
+      ];
+    }
     const [statusText, statusClass] = statusMap[live.status] || ['', ''];
 
-    document.getElementById('ovBattleTitle').textContent = battle.title || 'Bonus Battle';
+    document.getElementById('ovBattleTitle').textContent = battle?.title || 'Bonus Battle';
     const pill = document.getElementById('ovStatus');
     pill.textContent = statusText;
     pill.className   = 'status-pill ' + statusClass;

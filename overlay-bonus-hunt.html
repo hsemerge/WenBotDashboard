@@ -289,11 +289,13 @@
     }
   </style>
   <script src="/js/overlay-theme.js"></script>
-  <script src="/js/overlay-standby.js"></script>
 </head>
 <body>
 
-<div class="panel" id="panel" style="display:none;">
+<!-- Visible from the start. It used to be hidden until the first poll returned,
+     which meant the source was blank for as long as the network took — the
+     exact "is this broken?" moment. Its zero state is a valid idle panel. -->
+<div class="panel" id="panel">
 
   <!-- Header -->
   <div class="header">
@@ -386,28 +388,15 @@
     return 'result-low';
   }
 
-  // Standby shell — separate element so the panel's live-mutated markup is
-  // never touched. ?standby=0 restores the old full hide.
-  // Delegates to the shared shell — same reasoning as the bonus battle: the
-  // local copy stayed up through an entire broadcast whenever no hunt was
-  // running. See js/overlay-standby.js.
-  Standby.init({
-    icon: '🎰', label: 'Bonus Hunt',
-    note: 'No hunt started yet',
-    hint: 'Start a hunt from your dashboard and this fills in',
-    minHeight: 200,
-  });
-  function ovStandby(show) {
-    if (show) Standby.show(); else Standby.hide();
-  }
-
   function render(hunt) {
-    if (!hunt || !hunt.active) {
-      document.getElementById('panel').style.display = 'none';
-      ovStandby(true);
-      return;
-    }
-    ovStandby(false);
+    // With no hunt running, render the real panel against an empty hunt rather
+    // than hiding it or standing something else in its place. Every figure
+    // already has a zero state — 0/0, $0, 0.0x, "—" — so the idle overlay is
+    // the live overlay with nothing in it. That keeps the box a streamer sizes
+    // in OBS identical to the box they'll see mid-hunt, which a separate
+    // placeholder could never guarantee.
+    const idle = !hunt || !hunt.active;
+    if (idle) hunt = { active: true, bonuses: [], totalCost: 0 };
     document.getElementById('panel').style.display = '';
 
     const bonuses   = hunt.bonuses || [];
@@ -491,6 +480,16 @@
         <td>${resultHtml}</td>
       </tr>`;
     }).join('');
+
+    // The one thing an empty panel can't say for itself: whether it's waiting
+    // for a hunt or just waiting for the first slot to be added. Sits in the
+    // table body, so it takes up space the rows will occupy rather than
+    // changing the panel's height.
+    if (idle) {
+      tbody.innerHTML = '<tr><td colspan="4" style="padding:26px 12px;text-align:center;'
+        + 'color:rgba(255,255,255,0.42);font-size:12px;font-weight:500;">'
+        + 'No hunt started yet · start one from your dashboard</td></tr>';
+    }
   }
 
   function escHtml(s) {

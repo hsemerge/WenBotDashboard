@@ -148,7 +148,6 @@
     .hidden { display: none; }
   </style>
   <script src="/js/overlay-theme.js"></script>
-  <script src="/js/overlay-standby.js"></script>
 </head>
 <body>
 <div class="overlay" id="overlay">
@@ -195,23 +194,26 @@ function render(t) {
   _lastPayload = sig;
 
   const card = document.getElementById('bracketCard');
-  if (!t?.active) {
-    // Standby shell — delegates to js/overlay-standby.js, which keeps it to
-    // setup rather than painting a placeholder into the live card. Writing it
-    // into `card` also meant the standby markup and the real tournament markup
-    // shared one element, so every render had to rebuild the whole card.
-    card.className = 'hidden';
-    Standby.show();
-    return;
+
+  // With no tournament set up, render the real card in its registration state
+  // against an empty roster rather than hiding it. That branch already handles
+  // nobody having joined ("Waiting for participants…"), so the idle overlay is
+  // the live overlay with nothing in it — same box, same height, same position
+  // as the one a streamer is about to see, which a stand-in could never match.
+  const idle = !t?.active;
+  if (idle) {
+    t = { active: true, status: 'registration', title: 'Tournament',
+          bracketSize: 8, mode: 'standard', participants: [], prizePool: 0 };
   }
   card.className = '';
-  Standby.hide();
 
-  const statusPill = t.status === 'registration'
-    ? '<div class="status-pill pill-reg">● REGISTRATION OPEN</div>'
-    : t.status === 'active'
-      ? '<div class="status-pill pill-live">● LIVE</div>'
-      : '<div class="status-pill pill-done">🏆 COMPLETE</div>';
+  const statusPill = idle
+    ? '<div class="status-pill pill-reg">⏳ NOT STARTED</div>'
+    : t.status === 'registration'
+      ? '<div class="status-pill pill-reg">● REGISTRATION OPEN</div>'
+      : t.status === 'active'
+        ? '<div class="status-pill pill-live">● LIVE</div>'
+        : '<div class="status-pill pill-done">🏆 COMPLETE</div>';
 
   const size = t.bracketSize || 8;
   const titleBlock = `
@@ -407,14 +409,10 @@ if (isDemo) {
   setInterval(poll, 2000);
 }
 
-Standby.init({
-  icon: '🏅', label: 'Tournament',
-  note: 'No tournament set up yet',
-  hint: 'Create one from your dashboard and this fills in',
-  // Body is fit-content here, so there's no declared width to inherit — the
-  // real card sizes itself to the bracket. This is a representative width.
-  width: '620px', minHeight: 140,
-});
+// Paint the idle card immediately instead of waiting for the first poll to
+// come back — without this the source is blank for the length of a network
+// round trip on every load, which is the exact moment it looks broken.
+render(null);
 </script>
 </body>
 </html>
