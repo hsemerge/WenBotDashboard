@@ -133,14 +133,20 @@
 
   // Standby shell — its own element, so the real card's markup (which render()
   // mutates in place) is never touched. ?standby=0 restores the old full hide.
-  function ovStandby(show) {
+  // `note` describes WHY nothing is showing. There are two different reasons and
+  // they need different words: no battle at all, versus a battle that's running
+  // but between matches (or not yet populated).
+  function ovStandby(show, note) {
     let s = document.getElementById('ovStandbyShell');
     if (show && new URLSearchParams(location.search).get('standby') === '0') show = false;
     if (show && !s) {
       s = document.createElement('div');
       s.id = 'ovStandbyShell';
-      s.innerHTML = `<div style="display:inline-flex;align-items:center;gap:9px;background:var(--ov-panel,rgba(13,17,23,0.93));border:1px dashed rgba(255,255,255,0.28);border-radius:12px;padding:11px 18px;opacity:0.55;font-family:var(--ov-font-heading,'Exo 2',sans-serif);color:var(--ov-text,#fff);font-size:13px;font-weight:800;">⚔️ Bonus Battle overlay <span style="font-family:var(--ov-font,Inter,sans-serif);font-weight:600;font-size:11px;color:rgba(255,255,255,0.55);">— standby · fills automatically when a battle starts</span></div>`;
       document.body.appendChild(s);
+    }
+    if (s && show) {
+      const msg = note || 'standby · fills automatically when a battle starts';
+      s.innerHTML = `<div style="display:inline-flex;align-items:center;gap:9px;background:var(--ov-panel,rgba(13,17,23,0.93));border:1px dashed rgba(255,255,255,0.28);border-radius:12px;padding:11px 18px;opacity:0.55;font-family:var(--ov-font-heading,'Exo 2',sans-serif);color:var(--ov-text,#fff);font-size:13px;font-weight:800;">⚔️ Bonus Battle overlay <span style="font-family:var(--ov-font,Inter,sans-serif);font-weight:600;font-size:11px;color:rgba(255,255,255,0.55);">— ${msg}</span></div>`;
     }
     if (s) s.style.display = show ? '' : 'none';
   }
@@ -154,7 +160,16 @@
     // Show the most recent non-complete match, or the last complete one
     const live = matches.find(m => m.status === 'voting' || m.status === 'locked')
                || matches.filter(m => m.status === 'complete').slice(-1)[0];
-    if (!live) { card.className = 'hidden'; return; }
+    // A battle can be active with nothing to show — no matches added yet, or
+    // between matches. Without a shell here the overlay went completely blank,
+    // which looks broken in OBS and gives a streamer nothing to position against.
+    if (!live) {
+      card.className = 'hidden';
+      ovStandby(true, matches.length
+        ? 'battle running · waiting for the next match'
+        : 'battle open · add matches to start');
+      return;
+    }
 
     // Animate in on new match
     if (live.id !== lastMatchId) { lastMatchId = live.id; card.className = 'hidden'; setTimeout(() => { card.className = ''; }, 50); }
