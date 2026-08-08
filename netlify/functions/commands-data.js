@@ -59,6 +59,7 @@ const CATALOG = [
 
   // Bonus hunt & guessing
   { chat: "!hunt",  discord: "hunt",  group: "Bonus Hunt", desc: "Current bonus hunt status", also: ["!bonushunt"] },
+  { chat: "!bb",    discord: null,    group: "Bonus Hunt", desc: "Vote in the live bonus battle", also: ["!battle", "!bonusbattle"] },
   { chat: "!gtb",   discord: "gtb",   group: "Bonus Hunt", desc: "Guess the final balance", usage: "{cmd} 1000", also: ["!guess"] },
   { chat: "!mygtb", discord: "mygtb", group: "Bonus Hunt", desc: "Your current guess" },
 
