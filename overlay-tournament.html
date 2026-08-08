@@ -148,6 +148,7 @@
     .hidden { display: none; }
   </style>
   <script src="/js/overlay-theme.js"></script>
+  <script src="/js/overlay-standby.js"></script>
 </head>
 <body>
 <div class="overlay" id="overlay">
@@ -195,14 +196,16 @@ function render(t) {
 
   const card = document.getElementById('bracketCard');
   if (!t?.active) {
-    // Standby shell — a dim placeholder so streamers can position/scale the
-    // source in OBS before a tournament exists. ?standby=0 restores full hide.
-    if (_qs.get('standby') === '0') { card.className = 'hidden'; return; }
-    card.className = '';
-    card.innerHTML = `<div style="display:inline-flex;align-items:center;gap:9px;background:var(--ov-panel);border:1px dashed rgba(255,255,255,0.28);border-radius:12px;padding:11px 18px;opacity:0.55;font-family:var(--ov-font-heading);color:var(--ov-text);font-size:13px;font-weight:800;">🏅 Tournament overlay <span style="font-family:var(--ov-font);font-weight:600;font-size:11px;color:rgba(255,255,255,0.55);">— standby · fills automatically when a tournament starts</span></div>`;
+    // Standby shell — delegates to js/overlay-standby.js, which keeps it to
+    // setup rather than painting a placeholder into the live card. Writing it
+    // into `card` also meant the standby markup and the real tournament markup
+    // shared one element, so every render had to rebuild the whole card.
+    card.className = 'hidden';
+    Standby.show();
     return;
   }
   card.className = '';
+  Standby.hide();
 
   const statusPill = t.status === 'registration'
     ? '<div class="status-pill pill-reg">● REGISTRATION OPEN</div>'
@@ -403,6 +406,11 @@ if (isDemo) {
   poll();
   setInterval(poll, 2000);
 }
+
+Standby.init({
+  icon: '🏅', label: 'Tournament overlay',
+  note: 'fills automatically when a tournament starts',
+});
 </script>
 </body>
 </html>

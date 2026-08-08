@@ -94,6 +94,7 @@
   <div id="status">Connecting to chat…</div>
 
   <script src="/js/overlay-theme.js"></script>
+  <script src="/js/overlay-standby.js"></script>
   <script>
   (function () {
     'use strict';
@@ -252,6 +253,21 @@
       chatroomId = id;
       connect();
     }).catch(function () { setStatus('Chat unavailable — retrying…'); setTimeout(function () { location.reload(); }, 8000); });
+  })();
+
+  // Chat can't use track() — #chat is an empty div that is technically visible
+  // with nothing in it, which is precisely the state that looks broken. A quiet
+  // chat and a disconnected one produce the identical blank source, so the
+  // shell keys off whether any message has actually arrived.
+  Standby.init({
+    icon: '💬', label: 'Chat overlay',
+    note: 'connected · messages appear here as chat comes in',
+  });
+  (function watchMessages() {
+    var chatEl = document.getElementById('chat');
+    setInterval(function () {
+      if (chatEl.childElementCount) Standby.hide(); else Standby.show();
+    }, 1000);
   })();
   </script>
 </body>

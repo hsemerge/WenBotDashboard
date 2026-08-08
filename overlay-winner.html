@@ -158,6 +158,7 @@
   </style>
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500&display=swap" rel="stylesheet">
   <script src="/js/overlay-theme.js"></script>
+  <script src="/js/overlay-standby.js"></script>
 </head>
 <body>
 
@@ -429,6 +430,14 @@ function initEmbed() {
 
 if (isEmbed) initEmbed();
 else if (!demoMode) poll();
+
+// The drum machine is deliberately not pre-shown (see showMachine) so it never
+// flashes empty before a spin — which also means the source is invisible until
+// a winner is drawn. Tracks opacity, not display: .machine fades in.
+if (!isEmbed) Standby.init({
+  icon: '🏆', label: 'Winner overlay',
+  note: 'stays hidden until a winner is drawn',
+}).track('#machine');
 </script>
 </body>
 </html>

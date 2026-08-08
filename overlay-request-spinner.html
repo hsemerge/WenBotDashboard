@@ -97,6 +97,7 @@
     .picker-wrap.glowing { animation: glow 1.5s ease infinite; }
   </style>
   <script src="/js/overlay-theme.js"></script>
+  <script src="/js/overlay-standby.js"></script>
   <script src="/js/overlay-confetti.js"></script>
 </head>
 <body>
@@ -317,6 +318,13 @@
     document.getElementById('widget').style.display = 'none';
   }
   if (isDemo) initDemo();
+
+// Same as the other spinners: no idle state of its own, so without this the
+// source is an empty rectangle every moment except the draw itself.
+Standby.init({
+  icon: '🎡', label: 'Request Spinner overlay',
+  note: 'stays hidden until a request is drawn',
+}).track('#widget');
 </script>
 </body>
 </html>

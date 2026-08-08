@@ -289,6 +289,7 @@
     }
   </style>
   <script src="/js/overlay-theme.js"></script>
+  <script src="/js/overlay-standby.js"></script>
 </head>
 <body>
 
@@ -387,16 +388,15 @@
 
   // Standby shell — separate element so the panel's live-mutated markup is
   // never touched. ?standby=0 restores the old full hide.
+  // Delegates to the shared shell — same reasoning as the bonus battle: the
+  // local copy stayed up through an entire broadcast whenever no hunt was
+  // running. See js/overlay-standby.js.
+  Standby.init({
+    icon: '🎰', label: 'Bonus Hunt overlay',
+    note: 'fills automatically when a hunt starts',
+  });
   function ovStandby(show) {
-    let s = document.getElementById('ovStandbyShell');
-    if (show && new URLSearchParams(location.search).get('standby') === '0') show = false;
-    if (show && !s) {
-      s = document.createElement('div');
-      s.id = 'ovStandbyShell';
-      s.innerHTML = `<div style="display:inline-flex;align-items:center;gap:9px;background:var(--ov-panel,rgba(13,17,23,0.93));border:1px dashed rgba(255,255,255,0.28);border-radius:12px;padding:11px 18px;opacity:0.55;font-family:var(--ov-font-heading,'Exo 2',sans-serif);color:var(--ov-text,#fff);font-size:13px;font-weight:800;">🎰 Bonus Hunt overlay <span style="font-family:var(--ov-font,Inter,sans-serif);font-weight:600;font-size:11px;color:rgba(255,255,255,0.55);">— standby · fills automatically when a hunt starts</span></div>`;
-      document.body.appendChild(s);
-    }
-    if (s) s.style.display = show ? '' : 'none';
+    if (show) Standby.show(); else Standby.hide();
   }
 
   function render(hunt) {

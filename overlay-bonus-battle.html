@@ -72,6 +72,7 @@
     .hidden { display: none; }
   </style>
   <script src="/js/overlay-theme.js"></script>
+  <script src="/js/overlay-standby.js"></script>
 </head>
 <body>
 <div class="overlay" id="overlay">
@@ -136,19 +137,17 @@
   // `note` describes WHY nothing is showing. There are two different reasons and
   // they need different words: no battle at all, versus a battle that's running
   // but between matches (or not yet populated).
+  // Delegates to the shared shell. The local copy this replaced showed itself
+  // whenever no match was live, including all the way through a broadcast —
+  // so a streamer with a battle open but no match running had a standby box
+  // sitting on stream. js/overlay-standby.js only shows it when they aren't
+  // actually live, which is the state it was ever meant for.
+  Standby.init({
+    icon: '⚔️', label: 'Bonus Battle overlay',
+    note: 'fills automatically when a battle starts',
+  });
   function ovStandby(show, note) {
-    let s = document.getElementById('ovStandbyShell');
-    if (show && new URLSearchParams(location.search).get('standby') === '0') show = false;
-    if (show && !s) {
-      s = document.createElement('div');
-      s.id = 'ovStandbyShell';
-      document.body.appendChild(s);
-    }
-    if (s && show) {
-      const msg = note || 'standby · fills automatically when a battle starts';
-      s.innerHTML = `<div style="display:inline-flex;align-items:center;gap:9px;background:var(--ov-panel,rgba(13,17,23,0.93));border:1px dashed rgba(255,255,255,0.28);border-radius:12px;padding:11px 18px;opacity:0.55;font-family:var(--ov-font-heading,'Exo 2',sans-serif);color:var(--ov-text,#fff);font-size:13px;font-weight:800;">⚔️ Bonus Battle overlay <span style="font-family:var(--ov-font,Inter,sans-serif);font-weight:600;font-size:11px;color:rgba(255,255,255,0.55);">— ${msg}</span></div>`;
-    }
-    if (s) s.style.display = show ? '' : 'none';
+    if (show) Standby.show(note); else Standby.hide();
   }
 
   function render(battle) {
