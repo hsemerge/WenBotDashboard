@@ -404,15 +404,19 @@ if (isDemo) {
       ]},
     ],
   });
-} else if (channel) {
-  poll();
-  setInterval(poll, 2000);
+} else {
+  // Paint the idle card immediately rather than waiting for the first poll to
+  // come back — without this the source is blank for the length of a network
+  // round trip on every load, which is the exact moment it looks broken.
+  // Inside the else on purpose: called unconditionally it ran after the demo
+  // render above and, being a different payload, overwrote it with the idle
+  // card, so ?demo=1 showed the empty state.
+  render(null);
+  if (channel) {
+    poll();
+    setInterval(poll, 2000);
+  }
 }
-
-// Paint the idle card immediately instead of waiting for the first poll to
-// come back — without this the source is blank for the length of a network
-// round trip on every load, which is the exact moment it looks broken.
-render(null);
 </script>
 </body>
 </html>
