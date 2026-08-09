@@ -51,7 +51,22 @@
       border-bottom: 1px solid var(--border);
     }
     .sidebar-section { padding: 10px 10px 0; }
-    .sidebar-label { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); padding: 8px 10px 4px; }
+    /* Section headers double as the fold control for their group, so they read
+       as headings rather than captions: brighter, heavier, wider tracking, and
+       a hairline under them that separates the groups at a glance. */
+    .sidebar-label {
+      display: flex; align-items: center; gap: 6px;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 11px; font-weight: 800; letter-spacing: 1.6px;
+      text-transform: uppercase; color: var(--text);
+      padding: 9px 10px 7px; margin-bottom: 2px;
+      border-bottom: 1px solid var(--border);
+      transition: color 0.15s;
+    }
+    .sidebar-label.sb-toggle { cursor: pointer; }
+    .sidebar-label.sb-toggle:hover { color: var(--accent); }
+    /* Chevron sits at the far right and rotates when the group folds. */
+    .sidebar-label .sb-chev { margin-left: auto; font-size: 10px; opacity: 0.75; transition: transform 0.18s; }
     .nav-item {
       display: flex; align-items: center; gap: 10px;
       padding: 9px 10px;
@@ -5967,10 +5982,22 @@ function sbToggleSection(key) {
   if (collapsed) set.add(key); else set.delete(key);
   localStorage.setItem('wb_sb_collapsed', JSON.stringify([...set]));
 }
-// Restore on load
-sbCollapsedSet().forEach(key => {
-  document.querySelector(`.sidebar-section[data-sec="${key}"]`)?.classList.add('sb-collapsed');
-});
+// Restore on load. A streamer who has never touched the sidebar gets a curated
+// default rather than everything expanded: LIVE open (it's what you use mid
+// stream, and Overview is the landing page), the rest folded. Once they change
+// anything the stored set takes over and this never applies again — which is
+// why it keys off the absence of the key, not an empty set.
+const SB_DEFAULT_COLLAPSED = ['manage', 'community', 'account'];
+(function restoreSidebarFolds() {
+  let keys;
+  try {
+    const raw = localStorage.getItem('wb_sb_collapsed');
+    keys = raw === null ? SB_DEFAULT_COLLAPSED : JSON.parse(raw);
+  } catch { keys = SB_DEFAULT_COLLAPSED; }
+  (keys || []).forEach(key => {
+    document.querySelector(`.sidebar-section[data-sec="${key}"]`)?.classList.add('sb-collapsed');
+  });
+})();
 
 // ── FLASH ──
 function flash(msg, type='success') {

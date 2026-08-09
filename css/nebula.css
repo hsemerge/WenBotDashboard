@@ -96,7 +96,15 @@ html.nebula .nav-item.nav-locked.active:hover {
 /* Active gets a real border; give every item an invisible one so nothing
    shifts by a pixel when selection moves. */
 html.nebula .nav-item { border: 1px solid transparent; }
-html.nebula .sidebar-label { color: rgba(0, 229, 255, 0.5); }
+/* Section headers are the fold controls, so they read at full accent strength
+   with a lit underline — dimming them to half-opacity made them look like
+   disabled captions rather than the headings they are. */
+html.nebula .sidebar-label {
+  color: var(--accent);
+  border-bottom-color: rgba(0, 229, 255, 0.22);
+  text-shadow: 0 0 12px rgba(0, 229, 255, 0.3);
+}
+html.nebula .sidebar-label.sb-toggle:hover { color: #7ff4ff; }
 
 /* ── controls ── */
 html.nebula .btn-accent {
@@ -125,22 +133,3 @@ html.nebula ::-webkit-scrollbar-thumb {
   background-clip: content-box;
 }
 html.nebula ::-webkit-scrollbar-thumb:hover { background-color: rgba(0, 229, 255, 0.3); }
-
-/* ── the footer strip from the mock ──
-   Fixed and pointer-transparent, so it floats over whatever page is open
-   without stealing a click. */
-html.nebula body::after {
-  content: "W E N B O T   C O M M A N D   C E N T E R";
-  position: fixed;
-  left: 50%;
-  bottom: 6px;
-  transform: translateX(-50%);
-  font-family: 'Exo 2', sans-serif;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.45em;
-  color: rgba(0, 229, 255, 0.28);
-  text-shadow: 0 0 12px rgba(0, 229, 255, 0.25);
-  pointer-events: none;
-  z-index: 5;
-}
