@@ -590,7 +590,7 @@
         🎨 <span id="themeToggleLabel">Themes</span>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.18.1</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.19.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3031,9 +3031,21 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.18.1</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.19.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.19.0 &middot; Themes, and a new way to get around</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 9, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🎨 <strong>Themes.</strong> One place at the bottom of the menu to pick how WenBot looks (Classic or Nebula) and how you get around it. Your choices stick on this device.</li>
+            <li>🧭 <strong>Icon rail navigation.</strong> A new option that trades the list for a slim column of icons. Click a category and its pages fan out over the page; the arrow on the edge opens the last one you used. Prefer the list? It is still there and still the default.</li>
+            <li>📋 <strong>Menu starts tidier.</strong> New streamers land with Live open and everything else folded away, instead of the whole menu expanded at once.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -6047,6 +6059,11 @@ window.addEventListener('resize', function () {
 
   // The pop-out lives on <body>, not inside .app — it's fixed-positioned and
   // must overlay the page rather than take part in the flex layout.
+  const scrim = document.createElement('div');
+  scrim.id = 'railScrim';
+  scrim.onclick = closeRail;
+  document.body.appendChild(scrim);
+
   const pop = document.createElement('div');
   pop.id = 'railPop';
   pop.innerHTML = '<div class="pop-head"></div><div class="pop-row"></div>';

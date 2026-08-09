@@ -21,8 +21,8 @@ body.nav-rail #navRail {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  width: 152px;
+  gap: 2px;
+  width: 116px;
   flex-shrink: 0;
   padding: 12px 0 14px;
   background: var(--bg-panel);
@@ -43,19 +43,23 @@ html.nebula body.nav-rail #navRail {
    the rail's width (contain, wide wordmark), which is why the rail is 152px —
    the mark grows with the column, it isn't scaled down to fit a narrow one. */
 #navRail .rail-logo {
-  height: 112px; width: 100%; max-width: 200px;
-  object-fit: contain; display: block; margin: 0 auto 2px;
+  height: 92px; width: 100%; max-width: 200px;
+  object-fit: contain; display: block; margin: 0 auto 6px;
 }
 
 /* ── tiles ── */
+/* No box by default. A bordered tile inside a bordered panel beside a bordered
+   rail is three levels of chrome competing at the same weight, which is what
+   made this feel heavy — the icon is enough to aim at, and the frame only needs
+   to appear for the thing you're actually on. */
 .rail-tile {
-  width: 104px; height: 104px;
-  border-radius: 18px;
-  border: 1px solid var(--border);
-  background: var(--bg-card);
+  width: 92px; height: 78px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--text-dim);
   display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 6px;
+  align-items: center; justify-content: center; gap: 5px;
   cursor: pointer;
   transition: color .15s, border-color .15s, background .15s, box-shadow .15s;
   position: relative;
@@ -63,21 +67,20 @@ html.nebula body.nav-rail #navRail {
 }
 /* Icons carry the accent by default rather than inheriting the dim label
    colour — they're the thing you aim at, and at 26px they can hold it. */
-.rail-tile svg { width: 34px; height: 34px; stroke: var(--accent); fill: none; stroke-width: 1.7; }
+.rail-tile svg { width: 27px; height: 27px; stroke: var(--accent); fill: none; stroke-width: 1.7; }
 .rail-tile:hover svg, .rail-tile.active svg { filter: drop-shadow(0 0 6px rgba(0,229,255,0.55)); }
-.rail-tile span { font-size: 12px; font-weight: 700; letter-spacing: .02em; }
-.rail-tile:hover { color: var(--bright); border-color: var(--accent); background: var(--bg-hover); }
+.rail-tile span { font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+.rail-tile:hover { color: var(--bright); background: rgba(255,255,255,0.045); }
 .rail-tile.active {
   color: var(--accent);
-  border-color: var(--accent);
-  background: rgba(0, 229, 255, 0.07);
-  box-shadow: 0 0 14px rgba(0, 229, 255, 0.14);
+  border-color: rgba(0, 229, 255, 0.45);
+  background: rgba(0, 229, 255, 0.08);
 }
 /* Accent bar on the selected tile, the way the reference marks the current
    section — drawn on the left edge where the eye tracks the column. */
 .rail-tile.active::before {
   content: "";
-  position: absolute; left: -18px; top: 22px; bottom: 22px;
+  position: absolute; left: -12px; top: 18px; bottom: 18px;
   width: 3px; border-radius: 2px;
   background: var(--accent);
   box-shadow: 0 0 10px var(--accent);
@@ -112,6 +115,27 @@ html.nebula body.nav-rail #navRail {
 .rail-arrow span { transition: transform .2s; display: block; }
 body.rail-open .rail-arrow span { transform: rotate(180deg); }
 
+/* ── the scrim ──
+   The panel floats over live content, so paragraph text sits directly behind
+   menu labels and the eye keeps trying to read both. Dimming and softly
+   blurring everything behind it removes the competition without hiding where
+   you are — the page is still visible, just pushed back a layer.
+
+   It starts at the rail's right edge so the nav itself stays lit, and it
+   swallows the click that dismisses the menu. */
+#railScrim {
+  display: none;
+  position: fixed;
+  inset: 0 0 0 116px;
+  z-index: 50;
+  background: rgba(4, 6, 15, 0.55);
+  backdrop-filter: blur(2.5px);
+  animation: railScrimIn .16s ease both;
+}
+body.rail-open #railScrim { display: block; }
+@keyframes railScrimIn { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 900px) { #railScrim { inset: 0 0 0 100px; } }
+
 /* ── the pop-out ──
    Overlays the page rather than widening the layout: the content underneath
    never reflows, so opening the menu can't shuffle a card you were reading.
@@ -125,11 +149,11 @@ body.rail-open .rail-arrow span { transform: rotate(180deg); }
   position: fixed;
   z-index: 60;
   max-width: min(760px, calc(100vw - 140px));
-  padding: 12px;
+  padding: 10px 12px 12px;
   border-radius: 14px;
   border: 1px solid var(--border);
   background: var(--bg-panel);
-  box-shadow: 0 18px 50px rgba(0,0,0,0.55);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.7);
   animation: railPopIn .16s ease both;
 }
 body.rail-open #railPop { display: block; }
@@ -138,10 +162,11 @@ body.rail-open #railPop { display: block; }
   to   { opacity: 1; transform: translateX(0); }
 }
 html.nebula #railPop {
-  background: rgba(9, 14, 27, 0.96);
+  /* Opaque, not translucent: a see-through panel over a blurred page is still
+     two competing images, which is the strain we're removing. */
+  background: #0a1120;
   border-color: rgba(0, 229, 255, 0.22);
-  box-shadow: 0 18px 50px rgba(0,0,0,0.6), 0 0 28px rgba(0, 229, 255, 0.08);
-  backdrop-filter: blur(12px);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.75), 0 0 30px rgba(0, 229, 255, 0.10);
 }
 /* The little nib pointing back at the tile it came from. */
 #railPop::before {
@@ -164,34 +189,32 @@ html.nebula #railPop::before { border-color: rgba(0, 229, 255, 0.22); }
 /* Items are the same tile as the one that opened them — click a square, get
    more squares. A row of wide pills next to a column of tiles read as two
    different navigations bolted together. */
-#railPop .pop-row { display: flex; flex-wrap: wrap; gap: 10px; max-width: 660px; }
+/* Same square as the rail tile, and borderless for the same reason: the panel
+   is already a frame, so framing every item inside it doubles the weight for
+   no extra meaning. */
+#railPop .pop-row { display: flex; flex-wrap: wrap; gap: 2px; max-width: 580px; }
 #railPop .pop-item {
   position: relative;
-  width: 104px; height: 104px;
+  width: 92px; height: 78px;
   display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 6px;
-  padding: 8px;
-  border-radius: 18px;
-  border: 1px solid var(--border);
-  background: var(--bg-card);
+  align-items: center; justify-content: center; gap: 5px;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--text-dim);
-  font-size: 12px; font-weight: 700;
-  text-align: center; line-height: 1.2;
+  font-size: 11px; font-weight: 700;
+  text-align: center; line-height: 1.15;
   cursor: pointer;
   transition: all .14s;
 }
-#railPop .pop-item:hover {
-  border-color: var(--accent);
-  color: var(--bright);
-  background: var(--bg-hover);
-  box-shadow: 0 0 14px rgba(0,229,255,0.16);
-}
+#railPop .pop-item:hover { color: var(--bright); background: rgba(255,255,255,0.05); }
 #railPop .pop-item.active {
-  border-color: var(--accent);
   color: var(--accent);
+  border-color: rgba(0,229,255,0.45);
   background: rgba(0,229,255,0.08);
 }
-#railPop .pop-item .icon { font-size: 28px; line-height: 1; }
+#railPop .pop-item .icon { font-size: 23px; line-height: 1; }
 /* Badge floats in the corner rather than sitting in the flow — a square tile
    has no spare row for it. */
 #railPop .pop-badge {
@@ -203,9 +226,9 @@ html.nebula #railPop::before { border-color: rgba(0, 229, 255, 0.22); }
 /* Rail replaces the sidebar entirely on small screens too — the hamburger
    still hides it via the existing .sidebar-collapsed rule on .app. */
 @media (max-width: 900px) {
-  body.nav-rail #navRail { width: 116px; }
-  .rail-tile, #railPop .pop-item { width: 84px; height: 84px; }
-  #navRail .rail-logo { height: 86px; }
+  body.nav-rail #navRail { width: 100px; }
+  .rail-tile, #railPop .pop-item { width: 80px; height: 70px; }
+  #navRail .rail-logo { height: 72px; }
   #railPop { max-width: calc(100vw - 100px); }
 }
 
