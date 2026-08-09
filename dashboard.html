@@ -367,6 +367,12 @@
     .badge-orange { background: rgba(255,179,71,0.12); color: var(--orange); }
     .badge-red { background: rgba(255,77,79,0.12); color: var(--red); }
 
+    /* Clickable viewer name — opens the profile card. Kept subtle: a dotted
+       underline that firms up on hover, so lists don't turn into a wall of
+       links but the affordance is still discoverable. */
+    .vp-name { cursor: pointer; border-bottom: 1px dotted rgba(255,255,255,0.25); transition: border-color 0.15s, color 0.15s; }
+    .vp-name:hover { border-bottom-color: var(--accent); color: var(--accent); }
+
     /* ── GTB ── */
     .gtb-status-card {
       background: linear-gradient(135deg, rgba(167,139,250,0.08), rgba(0,229,255,0.04));
@@ -479,9 +485,14 @@
     }
   </style>
   <!-- Nebula theme — every rule scoped under html.nebula, so classic mode is
-       untouched. The inline script applies the saved choice BEFORE first paint;
-       doing it in app boot instead would flash classic for a beat on every load. -->
-  <script>try{if(localStorage.getItem('wbTheme')==='nebula')document.documentElement.classList.add('nebula');}catch(e){}</script>
+       untouched. The inline script applies the choice BEFORE first paint; doing
+       it in app boot instead would flash the other theme for a beat on load.
+       Nebula is the DEFAULT: anything other than an explicit 'classic' gets it,
+       so streamers who never touched the toggle land on Nebula, while anyone who
+       deliberately switched back to classic stays there. If localStorage throws
+       (private mode), the catch leaves the class off — classic is the safe
+       fallback because it needs no extra stylesheet to look right. -->
+  <script>try{if(localStorage.getItem('wbTheme')!=='classic')document.documentElement.classList.add('nebula');}catch(e){}</script>
   <link rel="stylesheet" href="/css/nebula.css">
 </head>
 <body>
@@ -559,10 +570,10 @@
       <!-- Theme switch — Nebula is the streamer-facing name for the space look. -->
       <div id="themeToggleRow" onclick="toggleNebula()" title="Switch dashboard theme"
            style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;font-size:11px;color:var(--text-dim);cursor:pointer;padding:5px 8px;border:1px solid var(--border);border-radius:6px;">
-        🌌 <span id="themeToggleLabel">Try Nebula mode</span>
+        🌌 <span id="themeToggleLabel">Nebula on · back to classic</span>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.18.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.18.1</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3003,9 +3014,21 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.18.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.18.1</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.18.1 &middot; Nebula by default, viewer cards everywhere</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 9, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🌌 <strong>Nebula is now the default look.</strong> The deep space theme is what you'll see when you log in. Prefer the old one? <strong>Back to classic</strong> at the bottom of the menu, same place as before — and if you'd already switched to classic, you stay there.</li>
+            <li>👤 <strong>Click any viewer's name, anywhere.</strong> The profile card you already had on giveaway entries now opens from Points, Verified Users, Slot Requests, Store redemptions, the request spinner, tournament rosters and the automod log — wager, Kick info, their recent chat, and the mod tools, without leaving the page you're on.</li>
+            <li>✅ <strong>Verified and Discord badges are now right on every page.</strong> They previously only filled in if you'd visited the Giveaway page first.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -5852,18 +5875,26 @@ async function loadBillingHistory() {
 // ── Nebula theme ────────────────────────────────────────────────────────────
 // The class itself is applied pre-paint by the <head> script; this half keeps
 // the toggle label honest. The whole look lives in css/nebula.css scoped under
-// html.nebula — classic mode is pixel-identical with the toggle off.
+// html.nebula — classic mode is pixel-identical with the class absent.
+//
+// Nebula is the default, so the stored value is only ever consulted to find the
+// people who opted OUT. Both states are written explicitly rather than clearing
+// the key, so "never chose" and "chose classic" stay distinguishable.
 function toggleNebula(force) {
   const on = typeof force === 'boolean' ? force : !document.documentElement.classList.contains('nebula');
   document.documentElement.classList.toggle('nebula', on);
   try { localStorage.setItem('wbTheme', on ? 'nebula' : 'classic'); } catch (e) {}
+  _syncThemeLabel();
+}
+// Set on boot for BOTH directions — the markup ships the Nebula wording since
+// that's the default, but someone who opted out needs the label corrected.
+function _syncThemeLabel() {
   const l = document.getElementById('themeToggleLabel');
-  if (l) l.textContent = on ? 'Nebula on · back to classic' : 'Try Nebula mode';
+  if (l) l.textContent = document.documentElement.classList.contains('nebula')
+    ? 'Nebula on · back to classic'
+    : 'Try Nebula mode';
 }
-if (document.documentElement.classList.contains('nebula')) {
-  const _l = document.getElementById('themeToggleLabel');
-  if (_l) _l.textContent = 'Nebula on · back to classic';
-}
+_syncThemeLabel();
 
 function showPage(id, el) {
   // Close mobile sidebar on navigation
@@ -7418,15 +7449,21 @@ let _gwVerifiedCasinoUnsub  = null;
 let _gwVerifiedDiscordUnsub = null;
 
 let _gwVerifiedLoadedUid = null;
+// Resolves once both sets are populated. The viewer card awaits this before
+// reading them, so badges are right on the FIRST open from a page that never
+// touched the Giveaway tab — without it the sets are still in flight and the
+// card renders as if nobody were verified.
+let _gwVerifiedReady = null;
 function _gwSubscribeVerifiedIfNeeded() {
   const uid = fb.activeUid;
-  if (!uid || _gwVerifiedLoadedUid === uid) return;
+  if (!uid) return Promise.resolve();
+  if (_gwVerifiedLoadedUid === uid) return _gwVerifiedReady || Promise.resolve();
   _gwVerifiedLoadedUid = uid;
   // ONE-TIME reads, not live listeners. These sets only badge giveaway entries
   // (✓ verified / under-code / D). As onSnapshot they re-read EVERY verified_users
   // doc on every wager-sync write — a top read-cost driver. Refreshed on account
   // switch; that's plenty for a cosmetic badge.
-  fb.db.collection('streamers').doc(uid).collection('verified_users').get().then(snap => {
+  const pVerified = fb.db.collection('streamers').doc(uid).collection('verified_users').get().then(snap => {
     const next = new Set(), codeNext = new Set(), boards = {};
     snap.docs.forEach(d => {
       const data = d.data() || {};
@@ -7445,7 +7482,7 @@ function _gwSubscribeVerifiedIfNeeded() {
     _gwVerifiedBoards = boards;
     if (typeof renderEntries === 'function') renderEntries();
   }).catch(() => {});
-  fb.db.collection('streamers').doc(uid).collection('discord_links').get().then(snap => {
+  const pDiscord = fb.db.collection('streamers').doc(uid).collection('discord_links').get().then(snap => {
     const next = new Set();
     snap.docs.forEach(d => {
       const data = d.data() || {};
@@ -7454,6 +7491,8 @@ function _gwSubscribeVerifiedIfNeeded() {
     _gwVerifiedDiscordSet = next;
     if (typeof renderEntries === 'function') renderEntries();
   }).catch(() => {});
+  _gwVerifiedReady = Promise.all([pVerified, pDiscord]);
+  return _gwVerifiedReady;
 }
 
 // Build the small ✓ / D badges shown next to a giveaway entry's name and
@@ -7855,9 +7894,42 @@ function wbConfirm(message, { title = 'Are you sure?', confirmText = 'Confirm', 
 // streamer's own mod login, so the "View on Kick" button covers that.
 let _vpReqId = 0;
 
+// One clickable-username renderer for the whole dashboard. Wrap a viewer's name
+// with this anywhere it appears and the profile card becomes reachable from that
+// page — the card itself is page-agnostic.
+//
+// Escapes twice, deliberately: escHtml for the visible text and title, plus a
+// JS-string escape for the value inside onclick. The older hand-written call
+// sites used escHtml alone, which breaks on a name containing an apostrophe.
+//
+// stopPropagation matters — several of these sit inside rows that already have
+// their own click handler (slot-request cards, tournament rows), and without it
+// opening the card would also trigger the row's action.
+function vpName(username, opts = {}) {
+  const raw = String(username || '').replace(/^@/, '').trim();
+  if (!raw) return opts.fallback || '—';
+  // Two layers, both needed. First a JS-string escape (the value sits inside
+  // single quotes in the handler), then escHtml over the result — the handler
+  // itself lives in a double-quoted attribute, and escHtml is what escapes `"`.
+  // Without the outer pass a name containing a double quote breaks out of the
+  // onclick and injects markup.
+  const js = escHtml(raw.replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+  return `<span class="vp-name" style="${opts.style || ''}"`
+       + ` title="View ${escHtml(raw)}'s profile, wager &amp; mod tools"`
+       + ` onclick="event.stopPropagation();openViewerProfile('${js}')">`
+       + `${opts.at ? '@' : ''}${escHtml(raw)}</span>`;
+}
+
 async function openViewerProfile(username) {
   username = String(username || '').replace(/^@/, '').trim();
   if (!username) return;
+  // The verified / under-code / Discord badge sets are populated lazily by the
+  // Giveaway page. The card opens from everywhere now, so kick that load off
+  // here too — otherwise those badges silently vanish on every other page.
+  // No-op once loaded for this uid, and a one-time read (not a listener), so
+  // repeat opens cost nothing. Awaited below, alongside the other fetches.
+  let readyP = Promise.resolve();
+  try { readyP = _gwSubscribeVerifiedIfNeeded() || Promise.resolve(); } catch {}
   const modal = document.getElementById('viewerProfileModal');
   const body  = document.getElementById('vpBody');
   if (!modal || !body) return;
@@ -7880,8 +7952,11 @@ async function openViewerProfile(username) {
 
   // Tool data (incl. on-demand wager lookup) and the bot's Kick fetch run in
   // parallel so the slower casino call doesn't stack on top of the Kick fetch.
+  // The badge sets must be loaded before _vpToolData reads them, but that whole
+  // chain still runs in parallel with the (slower) bot Kick fetch — so waiting
+  // on them adds no wall-clock time to opening the card.
   const [tool, kick] = await Promise.all([
-    _vpToolData(username),
+    readyP.catch(() => {}).then(() => _vpToolData(username)),
     _vpFetchKickViaBot(username, reqId),
   ]);
   if (reqId !== _vpReqId) return; // closed or superseded by another click
@@ -8865,7 +8940,7 @@ function _renderViewerRow(d, rank) {
   const id = escHtml(d.id);
   return `<tr>
     <td style="color:var(--text-dim);">${rank != null ? rank : ''}</td>
-    <td class="td-highlight">${id}</td>
+    <td class="td-highlight">${vpName(id)}</td>
     <td class="td-green">${(data.points||0).toLocaleString()} ${currency}</td>
     <td style="color:var(--text-dim);">${last}</td>
     <td style="display:flex;gap:4px;">
@@ -9444,7 +9519,7 @@ async function loadModActions() {
       const when = new Date(a.ts).toLocaleString();
       const what = a.action === 'timeout' ? `Timeout ${a.minutes}m` : a.action === 'ban' ? 'Banned' : 'Deleted';
       return `<div style="display:flex;align-items:center;gap:12px;padding:9px 12px;background:var(--bg-card);border-radius:6px;margin-bottom:4px;flex-wrap:wrap;">
-        <span style="font-weight:700;color:var(--accent);min-width:130px;">${escHtml(a.kickName || '')}</span>
+        <span style="font-weight:700;color:var(--accent);min-width:130px;">${vpName(a.kickName)}</span>
         <span style="font-size:12px;min-width:90px;">${RULE_LABEL[a.rule] || escHtml(a.rule || '')}</span>
         <span style="font-size:12px;color:var(--text-dim);flex:1;min-width:160px;">${escHtml(a.content || '')}</span>
         <span class="badge ${a.action === 'ban' ? 'badge-red' : 'badge-orange'}">${what}</span>
@@ -9622,7 +9697,7 @@ function renderVerifiedFromCache() {
       : `<span style="color:var(--text-dim);font-size:12px;">—</span>`;
     const rowStyle = v.underAffiliate ? 'background:rgba(0,255,136,0.02);' : '';
     return `<tr style="${rowStyle}">
-      <td class="td-highlight">${escHtml(v.kickName || id)}</td>
+      <td class="td-highlight">${vpName(v.kickName || id)}</td>
       <td>${escHtml(v.providerUsername || '—')}</td>
       <td style="color:var(--text-dim);font-size:12px;">${escHtml(casinoName)}</td>
       <td>${statusBadge}</td>
@@ -11536,7 +11611,7 @@ function _renderRedemptions(snap) {
       ? `<span style="color:#5865F2;font-size:11px;font-weight:700;">Discord</span>`
       : `<span style="color:var(--green);font-size:11px;font-weight:700;">Kick</span>`;
     return `<tr>
-      <td class="td-highlight">@${d.kickUsername}</td>
+      <td class="td-highlight">${vpName(d.kickUsername, { at: true })}</td>
       <td>${d.itemName}</td>
       <td style="color:var(--green);">${(d.pointsSpent||0).toLocaleString()} ${currency}</td>
       <td>${source}</td>
@@ -12695,7 +12770,7 @@ function bhSrRenderPanel() {
     <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;">
       <div style="flex:1;min-width:0;">
         <span style="font-weight:600;color:var(--bright);font-size:13px;">${escHtml(r.slotName)}</span>
-        <span style="color:var(--text-dim);font-size:11px;margin-left:8px;">by @${escHtml(r.kickUsername)}</span>
+        <span style="color:var(--text-dim);font-size:11px;margin-left:8px;">by ${vpName(r.kickUsername, { at: true })}</span>
       </div>
       <button data-sr-id="${escHtml(r.id)}" data-sr-slot="${escHtml(r.slotName)}"
         onmousedown="srAddToHunt(this.dataset.srId, this.dataset.srSlot)"
@@ -14470,7 +14545,7 @@ function srRenderQueue() {
       <td style="padding:8px 10px;">
         <div style="display:flex;align-items:center;gap:8px;">
           ${avatar}
-          <span style="font-weight:600;color:var(--accent);">@${escHtml(r.kickUsername)}</span>
+          ${vpName(r.kickUsername, { at: true, style: 'font-weight:600;color:var(--accent);' })}
         </div>
       </td>
       <td style="padding:8px 10px;">
@@ -14614,7 +14689,7 @@ function rspRenderDrawn() {
   list.innerHTML = rspDrawn.map((d, i) => `
     <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--bg-card);border-radius:6px;font-size:13px;">
       <span style="color:var(--text-dim);font-size:11px;width:18px;">${rspDrawn.length - i}</span>
-      <span style="color:var(--accent);font-weight:700;">@${escHtml(d.kickUsername)}</span>
+      ${vpName(d.kickUsername, { at: true, style: 'color:var(--accent);font-weight:700;' })}
       <span style="color:var(--text-dim);">→</span>
       <span style="color:var(--bright);">${escHtml(d.slotName)}</span>
     </div>`).join('');
@@ -15498,7 +15573,7 @@ function tnRenderRegistration(t) {
     <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;">
       <span style="font-size:13px;color:var(--text-dim);min-width:22px;">#${i+1}</span>
       ${tnSlotThumb(p)}
-      <span style="flex:1;font-size:13px;font-weight:600;color:var(--bright);">${escHtml(p.kickUsername)}${p.slot && p.slot.name ? ` <span style="color:var(--text-dim);font-weight:400;">— ${escHtml(p.slot.name)}</span>` : ''}</span>
+      <span style="flex:1;font-size:13px;font-weight:600;color:var(--bright);">${vpName(p.kickUsername)}${p.slot && p.slot.name ? ` <span style="color:var(--text-dim);font-weight:400;">— ${escHtml(p.slot.name)}</span>` : ''}</span>
       ${removable ? `<button onclick="tnRemoveParticipant('${escHtml(p.kickUsernameKey)}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:2px 6px;opacity:0.6;" title="Remove">✕</button>` : ''}
     </div>`;
 
@@ -15552,7 +15627,7 @@ function tnRenderAddPanel(t, participants) {
       + (avail.length
           ? avail.slice(0, 50).map(r => `
             <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;margin-bottom:5px;">
-              <span style="flex:1;font-size:12px;color:var(--bright);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(r.kickUsername || '')} <span style="color:var(--text-dim);">— ${escHtml(r.slotName || '')}</span></span>
+              <span style="flex:1;font-size:12px;color:var(--bright);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${vpName(r.kickUsername)} <span style="color:var(--text-dim);">— ${escHtml(r.slotName || '')}</span></span>
               <button onclick="tnAddSrParticipant('${escHtml(r.id)}')" ${full ? 'disabled' : ''} class="btn btn-ghost btn-sm">+ Add</button>
             </div>`).join('')
           : '<div style="font-size:12px;color:var(--text-dim);">No pending requests right now.</div>');
