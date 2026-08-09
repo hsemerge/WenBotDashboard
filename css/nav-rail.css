@@ -22,7 +22,7 @@ body.nav-rail #navRail {
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  width: 84px;
+  width: 112px;
   flex-shrink: 0;
   padding: 12px 0 14px;
   background: var(--bg-panel);
@@ -36,12 +36,18 @@ html.nebula body.nav-rail #navRail {
   backdrop-filter: blur(10px);
 }
 
-#navRail .rail-logo { width: 46px; margin-bottom: 2px; opacity: 0.95; }
+/* Same treatment as the list sidebar's logo (height 104, object-fit contain)
+   so the brand reads at one size in both navigation modes — the rail is widened
+   to 112px specifically to carry it rather than shrinking the mark. */
+#navRail .rail-logo {
+  height: 104px; width: 100%; max-width: 200px;
+  object-fit: contain; display: block; margin: 0 auto 4px;
+}
 
 /* ── tiles ── */
 .rail-tile {
-  width: 62px; height: 62px;
-  border-radius: 14px;
+  width: 76px; height: 76px;
+  border-radius: 16px;
   border: 1px solid var(--border);
   background: var(--bg-card);
   color: var(--text-dim);
@@ -52,8 +58,11 @@ html.nebula body.nav-rail #navRail {
   position: relative;
   flex-shrink: 0;
 }
-.rail-tile svg { width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1.7; }
-.rail-tile span { font-size: 9.5px; font-weight: 700; letter-spacing: .02em; }
+/* Icons carry the accent by default rather than inheriting the dim label
+   colour — they're the thing you aim at, and at 26px they can hold it. */
+.rail-tile svg { width: 26px; height: 26px; stroke: var(--accent); fill: none; stroke-width: 1.7; }
+.rail-tile:hover svg, .rail-tile.active svg { filter: drop-shadow(0 0 6px rgba(0,229,255,0.55)); }
+.rail-tile span { font-size: 10.5px; font-weight: 700; letter-spacing: .02em; }
 .rail-tile:hover { color: var(--bright); border-color: var(--accent); background: var(--bg-hover); }
 .rail-tile.active {
   color: var(--accent);
@@ -65,7 +74,7 @@ html.nebula body.nav-rail #navRail {
    section — drawn on the left edge where the eye tracks the column. */
 .rail-tile.active::before {
   content: "";
-  position: absolute; left: -13px; top: 14px; bottom: 14px;
+  position: absolute; left: -14px; top: 16px; bottom: 16px;
   width: 3px; border-radius: 2px;
   background: var(--accent);
   box-shadow: 0 0 10px var(--accent);
@@ -100,55 +109,92 @@ html.nebula body.nav-rail #navRail {
 .rail-arrow span { transition: transform .2s; display: block; }
 body.rail-open .rail-arrow span { transform: rotate(180deg); }
 
-/* ── the flyout ──
-   Slides out beside the rail carrying the real page list. Width animates so
-   the content area reflows rather than being covered, which keeps the page
-   usable with the menu open. */
-#railFlyout {
-  width: 0;
-  overflow: hidden;
-  flex-shrink: 0;
+/* ── the pop-out ──
+   Overlays the page rather than widening the layout: the content underneath
+   never reflows, so opening the menu can't shuffle a card you were reading.
+   Positioned from JS at the clicked tile's own height, so the panel reads as
+   coming OUT of that tile.
+
+   Items are buttons in a row that wraps, not a vertical list — at a glance you
+   see the whole category at once instead of scanning a column. */
+#railPop {
+  display: none;
+  position: fixed;
+  z-index: 60;
+  max-width: min(760px, calc(100vw - 140px));
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
   background: var(--bg-panel);
-  border-right: 1px solid transparent;
-  transition: width .22s ease;
-  display: flex; flex-direction: column;
+  box-shadow: 0 18px 50px rgba(0,0,0,0.55);
+  animation: railPopIn .16s ease both;
 }
-body.rail-open #railFlyout {
-  width: 208px;
-  border-right-color: var(--border);
+body.rail-open #railPop { display: block; }
+@keyframes railPopIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
-html.nebula body.rail-open #railFlyout {
-  background: rgba(7, 11, 22, 0.9);
-  border-right-color: rgba(0, 229, 255, 0.12);
-  backdrop-filter: blur(10px);
+html.nebula #railPop {
+  background: rgba(9, 14, 27, 0.96);
+  border-color: rgba(0, 229, 255, 0.22);
+  box-shadow: 0 18px 50px rgba(0,0,0,0.6), 0 0 28px rgba(0, 229, 255, 0.08);
+  backdrop-filter: blur(12px);
 }
-#railFlyout .fly-head {
+/* The little nib pointing back at the tile it came from. */
+#railPop::before {
+  content: "";
+  position: absolute; left: -6px; top: var(--nib-top, 26px);
+  width: 10px; height: 10px;
+  background: inherit;
+  border-left: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+html.nebula #railPop::before { border-color: rgba(0, 229, 255, 0.22); }
+
+#railPop .pop-head {
   font-family: 'Exo 2', sans-serif;
-  font-size: 11px; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase;
+  font-size: 10.5px; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase;
   color: var(--text-dim);
-  padding: 16px 16px 8px;
-  white-space: nowrap;
+  padding: 0 2px 9px;
 }
-#railFlyout .fly-list { padding: 0 10px 12px; overflow-y: auto; }
-#railFlyout .fly-item {
-  display: flex; align-items: center; gap: 9px;
-  padding: 9px 10px; margin-bottom: 2px;
-  border-radius: 7px; border: 1px solid transparent;
-  color: var(--text-dim); font-size: 13px; font-weight: 500;
+#railPop .pop-row { display: flex; flex-wrap: wrap; gap: 8px; }
+#railPop .pop-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 14px;
+  min-width: 132px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 13px; font-weight: 600;
   cursor: pointer; white-space: nowrap;
-  transition: all .15s;
+  transition: all .14s;
 }
-#railFlyout .fly-item:hover { background: rgba(255,255,255,0.04); color: var(--bright); }
-#railFlyout .fly-item.active { background: rgba(0,229,255,0.08); border-color: rgba(0,229,255,0.3); color: var(--accent); }
-#railFlyout .fly-item .icon { width: 18px; text-align: center; }
-#railFlyout .fly-badge { margin-left: auto; font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 10px; background: var(--red); color: #fff; }
+#railPop .pop-item:hover {
+  border-color: var(--accent);
+  color: var(--bright);
+  background: var(--bg-hover);
+  box-shadow: 0 0 14px rgba(0,229,255,0.16);
+}
+#railPop .pop-item.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(0,229,255,0.08);
+}
+#railPop .pop-item .icon { font-size: 15px; }
+#railPop .pop-badge {
+  margin-left: auto; font-size: 9px; font-weight: 800;
+  padding: 1px 6px; border-radius: 10px; background: var(--red); color: #fff;
+}
 
 /* Rail replaces the sidebar entirely on small screens too — the hamburger
    still hides it via the existing .sidebar-collapsed rule on .app. */
 @media (max-width: 900px) {
-  body.nav-rail #navRail { width: 68px; }
-  .rail-tile { width: 54px; height: 54px; }
-  body.rail-open #railFlyout { width: 180px; }
+  body.nav-rail #navRail { width: 92px; }
+  .rail-tile { width: 62px; height: 62px; }
+  #navRail .rail-logo { height: 74px; }
+  #railPop { max-width: calc(100vw - 100px); }
 }
 
 /* ── themes dialog ── */

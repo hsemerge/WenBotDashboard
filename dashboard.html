@@ -5953,7 +5953,8 @@ function railOpen(key) {
   // Same tile twice closes it, which is what a pull-out control should do.
   if (_railOpenKey === key) { closeRail(); return; }
   const sec = document.querySelector('.sidebar-section[data-sec="' + key + '"]');
-  if (!sec) return;
+  const pop = document.getElementById('railPop');
+  if (!sec || !pop) return;
   _railOpenKey = _railLastKey = key;
 
   document.querySelectorAll('.rail-tile[data-sec]').forEach(function (t) {
@@ -5961,13 +5962,13 @@ function railOpen(key) {
   });
 
   const meta = RAIL_SECTIONS.find(function (x) { return x.key === key; });
-  document.querySelector('#railFlyout .fly-head').textContent = meta ? meta.label : key;
+  pop.querySelector('.pop-head').textContent = meta ? meta.label : key;
 
-  const list = document.querySelector('#railFlyout .fly-list');
-  list.innerHTML = '';
+  const row = pop.querySelector('.pop-row');
+  row.innerHTML = '';
   sec.querySelectorAll('.nav-item').forEach(function (real) {
-    const row = document.createElement('div');
-    row.className = 'fly-item' + (real.classList.contains('active') ? ' active' : '');
+    const btn = document.createElement('div');
+    btn.className = 'pop-item' + (real.classList.contains('active') ? ' active' : '');
     const icon = real.querySelector('.icon');
     const badge = real.querySelector('.nav-badge, .nav-lock-pill');
     const text = Array.prototype.filter.call(real.childNodes, function (n) { return n.nodeType === 3; })
@@ -5978,23 +5979,53 @@ function railOpen(key) {
     i.textContent = icon ? icon.textContent : '';
     const t = document.createElement('span');
     t.textContent = text;
-    row.appendChild(i);
-    row.appendChild(t);
+    btn.appendChild(i);
+    btn.appendChild(t);
 
     // A live badge or plan lock is often the reason you'd click, so carry it.
     if (badge && badge.offsetParent !== null) {
       const b = document.createElement('span');
-      b.className = 'fly-badge';
+      b.className = 'pop-badge';
       b.textContent = badge.textContent.trim();
-      row.appendChild(b);
+      btn.appendChild(b);
     }
     // Delegate to the real item: one click path, one owner of active state.
-    row.onclick = function () { real.click(); closeRail(); };
-    list.appendChild(row);
+    btn.onclick = function () { real.click(); closeRail(); };
+    row.appendChild(btn);
   });
 
   document.body.classList.add('rail-open');
+  railPosition(key);
 }
+
+// Place the pop-out beside the tile that opened it. Fixed-positioned and
+// measured after it's visible, so wrapping is already resolved and the panel
+// can be nudged up when a low tile would push it off the bottom.
+function railPosition(key) {
+  const pop = document.getElementById('railPop');
+  const rail = document.getElementById('navRail');
+  const tile = key
+    ? document.querySelector('.rail-tile[data-sec="' + key + '"]')
+    : document.getElementById('railArrow');
+  if (!pop || !rail || !tile) return;
+
+  const r = rail.getBoundingClientRect();
+  const t = tile.getBoundingClientRect();
+  pop.style.left = (r.right + 14) + 'px';
+
+  const h = pop.offsetHeight;
+  let top = t.top;
+  const maxTop = window.innerHeight - h - 12;
+  if (top > maxTop) top = Math.max(12, maxTop);
+  pop.style.top = top + 'px';
+
+  // Keep the nib pointing at the tile even after that clamp.
+  const nib = Math.max(10, Math.min(h - 20, t.top + t.height / 2 - top - 5));
+  pop.style.setProperty('--nib-top', nib + 'px');
+}
+window.addEventListener('resize', function () {
+  if (document.body.classList.contains('rail-open')) railPosition(_railOpenKey);
+});
 
 (function buildRail() {
   const app = document.querySelector('.app');
@@ -6014,12 +6045,14 @@ function railOpen(key) {
     + '<div class="rail-tile" id="railThemes" title="Themes">' + RAIL_ICONS.themes + '<span>Themes</span></div>'
     + '<div class="rail-arrow" id="railArrow" title="Open menu"><span>›</span></div>';
 
-  const fly = document.createElement('div');
-  fly.id = 'railFlyout';
-  fly.innerHTML = '<div class="fly-head"></div><div class="fly-list"></div>';
+  // The pop-out lives on <body>, not inside .app — it's fixed-positioned and
+  // must overlay the page rather than take part in the flex layout.
+  const pop = document.createElement('div');
+  pop.id = 'railPop';
+  pop.innerHTML = '<div class="pop-head"></div><div class="pop-row"></div>';
+  document.body.appendChild(pop);
 
-  app.insertBefore(fly, sidebar.nextSibling);
-  app.insertBefore(rail, fly);
+  app.insertBefore(rail, sidebar.nextSibling);
 
   const overview = document.querySelector('.nav-item[onclick*="overview"]');
   rail.querySelector('#railHome').onclick = function () { if (overview) overview.click(); closeRail(); };
