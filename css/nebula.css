@@ -1,0 +1,146 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   NEBULA — the "command center" theme, from Triton's mock.
+
+   Every rule is scoped under html.nebula, so classic mode stays pixel-identical
+   and the whole look is one class toggle (persisted as localStorage.wbTheme,
+   applied pre-paint in the dashboard <head> to avoid a flash of classic).
+
+   The dashboard styles everything through the :root variables, which is what
+   makes a theme this deep possible from one file: repoint the variables and
+   every card, input and button follows. The rest of this file is the parts
+   variables can't reach — the starfield, the glass panels, the corner
+   brackets, the glow.
+
+   Revert story: delete this file + the toggle; tag pre-nebula-redesign is the
+   full rollback. See memory/project_nebula_redesign.md.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── the palette, repointed ── */
+html.nebula {
+  --bg:        #04060f;
+  --bg-panel:  #0a101f;
+  --bg-card:   #0d1425;
+  --bg-input:  rgba(4, 8, 18, 0.75);
+  --bg-hover:  #131c31;
+  --border:    #1b2740;
+  --text:      #c3cee0;
+  --text-dim:  #7e8ca6;
+  --bright:    #f2f7ff;
+  --accent:    #00e5ff;
+  --accent-glow: rgba(0, 229, 255, 0.22);
+  --purple:    #8f7bff;
+}
+
+/* ── deep space ──
+   Four fixed layers: a planet-horizon glow top-right (the mock's blue arc), a
+   purple nebula bottom-left, a faint teal wash, and a starfield tile. The tile
+   is an inline SVG — hand-placed dots at three brightnesses over 900x700, so
+   the repeat is invisible at panel scale and there is nothing to download. */
+html.nebula body {
+  background:
+    radial-gradient(ellipse 900px 420px at 88% -8%, rgba(56, 132, 255, 0.16), transparent 62%),
+    radial-gradient(ellipse 760px 520px at -6% 108%, rgba(124, 92, 255, 0.13), transparent 60%),
+    radial-gradient(ellipse 700px 500px at 74% 82%, rgba(0, 229, 255, 0.05), transparent 60%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='700'%3E%3Cg fill='%23ffffff'%3E%3Ccircle cx='23' cy='41' r='1' opacity='.55'/%3E%3Ccircle cx='131' cy='97' r='.7' opacity='.3'/%3E%3Ccircle cx='229' cy='23' r='1.1' opacity='.6'/%3E%3Ccircle cx='317' cy='151' r='.6' opacity='.25'/%3E%3Ccircle cx='431' cy='61' r='.9' opacity='.45'/%3E%3Ccircle cx='547' cy='127' r='.6' opacity='.3'/%3E%3Ccircle cx='641' cy='37' r='1.2' opacity='.7'/%3E%3Ccircle cx='733' cy='167' r='.7' opacity='.3'/%3E%3Ccircle cx='847' cy='83' r='1' opacity='.5'/%3E%3Ccircle cx='67' cy='211' r='.8' opacity='.4'/%3E%3Ccircle cx='191' cy='263' r='.6' opacity='.25'/%3E%3Ccircle cx='293' cy='217' r='1' opacity='.55'/%3E%3Ccircle cx='389' cy='307' r='.7' opacity='.3'/%3E%3Ccircle cx='509' cy='239' r='.6' opacity='.35'/%3E%3Ccircle cx='613' cy='293' r='1.1' opacity='.6'/%3E%3Ccircle cx='719' cy='229' r='.6' opacity='.25'/%3E%3Ccircle cx='829' cy='311' r='.9' opacity='.45'/%3E%3Ccircle cx='41' cy='367' r='1' opacity='.5'/%3E%3Ccircle cx='157' cy='421' r='.6' opacity='.3'/%3E%3Ccircle cx='271' cy='383' r='.8' opacity='.4'/%3E%3Ccircle cx='367' cy='449' r='1.2' opacity='.65'/%3E%3Ccircle cx='487' cy='401' r='.6' opacity='.25'/%3E%3Ccircle cx='593' cy='457' r='.9' opacity='.45'/%3E%3Ccircle cx='701' cy='389' r='.7' opacity='.3'/%3E%3Ccircle cx='811' cy='461' r='1' opacity='.55'/%3E%3Ccircle cx='89' cy='523' r='.7' opacity='.35'/%3E%3Ccircle cx='203' cy='569' r='1' opacity='.5'/%3E%3Ccircle cx='313' cy='529' r='.6' opacity='.25'/%3E%3Ccircle cx='433' cy='593' r='.8' opacity='.4'/%3E%3Ccircle cx='541' cy='541' r='.6' opacity='.3'/%3E%3Ccircle cx='659' cy='587' r='1.1' opacity='.6'/%3E%3Ccircle cx='769' cy='533' r='.7' opacity='.3'/%3E%3Ccircle cx='877' cy='599' r='.9' opacity='.45'/%3E%3Ccircle cx='53' cy='647' r='.6' opacity='.3'/%3E%3Ccircle cx='179' cy='673' r='1' opacity='.5'/%3E%3Ccircle cx='307' cy='641' r='.7' opacity='.3'/%3E%3Ccircle cx='449' cy='677' r='.6' opacity='.25'/%3E%3Ccircle cx='577' cy='653' r='1' opacity='.55'/%3E%3Ccircle cx='716' cy='671' r='.7' opacity='.35'/%3E%3Ccircle cx='853' cy='647' r='1.1' opacity='.6'/%3E%3C/g%3E%3C/svg%3E") repeat,
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* Sidebar and topbar go translucent so the space shows through the chrome. */
+html.nebula .sidebar {
+  background: rgba(7, 11, 22, 0.82);
+  border-right: 1px solid rgba(0, 229, 255, 0.12);
+  backdrop-filter: blur(10px);
+}
+html.nebula .topbar {
+  background: rgba(7, 11, 22, 0.72);
+  border-bottom: 1px solid rgba(0, 229, 255, 0.12);
+  backdrop-filter: blur(10px);
+}
+/* The mock sets page titles in spaced caps — OVERVIEW, not Overview. */
+html.nebula .topbar-title {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 18px rgba(0, 229, 255, 0.25);
+}
+
+/* ── glass panels with corner brackets ──
+   The signature of the mock. Brackets are drawn as four background layers (two
+   L-corners: top-left and bottom-right), which is safe on every card because it
+   never touches ::before/::after — several cards already use those. */
+html.nebula .card {
+  background:
+    linear-gradient(rgba(0, 229, 255, 0.5), rgba(0, 229, 255, 0.5)) left 10px top 0 / 16px 1px no-repeat,
+    linear-gradient(rgba(0, 229, 255, 0.5), rgba(0, 229, 255, 0.5)) left 0 top 10px / 1px 16px no-repeat,
+    linear-gradient(rgba(0, 229, 255, 0.35), rgba(0, 229, 255, 0.35)) right 10px bottom 0 / 16px 1px no-repeat,
+    linear-gradient(rgba(0, 229, 255, 0.35), rgba(0, 229, 255, 0.35)) right 0 bottom 10px / 1px 16px no-repeat,
+    linear-gradient(168deg, rgba(16, 25, 45, 0.92), rgba(8, 13, 26, 0.94));
+  border: 1px solid rgba(0, 229, 255, 0.13);
+  box-shadow:
+    0 0 28px rgba(0, 229, 255, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+html.nebula .card:hover {
+  border-color: rgba(0, 229, 255, 0.22);
+}
+
+/* ── navigation ── */
+html.nebula .nav-item.active,
+html.nebula .nav-item.nav-locked.active,
+html.nebula .nav-item.nav-locked.active:hover {
+  background: linear-gradient(90deg, rgba(0, 229, 255, 0.16), rgba(0, 229, 255, 0.03));
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.12), inset 0 0 10px rgba(0, 229, 255, 0.05);
+  color: var(--accent);
+}
+/* Active gets a real border; give every item an invisible one so nothing
+   shifts by a pixel when selection moves. */
+html.nebula .nav-item { border: 1px solid transparent; }
+html.nebula .sidebar-label { color: rgba(0, 229, 255, 0.5); }
+
+/* ── controls ── */
+html.nebula .btn-accent {
+  background: linear-gradient(180deg, #19ecff, #00c4de);
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.25);
+}
+html.nebula .btn-accent:hover { box-shadow: 0 0 26px rgba(0, 229, 255, 0.45); }
+html.nebula .btn-ghost { border-color: rgba(0, 229, 255, 0.25); }
+html.nebula .btn-ghost:hover { border-color: rgba(0, 229, 255, 0.55); box-shadow: 0 0 12px rgba(0, 229, 255, 0.12); }
+
+html.nebula input, html.nebula select, html.nebula textarea {
+  border-color: rgba(0, 229, 255, 0.16);
+}
+html.nebula input:focus, html.nebula select:focus, html.nebula textarea:focus {
+  border-color: rgba(0, 229, 255, 0.5);
+  box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.08);
+}
+
+/* ── scrollbars ── */
+html.nebula ::-webkit-scrollbar { width: 9px; height: 9px; }
+html.nebula ::-webkit-scrollbar-track { background: transparent; }
+html.nebula ::-webkit-scrollbar-thumb {
+  background: rgba(0, 229, 255, 0.14);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+html.nebula ::-webkit-scrollbar-thumb:hover { background-color: rgba(0, 229, 255, 0.3); }
+
+/* ── the footer strip from the mock ──
+   Fixed and pointer-transparent, so it floats over whatever page is open
+   without stealing a click. */
+html.nebula body::after {
+  content: "W E N B O T   C O M M A N D   C E N T E R";
+  position: fixed;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  font-family: 'Exo 2', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.45em;
+  color: rgba(0, 229, 255, 0.28);
+  text-shadow: 0 0 12px rgba(0, 229, 255, 0.25);
+  pointer-events: none;
+  z-index: 5;
+}

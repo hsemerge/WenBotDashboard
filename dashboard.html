@@ -478,6 +478,11 @@
       }
     }
   </style>
+  <!-- Nebula theme — every rule scoped under html.nebula, so classic mode is
+       untouched. The inline script applies the saved choice BEFORE first paint;
+       doing it in app boot instead would flash classic for a beat on every load. -->
+  <script>try{if(localStorage.getItem('wbTheme')==='nebula')document.documentElement.classList.add('nebula');}catch(e){}</script>
+  <link rel="stylesheet" href="/css/nebula.css">
 </head>
 <body>
 
@@ -551,8 +556,13 @@
         <div class="sidebar-user-name" id="sidebarUser">—</div>
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
+      <!-- Theme switch — Nebula is the streamer-facing name for the space look. -->
+      <div id="themeToggleRow" onclick="toggleNebula()" title="Switch dashboard theme"
+           style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;font-size:11px;color:var(--text-dim);cursor:pointer;padding:5px 8px;border:1px solid var(--border);border-radius:6px;">
+        🌌 <span id="themeToggleLabel">Try Nebula mode</span>
+      </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.17.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.18.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -2993,9 +3003,19 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.17.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.18.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.18.0 &middot; Nebula mode</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 9, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🌌 <strong>Try Nebula mode.</strong> A new deep space look for the whole dashboard: a starfield background, glass panels and glowing accents. Flip it on from the bottom of the menu. Your pick is remembered, and classic stays one click away.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -5827,6 +5847,22 @@ async function loadBillingHistory() {
     if (totalEl) totalEl.textContent = '—';
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:18px;">Couldn’t load payment history.</td></tr>';
   }
+}
+
+// ── Nebula theme ────────────────────────────────────────────────────────────
+// The class itself is applied pre-paint by the <head> script; this half keeps
+// the toggle label honest. The whole look lives in css/nebula.css scoped under
+// html.nebula — classic mode is pixel-identical with the toggle off.
+function toggleNebula(force) {
+  const on = typeof force === 'boolean' ? force : !document.documentElement.classList.contains('nebula');
+  document.documentElement.classList.toggle('nebula', on);
+  try { localStorage.setItem('wbTheme', on ? 'nebula' : 'classic'); } catch (e) {}
+  const l = document.getElementById('themeToggleLabel');
+  if (l) l.textContent = on ? 'Nebula on · back to classic' : 'Try Nebula mode';
+}
+if (document.documentElement.classList.contains('nebula')) {
+  const _l = document.getElementById('themeToggleLabel');
+  if (_l) _l.textContent = 'Nebula on · back to classic';
 }
 
 function showPage(id, el) {
