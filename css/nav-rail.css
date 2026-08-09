@@ -22,7 +22,7 @@ body.nav-rail #navRail {
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  width: 112px;
+  width: 152px;
   flex-shrink: 0;
   padding: 12px 0 14px;
   background: var(--bg-panel);
@@ -39,20 +39,23 @@ html.nebula body.nav-rail #navRail {
 /* Same treatment as the list sidebar's logo (height 104, object-fit contain)
    so the brand reads at one size in both navigation modes — the rail is widened
    to 112px specifically to carry it rather than shrinking the mark. */
+/* Same treatment as the list sidebar's logo. Its rendered size is governed by
+   the rail's width (contain, wide wordmark), which is why the rail is 152px —
+   the mark grows with the column, it isn't scaled down to fit a narrow one. */
 #navRail .rail-logo {
-  height: 104px; width: 100%; max-width: 200px;
-  object-fit: contain; display: block; margin: 0 auto 4px;
+  height: 112px; width: 100%; max-width: 200px;
+  object-fit: contain; display: block; margin: 0 auto 2px;
 }
 
 /* ── tiles ── */
 .rail-tile {
-  width: 76px; height: 76px;
-  border-radius: 16px;
+  width: 104px; height: 104px;
+  border-radius: 18px;
   border: 1px solid var(--border);
   background: var(--bg-card);
   color: var(--text-dim);
   display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 3px;
+  align-items: center; justify-content: center; gap: 6px;
   cursor: pointer;
   transition: color .15s, border-color .15s, background .15s, box-shadow .15s;
   position: relative;
@@ -60,9 +63,9 @@ html.nebula body.nav-rail #navRail {
 }
 /* Icons carry the accent by default rather than inheriting the dim label
    colour — they're the thing you aim at, and at 26px they can hold it. */
-.rail-tile svg { width: 26px; height: 26px; stroke: var(--accent); fill: none; stroke-width: 1.7; }
+.rail-tile svg { width: 34px; height: 34px; stroke: var(--accent); fill: none; stroke-width: 1.7; }
 .rail-tile:hover svg, .rail-tile.active svg { filter: drop-shadow(0 0 6px rgba(0,229,255,0.55)); }
-.rail-tile span { font-size: 10.5px; font-weight: 700; letter-spacing: .02em; }
+.rail-tile span { font-size: 12px; font-weight: 700; letter-spacing: .02em; }
 .rail-tile:hover { color: var(--bright); border-color: var(--accent); background: var(--bg-hover); }
 .rail-tile.active {
   color: var(--accent);
@@ -74,14 +77,14 @@ html.nebula body.nav-rail #navRail {
    section — drawn on the left edge where the eye tracks the column. */
 .rail-tile.active::before {
   content: "";
-  position: absolute; left: -14px; top: 16px; bottom: 16px;
+  position: absolute; left: -18px; top: 22px; bottom: 22px;
   width: 3px; border-radius: 2px;
   background: var(--accent);
   box-shadow: 0 0 10px var(--accent);
 }
-/* A live badge collapses to a dot — there's no room for the word at 62px. */
+/* A live badge collapses to a dot — there's no room for the word on a tile. */
 .rail-tile .rail-dot {
-  position: absolute; top: 7px; right: 7px;
+  position: absolute; top: 10px; right: 10px;
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--red);
   box-shadow: 0 0 8px var(--red);
@@ -158,17 +161,23 @@ html.nebula #railPop::before { border-color: rgba(0, 229, 255, 0.22); }
   color: var(--text-dim);
   padding: 0 2px 9px;
 }
-#railPop .pop-row { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Items are the same tile as the one that opened them — click a square, get
+   more squares. A row of wide pills next to a column of tiles read as two
+   different navigations bolted together. */
+#railPop .pop-row { display: flex; flex-wrap: wrap; gap: 10px; max-width: 660px; }
 #railPop .pop-item {
-  display: flex; align-items: center; gap: 8px;
-  padding: 11px 14px;
-  min-width: 132px;
-  border-radius: 10px;
+  position: relative;
+  width: 104px; height: 104px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 6px;
+  padding: 8px;
+  border-radius: 18px;
   border: 1px solid var(--border);
   background: var(--bg-card);
-  color: var(--text);
-  font-size: 13px; font-weight: 600;
-  cursor: pointer; white-space: nowrap;
+  color: var(--text-dim);
+  font-size: 12px; font-weight: 700;
+  text-align: center; line-height: 1.2;
+  cursor: pointer;
   transition: all .14s;
 }
 #railPop .pop-item:hover {
@@ -182,18 +191,21 @@ html.nebula #railPop::before { border-color: rgba(0, 229, 255, 0.22); }
   color: var(--accent);
   background: rgba(0,229,255,0.08);
 }
-#railPop .pop-item .icon { font-size: 15px; }
+#railPop .pop-item .icon { font-size: 28px; line-height: 1; }
+/* Badge floats in the corner rather than sitting in the flow — a square tile
+   has no spare row for it. */
 #railPop .pop-badge {
-  margin-left: auto; font-size: 9px; font-weight: 800;
-  padding: 1px 6px; border-radius: 10px; background: var(--red); color: #fff;
+  position: absolute; top: 8px; right: 8px;
+  font-size: 8.5px; font-weight: 800;
+  padding: 1px 5px; border-radius: 10px; background: var(--red); color: #fff;
 }
 
 /* Rail replaces the sidebar entirely on small screens too — the hamburger
    still hides it via the existing .sidebar-collapsed rule on .app. */
 @media (max-width: 900px) {
-  body.nav-rail #navRail { width: 92px; }
-  .rail-tile { width: 62px; height: 62px; }
-  #navRail .rail-logo { height: 74px; }
+  body.nav-rail #navRail { width: 116px; }
+  .rail-tile, #railPop .pop-item { width: 84px; height: 84px; }
+  #navRail .rail-logo { height: 86px; }
   #railPop { max-width: calc(100vw - 100px); }
 }
 
@@ -238,3 +250,19 @@ html.nebula #themeModal .tm-box { border-color: rgba(0,229,255,0.2); box-shadow:
 #themeModal .sw-list { background: linear-gradient(90deg, var(--bg-card) 0 34%, transparent 34%); }
 #themeModal .sw-rail { background: linear-gradient(90deg, var(--bg-card) 0 16%, transparent 16%); }
 #themeModal .tm-close { margin-top: 20px; display: flex; justify-content: flex-end; }
+
+/* ── content alignment in rail mode ──
+   Every page caps its width with `#page-X > * { max-width:1720px; margin:auto }`,
+   which centres the content. That reads fine against a 220px sidebar, but the
+   rail is far narrower, so on a wide monitor the same centring leaves a large
+   dead gap between the nav and the first card.
+
+   Left-aligning keeps the cap (long lines are still bounded) while the content
+   starts next to the rail. !important is deliberate and load-bearing: those caps
+   are ID-qualified selectors, so no class-based rule can outrank them — the same
+   specificity trap that once broke the slot picker stage. Scoped to rail mode,
+   so the centred layout of the classic sidebar is untouched. */
+body.nav-rail .page > * {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
