@@ -507,8 +507,13 @@
        deliberately switched back to classic stays there. If localStorage throws
        (private mode), the catch leaves the class off — classic is the safe
        fallback because it needs no extra stylesheet to look right. -->
-  <script>try{if(localStorage.getItem('wbTheme')!=='classic')document.documentElement.classList.add('nebula');}catch(e){}</script>
+  <script>try{var _t=localStorage.getItem('wbTheme')||'nebula';
+if(_t!=='classic')document.documentElement.classList.add(_t==='orbit'?'orbit':'nebula');
+/* Nav mode is applied pre-paint too — without it the rail flashes the list
+   sidebar for a frame on every load, which the theme class already avoided. */
+if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute('data-nav','rail');}catch(e){}</script>
   <link rel="stylesheet" href="/css/nebula.css">
+  <link rel="stylesheet" href="/css/orbit.css">
   <link rel="stylesheet" href="/css/nav-rail.css">
 </head>
 <body>
@@ -593,7 +598,7 @@
         🎨 <span id="themeToggleLabel">Themes</span>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.20.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.21.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3037,9 +3042,20 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.20.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.21.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.21.0 &middot; A third look: Orbit</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 9, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🪐 <strong>Orbit.</strong> A new theme under <strong>Themes</strong>: a ringed gas giant, a cratered moon and a deep violet sky. Pick it alongside Classic and Nebula.</li>
+            <li>✨ <strong>The menu no longer flickers on load.</strong> Your menu style is applied before the page paints, so it stops flashing the other layout for a moment.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -5941,12 +5957,23 @@ async function loadBillingHistory() {
 // Nebula is the default, so the stored value is only ever consulted to find the
 // people who opted OUT. Both states are written explicitly rather than clearing
 // the key, so "never chose" and "chose classic" stay distinguishable.
-function toggleNebula(force) {
-  const on = typeof force === 'boolean' ? force : !document.documentElement.classList.contains('nebula');
-  document.documentElement.classList.toggle('nebula', on);
-  try { localStorage.setItem('wbTheme', on ? 'nebula' : 'classic'); } catch (e) {}
+// Named themes rather than a nebula on/off flag — the moment there were three
+// looks, a boolean could no longer say which one you were on.
+const THEMES = ['classic', 'nebula', 'orbit'];
+function setTheme(name) {
+  if (THEMES.indexOf(name) === -1) name = 'nebula';
+  const root = document.documentElement;
+  THEMES.forEach(function (t) { if (t !== 'classic') root.classList.remove(t); });
+  if (name !== 'classic') root.classList.add(name);
+  try { localStorage.setItem('wbTheme', name); } catch (e) {}
   _syncThemeLabel();
 }
+function currentTheme() {
+  const c = document.documentElement.classList;
+  return c.contains('orbit') ? 'orbit' : c.contains('nebula') ? 'nebula' : 'classic';
+}
+// Kept so anything still calling the old name keeps working.
+function toggleNebula(on) { setTheme(on === false ? 'classic' : 'nebula'); }
 // The sidebar link is now a single "Themes" entry point, so there's no state to
 // mirror into it — the dialog shows what's selected.
 function _syncThemeLabel() {}
@@ -6289,11 +6316,13 @@ function openThemes() {
       '  <h3>Themes</h3>',
       '  <div class="tm-sub">Change how WenBot looks and how you move around it. Saved on this device.</div>',
       '  <div class="tm-label">Look</div>',
-      '  <div class="tm-row">',
+      '  <div class="tm-row tm-row-3">',
       '    <div class="tm-opt" data-theme="classic"><div class="tm-swatch sw-classic"></div>',
       '      <div class="tm-name">Classic</div><div class="tm-desc">The original dark dashboard.</div></div>',
       '    <div class="tm-opt" data-theme="nebula"><div class="tm-swatch sw-nebula"></div>',
-      '      <div class="tm-name">Nebula</div><div class="tm-desc">Deep space, stars and glass panels.</div></div>',
+      '      <div class="tm-name">Nebula</div><div class="tm-desc">Deep space, stars and glass.</div></div>',
+      '    <div class="tm-opt" data-theme="orbit"><div class="tm-swatch sw-orbit"></div>',
+      '      <div class="tm-name">Orbit</div><div class="tm-desc">Worlds, moons and a ringed giant.</div></div>',
       '  </div>',
       '  <div class="tm-label">Navigation</div>',
       '  <div class="tm-row">',
@@ -6313,7 +6342,7 @@ function openThemes() {
     m.querySelector('.tm-box').onclick = function (e) { e.stopPropagation(); };
     document.body.appendChild(m);
     m.querySelectorAll('.tm-opt[data-theme]').forEach(function (o) {
-      o.onclick = function () { toggleNebula(o.dataset.theme === 'nebula'); _themeSel(); };
+      o.onclick = function () { setTheme(o.dataset.theme); _themeSel(); };
     });
     m.querySelectorAll('.tm-opt[data-nav]').forEach(function (o) {
       o.onclick = function () { setNavMode(o.dataset.nav); _themeSel(); };
@@ -6329,10 +6358,10 @@ function closeThemes() {
 function _themeSel() {
   const m = document.getElementById('themeModal');
   if (!m) return;
-  const neb = document.documentElement.classList.contains('nebula');
+  const theme = currentTheme();
   const rail = document.body.classList.contains('nav-rail');
   m.querySelectorAll('.tm-opt[data-theme]').forEach(function (o) {
-    o.classList.toggle('sel', (o.dataset.theme === 'nebula') === neb);
+    o.classList.toggle('sel', o.dataset.theme === theme);
   });
   m.querySelectorAll('.tm-opt[data-nav]').forEach(function (o) {
     o.classList.toggle('sel', (o.dataset.nav === 'rail') === rail);

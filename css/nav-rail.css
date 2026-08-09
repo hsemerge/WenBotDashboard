@@ -76,18 +76,13 @@ html.nebula body.nav-rail #navRail {
 .rail-tile:hover svg, .rail-tile.active svg { filter: drop-shadow(0 0 6px rgba(0,229,255,0.55)); }
 .rail-tile span { font-size: 12.5px; font-weight: 700; letter-spacing: .02em; }
 .rail-tile:hover { color: var(--bright); background: rgba(255,255,255,0.045); }
-/* Two states, deliberately not the same picture:
-   .current = the section holding the page you're on (persistent orientation)
-   .active  = the menu you just opened (transient)
-   The list sidebar gets the first for free by highlighting the page itself. */
-.rail-tile.current { color: var(--accent); background: rgba(0, 229, 255, 0.06); }
-.rail-tile.current::after {
-  content: "";
-  position: absolute; left: 14px; right: 14px; bottom: 6px;
-  height: 2px; border-radius: 2px;
-  background: var(--accent); opacity: .8;
-}
-.rail-tile.active {
+/* One selected look, not two. .current marks the section holding the page
+   you're on, .active marks the menu you have open — they were drawn
+   differently (a underline vs a framed tile) on the theory that they answer
+   different questions, but two selection styles in one column just reads as
+   noise. Same treatment for both. */
+.rail-tile.active,
+.rail-tile.current {
   color: var(--accent);
   border-color: rgba(0, 229, 255, 0.45);
   background: rgba(0, 229, 255, 0.08);
@@ -313,6 +308,9 @@ html.nebula #themeModal .tm-box { border-color: rgba(0,229,255,0.2); box-shadow:
 #themeModal .tm-sub { font-size: 12.5px; color: var(--text-dim); margin-bottom: 18px; }
 #themeModal .tm-label { font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-dim); margin: 14px 0 8px; }
 #themeModal .tm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* Three looks need a third column; the navigation row stays a pair. */
+#themeModal .tm-row-3 { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 560px) { #themeModal .tm-row-3 { grid-template-columns: 1fr; } }
 #themeModal .tm-opt {
   border: 1px solid var(--border); border-radius: 10px;
   padding: 12px; cursor: pointer; transition: all .15s;
@@ -325,6 +323,13 @@ html.nebula #themeModal .tm-box { border-color: rgba(0,229,255,0.2); box-shadow:
 /* Tiny visual preview so the choice isn't made from words alone. */
 #themeModal .tm-swatch { height: 34px; border-radius: 7px; margin-bottom: 9px; border: 1px solid var(--border); }
 #themeModal .sw-classic { background: linear-gradient(135deg, #161b22 0%, #0d1117 100%); }
+#themeModal .sw-orbit {
+  background:
+    radial-gradient(circle 12px at 76% 74%, rgba(255,176,102,0.55), rgba(140,80,190,0.5) 60%, transparent 66%),
+    radial-gradient(circle 5px at 22% 28%, rgba(200,190,235,0.6), transparent 70%),
+    radial-gradient(ellipse 40px 60px at 70% 10%, rgba(120,70,200,0.35), transparent 60%),
+    #06040f;
+}
 #themeModal .sw-nebula {
   background:
     radial-gradient(ellipse 60px 30px at 80% -10%, rgba(56,132,255,0.5), transparent 60%),

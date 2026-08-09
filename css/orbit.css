@@ -1,0 +1,164 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   ORBIT — the space-factory theme. Worlds and moons behind the glass.
+
+   Where Nebula is empty deep space (stars and gas), Orbit is INHABITED space:
+   a gas giant with a ring low on the right and a cratered moon up left, over a
+   denser starfield. Violet and amber instead of Nebula's cyan, so the two never
+   get mistaken for each other at a glance.
+
+   Everything is drawn with gradients on fixed layers — no images at all — so it
+   costs one repaint and nothing to download.
+   Scoped under html.orbit; classic and nebula are untouched.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+html.orbit {
+  --bg:        #06040f;
+  --bg-panel:  #0d0a1d;
+  --bg-card:   #120e26;
+  --bg-input:  rgba(6, 4, 15, 0.75);
+  --bg-hover:  #1a1435;
+  --border:    #2a2148;
+  --text:      #c9c3e0;
+  --text-dim:  #8981a8;
+  --bright:    #f5f1ff;
+  --accent:    #b98bff;
+  --accent-rgb: 185, 139, 255;
+  --accent-glow: rgba(185, 139, 255, 0.24);
+  --green:     #4ade9b;
+  --gold:      #ffc36b;
+  --purple:    #b98bff;
+}
+
+/* ── the sky ──
+   Layer order matters: haze, then the two bodies, then the star field, so the
+   stars read as being in front of the far glow but behind the worlds (which
+   are painted by ::after, above this). */
+html.orbit body {
+  background:
+    radial-gradient(ellipse 1100px 500px at 78% 110%, rgba(120, 70, 200, 0.20), transparent 60%),
+    radial-gradient(ellipse 700px 400px at 12% -10%, rgba(70, 110, 220, 0.14), transparent 62%),
+    radial-gradient(ellipse 600px 400px at 50% 40%, rgba(255, 180, 90, 0.035), transparent 70%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='620'%3E%3Cg fill='%23ffffff'%3E%3Ccircle cx='37' cy='53' r='.9' opacity='.5'/%3E%3Ccircle cx='149' cy='121' r='.6' opacity='.28'/%3E%3Ccircle cx='251' cy='31' r='1' opacity='.55'/%3E%3Ccircle cx='349' cy='167' r='.6' opacity='.24'/%3E%3Ccircle cx='463' cy='73' r='.85' opacity='.42'/%3E%3Ccircle cx='571' cy='139' r='.6' opacity='.3'/%3E%3Ccircle cx='667' cy='47' r='1.1' opacity='.62'/%3E%3Ccircle cx='761' cy='181' r='.7' opacity='.3'/%3E%3Ccircle cx='83' cy='233' r='.75' opacity='.38'/%3E%3Ccircle cx='197' cy='287' r='.6' opacity='.26'/%3E%3Ccircle cx='307' cy='241' r='1' opacity='.52'/%3E%3Ccircle cx='409' cy='319' r='.65' opacity='.3'/%3E%3Ccircle cx='523' cy='263' r='.6' opacity='.33'/%3E%3Ccircle cx='629' cy='311' r='1.05' opacity='.58'/%3E%3Ccircle cx='737' cy='247' r='.6' opacity='.24'/%3E%3Ccircle cx='59' cy='389' r='.95' opacity='.48'/%3E%3Ccircle cx='173' cy='437' r='.6' opacity='.28'/%3E%3Ccircle cx='289' cy='401' r='.8' opacity='.4'/%3E%3Ccircle cx='383' cy='469' r='1.15' opacity='.6'/%3E%3Ccircle cx='497' cy='421' r='.6' opacity='.25'/%3E%3Ccircle cx='607' cy='477' r='.9' opacity='.44'/%3E%3Ccircle cx='713' cy='409' r='.7' opacity='.3'/%3E%3Ccircle cx='101' cy='541' r='.7' opacity='.34'/%3E%3Ccircle cx='223' cy='587' r='.95' opacity='.5'/%3E%3Ccircle cx='331' cy='551' r='.6' opacity='.24'/%3E%3Ccircle cx='451' cy='599' r='.8' opacity='.4'/%3E%3Ccircle cx='563' cy='559' r='.6' opacity='.3'/%3E%3Ccircle cx='679' cy='593' r='1.05' opacity='.56'/%3E%3C/g%3E%3C/svg%3E") repeat,
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* ── the worlds ──
+   A gas giant bottom-right and a moon top-left. Each is one circle with an
+   off-centre highlight and a hard shadow terminator, which is what sells a
+   sphere rather than a flat disc. The ring is a separate skewed ellipse. */
+html.orbit body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    /* moon, upper left */
+    radial-gradient(circle 62px at 168px 128px, rgba(198, 190, 230, 0.30) 0%, rgba(150, 142, 185, 0.20) 46%, rgba(20, 16, 40, 0.28) 68%, transparent 71%),
+    /* a couple of craters, just darker patches */
+    radial-gradient(circle 11px at 150px 108px, rgba(20, 16, 40, 0.22), transparent 70%),
+    radial-gradient(circle 8px  at 186px 150px, rgba(20, 16, 40, 0.18), transparent 70%),
+    /* gas giant, lower right — bands via stacked soft ellipses */
+    radial-gradient(circle 210px at 88% 92%, rgba(255, 176, 102, 0.16) 0%, rgba(190, 110, 170, 0.15) 40%, rgba(88, 48, 140, 0.16) 66%, rgba(10, 6, 22, 0.30) 82%, transparent 85%),
+    radial-gradient(ellipse 200px 26px at 88% 88%, rgba(255, 200, 150, 0.07), transparent 70%),
+    radial-gradient(ellipse 200px 22px at 88% 96%, rgba(120, 80, 190, 0.09), transparent 70%);
+}
+
+/* The gas giant's ring. The mascot used to float here too, but a cartoon robot
+   among photoreal-ish planets read as a sticker on a window rather than
+   something in the scene — the bodies are abstract light, he isn't. */
+html.orbit body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(ellipse 340px 60px at 88% 92%,
+    transparent 58%, rgba(215, 170, 255, 0.16) 60%, rgba(215, 170, 255, 0.05) 64%, transparent 68%);
+}
+
+/* Panels are darker and slightly violet so the worlds read behind them. */
+html.orbit .sidebar,
+html.orbit body.nav-rail #navRail {
+  background: rgba(10, 7, 22, 0.86);
+  border-right: 1px solid rgba(185, 139, 255, 0.14);
+  backdrop-filter: blur(10px);
+}
+html.orbit .topbar {
+  background: rgba(10, 7, 22, 0.76);
+  border-bottom: 1px solid rgba(185, 139, 255, 0.14);
+  backdrop-filter: blur(10px);
+}
+html.orbit .topbar-title {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 18px rgba(185, 139, 255, 0.3);
+}
+
+html.orbit .card {
+  background: linear-gradient(168deg, rgba(26, 20, 52, 0.90), rgba(13, 9, 28, 0.94));
+  border: 1px solid rgba(185, 139, 255, 0.14);
+  box-shadow: 0 0 28px rgba(185, 139, 255, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+html.orbit .card:hover { border-color: rgba(185, 139, 255, 0.26); }
+
+html.orbit .nav-item.active,
+html.orbit .nav-item.nav-locked.active,
+html.orbit .nav-item.nav-locked.active:hover {
+  background: linear-gradient(90deg, rgba(185, 139, 255, 0.18), rgba(185, 139, 255, 0.03));
+  border: 1px solid rgba(185, 139, 255, 0.38);
+  box-shadow: 0 0 14px rgba(185, 139, 255, 0.14);
+  color: var(--accent);
+}
+html.orbit .nav-item { border: 1px solid transparent; }
+html.orbit .sidebar-label {
+  color: rgba(185, 139, 255, 0.6);
+  border-bottom-color: rgba(185, 139, 255, 0.16);
+}
+
+/* Rail pieces inherit the accent through the variables; only the hard-coded
+   cyan in nav-rail.css needs restating. */
+html.orbit .rail-tile svg { stroke: var(--accent); }
+html.orbit .rail-tile:hover svg,
+html.orbit .rail-tile.active svg { filter: drop-shadow(0 0 6px rgba(185, 139, 255, 0.6)); }
+html.orbit .rail-tile.active,
+html.orbit .rail-tile.current {
+  border-color: rgba(185, 139, 255, 0.45);
+  background: rgba(185, 139, 255, 0.09);
+}
+html.orbit #railPop {
+  background: #100c22;
+  border-color: rgba(185, 139, 255, 0.24);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 30px rgba(185, 139, 255, 0.10);
+}
+html.orbit #railPop::before { border-color: rgba(185, 139, 255, 0.24); }
+html.orbit #railPop .pop-item.active { border-color: rgba(185, 139, 255, 0.45); background: rgba(185, 139, 255, 0.09); }
+html.orbit #railScrim { background: rgba(6, 4, 15, 0.58); }
+html.orbit .rail-foot { border-top-color: rgba(185, 139, 255, 0.14); }
+
+html.orbit .btn-accent {
+  background: linear-gradient(180deg, #c9a3ff, #9a6ae8);
+  color: #150c26;
+  box-shadow: 0 0 16px rgba(185, 139, 255, 0.28);
+}
+html.orbit .btn-accent:hover { box-shadow: 0 0 26px rgba(185, 139, 255, 0.5); }
+html.orbit .btn-ghost { border-color: rgba(185, 139, 255, 0.28); }
+html.orbit .btn-ghost:hover { border-color: rgba(185, 139, 255, 0.6); }
+
+html.orbit input, html.orbit select, html.orbit textarea { border-color: rgba(185, 139, 255, 0.18); }
+html.orbit input:focus, html.orbit select:focus, html.orbit textarea:focus {
+  border-color: rgba(185, 139, 255, 0.55);
+  box-shadow: 0 0 0 3px rgba(185, 139, 255, 0.1);
+}
+
+html.orbit ::-webkit-scrollbar { width: 9px; height: 9px; }
+html.orbit ::-webkit-scrollbar-track { background: transparent; }
+html.orbit ::-webkit-scrollbar-thumb {
+  background: rgba(185, 139, 255, 0.16);
+  border-radius: 6px; border: 2px solid transparent; background-clip: content-box;
+}
+html.orbit ::-webkit-scrollbar-thumb:hover { background-color: rgba(185, 139, 255, 0.32); }
+
+/* Content sits above the sky. */
+html.orbit .app { position: relative; z-index: 1; }
