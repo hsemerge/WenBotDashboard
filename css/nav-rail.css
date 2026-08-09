@@ -1,0 +1,194 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   NAV RAIL — the icon-tile navigation, an alternative to the list sidebar.
+
+   Scoped under body.nav-rail so the classic sidebar is untouched when it's off,
+   and deliberately theme-agnostic: it styles through the same :root variables
+   as everything else, so it looks native in both Classic and Nebula rather than
+   being a Nebula-only feature.
+
+   Shape follows the reference: a narrow column of rounded icon tiles, each with
+   its label beneath, and a permanently visible arrow tab on the right edge that
+   opens the full menu. Tiles are the CATEGORIES that already exist (Live,
+   Manage, Community, Account) plus Home — clicking one opens a flyout listing
+   that category's real pages, so nothing about the information architecture
+   changes, only its presentation.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#navRail { display: none; }
+
+body.nav-rail .sidebar { display: none; }
+body.nav-rail #navRail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 84px;
+  flex-shrink: 0;
+  padding: 12px 0 14px;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  position: relative;
+  z-index: 40;
+}
+html.nebula body.nav-rail #navRail {
+  background: rgba(7, 11, 22, 0.82);
+  border-right-color: rgba(0, 229, 255, 0.12);
+  backdrop-filter: blur(10px);
+}
+
+#navRail .rail-logo { width: 46px; margin-bottom: 2px; opacity: 0.95; }
+
+/* ── tiles ── */
+.rail-tile {
+  width: 62px; height: 62px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-dim);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s, box-shadow .15s;
+  position: relative;
+  flex-shrink: 0;
+}
+.rail-tile svg { width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+.rail-tile span { font-size: 9.5px; font-weight: 700; letter-spacing: .02em; }
+.rail-tile:hover { color: var(--bright); border-color: var(--accent); background: var(--bg-hover); }
+.rail-tile.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(0, 229, 255, 0.07);
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.14);
+}
+/* Accent bar on the selected tile, the way the reference marks the current
+   section — drawn on the left edge where the eye tracks the column. */
+.rail-tile.active::before {
+  content: "";
+  position: absolute; left: -13px; top: 14px; bottom: 14px;
+  width: 3px; border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+}
+/* A live badge collapses to a dot — there's no room for the word at 62px. */
+.rail-tile .rail-dot {
+  position: absolute; top: 7px; right: 7px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 8px var(--red);
+}
+
+.rail-spacer { flex: 1; }
+
+/* ── the arrow tab ──
+   Always visible, vertically centred on the rail's right edge, per the brief.
+   Half-outside the rail so it reads as a pull rather than a button in a row. */
+.rail-arrow {
+  position: absolute;
+  right: -11px; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 46px;
+  border-radius: 0 11px 11px 0;
+  border: 1px solid var(--border); border-left: none;
+  background: var(--bg-card);
+  color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; cursor: pointer;
+  z-index: 41;
+  transition: background .15s, box-shadow .15s;
+}
+.rail-arrow:hover { background: var(--bg-hover); box-shadow: 0 0 12px rgba(0, 229, 255, 0.2); }
+.rail-arrow span { transition: transform .2s; display: block; }
+body.rail-open .rail-arrow span { transform: rotate(180deg); }
+
+/* ── the flyout ──
+   Slides out beside the rail carrying the real page list. Width animates so
+   the content area reflows rather than being covered, which keeps the page
+   usable with the menu open. */
+#railFlyout {
+  width: 0;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--bg-panel);
+  border-right: 1px solid transparent;
+  transition: width .22s ease;
+  display: flex; flex-direction: column;
+}
+body.rail-open #railFlyout {
+  width: 208px;
+  border-right-color: var(--border);
+}
+html.nebula body.rail-open #railFlyout {
+  background: rgba(7, 11, 22, 0.9);
+  border-right-color: rgba(0, 229, 255, 0.12);
+  backdrop-filter: blur(10px);
+}
+#railFlyout .fly-head {
+  font-family: 'Exo 2', sans-serif;
+  font-size: 11px; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 16px 16px 8px;
+  white-space: nowrap;
+}
+#railFlyout .fly-list { padding: 0 10px 12px; overflow-y: auto; }
+#railFlyout .fly-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 10px; margin-bottom: 2px;
+  border-radius: 7px; border: 1px solid transparent;
+  color: var(--text-dim); font-size: 13px; font-weight: 500;
+  cursor: pointer; white-space: nowrap;
+  transition: all .15s;
+}
+#railFlyout .fly-item:hover { background: rgba(255,255,255,0.04); color: var(--bright); }
+#railFlyout .fly-item.active { background: rgba(0,229,255,0.08); border-color: rgba(0,229,255,0.3); color: var(--accent); }
+#railFlyout .fly-item .icon { width: 18px; text-align: center; }
+#railFlyout .fly-badge { margin-left: auto; font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 10px; background: var(--red); color: #fff; }
+
+/* Rail replaces the sidebar entirely on small screens too — the hamburger
+   still hides it via the existing .sidebar-collapsed rule on .app. */
+@media (max-width: 900px) {
+  body.nav-rail #navRail { width: 68px; }
+  .rail-tile { width: 54px; height: 54px; }
+  body.rail-open #railFlyout { width: 180px; }
+}
+
+/* ── themes dialog ── */
+#themeModal {
+  display: none;
+  position: fixed; inset: 0; z-index: 9998;
+  background: rgba(0,0,0,0.6);
+  align-items: center; justify-content: center;
+}
+#themeModal.open { display: flex; }
+#themeModal .tm-box {
+  width: min(560px, 92vw);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px;
+}
+html.nebula #themeModal .tm-box { border-color: rgba(0,229,255,0.2); box-shadow: 0 0 40px rgba(0,229,255,0.08); }
+#themeModal h3 { font-family: 'Exo 2', sans-serif; margin: 0 0 4px; color: var(--bright); }
+#themeModal .tm-sub { font-size: 12.5px; color: var(--text-dim); margin-bottom: 18px; }
+#themeModal .tm-label { font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-dim); margin: 14px 0 8px; }
+#themeModal .tm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+#themeModal .tm-opt {
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px; cursor: pointer; transition: all .15s;
+  background: var(--bg-card);
+}
+#themeModal .tm-opt:hover { border-color: var(--accent); }
+#themeModal .tm-opt.sel { border-color: var(--accent); background: rgba(0,229,255,0.07); box-shadow: 0 0 14px rgba(0,229,255,0.12); }
+#themeModal .tm-opt .tm-name { font-weight: 800; color: var(--bright); font-size: 13.5px; margin-bottom: 3px; }
+#themeModal .tm-opt .tm-desc { font-size: 11.5px; color: var(--text-dim); line-height: 1.45; }
+/* Tiny visual preview so the choice isn't made from words alone. */
+#themeModal .tm-swatch { height: 34px; border-radius: 7px; margin-bottom: 9px; border: 1px solid var(--border); }
+#themeModal .sw-classic { background: linear-gradient(135deg, #161b22 0%, #0d1117 100%); }
+#themeModal .sw-nebula {
+  background:
+    radial-gradient(ellipse 60px 30px at 80% -10%, rgba(56,132,255,0.5), transparent 60%),
+    radial-gradient(ellipse 50px 30px at 10% 120%, rgba(124,92,255,0.4), transparent 60%),
+    #04060f;
+}
+#themeModal .sw-list { background: linear-gradient(90deg, var(--bg-card) 0 34%, transparent 34%); }
+#themeModal .sw-rail { background: linear-gradient(90deg, var(--bg-card) 0 16%, transparent 16%); }
+#themeModal .tm-close { margin-top: 20px; display: flex; justify-content: flex-end; }

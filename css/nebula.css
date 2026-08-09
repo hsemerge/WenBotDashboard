@@ -96,13 +96,11 @@ html.nebula .nav-item.nav-locked.active:hover {
 /* Active gets a real border; give every item an invisible one so nothing
    shifts by a pixel when selection moves. */
 html.nebula .nav-item { border: 1px solid transparent; }
-/* Section headers are the fold controls, so they read at full accent strength
-   with a lit underline — dimming them to half-opacity made them look like
-   disabled captions rather than the headings they are. */
+/* Quiet teal, as before — the underline does the separating, so the colour
+   doesn't also have to shout. */
 html.nebula .sidebar-label {
-  color: var(--accent);
-  border-bottom-color: rgba(0, 229, 255, 0.22);
-  text-shadow: 0 0 12px rgba(0, 229, 255, 0.3);
+  color: rgba(0, 229, 255, 0.55);
+  border-bottom-color: rgba(0, 229, 255, 0.16);
 }
 html.nebula .sidebar-label.sb-toggle:hover { color: #7ff4ff; }
 
