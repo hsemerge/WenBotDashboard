@@ -1,0 +1,116 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   DEEP FIELD — the JWST look. The quiet one.
+
+   Every other theme has a light source doing something: Nebula's glow, Orbit's
+   planets, Horizon's arc, Mission's phosphor. This one has none. It's near-
+   black scattered with distant galaxies — small, coloured, unevenly placed —
+   and nothing else. The chrome does no glowing at all.
+
+   That's the point of including it: on a long session the loud themes are the
+   ones you turn off, and there should be a space theme that stays out of the
+   way. Jewel tones over black, hairline borders, no bloom.
+
+   The galaxies are one SVG tile with amber, rose and teal smudges at three
+   sizes. Colour rather than brightness is what makes them read as far away.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+html.deepfield {
+  --bg:        #04050a;
+  --bg-panel:  #0a0c14;
+  --bg-card:   #0e1119;
+  --bg-input:  rgba(4, 5, 10, 0.8);
+  --bg-hover:  #161a26;
+  --border:    #212636;
+  --text:      #bcc2d2;
+  --text-dim:  #78809a;
+  --bright:    #eef2fb;
+  --accent:    #7fb2d9;
+  --accent-rgb: 127, 178, 217;
+  --accent-glow: rgba(127, 178, 217, 0.18);
+  --green:     #6ac9a0;
+  --gold:      #d9b06a;
+  --purple:    #a58fd0;
+}
+
+html.deepfield body {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='760' height='620'%3E%3Cg%3E%3Cellipse cx='84' cy='97' rx='7' ry='3' fill='%23d9a066' opacity='.30' transform='rotate(24 84 97)'/%3E%3Cellipse cx='233' cy='58' rx='4' ry='4' fill='%23c98fa8' opacity='.24'/%3E%3Cellipse cx='377' cy='141' rx='9' ry='3.4' fill='%236fa8c4' opacity='.22' transform='rotate(-38 377 141)'/%3E%3Cellipse cx='512' cy='73' rx='3' ry='3' fill='%23d9c07a' opacity='.3'/%3E%3Cellipse cx='661' cy='129' rx='6.5' ry='2.6' fill='%23b98fd0' opacity='.24' transform='rotate(58 661 129)'/%3E%3Cellipse cx='131' cy='253' rx='5' ry='2.2' fill='%23d9a066' opacity='.22' transform='rotate(-14 131 253)'/%3E%3Cellipse cx='291' cy='309' rx='3.4' ry='3.4' fill='%236fa8c4' opacity='.28'/%3E%3Cellipse cx='447' cy='247' rx='8' ry='3' fill='%23c98fa8' opacity='.2' transform='rotate(41 447 247)'/%3E%3Cellipse cx='603' cy='321' rx='4.6' ry='2' fill='%23d9c07a' opacity='.26' transform='rotate(-27 603 321)'/%3E%3Cellipse cx='721' cy='261' rx='3' ry='3' fill='%23b98fd0' opacity='.22'/%3E%3Cellipse cx='67' cy='411' rx='6' ry='2.4' fill='%236fa8c4' opacity='.24' transform='rotate(33 67 411)'/%3E%3Cellipse cx='213' cy='477' rx='3.6' ry='3.6' fill='%23d9a066' opacity='.28'/%3E%3Cellipse cx='369' cy='419' rx='9.5' ry='3.2' fill='%23c98fa8' opacity='.19' transform='rotate(-52 369 419)'/%3E%3Cellipse cx='527' cy='489' rx='4' ry='1.8' fill='%23d9c07a' opacity='.24' transform='rotate(18 527 489)'/%3E%3Cellipse cx='677' cy='433' rx='5.4' ry='2.4' fill='%23b98fd0' opacity='.22' transform='rotate(-9 677 433)'/%3E%3Cellipse cx='117' cy='561' rx='3.2' ry='3.2' fill='%236fa8c4' opacity='.26'/%3E%3Cellipse cx='299' cy='597' rx='7' ry='2.8' fill='%23d9a066' opacity='.2' transform='rotate(47 299 597)'/%3E%3Cellipse cx='463' cy='551' rx='3' ry='3' fill='%23c98fa8' opacity='.24'/%3E%3Cellipse cx='631' cy='589' rx='5' ry='2.2' fill='%23d9c07a' opacity='.22' transform='rotate(-31 631 589)'/%3E%3C/g%3E%3Cg fill='%23ffffff'%3E%3Ccircle cx='41' cy='167' r='.7' opacity='.34'/%3E%3Ccircle cx='187' cy='211' r='.6' opacity='.26'/%3E%3Ccircle cx='329' cy='89' r='.8' opacity='.36'/%3E%3Ccircle cx='481' cy='367' r='.6' opacity='.24'/%3E%3Ccircle cx='629' cy='191' r='.75' opacity='.3'/%3E%3Ccircle cx='739' cy='509' r='.6' opacity='.26'/%3E%3Ccircle cx='97' cy='487' r='.7' opacity='.3'/%3E%3Ccircle cx='251' cy='401' r='.6' opacity='.22'/%3E%3Ccircle cx='557' cy='139' r='.7' opacity='.32'/%3E%3C/g%3E%3C/svg%3E") repeat,
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* No glow anywhere in the chrome — that restraint IS the theme. */
+html.deepfield .sidebar,
+html.deepfield body.nav-rail #navRail {
+  background: rgba(7, 9, 16, 0.9);
+  border-right: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
+html.deepfield .topbar {
+  background: rgba(7, 9, 16, 0.84);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
+html.deepfield .topbar-title { text-transform: uppercase; letter-spacing: 0.12em; color: var(--bright); }
+
+html.deepfield .card {
+  background: rgba(14, 17, 25, 0.9);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+html.deepfield .card:hover { border-color: rgba(127, 178, 217, 0.28); }
+
+html.deepfield .nav-item.active,
+html.deepfield .nav-item.nav-locked.active,
+html.deepfield .nav-item.nav-locked.active:hover {
+  background: rgba(127, 178, 217, 0.1);
+  border: 1px solid rgba(127, 178, 217, 0.32);
+  color: var(--accent);
+  box-shadow: none;
+}
+html.deepfield .nav-item { border: 1px solid transparent; }
+html.deepfield .sidebar-label { color: var(--text-dim); border-bottom-color: var(--border); }
+
+html.deepfield .rail-tile svg { stroke: var(--accent); }
+html.deepfield .rail-tile:hover svg,
+html.deepfield .rail-tile.active svg { filter: none; }
+html.deepfield .rail-tile.active,
+html.deepfield .rail-tile.current {
+  border-color: rgba(127, 178, 217, 0.4);
+  background: rgba(127, 178, 217, 0.09);
+  box-shadow: none;
+}
+html.deepfield .rail-tile.active::before,
+html.deepfield .rail-tile.current::before { background: var(--accent); box-shadow: none; }
+html.deepfield #railPop {
+  background: #0b0e16;
+  border-color: var(--border);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+}
+html.deepfield #railPop::before { border-color: var(--border); }
+html.deepfield #railPop .pop-item.active { border-color: rgba(127, 178, 217, 0.4); background: rgba(127, 178, 217, 0.09); }
+html.deepfield #railScrim { background: rgba(4, 5, 10, 0.64); }
+html.deepfield .rail-foot { border-top-color: var(--border); }
+
+html.deepfield .btn-accent {
+  background: linear-gradient(180deg, #94c3e6, #5f93bd);
+  color: #071019;
+  box-shadow: none;
+}
+html.deepfield .btn-accent:hover { background: linear-gradient(180deg, #a6d1f0, #6ba0ca); }
+html.deepfield .btn-ghost { border-color: var(--border); }
+html.deepfield .btn-ghost:hover { border-color: rgba(127, 178, 217, 0.5); box-shadow: none; }
+
+html.deepfield input, html.deepfield select, html.deepfield textarea { border-color: var(--border); }
+html.deepfield input:focus, html.deepfield select:focus, html.deepfield textarea:focus {
+  border-color: rgba(127, 178, 217, 0.5);
+  box-shadow: 0 0 0 3px rgba(127, 178, 217, 0.1);
+}
+
+html.deepfield ::-webkit-scrollbar { width: 9px; height: 9px; }
+html.deepfield ::-webkit-scrollbar-track { background: transparent; }
+html.deepfield ::-webkit-scrollbar-thumb {
+  background: rgba(127, 178, 217, 0.16);
+  border-radius: 6px; border: 2px solid transparent; background-clip: content-box;
+}
+html.deepfield ::-webkit-scrollbar-thumb:hover { background-color: rgba(127, 178, 217, 0.3); }

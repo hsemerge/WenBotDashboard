@@ -1,0 +1,150 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   ICE MOON — Europa's surface. The one bright theme.
+
+   Doing double duty on purpose: it's a new look AND the answer to a real gap,
+   since every other theme is dark and a streamer setting up at midday on a
+   bright monitor has nothing. Making the light theme a SPACE theme keeps it in
+   the family instead of shipping a plain "daylight mode" that belongs to a
+   different product.
+
+   Pale glacier blue over off-white, with hairline fracture lines running
+   across the ice. Gradient-drawn; nothing to download.
+
+   GOTCHA this file exists to solve: the dashboard is dark-first, so it assumes
+   text is near-white and surfaces are near-black. Inverting means the variables
+   have to flip MEANING, not just value — --bright becomes the darkest ink, not
+   the lightest. Anything hard-coded to white or to a low-alpha white overlay
+   also needs restating, which is what most of the tail of this file is.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+html.icemoon {
+  --bg:        #e8f0f7;
+  --bg-panel:  #ffffff;
+  --bg-card:   #f4f8fc;
+  --bg-input:  #ffffff;
+  --bg-hover:  #e2ecf6;
+  --border:    #c6d8e8;
+  --text:      #3a4d60;
+  --text-dim:  #6b8199;
+  --bright:    #10222f;   /* the darkest ink, not the lightest — see above */
+  --accent:    #0e7fa8;
+  --accent-rgb: 14, 127, 168;
+  --accent-glow: rgba(14, 127, 168, 0.18);
+  --green:     #0f9d63;
+  --red:       #d64550;
+  --orange:    #c2761a;
+  --purple:    #7159c6;
+  --gold:      #b8860b;
+}
+
+/* Ice: a cold sky wash, a low sun glare from the upper right, and fracture
+   lines. The cracks are thin repeating-linear-gradients at three angles, which
+   reads as a stressed surface rather than a pattern. */
+html.icemoon body {
+  background:
+    repeating-linear-gradient(24deg,  transparent 0 118px, rgba(120, 165, 200, 0.16) 118px 119px, transparent 119px 240px),
+    repeating-linear-gradient(-38deg, transparent 0 157px, rgba(120, 165, 200, 0.12) 157px 158px, transparent 158px 330px),
+    repeating-linear-gradient(71deg,  transparent 0 203px, rgba(120, 165, 200, 0.09) 203px 204px, transparent 204px 420px),
+    radial-gradient(ellipse 900px 500px at 88% -10%, rgba(255, 255, 255, 0.9), transparent 60%),
+    radial-gradient(ellipse 800px 600px at 8% 105%, rgba(176, 214, 240, 0.5), transparent 62%),
+    var(--bg);
+  background-attachment: fixed;
+  color: var(--text);
+}
+
+html.icemoon .sidebar,
+html.icemoon body.nav-rail #navRail {
+  background: rgba(255, 255, 255, 0.85);
+  border-right: 1px solid var(--border);
+  backdrop-filter: blur(10px);
+}
+html.icemoon .topbar {
+  background: rgba(255, 255, 255, 0.8);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(10px);
+}
+html.icemoon .topbar-title { text-transform: uppercase; letter-spacing: 0.1em; color: var(--bright); }
+
+html.icemoon .card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 10px rgba(30, 70, 110, 0.06);
+}
+html.icemoon .card:hover { border-color: rgba(14, 127, 168, 0.4); }
+
+/* Hovers in the dark themes are low-alpha WHITE, which vanishes on white.
+   Restate them as low-alpha ink. */
+html.icemoon .nav-item:hover,
+html.icemoon .rail-tile:hover,
+html.icemoon #railPop .pop-item:hover {
+  background: rgba(14, 127, 168, 0.08);
+  color: var(--bright);
+}
+html.icemoon .nav-item.active,
+html.icemoon .nav-item.nav-locked.active,
+html.icemoon .nav-item.nav-locked.active:hover {
+  background: rgba(14, 127, 168, 0.12);
+  border: 1px solid rgba(14, 127, 168, 0.45);
+  color: var(--accent);
+  box-shadow: none;
+}
+html.icemoon .nav-item { border: 1px solid transparent; }
+html.icemoon .sidebar-label { color: var(--text-dim); border-bottom-color: var(--border); }
+
+/* Rail: the hard-coded cyan in nav-rail.css has no contrast here. */
+html.icemoon .rail-tile svg { stroke: var(--accent); }
+html.icemoon .rail-tile:hover svg,
+html.icemoon .rail-tile.active svg { filter: none; }
+html.icemoon .rail-tile.active,
+html.icemoon .rail-tile.current {
+  border-color: rgba(14, 127, 168, 0.5);
+  background: rgba(14, 127, 168, 0.12);
+  box-shadow: none;
+}
+html.icemoon .rail-tile.active::before,
+html.icemoon .rail-tile.current::before { background: var(--accent); box-shadow: none; }
+html.icemoon #railPop {
+  background: #ffffff;
+  border-color: var(--border);
+  box-shadow: 0 18px 44px rgba(30, 70, 110, 0.18);
+}
+html.icemoon #railPop::before { border-color: var(--border); }
+html.icemoon #railPop .pop-item.active {
+  border-color: rgba(14, 127, 168, 0.5);
+  background: rgba(14, 127, 168, 0.12);
+  color: var(--accent);
+}
+/* The scrim dims toward white here; a black veil over a bright page is a
+   flashbang in reverse. */
+html.icemoon #railScrim { background: rgba(232, 240, 247, 0.6); }
+html.icemoon .rail-foot { border-top-color: var(--border); }
+html.icemoon .rail-foot .rf-user { color: var(--text); }
+
+html.icemoon .btn-accent {
+  background: linear-gradient(180deg, #12a0d0, #0b7194);
+  color: #ffffff;
+  box-shadow: none;
+}
+html.icemoon .btn-accent:hover { background: linear-gradient(180deg, #16b0e2, #0d7ea6); box-shadow: none; }
+html.icemoon .btn-ghost { border-color: var(--border); color: var(--text); }
+html.icemoon .btn-ghost:hover { border-color: var(--accent); color: var(--accent); box-shadow: none; }
+
+html.icemoon input, html.icemoon select, html.icemoon textarea {
+  background: #ffffff; border-color: var(--border); color: var(--text);
+}
+html.icemoon input:focus, html.icemoon select:focus, html.icemoon textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(14, 127, 168, 0.12);
+}
+
+html.icemoon ::-webkit-scrollbar { width: 9px; height: 9px; }
+html.icemoon ::-webkit-scrollbar-track { background: transparent; }
+html.icemoon ::-webkit-scrollbar-thumb {
+  background: rgba(60, 110, 150, 0.3);
+  border-radius: 6px; border: 2px solid transparent; background-clip: content-box;
+}
+html.icemoon ::-webkit-scrollbar-thumb:hover { background-color: rgba(60, 110, 150, 0.5); }
+
+/* The themes dialog's own backdrop is black by default. */
+html.icemoon #themeModal { background: rgba(20, 45, 70, 0.35); }
+html.icemoon #themeModal .tm-box { box-shadow: 0 20px 60px rgba(30, 70, 110, 0.2); }

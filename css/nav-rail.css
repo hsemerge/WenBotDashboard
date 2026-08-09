@@ -309,7 +309,9 @@ html.nebula #themeModal .tm-box { border-color: rgba(0,229,255,0.2); box-shadow:
 #themeModal .tm-label { font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-dim); margin: 14px 0 8px; }
 #themeModal .tm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 /* Three looks need a third column; the navigation row stays a pair. */
-#themeModal .tm-row-3 { grid-template-columns: repeat(3, 1fr); }
+/* Five looks now: auto-fit so the row reflows instead of needing a new rule
+   each time one is added. */
+#themeModal .tm-row-3 { grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); }
 @media (max-width: 560px) { #themeModal .tm-row-3 { grid-template-columns: 1fr; } }
 #themeModal .tm-opt {
   border: 1px solid var(--border); border-radius: 10px;
@@ -323,6 +325,33 @@ html.nebula #themeModal .tm-box { border-color: rgba(0,229,255,0.2); box-shadow:
 /* Tiny visual preview so the choice isn't made from words alone. */
 #themeModal .tm-swatch { height: 34px; border-radius: 7px; margin-bottom: 9px; border: 1px solid var(--border); }
 #themeModal .sw-classic { background: linear-gradient(135deg, #161b22 0%, #0d1117 100%); }
+#themeModal .sw-horizon {
+  background:
+    radial-gradient(circle 30px at 92% 108%, transparent 0 17px, rgba(255,236,210,0.75) 18px, rgba(255,157,77,0.5) 21px, transparent 30px),
+    radial-gradient(ellipse 50px 34px at 88% 100%, rgba(255,140,60,0.18), transparent 65%),
+    #030308;
+}
+#themeModal .sw-deepfield {
+  background:
+    radial-gradient(circle 3px at 26% 34%, rgba(217,160,102,0.65), transparent 70%),
+    radial-gradient(circle 2px at 64% 24%, rgba(201,143,168,0.6), transparent 70%),
+    radial-gradient(circle 3px at 78% 68%, rgba(111,168,196,0.6), transparent 70%),
+    radial-gradient(circle 2px at 40% 74%, rgba(217,192,122,0.55), transparent 70%),
+    #04050a;
+}
+#themeModal .sw-icemoon {
+  background:
+    repeating-linear-gradient(24deg, transparent 0 14px, rgba(120,165,200,0.5) 14px 15px, transparent 15px 30px),
+    radial-gradient(ellipse 40px 24px at 80% 0%, #ffffff, transparent 60%),
+    #e8f0f7;
+}
+#themeModal .sw-mission {
+  background:
+    repeating-linear-gradient(0deg, rgba(255,167,38,0.16) 0 1px, transparent 1px 3px),
+    linear-gradient(rgba(255,167,38,0.22) 1px, transparent 1px) 0 0 / 100% 12px,
+    linear-gradient(90deg, rgba(255,167,38,0.22) 1px, transparent 1px) 0 0 / 12px 100%,
+    #07060a;
+}
 #themeModal .sw-orbit {
   background:
     radial-gradient(circle 12px at 76% 74%, rgba(255,176,102,0.55), rgba(140,80,190,0.5) 60%, transparent 66%),

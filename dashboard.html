@@ -508,12 +508,18 @@
        (private mode), the catch leaves the class off — classic is the safe
        fallback because it needs no extra stylesheet to look right. -->
   <script>try{var _t=localStorage.getItem('wbTheme')||'nebula';
-if(_t!=='classic')document.documentElement.classList.add(_t==='orbit'?'orbit':'nebula');
+/* Any known theme name becomes the class directly — branching per theme meant
+   adding one meant remembering to edit this line too. */
+if(['nebula','orbit','icemoon','mission','horizon','deepfield'].indexOf(_t)!==-1)document.documentElement.classList.add(_t);
 /* Nav mode is applied pre-paint too — without it the rail flashes the list
    sidebar for a frame on every load, which the theme class already avoided. */
 if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute('data-nav','rail');}catch(e){}</script>
   <link rel="stylesheet" href="/css/nebula.css">
   <link rel="stylesheet" href="/css/orbit.css">
+  <link rel="stylesheet" href="/css/icemoon.css">
+  <link rel="stylesheet" href="/css/mission.css">
+  <link rel="stylesheet" href="/css/horizon.css">
+  <link rel="stylesheet" href="/css/deepfield.css">
   <link rel="stylesheet" href="/css/nav-rail.css">
 </head>
 <body>
@@ -598,7 +604,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         🎨 <span id="themeToggleLabel">Themes</span>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.21.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.22.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3042,9 +3048,23 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.21.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.22.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.22.0 &middot; Seven themes to pick from</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 9, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>☀️ <strong>Ice Moon &mdash; a bright theme at last.</strong> If you set up in a lit room and the dark dashboard has been hard on your eyes, this is the one. Pale ice blue over white.</li>
+            <li>🟠 <strong>Mission Control.</strong> Amber console glow, square edges, and your numbers in a monospace face so columns line up.</li>
+            <li>🌑 <strong>Event Horizon.</strong> Near black, lit by a single accretion arc in the corner.</li>
+            <li>🔭 <strong>Deep Field.</strong> Distant galaxies and no glow anywhere &mdash; the calm one for long sessions.</li>
+            <li>🎨 All seven live under <strong>Themes</strong> at the bottom of the menu, alongside Classic, Nebula and Orbit. Your pick is remembered on this device.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -5959,7 +5979,7 @@ async function loadBillingHistory() {
 // the key, so "never chose" and "chose classic" stay distinguishable.
 // Named themes rather than a nebula on/off flag — the moment there were three
 // looks, a boolean could no longer say which one you were on.
-const THEMES = ['classic', 'nebula', 'orbit'];
+const THEMES = ['classic', 'nebula', 'orbit', 'icemoon', 'mission', 'horizon', 'deepfield'];
 function setTheme(name) {
   if (THEMES.indexOf(name) === -1) name = 'nebula';
   const root = document.documentElement;
@@ -5970,7 +5990,10 @@ function setTheme(name) {
 }
 function currentTheme() {
   const c = document.documentElement.classList;
-  return c.contains('orbit') ? 'orbit' : c.contains('nebula') ? 'nebula' : 'classic';
+  for (let i = 0; i < THEMES.length; i++) {
+    if (THEMES[i] !== 'classic' && c.contains(THEMES[i])) return THEMES[i];
+  }
+  return 'classic';
 }
 // Kept so anything still calling the old name keeps working.
 function toggleNebula(on) { setTheme(on === false ? 'classic' : 'nebula'); }
@@ -6323,6 +6346,14 @@ function openThemes() {
       '      <div class="tm-name">Nebula</div><div class="tm-desc">Deep space, stars and glass.</div></div>',
       '    <div class="tm-opt" data-theme="orbit"><div class="tm-swatch sw-orbit"></div>',
       '      <div class="tm-name">Orbit</div><div class="tm-desc">Worlds, moons and a ringed giant.</div></div>',
+      '    <div class="tm-opt" data-theme="icemoon"><div class="tm-swatch sw-icemoon"></div>',
+      '      <div class="tm-name">Ice Moon</div><div class="tm-desc">Bright, for daylight rooms.</div></div>',
+      '    <div class="tm-opt" data-theme="mission"><div class="tm-swatch sw-mission"></div>',
+      '      <div class="tm-name">Mission Control</div><div class="tm-desc">Amber console, square edges.</div></div>',
+      '    <div class="tm-opt" data-theme="horizon"><div class="tm-swatch sw-horizon"></div>',
+      '      <div class="tm-name">Event Horizon</div><div class="tm-desc">One light source: a black hole.</div></div>',
+      '    <div class="tm-opt" data-theme="deepfield"><div class="tm-swatch sw-deepfield"></div>',
+      '      <div class="tm-name">Deep Field</div><div class="tm-desc">Distant galaxies. No glow anywhere.</div></div>',
       '  </div>',
       '  <div class="tm-label">Navigation</div>',
       '  <div class="tm-row">',

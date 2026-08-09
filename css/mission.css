@@ -1,0 +1,155 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   MISSION CONTROL — 1960s amber phosphor. The "space factory" one.
+
+   The odd theme out on purpose. Nebula, Orbit and any future sky theme all
+   risk blurring into each other; amber CRT never will. It's also the honest
+   read of "space factory": this one feels like OPERATING something rather than
+   floating past it, which is what a dashboard actually is.
+
+   Amber on near-black, a hairline console grid, a faint scanline wash, and
+   monospace numerals in the stat cards — the one place a numeral font change
+   pays for itself, because those are the values you scan.
+
+   All gradients; nothing to download.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+html.mission {
+  --bg:        #07060a;
+  --bg-panel:  #0f0d10;
+  --bg-card:   #141115;
+  --bg-input:  #0b0a0d;
+  --bg-hover:  #1d181c;
+  --border:    #33291f;
+  --text:      #d2b48c;
+  --text-dim:  #8c7355;
+  --bright:    #ffd79a;
+  --accent:    #ffa726;
+  --accent-rgb: 255, 167, 38;
+  --accent-glow: rgba(255, 167, 38, 0.22);
+  --green:     #7fdc5a;
+  --red:       #ff5f4d;
+  --gold:      #ffc94d;
+  --purple:    #c9a227;
+}
+
+/* Console surface: a hairline grid, a scanline wash, and a warm vignette from
+   the top where the "screen" is brightest. The scanlines are deliberately
+   2px-period and very low alpha — enough to feel like a CRT, not enough to
+   fight text at normal reading distance. */
+html.mission body {
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 167, 38, 0.030) 0 1px, transparent 1px 3px),
+    linear-gradient(rgba(255, 167, 38, 0.055) 1px, transparent 1px) 0 0 / 100% 44px,
+    linear-gradient(90deg, rgba(255, 167, 38, 0.055) 1px, transparent 1px) 0 0 / 44px 100%,
+    radial-gradient(ellipse 1200px 600px at 50% -20%, rgba(255, 167, 38, 0.09), transparent 65%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+html.mission .sidebar,
+html.mission body.nav-rail #navRail {
+  background: rgba(12, 10, 13, 0.92);
+  border-right: 1px solid rgba(255, 167, 38, 0.18);
+}
+html.mission .topbar {
+  background: rgba(12, 10, 13, 0.9);
+  border-bottom: 1px solid rgba(255, 167, 38, 0.18);
+}
+html.mission .topbar-title {
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--accent);
+  text-shadow: 0 0 12px rgba(255, 167, 38, 0.45);
+}
+
+html.mission .card {
+  background: linear-gradient(180deg, rgba(24, 20, 22, 0.96), rgba(14, 12, 15, 0.97));
+  border: 1px solid rgba(255, 167, 38, 0.16);
+  border-radius: 4px;   /* consoles have square corners */
+  box-shadow: inset 0 1px 0 rgba(255, 167, 38, 0.07);
+}
+html.mission .card:hover { border-color: rgba(255, 167, 38, 0.34); }
+
+/* The numerals. Tabular figures so columns of points and wagers line up, which
+   is the actual reason to do this rather than nostalgia. */
+html.mission .stat-value,
+html.mission .stat-sub {
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+html.mission .stat-value { color: var(--accent); text-shadow: 0 0 14px rgba(255, 167, 38, 0.35); }
+html.mission .stat-label { letter-spacing: 0.18em; }
+
+html.mission .nav-item.active,
+html.mission .nav-item.nav-locked.active,
+html.mission .nav-item.nav-locked.active:hover {
+  background: linear-gradient(90deg, rgba(255, 167, 38, 0.18), transparent);
+  border: 1px solid rgba(255, 167, 38, 0.4);
+  border-radius: 3px;
+  color: var(--accent);
+  box-shadow: 0 0 12px rgba(255, 167, 38, 0.12);
+}
+html.mission .nav-item { border: 1px solid transparent; border-radius: 3px; }
+html.mission .sidebar-label {
+  color: rgba(255, 167, 38, 0.62);
+  letter-spacing: 0.2em;
+  border-bottom-color: rgba(255, 167, 38, 0.2);
+}
+
+/* Rail: square tiles suit a console far better than the rounded ones. */
+html.mission .rail-tile { border-radius: 4px; }
+html.mission .rail-tile svg { stroke: var(--accent); }
+html.mission .rail-tile:hover svg,
+html.mission .rail-tile.active svg { filter: drop-shadow(0 0 6px rgba(255, 167, 38, 0.6)); }
+html.mission .rail-tile.active,
+html.mission .rail-tile.current {
+  border-color: rgba(255, 167, 38, 0.45);
+  background: rgba(255, 167, 38, 0.1);
+}
+html.mission .rail-tile.active::before,
+html.mission .rail-tile.current::before { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+html.mission #railPop {
+  background: #100d11;
+  border-color: rgba(255, 167, 38, 0.3);
+  border-radius: 5px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 167, 38, 0.08);
+}
+html.mission #railPop::before { border-color: rgba(255, 167, 38, 0.3); }
+html.mission #railPop .pop-item { border-radius: 4px; }
+html.mission #railPop .pop-item.active { border-color: rgba(255, 167, 38, 0.45); background: rgba(255, 167, 38, 0.1); }
+html.mission #railScrim { background: rgba(7, 6, 10, 0.62); }
+html.mission .rail-foot { border-top-color: rgba(255, 167, 38, 0.18); }
+
+html.mission .btn {
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+}
+html.mission .btn-accent {
+  background: linear-gradient(180deg, #ffb951, #e08a15);
+  color: #241505;
+  box-shadow: 0 0 14px rgba(255, 167, 38, 0.3);
+}
+html.mission .btn-accent:hover { box-shadow: 0 0 24px rgba(255, 167, 38, 0.5); }
+html.mission .btn-ghost { border-color: rgba(255, 167, 38, 0.3); color: var(--text); }
+html.mission .btn-ghost:hover { border-color: rgba(255, 167, 38, 0.65); color: var(--bright); }
+
+html.mission input, html.mission select, html.mission textarea {
+  border-color: rgba(255, 167, 38, 0.22);
+  border-radius: 3px;
+  color: var(--text);
+}
+html.mission input:focus, html.mission select:focus, html.mission textarea:focus {
+  border-color: rgba(255, 167, 38, 0.6);
+  box-shadow: 0 0 0 3px rgba(255, 167, 38, 0.1);
+}
+
+html.mission ::-webkit-scrollbar { width: 9px; height: 9px; }
+html.mission ::-webkit-scrollbar-track { background: transparent; }
+html.mission ::-webkit-scrollbar-thumb {
+  background: rgba(255, 167, 38, 0.2);
+  border-radius: 2px; border: 2px solid transparent; background-clip: content-box;
+}
+html.mission ::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 167, 38, 0.4); }

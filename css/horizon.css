@@ -1,0 +1,120 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   EVENT HORIZON — one light source, and it's a black hole.
+
+   The premise is subtraction: almost nothing on screen glows, so the single
+   accretion arc low on the right reads as the only light in the room. Where
+   Nebula and Orbit spread their glow around the frame, this one concentrates
+   it, which makes the near-black feel deliberate rather than merely dark.
+
+   The arc is a ring gradient with a hard inner edge (the shadow of the hole
+   itself) and a soft outer falloff, plus a thin lensing halo above it — the
+   light that would bend over the top. Gradient-drawn; nothing to download.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+html.horizon {
+  --bg:        #030308;
+  --bg-panel:  #0a0a10;
+  --bg-card:   #0e0e16;
+  --bg-input:  rgba(3, 3, 8, 0.8);
+  --bg-hover:  #17171f;
+  --border:    #24242f;
+  --text:      #c2bfcc;
+  --text-dim:  #7d7a8c;
+  --bright:    #fbf7f2;
+  --accent:    #ff9d4d;
+  --accent-rgb: 255, 157, 77;
+  --accent-glow: rgba(255, 157, 77, 0.22);
+  --green:     #5fd6a4;
+  --gold:      #ffc76b;
+  --purple:    #a88bd6;
+}
+
+/* The hole sits off-canvas bottom-right so only the near limb of the disc is
+   visible — showing the whole ring would make it a logo rather than a horizon. */
+html.horizon body {
+  background:
+    /* accretion arc: hard inner edge, soft outer falloff */
+    radial-gradient(circle 420px at 96% 104%,
+      transparent 0 232px,
+      rgba(255, 236, 210, 0.42) 234px,
+      rgba(255, 157, 77, 0.30) 250px,
+      rgba(190, 70, 30, 0.14) 300px,
+      transparent 380px),
+    /* lensing halo, thinner and cooler */
+    radial-gradient(circle 470px at 96% 104%,
+      transparent 0 300px,
+      rgba(255, 210, 170, 0.07) 306px,
+      transparent 340px),
+    /* the light it throws across the room */
+    radial-gradient(ellipse 900px 620px at 92% 100%, rgba(255, 140, 60, 0.09), transparent 62%),
+    /* sparse stars — far fewer than Nebula, so the arc keeps the eye */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='700'%3E%3Cg fill='%23ffffff'%3E%3Ccircle cx='71' cy='83' r='.8' opacity='.4'/%3E%3Ccircle cx='233' cy='161' r='.6' opacity='.25'/%3E%3Ccircle cx='389' cy='61' r='.9' opacity='.45'/%3E%3Ccircle cx='541' cy='197' r='.6' opacity='.22'/%3E%3Ccircle cx='677' cy='97' r='.8' opacity='.38'/%3E%3Ccircle cx='149' cy='331' r='.7' opacity='.3'/%3E%3Ccircle cx='317' cy='419' r='.9' opacity='.42'/%3E%3Ccircle cx='463' cy='349' r='.6' opacity='.24'/%3E%3Ccircle cx='611' cy='437' r='.75' opacity='.34'/%3E%3Ccircle cx='97' cy='569' r='.85' opacity='.4'/%3E%3Ccircle cx='271' cy='611' r='.6' opacity='.22'/%3E%3Ccircle cx='431' cy='557' r='.8' opacity='.36'/%3E%3C/g%3E%3C/svg%3E") repeat,
+    var(--bg);
+  background-attachment: fixed;
+}
+
+html.horizon .sidebar,
+html.horizon body.nav-rail #navRail {
+  background: rgba(6, 6, 11, 0.9);
+  border-right: 1px solid rgba(255, 157, 77, 0.12);
+  backdrop-filter: blur(10px);
+}
+html.horizon .topbar {
+  background: rgba(6, 6, 11, 0.82);
+  border-bottom: 1px solid rgba(255, 157, 77, 0.12);
+  backdrop-filter: blur(10px);
+}
+html.horizon .topbar-title { text-transform: uppercase; letter-spacing: 0.12em; color: var(--bright); }
+
+html.horizon .card {
+  background: linear-gradient(168deg, rgba(20, 20, 28, 0.92), rgba(10, 10, 16, 0.95));
+  border: 1px solid rgba(255, 157, 77, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+html.horizon .card:hover { border-color: rgba(255, 157, 77, 0.26); }
+
+html.horizon .nav-item.active,
+html.horizon .nav-item.nav-locked.active,
+html.horizon .nav-item.nav-locked.active:hover {
+  background: linear-gradient(90deg, rgba(255, 157, 77, 0.16), transparent);
+  border: 1px solid rgba(255, 157, 77, 0.34);
+  color: var(--accent);
+}
+html.horizon .nav-item { border: 1px solid transparent; }
+html.horizon .sidebar-label { color: rgba(255, 157, 77, 0.52); border-bottom-color: rgba(255, 157, 77, 0.14); }
+
+html.horizon .rail-tile svg { stroke: var(--accent); }
+html.horizon .rail-tile:hover svg,
+html.horizon .rail-tile.active svg { filter: drop-shadow(0 0 6px rgba(255, 157, 77, 0.55)); }
+html.horizon .rail-tile.active,
+html.horizon .rail-tile.current { border-color: rgba(255, 157, 77, 0.42); background: rgba(255, 157, 77, 0.09); }
+html.horizon .rail-tile.active::before,
+html.horizon .rail-tile.current::before { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+html.horizon #railPop { background: #0c0c14; border-color: rgba(255, 157, 77, 0.22); }
+html.horizon #railPop::before { border-color: rgba(255, 157, 77, 0.22); }
+html.horizon #railPop .pop-item.active { border-color: rgba(255, 157, 77, 0.42); background: rgba(255, 157, 77, 0.09); }
+html.horizon #railScrim { background: rgba(3, 3, 8, 0.66); }
+html.horizon .rail-foot { border-top-color: rgba(255, 157, 77, 0.12); }
+
+html.horizon .btn-accent {
+  background: linear-gradient(180deg, #ffb571, #e0762a);
+  color: #1e0f04;
+  box-shadow: 0 0 16px rgba(255, 157, 77, 0.26);
+}
+html.horizon .btn-accent:hover { box-shadow: 0 0 26px rgba(255, 157, 77, 0.46); }
+html.horizon .btn-ghost { border-color: rgba(255, 157, 77, 0.26); }
+html.horizon .btn-ghost:hover { border-color: rgba(255, 157, 77, 0.55); }
+
+html.horizon input, html.horizon select, html.horizon textarea { border-color: rgba(255, 157, 77, 0.16); }
+html.horizon input:focus, html.horizon select:focus, html.horizon textarea:focus {
+  border-color: rgba(255, 157, 77, 0.5);
+  box-shadow: 0 0 0 3px rgba(255, 157, 77, 0.09);
+}
+
+html.horizon ::-webkit-scrollbar { width: 9px; height: 9px; }
+html.horizon ::-webkit-scrollbar-track { background: transparent; }
+html.horizon ::-webkit-scrollbar-thumb {
+  background: rgba(255, 157, 77, 0.16);
+  border-radius: 6px; border: 2px solid transparent; background-clip: content-box;
+}
+html.horizon ::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 157, 77, 0.34); }
