@@ -22,7 +22,7 @@ body.nav-rail #navRail {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  width: 116px;
+  width: 188px;
   flex-shrink: 0;
   padding: 12px 0 14px;
   background: var(--bg-panel);
@@ -42,9 +42,14 @@ html.nebula body.nav-rail #navRail {
 /* Same treatment as the list sidebar's logo. Its rendered size is governed by
    the rail's width (contain, wide wordmark), which is why the rail is 152px —
    the mark grows with the column, it isn't scaled down to fit a narrow one. */
+/* Byte-identical to the list sidebar's logo rule. The rail is the sidebar's
+   width for exactly this reason: with object-fit contain, the mark's rendered
+   size is governed by the column, so anything narrower shrinks it no matter
+   what height is set. */
 #navRail .rail-logo {
-  height: 92px; width: 100%; max-width: 200px;
-  object-fit: contain; display: block; margin: 0 auto 6px;
+  height: 104px; width: 100%; max-width: 200px;
+  object-fit: contain; display: block; margin: 0 auto 4px;
+  cursor: pointer;
 }
 
 /* ── tiles ── */
@@ -53,7 +58,7 @@ html.nebula body.nav-rail #navRail {
    made this feel heavy — the icon is enough to aim at, and the frame only needs
    to appear for the thing you're actually on. */
 .rail-tile {
-  width: 92px; height: 78px;
+  width: 156px; height: 84px;
   border-radius: 14px;
   border: 1px solid transparent;
   background: transparent;
@@ -67,9 +72,9 @@ html.nebula body.nav-rail #navRail {
 }
 /* Icons carry the accent by default rather than inheriting the dim label
    colour — they're the thing you aim at, and at 26px they can hold it. */
-.rail-tile svg { width: 27px; height: 27px; stroke: var(--accent); fill: none; stroke-width: 1.7; }
+.rail-tile svg { width: 34px; height: 34px; stroke: var(--accent); fill: none; stroke-width: 1.7; }
 .rail-tile:hover svg, .rail-tile.active svg { filter: drop-shadow(0 0 6px rgba(0,229,255,0.55)); }
-.rail-tile span { font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+.rail-tile span { font-size: 12.5px; font-weight: 700; letter-spacing: .02em; }
 .rail-tile:hover { color: var(--bright); background: rgba(255,255,255,0.045); }
 .rail-tile.active {
   color: var(--accent);
@@ -80,20 +85,52 @@ html.nebula body.nav-rail #navRail {
    section — drawn on the left edge where the eye tracks the column. */
 .rail-tile.active::before {
   content: "";
-  position: absolute; left: -12px; top: 18px; bottom: 18px;
+  position: absolute; left: -16px; top: 20px; bottom: 20px;
   width: 3px; border-radius: 2px;
   background: var(--accent);
   box-shadow: 0 0 10px var(--accent);
 }
 /* A live badge collapses to a dot — there's no room for the word on a tile. */
+/* Says LIVE rather than showing an unexplained dot — the list view spells it
+   out, and a bare dot next to an icon is guesswork. */
 .rail-tile .rail-dot {
-  position: absolute; top: 10px; right: 10px;
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--red);
-  box-shadow: 0 0 8px var(--red);
+  position: absolute; top: 6px; right: 10px;
+  font-size: 7.5px; font-weight: 900; letter-spacing: .06em;
+  padding: 1px 5px; border-radius: 8px;
+  background: var(--red); color: #fff;
+  box-shadow: 0 0 8px rgba(255,71,87,0.6);
 }
 
 .rail-spacer { flex: 1; }
+
+/* ── rail footer ──
+   The list sidebar shows who's signed in and links What's New; without these
+   the rail quietly drops information rather than just presenting it
+   differently. */
+.rail-foot {
+  width: 100%;
+  padding: 8px 8px 0;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+html.nebula .rail-foot { border-top-color: rgba(0,229,255,0.12); }
+.rail-foot .rf-user {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  font-size: 10.5px; font-weight: 700; color: var(--text);
+  margin-bottom: 5px;
+}
+.rail-foot .rf-user span {
+  max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rail-foot .rf-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  background: var(--green); box-shadow: 0 0 6px rgba(0,255,136,0.6);
+}
+.rail-foot .rf-link {
+  font-size: 9.5px; color: var(--text-dim); cursor: pointer;
+  padding: 3px 0; letter-spacing: .03em;
+}
+.rail-foot .rf-link:hover { color: var(--accent); }
 
 /* ── the arrow tab ──
    Always visible, vertically centred on the rail's right edge, per the brief.
@@ -126,7 +163,7 @@ body.rail-open .rail-arrow span { transform: rotate(180deg); }
 #railScrim {
   display: none;
   position: fixed;
-  inset: 0 0 0 116px;
+  inset: 0 0 0 188px;
   z-index: 50;
   background: rgba(4, 6, 15, 0.55);
   backdrop-filter: blur(2.5px);
@@ -134,7 +171,7 @@ body.rail-open .rail-arrow span { transform: rotate(180deg); }
 }
 body.rail-open #railScrim { display: block; }
 @keyframes railScrimIn { from { opacity: 0; } to { opacity: 1; } }
-@media (max-width: 900px) { #railScrim { inset: 0 0 0 100px; } }
+@media (max-width: 900px) { #railScrim { inset: 0 0 0 164px; } }
 
 /* ── the pop-out ──
    Overlays the page rather than widening the layout: the content underneath
@@ -192,10 +229,10 @@ html.nebula #railPop::before { border-color: rgba(0, 229, 255, 0.22); }
 /* Same square as the rail tile, and borderless for the same reason: the panel
    is already a frame, so framing every item inside it doubles the weight for
    no extra meaning. */
-#railPop .pop-row { display: flex; flex-wrap: wrap; gap: 2px; max-width: 580px; }
+#railPop .pop-row { display: flex; flex-wrap: wrap; gap: 2px; max-width: 486px; }
 #railPop .pop-item {
   position: relative;
-  width: 92px; height: 78px;
+  width: 156px; height: 84px;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 5px;
   padding: 6px;
@@ -203,7 +240,7 @@ html.nebula #railPop::before { border-color: rgba(0, 229, 255, 0.22); }
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-dim);
-  font-size: 11px; font-weight: 700;
+  font-size: 12.5px; font-weight: 700;
   text-align: center; line-height: 1.15;
   cursor: pointer;
   transition: all .14s;
@@ -214,21 +251,24 @@ html.nebula #railPop::before { border-color: rgba(0, 229, 255, 0.22); }
   border-color: rgba(0,229,255,0.45);
   background: rgba(0,229,255,0.08);
 }
-#railPop .pop-item .icon { font-size: 23px; line-height: 1; }
+#railPop .pop-item .icon { font-size: 26px; line-height: 1; }
 /* Badge floats in the corner rather than sitting in the flow — a square tile
    has no spare row for it. */
+/* Under the label rather than in a corner: on a tile you read icon then label,
+   so the flag belongs at the end of that path, not off to one side. */
 #railPop .pop-badge {
-  position: absolute; top: 8px; right: 8px;
-  font-size: 8.5px; font-weight: 800;
-  padding: 1px 5px; border-radius: 10px; background: var(--red); color: #fff;
+  font-size: 8px; font-weight: 900; letter-spacing: .06em;
+  padding: 1px 6px; border-radius: 8px;
+  background: var(--red); color: #fff;
+  box-shadow: 0 0 8px rgba(255,71,87,0.55);
 }
 
 /* Rail replaces the sidebar entirely on small screens too — the hamburger
    still hides it via the existing .sidebar-collapsed rule on .app. */
 @media (max-width: 900px) {
-  body.nav-rail #navRail { width: 100px; }
-  .rail-tile, #railPop .pop-item { width: 80px; height: 70px; }
-  #navRail .rail-logo { height: 72px; }
+  body.nav-rail #navRail { width: 164px; }
+  .rail-tile, #railPop .pop-item { width: 136px; height: 78px; }
+  #navRail .rail-logo { height: 84px; }
   #railPop { max-width: calc(100vw - 100px); }
 }
 
@@ -270,22 +310,40 @@ html.nebula #themeModal .tm-box { border-color: rgba(0,229,255,0.2); box-shadow:
     radial-gradient(ellipse 50px 30px at 10% 120%, rgba(124,92,255,0.4), transparent 60%),
     #04060f;
 }
-#themeModal .sw-list { background: linear-gradient(90deg, var(--bg-card) 0 34%, transparent 34%); }
-#themeModal .sw-rail { background: linear-gradient(90deg, var(--bg-card) 0 16%, transparent 16%); }
-#themeModal .tm-close { margin-top: 20px; display: flex; justify-content: flex-end; }
-
-/* ── content alignment in rail mode ──
-   Every page caps its width with `#page-X > * { max-width:1720px; margin:auto }`,
-   which centres the content. That reads fine against a 220px sidebar, but the
-   rail is far narrower, so on a wide monitor the same centring leaves a large
-   dead gap between the nav and the first card.
-
-   Left-aligning keeps the cap (long lines are still bounded) while the content
-   starts next to the rail. !important is deliberate and load-bearing: those caps
-   are ID-qualified selectors, so no class-based rule can outrank them — the same
-   specificity trap that once broke the slot picker stage. Scoped to rail mode,
-   so the centred layout of the classic sidebar is untouched. */
-body.nav-rail .page > * {
-  margin-left: 0 !important;
-  margin-right: auto !important;
+/* Miniatures of each navigation instead of a coloured bar. A flat swatch said
+   nothing about the difference between the two layouts, and read as a stray
+   pill floating above the label. */
+#themeModal .tm-mini {
+  height: 46px; border-radius: 7px; margin-bottom: 9px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 6px;
 }
+#themeModal .tm-mini i { display: block; border-radius: 2px; background: var(--text-dim); opacity: .5; }
+/* list: a wide column with rows in it */
+#themeModal .mini-list::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 34%;
+  background: var(--bg-card); border-right: 1px solid var(--border);
+}
+#themeModal .mini-list i { width: 26%; height: 5px; margin-left: 2px; position: relative; }
+/* rail: a narrow column of squares */
+#themeModal .mini-rail::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 16%;
+  background: var(--bg-card); border-right: 1px solid var(--border);
+}
+#themeModal .mini-rail i { width: 9px; height: 9px; margin-left: 2px; border-radius: 3px; position: relative; }
+#themeModal .tm-opt.sel .tm-mini i { background: var(--accent); opacity: .85; }
+
+/* The current choice is stated, not just tinted — a highlight alone is easy to
+   misread as hover, especially with two options side by side. */
+#themeModal .tm-opt { position: relative; }
+#themeModal .tm-opt.sel::after {
+  content: "¹3 Selected";
+  position: absolute; top: 8px; right: 8px;
+  font-size: 9.5px; font-weight: 800; letter-spacing: .04em;
+  padding: 2px 7px; border-radius: 10px;
+  background: var(--accent); color: #06121a;
+}
+#themeModal .tm-close { margin-top: 20px; display: flex; justify-content: flex-end; }

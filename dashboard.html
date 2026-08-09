@@ -534,7 +534,7 @@
 
   <!-- SIDEBAR -->
   <aside class="sidebar">
-    <img src="/img/logo.png" alt="WenBot" style="height:104px;width:100%;max-width:200px;object-fit:contain;display:block;margin:0 auto;">
+    <img src="/img/logo.png" alt="WenBot" title="Back to Overview" onclick="goHome()" style="height:104px;width:100%;max-width:200px;object-fit:contain;display:block;margin:0 auto;cursor:pointer;">
     <div style="flex:1;overflow-y:auto;padding-top:8px;">
       <div class="sidebar-section" data-sec="live">
         <div class="sidebar-label sb-toggle" onclick="sbToggleSection('live')">Live <span class="sb-chev">▾</span></div>
@@ -590,7 +590,7 @@
         🎨 <span id="themeToggleLabel">Themes</span>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.19.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.19.1</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3031,9 +3031,22 @@
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.19.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.19.1</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.19.1 &middot; Icon rail fixes</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 9, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🔴 <strong>LIVE flags show in the icon rail.</strong> They were never appearing there. The category tile and the page itself are both flagged now, the same as the menu list.</li>
+            <li>🏠 <strong>Click the WenBot logo</strong> in either view to jump back to Overview.</li>
+            <li>👤 <strong>The icon rail shows who you are signed in as</strong>, plus What&rsquo;s New and Sign out, matching the menu list.</li>
+            <li>🎨 <strong>Clearer theme picker.</strong> Each option previews its layout and says which one you are on.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -5943,6 +5956,15 @@ const RAIL_SECTIONS = [
 let _railOpenKey = null;
 let _railLastKey = 'live';
 
+// The logo is the way back to Overview in both shells. Routes through the real
+// nav item rather than showPage directly, so the sidebar's active highlight
+// moves with it.
+function goHome() {
+  const overview = document.querySelector('.nav-item[onclick*="overview"]');
+  if (overview) overview.click(); else showPage('overview');
+  closeRail();
+}
+
 function setNavMode(mode) {
   const rail = mode === 'rail';
   document.documentElement.setAttribute('data-nav', rail ? 'rail' : 'list');
@@ -5979,6 +6001,11 @@ function railOpen(key) {
   const row = pop.querySelector('.pop-row');
   row.innerHTML = '';
   sec.querySelectorAll('.nav-item').forEach(function (real) {
+    // Overview is the Home tile in this mode, so listing it inside Live as well
+    // would offer the same page twice. The list sidebar is untouched — it has
+    // no Home tile, so Overview still belongs in its Live group there.
+    if ((real.getAttribute('onclick') || '').indexOf("'overview'") !== -1) return;
+
     const btn = document.createElement('div');
     btn.className = 'pop-item' + (real.classList.contains('active') ? ' active' : '');
     const icon = real.querySelector('.icon');
@@ -5995,7 +6022,10 @@ function railOpen(key) {
     btn.appendChild(t);
 
     // A live badge or plan lock is often the reason you'd click, so carry it.
-    if (badge && badge.offsetParent !== null) {
+    // Checked via the inline style the app itself toggles, NOT offsetParent:
+    // the sidebar is display:none in rail mode, which makes every descendant
+    // report offsetParent null and silently hid every LIVE flag.
+    if (badge && badge.style.display !== 'none') {
       const b = document.createElement('span');
       b.className = 'pop-badge';
       b.textContent = badge.textContent.trim();
@@ -6050,11 +6080,16 @@ window.addEventListener('resize', function () {
     return '<div class="rail-tile" data-sec="' + sec.key + '" title="' + sec.label + '">'
       + RAIL_ICONS[sec.key] + '<span>' + sec.label + '</span></div>';
   }).join('');
-  rail.innerHTML = '<img class="rail-logo" src="/img/logo.png" alt="WenBot">'
+  rail.innerHTML = '<img class="rail-logo" src="/img/logo.png" alt="WenBot" title="Back to Overview">'
     + '<div class="rail-tile" id="railHome" title="Overview">' + RAIL_ICONS.home + '<span>Home</span></div>'
     + tiles
     + '<div class="rail-spacer"></div>'
     + '<div class="rail-tile" id="railThemes" title="Themes">' + RAIL_ICONS.themes + '<span>Themes</span></div>'
+    + '<div class="rail-foot">'
+    +   '<div class="rf-user" id="railUser" title="Signed in"><i class="rf-dot"></i><span>—</span></div>'
+    +   '<div class="rf-link" id="railWhatsNew">What\'s new ✨</div>'
+    +   '<div class="rf-link" id="railSignOut">Sign out</div>'
+    + '</div>'
     + '<div class="rail-arrow" id="railArrow" title="Open menu"><span>›</span></div>';
 
   // The pop-out lives on <body>, not inside .app — it's fixed-positioned and
@@ -6072,8 +6107,32 @@ window.addEventListener('resize', function () {
   app.insertBefore(rail, sidebar.nextSibling);
 
   const overview = document.querySelector('.nav-item[onclick*="overview"]');
-  rail.querySelector('#railHome').onclick = function () { if (overview) overview.click(); closeRail(); };
+  rail.querySelector('#railHome').onclick = goHome;
+  rail.querySelector('.rail-logo').onclick = goHome;
   rail.querySelector('#railThemes').onclick = openThemes;
+  rail.querySelector('#railWhatsNew').onclick = function () { showPage('whatsnew'); closeRail(); };
+  rail.querySelector('#railSignOut').onclick = function () { signOut(); };
+
+  // Mirrored from the list sidebar's own elements so there's one source of
+  // truth for identity and bot state — the rail presents them differently, it
+  // doesn't fetch them again.
+  function syncFoot() {
+    const nameEl = document.getElementById('sidebarUser');
+    const botDot = document.getElementById('botDot');
+    const chan = document.getElementById('botStatusChannel');
+    const out = rail.querySelector('#railUser');
+    if (!out) return;
+    const who = (chan && chan.textContent.trim() !== '—' ? chan.textContent
+              : nameEl ? nameEl.textContent : '').trim();
+    out.querySelector('span').textContent = who || '—';
+    out.title = who ? 'Signed in as ' + who : 'Signed in';
+    const dot = out.querySelector('.rf-dot');
+    const online = botDot && botDot.classList.contains('online');
+    dot.style.background = online ? 'var(--green)' : 'var(--red)';
+    dot.style.boxShadow = '0 0 6px ' + (online ? 'rgba(0,255,136,0.6)' : 'rgba(255,71,87,0.6)');
+  }
+  syncFoot();
+  setInterval(syncFoot, 4000);
   rail.querySelector('#railArrow').onclick = railToggleArrow;
   rail.querySelectorAll('.rail-tile[data-sec]').forEach(function (t) {
     t.onclick = function () { railOpen(t.dataset.sec); };
@@ -6086,11 +6145,15 @@ window.addEventListener('resize', function () {
       const el = document.querySelector('.sidebar-section[data-sec="' + sec.key + '"]');
       if (!tile || !el) return;
       const live = Array.prototype.some.call(el.querySelectorAll('.nav-badge'), function (b) {
-        return b.offsetParent !== null;
+        return b.style.display !== 'none' && /live/i.test(b.textContent);
       });
       let dot = tile.querySelector('.rail-dot');
-      if (live && !dot) { dot = document.createElement('i'); dot.className = 'rail-dot'; tile.appendChild(dot); }
-      else if (!live && dot) dot.remove();
+      if (live && !dot) {
+        dot = document.createElement('i');
+        dot.className = 'rail-dot';
+        dot.textContent = 'LIVE';
+        tile.appendChild(dot);
+      } else if (!live && dot) dot.remove();
     });
   }
   syncDots();
@@ -6128,9 +6191,11 @@ function openThemes() {
       '  </div>',
       '  <div class="tm-label">Navigation</div>',
       '  <div class="tm-row">',
-      '    <div class="tm-opt" data-nav="list"><div class="tm-swatch sw-list"></div>',
+      '    <div class="tm-opt" data-nav="list"><div class="tm-mini mini-list">',
+      '      <i></i><i></i><i></i><i></i></div>',
       '      <div class="tm-name">Menu list</div><div class="tm-desc">Every page listed down the side.</div></div>',
-      '    <div class="tm-opt" data-nav="rail"><div class="tm-swatch sw-rail"></div>',
+      '    <div class="tm-opt" data-nav="rail"><div class="tm-mini mini-rail">',
+      '      <i></i><i></i><i></i></div>',
       '      <div class="tm-name">Icon rail</div><div class="tm-desc">Compact tiles; the arrow slides the menu out.</div></div>',
       '  </div>',
       '  <div class="tm-close"><button class="btn btn-accent btn-sm" onclick="closeThemes()">Done</button></div>',
