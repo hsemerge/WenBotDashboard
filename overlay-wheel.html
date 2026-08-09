@@ -101,7 +101,6 @@
     }
   </style>
   <script src="/js/overlay-theme.js"></script>
-  <script src="/js/overlay-standby.js"></script>
 </head>
 <body>
 
@@ -495,17 +494,6 @@ function initEmbed() {
 drawWheel(0);
 if (isEmbed) initEmbed();
 else if (!demoMode) poll();
-
-// The wheel only becomes visible once a giveaway has entries to draw from, so
-// a streamer setting the source up outside a giveaway sees nothing at all.
-if (!isEmbed) Standby.init({
-  icon: '🎡', label: 'Giveaway Wheel', mode: 'setup',
-  note: 'Position it here',
-  hint: 'Appears once a giveaway has entries',
-  // Matches the wheel canvas (700px square), so the placeholder marks the real
-  // footprint rather than a box the wheel will later burst out of.
-  width: '700px', minHeight: 180,
-}).track('#wheelWrap');
 </script>
 </body>
 </html>

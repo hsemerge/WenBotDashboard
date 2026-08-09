@@ -108,7 +108,6 @@
     .picker-wrap.glowing { animation: glow 1.5s ease infinite; }
   </style>
   <script src="/js/overlay-theme.js"></script>
-  <script src="/js/overlay-standby.js"></script>
   <script src="/js/overlay-confetti.js"></script>
 </head>
 <body>
@@ -482,16 +481,6 @@
   else if (isEmbed) initEmbed();
   else if (channel) { poll(); setInterval(poll, POLL_MS); }
   else document.getElementById('widget').style.display = 'none';
-
-// The spinner is on screen only for the few seconds of a draw, so it has no
-// idle appearance at all — in OBS it's an empty rectangle almost always. The
-// shell gives the streamer something to position against while they're not
-// broadcasting, and takes itself off once they go live.
-if (!isEmbed) Standby.init({
-  icon: '🎉', label: 'Giveaway Spinner', mode: 'setup',
-  note: 'Position it here',
-  hint: 'Hidden on stream until a giveaway is drawn',
-}).track('#widget');
 </script>
 </body>
 </html>

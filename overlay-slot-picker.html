@@ -162,7 +162,6 @@
     .picker-wrap.glowing { animation: glow 1.5s ease infinite; }
   </style>
   <script src="/js/overlay-theme.js"></script>
-  <script src="/js/overlay-standby.js"></script>
   <script src="/js/overlay-confetti.js"></script>
 </head>
 <body>
@@ -401,15 +400,6 @@
   } else if (!isDemo) {
     document.getElementById('widget').style.display = 'none';
   }
-
-// Only visible while a slot is being picked, so it reads as broken in OBS the
-// rest of the time. See js/overlay-standby.js for why this hides itself once
-// the streamer is actually broadcasting.
-Standby.init({
-  icon: '🎰', label: 'Slot Picker', mode: 'setup',
-  note: 'Position it here',
-  hint: 'Hidden on stream until a slot is picked',
-}).track('#widget');
 </script>
 </body>
 </html>
