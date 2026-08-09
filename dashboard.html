@@ -538,10 +538,9 @@
     <div style="flex:1;overflow-y:auto;padding-top:8px;">
       <div class="sidebar-section" data-sec="live">
         <div class="sidebar-label sb-toggle" onclick="sbToggleSection('live')">Live <span class="sb-chev">▾</span></div>
-        <div class="nav-item active" onclick="showPage('overview',this)"><span class="icon">📊</span> Overview</div>
-        <div class="nav-item" onclick="showPage('giveaway',this)"><span class="icon">🎁</span> Giveaway <span class="nav-badge" id="gwLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
         <div class="nav-item" onclick="showPage('bonushunt',this)"><span class="icon">🎰</span> Bonus Hunt <span class="nav-badge" id="bhLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
-        <div class="nav-item" onclick="showPage('slotpicker',this)"><span class="icon">🎲</span> Slot Picker</div>
+        <div class="nav-item" onclick="showPage('giveaway',this)"><span class="icon">🎁</span> Giveaway <span class="nav-badge" id="gwLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
+        <div class="nav-item" onclick="showPage('slotpicker',this)"><span class="icon">🎯</span> Slot Picker</div>
         <div class="nav-item" onclick="showPage('slotrequest',this)"><span class="icon">📋</span> Slot Requests</div>
         <div class="nav-item" onclick="showPage('gtb',this)"><span class="icon">🎲</span> Guess the Balance</div>
         <div class="nav-item" onclick="showPage('bonusbattle',this)"><span class="icon">⚔️</span> Bonus Battles <span class="nav-badge" id="bbLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
@@ -549,12 +548,12 @@
       </div>
       <div class="sidebar-section" style="margin-top:8px;" data-sec="manage">
         <div class="sidebar-label sb-toggle" onclick="sbToggleSection('manage')">Manage <span class="sb-chev">▾</span></div>
-        <div class="nav-item" onclick="showPage('leaderboard',this)"><span class="icon">🏆</span> Leaderboard</div>
+        <div class="nav-item" onclick="showPage('leaderboard',this)"><span class="icon">🥇</span> Leaderboard</div>
         <div class="nav-item" onclick="showPage('verified',this)"><span class="icon">✅</span> Verified Users</div>
         <div class="nav-item" onclick="showPage('points',this)"><span class="icon">🪙</span> Points</div>
         <div class="nav-item" id="nav-store" onclick="showPage('store',this)"><span class="icon">🛒</span> Store <span class="nav-badge red" id="storeBadge" style="display:none;">0</span></div>
         <div class="nav-item" onclick="showPage('raffle',this)"><span class="icon">🎟</span> Raffles</div>
-        <div class="nav-item" onclick="showPage('games',this)"><span class="icon">🎲</span> Games</div>
+        <div class="nav-item" onclick="showPage('games',this)"><span class="icon">🎮</span> Games</div>
         <div class="nav-item" onclick="showPage('commands',this)"><span class="icon">💬</span> Commands</div>
         <div class="nav-item" onclick="showPage('moderation',this)"><span class="icon">🛡️</span> Moderation</div>
         <div class="nav-item" onclick="showPage('overlays',this)"><span class="icon">🖥</span> Overlays</div>
@@ -563,9 +562,13 @@
       <div class="sidebar-section" style="margin-top:8px;" data-sec="community">
         <div class="sidebar-label sb-toggle" onclick="sbToggleSection('community')">Community <span class="sb-chev">▾</span></div>
         <div class="nav-item" id="nav-creators" onclick="showPage('creators',this)"><span class="icon">🌐</span> Creators <span class="nav-badge" id="creatorsLiveBadge" style="display:none;background:var(--red);">0 LIVE</span></div>
+        <!-- Opens the public hub in a new tab: it's a separate site, and losing
+             the dashboard mid-task to view it would be the wrong trade. -->
+        <div class="nav-item" onclick="window.open('https://wenbot.gg/community','_blank','noopener')"><span class="icon">🪐</span> View Community</div>
       </div>
       <div class="sidebar-section" style="margin-top:8px;" data-sec="account">
         <div class="sidebar-label sb-toggle" onclick="sbToggleSection('account')">Account <span class="sb-chev">▾</span></div>
+        <div class="nav-item" id="navPortalLink" style="display:none;" onclick="openMyPortal()"><span class="icon">🪟</span> My Portal</div>
         <div class="nav-item owner-only" onclick="showPage('billing',this)"><span class="icon">💳</span> Plan &amp; Billing <span class="nav-badge red" id="billingBadge" style="display:none;">0</span> <span id="planBadge" class="nav-lock-pill pro-pill" style="margin-left:auto;">Starter</span></div>
         <div class="nav-item" onclick="showPage('referrals',this)"><span class="icon">🤝</span> Invite &amp; Earn</div>
         <div class="nav-item" onclick="showPage('settings',this)"><span class="icon">⚙️</span> Settings</div>
@@ -590,7 +593,7 @@
         🎨 <span id="themeToggleLabel">Themes</span>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.19.1</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.20.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3027,13 +3030,30 @@
     <!-- ── HELP ── -->
     <!-- ════ WHAT'S NEW / RELEASE NOTES ════ -->
     <div class="page" id="page-whatsnew">
-      <div class="stack" style="max-width:780px;">
+      <!-- Centred like every other page. It caps its own width rather than
+           using the shared #page-X rule, and that cap was never paired with
+           auto margins, so it sat hard against the left edge. -->
+      <div class="stack" style="max-width:780px;margin-left:auto;margin-right:auto;">
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.19.1</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.20.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.20.0 &middot; Icon rail is the new default</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 9, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🧭 <strong>The icon rail is now the default menu.</strong> Prefer the full list? Switch back any time under <strong>Themes</strong> at the bottom of the menu, and your choice sticks.</li>
+            <li>📍 <strong>You can see where you are.</strong> The section holding your current page is underlined, so you always know where you stand without opening anything.</li>
+            <li>⌨️ <strong>The menu works from the keyboard.</strong> Tab to any button, Enter or Space to open it, Esc to close.</li>
+            <li>🔗 <strong>My Portal and View Community</strong> are now in the menu, under Account and Social.</li>
+            <li>🎯 <strong>Tidier menu.</strong> Bonus Hunt leads the Live section, Overview moved to the Home button, and pages that shared an icon now have their own.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -3525,7 +3545,7 @@
 
     <!-- ════ COMPANION EXTENSION ════ -->
     <div class="page" id="page-extension">
-      <div class="stack" style="max-width:840px;">
+      <div class="stack" style="max-width:840px;margin-left:auto;margin-right:auto;">
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">🧩 WenBot Companion</h3>
@@ -5959,6 +5979,17 @@ let _railLastKey = 'live';
 // The logo is the way back to Overview in both shells. Routes through the real
 // nav item rather than showPage directly, so the sidebar's active highlight
 // moves with it.
+// Opens the streamer's public portal. Mirrors the topbar link rather than
+// rebuilding the URL, so the ?fresh=1 cache-bypass can't be forgotten in one
+// place and not the other.
+function openMyPortal() {
+  const a = document.getElementById('topbarPortalLink');
+  if (a && a.getAttribute('href') && a.getAttribute('href') !== '#') {
+    window.open(a.href, '_blank', 'noopener');
+  }
+  closeRail();
+}
+
 function goHome() {
   const overview = document.querySelector('.nav-item[onclick*="overview"]');
   if (overview) overview.click(); else showPage('overview');
@@ -5972,10 +6003,46 @@ function setNavMode(mode) {
   if (!rail) closeRail();
   try { localStorage.setItem('wbNav', rail ? 'rail' : 'list'); } catch (e) {}
 }
-function closeRail() {
+function closeRail(returnFocus) {
+  const wasOpen = _railOpenKey;
   document.body.classList.remove('rail-open');
   _railOpenKey = null;
-  document.querySelectorAll('.rail-tile[data-sec]').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.rail-tile[data-sec]').forEach(function (t) {
+    t.classList.remove('active');
+    t.setAttribute('aria-expanded', 'false');
+  });
+  railMarkCurrent();
+  if (returnFocus && wasOpen) {
+    const tile = document.querySelector('.rail-tile[data-sec="' + wasOpen + '"]');
+    if (tile) tile.focus();
+  }
+}
+
+// Esc anywhere closes the menu — every other overlay in the product answers it,
+// and the pop-out covers content, so being unable to dismiss it from the
+// keyboard is a trap.
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape') return;
+  if (document.body.classList.contains('rail-open')) closeRail(true);
+  else if (document.getElementById('themeModal')?.classList.contains('open')) closeThemes();
+});
+
+// ── where you are, not just what you opened ─────────────────────────────────
+// The list sidebar highlights your current page, so you always know where you
+// stand. The rail only ever marked the category you had OPEN, which meant
+// landing on Points showed nothing at all about being inside Manage. This marks
+// the section that owns the active page, kept visually distinct from the opened
+// state so the two readings don't collide.
+function railMarkCurrent() {
+  const active = document.querySelector('.sidebar .nav-item.active');
+  const sec = active && active.closest('.sidebar-section');
+  const key = sec ? sec.dataset.sec : null;
+  document.querySelectorAll('.rail-tile[data-sec]').forEach(function (t) {
+    t.classList.toggle('current', !!key && t.dataset.sec === key);
+  });
+  // Overview lives outside the sections now, so Home carries it.
+  const home = document.getElementById('railHome');
+  if (home) home.classList.toggle('current', !key);
 }
 function railToggleArrow() {
   // The arrow opens the last-used section, so it always has something in it.
@@ -5992,7 +6059,9 @@ function railOpen(key) {
   _railOpenKey = _railLastKey = key;
 
   document.querySelectorAll('.rail-tile[data-sec]').forEach(function (t) {
-    t.classList.toggle('active', t.dataset.sec === key);
+    const on = t.dataset.sec === key;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-expanded', on ? 'true' : 'false');
   });
 
   const meta = RAIL_SECTIONS.find(function (x) { return x.key === key; });
@@ -6001,13 +6070,10 @@ function railOpen(key) {
   const row = pop.querySelector('.pop-row');
   row.innerHTML = '';
   sec.querySelectorAll('.nav-item').forEach(function (real) {
-    // Overview is the Home tile in this mode, so listing it inside Live as well
-    // would offer the same page twice. The list sidebar is untouched — it has
-    // no Home tile, so Overview still belongs in its Live group there.
-    if ((real.getAttribute('onclick') || '').indexOf("'overview'") !== -1) return;
-
     const btn = document.createElement('div');
     btn.className = 'pop-item' + (real.classList.contains('active') ? ' active' : '');
+    btn.setAttribute('role', 'button');
+    btn.setAttribute('tabindex', '0');
     const icon = real.querySelector('.icon');
     const badge = real.querySelector('.nav-badge, .nav-lock-pill');
     const text = Array.prototype.filter.call(real.childNodes, function (n) { return n.nodeType === 3; })
@@ -6038,6 +6104,17 @@ function railOpen(key) {
 
   document.body.classList.add('rail-open');
   railPosition(key);
+
+  // Focus moves into the pop-out so a keyboard user lands where they opened,
+  // and Enter/Space work on the buttons inside it.
+  const first = pop.querySelector('.pop-item.active') || pop.querySelector('.pop-item');
+  if (first) first.focus();
+  pop.onkeydown = function (e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      const t = e.target.closest('[role="button"]');
+      if (t) { e.preventDefault(); t.click(); }
+    }
+  };
 }
 
 // Place the pop-out beside the tile that opened it. Fixed-positioned and
@@ -6076,21 +6153,27 @@ window.addEventListener('resize', function () {
 
   const rail = document.createElement('nav');
   rail.id = 'navRail';
+  // role/tabindex rather than plain divs: these are the only way to open a
+  // category, so a keyboard user could not navigate at all without them.
+  // aria-expanded tells a screen reader the tile owns the pop-out.
   const tiles = RAIL_SECTIONS.map(function (sec) {
-    return '<div class="rail-tile" data-sec="' + sec.key + '" title="' + sec.label + '">'
+    return '<div class="rail-tile" data-sec="' + sec.key + '" title="' + sec.label + '"'
+      + ' role="button" tabindex="0" aria-haspopup="true" aria-expanded="false"'
+      + ' aria-label="' + sec.label + ' menu">'
       + RAIL_ICONS[sec.key] + '<span>' + sec.label + '</span></div>';
   }).join('');
-  rail.innerHTML = '<img class="rail-logo" src="/img/logo.png" alt="WenBot" title="Back to Overview">'
-    + '<div class="rail-tile" id="railHome" title="Overview">' + RAIL_ICONS.home + '<span>Home</span></div>'
+  rail.innerHTML = '<img class="rail-logo" src="/img/logo.png" alt="WenBot" title="Back to Overview" role="button" tabindex="0">'
+    + '<div class="rail-tile" id="railHome" title="Overview" role="button" tabindex="0">' + RAIL_ICONS.home + '<span>Home</span></div>'
     + tiles
     + '<div class="rail-spacer"></div>'
-    + '<div class="rail-tile" id="railThemes" title="Themes">' + RAIL_ICONS.themes + '<span>Themes</span></div>'
+    + '<div class="rail-tile" id="railThemes" title="Themes" role="button" tabindex="0">' + RAIL_ICONS.themes + '<span>Themes</span></div>'
     + '<div class="rail-foot">'
     +   '<div class="rf-user" id="railUser" title="Signed in"><i class="rf-dot"></i><span>—</span></div>'
-    +   '<div class="rf-link" id="railWhatsNew">What\'s new ✨</div>'
-    +   '<div class="rf-link" id="railSignOut">Sign out</div>'
+    +   '<div class="rf-link" id="railWhatsNew" role="button" tabindex="0">What\'s new ✨</div>'
+    +   '<div class="rf-link" id="railSignOut" role="button" tabindex="0">Sign out</div>'
     + '</div>'
-    + '<div class="rail-arrow" id="railArrow" title="Open menu"><span>›</span></div>';
+    + '<div class="rail-arrow" id="railArrow" title="Open menu" role="button" tabindex="0"'
+    +   ' aria-label="Open navigation menu"><span>›</span></div>';
 
   // The pop-out lives on <body>, not inside .app — it's fixed-positioned and
   // must overlay the page rather than take part in the flex layout.
@@ -6138,6 +6221,16 @@ window.addEventListener('resize', function () {
     t.onclick = function () { railOpen(t.dataset.sec); };
   });
 
+  // Enter and Space activate anything focusable in the rail — the browser does
+  // this for <button> but not for a div with role="button".
+  rail.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const t = e.target.closest('[role="button"]');
+    if (!t) return;
+    e.preventDefault();
+    t.click();
+  });
+
   // Mirror LIVE badges onto their tile as a dot — the word doesn't fit at 62px.
   function syncDots() {
     RAIL_SECTIONS.forEach(function (sec) {
@@ -6159,14 +6252,27 @@ window.addEventListener('resize', function () {
   syncDots();
   setInterval(syncDots, 4000);
 
+  // Recomputed on every navigation. Watching the sidebar's own active class
+  // rather than hooking showPage means this can't be bypassed by any of the
+  // places that navigate directly.
+  const liveSec = document.querySelector('.sidebar');
+  if (liveSec) {
+    new MutationObserver(railMarkCurrent).observe(liveSec, {
+      subtree: true, attributes: true, attributeFilter: ['class'],
+    });
+  }
+  railMarkCurrent();
+
   // Clicking into the page closes the flyout, the way any pull-out menu behaves.
   const main = document.querySelector('.main');
   if (main) main.addEventListener('mousedown', function () {
     if (document.body.classList.contains('rail-open')) closeRail();
   });
 
-  let saved = 'list';
-  try { saved = localStorage.getItem('wbNav') || 'list'; } catch (e) {}
+  // Rail is the default, like Nebula — an explicit 'list' is the opt-out, so
+  // anyone who already chose the menu list keeps it.
+  let saved = 'rail';
+  try { saved = localStorage.getItem('wbNav') === 'list' ? 'list' : 'rail'; } catch (e) {}
   setNavMode(saved);
 })();
 
@@ -6810,6 +6916,8 @@ function onAuthReady(user) {
     // theme/branding edits instantly (their viewers use the cached, clean URL).
     _portalLink.href = `/${encodeURIComponent(profile.kickChannel)}?fresh=1`;
     _portalLink.style.display = '';
+    const _navPortal = document.getElementById('navPortalLink');
+    if (_navPortal) _navPortal.style.display = '';
   }
   { const _sc = document.getElementById('statCurrency'); if (_sc) _sc.textContent = (profile?.currencyName || 'points') + ' total'; }
 
