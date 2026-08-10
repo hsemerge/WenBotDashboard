@@ -157,10 +157,15 @@
 
   /* ── MARQUEE LAYOUT ─────────────────────────────────────────────────────
      A top strip that scrolls continuously rather than fading between slides.
-     The track holds the item list TWICE and translates by exactly -50%, so the
-     second copy is in the first's starting position when the animation loops —
-     that's what makes it seamless with no jump. Duration scales with item
-     count so adding items changes the length of the loop, not its speed. */
+
+     Seamlessness: the track holds the item list repeated enough times to be
+     WIDER than the viewport plus one set, and shifts left by exactly one set
+     width (--shift, in px) before restarting. Because copy N+1 sits precisely
+     where copy N began, the restart is invisible.
+
+     Two copies alone is NOT enough — if one set is narrower than the screen
+     you can see the seam between the copies, which reads as the content
+     repeating itself. The repeat count is computed from the measured width. */
   body.marquee { align-items:flex-start; }
   body.marquee .bar {
     height:70px; border-top:none;
@@ -182,7 +187,14 @@
   }
   .mq-track { display:flex; align-items:center; white-space:nowrap; will-change:transform;
     animation:mqScroll linear infinite; }
-  @keyframes mqScroll { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+  /* Shift by ONE SET in pixels, not a percentage of the whole track — the
+     percentage changes whenever the repeat count does, which is what made the
+     loop drift. translate3d keeps it on the compositor so the scroll stays
+     smooth under OBS's capture. */
+  @keyframes mqScroll {
+    from { transform:translate3d(0,0,0); }
+    to   { transform:translate3d(calc(-1 * var(--shift,50%)),0,0); }
+  }
 
   .mq-item { display:inline-flex; align-items:center; gap:12px; padding:0 34px; flex-shrink:0; }
   .mq-item .mq-ico { width:26px; height:26px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
@@ -352,7 +364,7 @@
     return out;
   }
 
-  function renderMarquee(s) {
+  async function renderMarquee(s) {
     var items = marqueeItems(s);
     if (!items.length) return;
 
@@ -366,19 +378,32 @@
         + '</span><span class="mq-sep"></span>';
     }).join('');
 
-    // The list is duplicated so the -50% translate lands the copy exactly where
-    // the original began — that's what makes the loop seamless.
     var el = document.getElementById('slides');
-    el.innerHTML = '<div class="mq-track">' + one + one + '</div>';
 
-    // Auto-duration keeps a constant pixel speed no matter how many items
-    // there are, so adding one lengthens the loop instead of speeding it up.
+    // Measure with the real webfont applied. Measuring before Exo 2 loads gives
+    // a width for the fallback font, and every later frame is then offset by
+    // the difference — which is exactly the "jumping" this had.
+    try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
+
+    // Lay ONE set down first, purely to measure it.
+    el.innerHTML = '<div class="mq-track" style="animation:none;">' + one + '</div>';
+    var setW = el.firstElementChild.scrollWidth;
+    if (!setW) return;
+
+    // Repeat until the track covers the viewport PLUS a full set, so there is
+    // always a copy queued off-screen to slide in. Without this the seam
+    // between copies is visible and reads as the content repeating.
+    var reps = Math.ceil(window.innerWidth / setW) + 1;
+    var html = '';
+    for (var i = 0; i < reps; i++) html += one;
+
+    el.innerHTML = '<div class="mq-track">' + html + '</div>';
     var track = el.firstElementChild;
-    var secs  = SPEED;
-    if (!secs) {
-      var width = track.scrollWidth / 2;          // one copy
-      secs = Math.max(18, Math.round(width / 55)); // ~55px per second — a slow read
-    }
+
+    // Shift by exactly one set. Duration from the same measurement, so the
+    // pixel speed is constant no matter how many items or repeats there are.
+    track.style.setProperty('--shift', setW + 'px');
+    var secs = SPEED || Math.max(8, setW / 55); // ~55px/sec — a slow, readable crawl
     track.style.animationDuration = secs + 's';
   }
 
