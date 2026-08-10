@@ -95,9 +95,15 @@ function findMatch(rankings, target, knownUid) {
 }
 
 // opts: { uid } — when provided, match by provider UID (durable, masking-proof).
-async function lookupAffiliate(provider, apiKey, affiliateUsername, diagnostics = null, opts = {}) {
+async function lookupAffiliate(provider, credential, affiliateUsername, diagnostics = null, opts = {}) {
   const target   = (affiliateUsername || "").toLowerCase().trim();
   const knownUid = opts && opts.uid != null ? String(opts.uid) : null;
+
+  // Callers historically passed just the API key string. Duelbits needs two
+  // secrets, so a whole provider doc is accepted too — both shapes work, and
+  // nothing that already passes a string had to change.
+  const cred   = (credential && typeof credential === "object") ? credential : { apiKey: credential };
+  const apiKey = cred.apiKey;
 
   // ── Rainbet ────────────────────────────────────────────────────────────────
   // Real usernames + stable ids, so matching is exact (no masking to unpick).
@@ -128,6 +134,60 @@ async function lookupAffiliate(provider, apiKey, affiliateUsername, diagnostics 
         wagerAmount:     hit.wagered || 0,
         leaderboardType: "rainbet",
         matchedViaMask:  false,
+      };
+    } catch (err) {
+      diag.error = err.message;
+      if (diagnostics) diagnostics.push(diag);
+      return null;
+    }
+  }
+
+  // ── Duelbits ───────────────────────────────────────────────────────────────
+  // Masked names (first2 *** last1, same as Gambulls) but flat rows with stable
+  // ids (like Rainbet), so it reuses findMatch for the masking while mapping the
+  // flat shape into what findMatch expects.
+  //
+  // Deliberately queried WITHOUT a date window: verification asks "is this
+  // person under the affiliate at all", which is a broader question than "are
+  // they on the current race". Someone who played last month and not this one
+  // is still under the code.
+  if (provider === "duelbits") {
+    const diag = { type: "duelbits", target, knownUid };
+    try {
+      const { fetchDuelbits } = require("./duelbits");
+      const board = await fetchDuelbits(cred.affiliateId, cred.password);
+      if (!board) {
+        diag.error = "fetch failed (bad credentials or API error)";
+        if (diagnostics) diagnostics.push(diag);
+        return null;
+      }
+      diag.totalEntries = board.rankings.length;
+      diag.totalWagered = board.totalWagered;
+      diag.sample       = board.rankings.slice(0, 5).map(r => r.username);
+
+      // findMatch reads e.user.name / e.user.id, so adapt rather than duplicate
+      // the masking rules — they're identical and worth having in one place.
+      const adapted = board.rankings.map(r => ({
+        user: { id: r.uid, name: r.username },
+        wagerAmount: r.wagered || 0,
+      }));
+      const { match, via, ambiguous } = findMatch(adapted, target, knownUid);
+      if (ambiguous) {
+        diag.matched = false;
+        diag.ambiguous = ambiguous;
+        if (diagnostics) diagnostics.push(diag);
+        return null;
+      }
+      diag.matched = !!match;
+      if (via) diag.via = via;
+      if (diagnostics) diagnostics.push(diag);
+      if (!match) return null;
+      return {
+        uid:             uidOf(match),
+        username:        match.user?.name || null,
+        wagerAmount:     match.wagerAmount || 0,
+        leaderboardType: "duelbits",
+        matchedViaMask:  via === "mask",
       };
     } catch (err) {
       diag.error = err.message;

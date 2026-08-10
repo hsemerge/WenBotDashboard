@@ -61,7 +61,7 @@ exports.handler = async (event) => {
     if (!providerDoc.exists) {
       return res(400, { error: `${CASINO_NAMES[provider]} API isn't configured` });
     }
-    const { apiKey } = providerDoc.data();
+    const apiKey = providerDoc.data();   // whole doc: some casinos need more than one secret
 
     // Validate the chosen UID is actually on the live board (and grab its wager).
     const diagnostics = [];

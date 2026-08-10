@@ -232,8 +232,7 @@ exports.handler = async (event) => {
       if (!providerDoc.exists) {
         return res(400, { error: `This streamer hasn't configured their ${CASINO_NAMES[provider]} API yet.` });
       }
-      const { apiKey } = providerDoc.data();
-      const result = await lookupAffiliate(provider, apiKey, affiliateUsername);
+      const result = await lookupAffiliate(provider, providerDoc.data(), affiliateUsername);
       if (result) {
         // For an exact match, prefer the board's canonical casing. For a MASKED
         // match the board name is anonymized ("Be***x"), so keep the user's
