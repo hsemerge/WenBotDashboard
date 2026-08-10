@@ -60,8 +60,13 @@ async function fetchDuelbits(affiliateId, password) {
       .map((e) => ({
         uid:       e.id != null ? String(e.id) : null,
         username:  e.displayName || "Anonymous",
-        wagered:   Number(e.points) || 0,      // what the board ranks on — see above
-        betAmount: Number(e.betAmount) || 0,   // raw volume, for display
+        // MINOR UNITS. Duelbits sends integers in cents, not dollars. Confirmed
+        // against the streamer's own raw view: a player showing $519.90 there
+        // comes back as 51990 here — exactly x100 — and a second player matched
+        // to within 0.1%. Passing these straight through inflated every figure
+        // on the portal a hundredfold.
+        wagered:   (Number(e.points) || 0) / 100,      // what the board ranks on
+        betAmount: (Number(e.betAmount) || 0) / 100,   // raw volume, for display
       }))
       .sort((a, b) => b.wagered - a.wagered);
 
