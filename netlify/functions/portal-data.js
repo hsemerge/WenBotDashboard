@@ -352,6 +352,20 @@ const PORTAL_PRESETS = {
           { kicker: "Wager rewards",      big: "MILESTONES", sub: "Hit a tier, open a ticket, get paid",        left: "🎯", right: "💸", style: "plain" },
         ],
       },
+      // Top scrolling strip (/overlay-banner.html?layout=marquee). Order here is
+      // the order it scrolls. `kind: "site"` gets the highlighted pill, "code"
+      // the gold treatment; everything else is a plain icon + label.
+      marquee: {
+        website: "TILTBROS.COM",
+        items: [
+          { icon: "kick",    text: "kick.com/thetiltbros" },
+          { icon: "x",       text: "@Mrnoface7420" },
+          { icon: "site",    text: "TILTBROS.COM", kind: "site" },
+          { icon: "discord", text: "discord.gg/thetiltbros" },
+          { icon: "x",       text: "@DonTheLizard" },
+          { icon: "code",    text: "JOIN CODE TILTBROS", kind: "code" },
+        ],
+      },
       responsible: "18+ only. Gamble responsibly — never wager more than you can afford to lose.",
       // FAQ accordion. Answers restate the mechanics that live elsewhere on the
       // page, so a player never has to hunt — keep them in sync with the raffle

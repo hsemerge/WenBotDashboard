@@ -154,6 +154,70 @@
   }
 
   @media (max-width:1100px) { .big { font-size:38px; } }
+
+  /* ── MARQUEE LAYOUT ─────────────────────────────────────────────────────
+     A top strip that scrolls continuously rather than fading between slides.
+     The track holds the item list TWICE and translates by exactly -50%, so the
+     second copy is in the first's starting position when the animation loops —
+     that's what makes it seamless with no jump. Duration scales with item
+     count so adding items changes the length of the loop, not its speed. */
+  body.marquee { align-items:flex-start; }
+  body.marquee .bar {
+    height:70px; border-top:none;
+    border-bottom:1px solid color-mix(in srgb, var(--accent2) 55%, transparent);
+    justify-content:flex-start; overflow:hidden;
+  }
+  body.marquee .bar::before {
+    inset:0 0 auto 0; height:100%;
+    background:linear-gradient(180deg,
+      color-mix(in srgb, var(--teal) 40%, transparent) 0%,
+      transparent 85%);
+  }
+  body.marquee .bar::after { top:auto; bottom:0; }
+  /* Feather both ends so items enter and leave rather than popping. */
+  body.marquee #slides {
+    position:absolute; inset:0; display:flex; align-items:center;
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);
+    mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);
+  }
+  .mq-track { display:flex; align-items:center; white-space:nowrap; will-change:transform;
+    animation:mqScroll linear infinite; }
+  @keyframes mqScroll { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+
+  .mq-item { display:inline-flex; align-items:center; gap:12px; padding:0 34px; flex-shrink:0; }
+  .mq-item .mq-ico { width:26px; height:26px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .mq-item .mq-ico svg { width:100%; height:100%; }
+  .mq-item .mq-txt {
+    font-family:'Exo 2',sans-serif; font-weight:800; font-size:25px; letter-spacing:.02em;
+    color:var(--bright); text-shadow:0 2px 4px rgba(0,0,0,.6);
+  }
+  /* Separator between items. */
+  .mq-sep { width:5px; height:5px; border-radius:50%; background:var(--accent2); opacity:.5; flex-shrink:0; }
+
+  /* The website is the one item that gets emphasis — it's the destination
+     everything else supports, so it's a bordered pill with a moving sheen
+     rather than another line of text. */
+  .mq-item.site { padding:0 30px; }
+  .mq-item.site .mq-txt {
+    position:relative; overflow:hidden;
+    border:1px solid var(--accent); border-radius:9px; padding:7px 20px;
+    background:color-mix(in srgb, var(--accent) 12%, transparent);
+    color:var(--accent); letter-spacing:.09em;
+    box-shadow:0 0 20px color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+  .mq-item.site .mq-txt::after {
+    content:''; position:absolute; top:0; bottom:0; width:45%;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);
+    animation:sheen 3.6s ease-in-out infinite;
+  }
+  @keyframes sheen { 0% { left:-50%; } 60%,100% { left:120%; } }
+
+  .mq-item.code .mq-txt { color:var(--gold); }
+
+  @media (prefers-reduced-motion:reduce) {
+    .mq-track { animation-duration:0s !important; }
+    .mq-item.site .mq-txt::after { animation:none; }
+  }
 </style>
 </head>
 <body>
@@ -170,7 +234,9 @@
   var ROWS    = Math.max(1, Math.min(parseInt(qs.get('rows'), 10) || 3, 10));
   var ONLY    = (qs.get('slides') || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
   var LAYOUT  = (qs.get('layout') || 'bar').toLowerCase();
+  var SPEED   = Math.max(10, parseInt(qs.get('speed'), 10) || 0); // seconds per full loop; 0 = auto
   if (LAYOUT === 'transparent') document.body.classList.add('transparent');
+  if (LAYOUT === 'marquee')     document.body.classList.add('marquee');
   // Browser-only sanity check: OBS renders a browser source over transparency,
   // but a normal tab renders it over white, which makes the transparent layout
   // look broken when it isn't. ?preview=1 paints a mock scene behind it.
@@ -249,6 +315,73 @@
     return out;
   }
 
+  // ── MARQUEE ──────────────────────────────────────────────────────────────
+  // Simple geometric glyphs rather than the platforms' official marks — those
+  // are trademarked artwork we shouldn't be redistributing. These read clearly
+  // at 26px; swap in licensed assets via content.marquee.items[].iconUrl if
+  // TiltBros has them.
+  var ICONS = {
+    kick: '<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="18" rx="4" fill="#53fc18"/>'
+        + '<path d="M7 7h3v3h1.5V8.5H13V7h4v4h-1.5v1.5H14V14h1.5v1.5H17v2h-4V16h-1.5v-1.5H10V18H7z" fill="#0a0a0a"/></svg>',
+    x:    '<svg viewBox="0 0 24 24" fill="none"><path d="M3 3h4.2l5 6.7L17.6 3H21l-7.3 8.8L21.4 21h-4.2l-5.4-7.2L5.9 21H2.5l7.7-9.3z" fill="#fff"/></svg>',
+    discord: '<svg viewBox="0 0 24 24" fill="none">'
+        + '<path d="M4 17.5c2 1.4 4.6 2.2 8 2.2s6-.8 8-2.2c-.4-4.3-1.7-8.3-3.6-11.2-1.1-.6-2.3-1-3.6-1.2l-.6 1.2h-.4C11.4 6 10.6 6 9.8 6.1L9.2 5c-1.3.2-2.5.6-3.6 1.2C3.7 9.2 2.4 13.2 2 17.5z" fill="#7b8ce8"/>'
+        + '<ellipse cx="9" cy="13" rx="1.5" ry="1.9" fill="#0a0a0a"/><ellipse cx="15" cy="13" rx="1.5" ry="1.9" fill="#0a0a0a"/></svg>',
+    site: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">'
+        + '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.7 2.6 15.3 0 18M12 3c-2.6 2.7-2.6 15.3 0 18"/></svg>',
+    code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">'
+        + '<path d="M9 6l-5 6 5 6M15 6l5 6-5 6"/></svg>',
+  };
+
+  function marqueeItems(s) {
+    var portal = s.portal || {};
+    var hero   = portal.hero || {};
+    var mq     = (portal.content && portal.content.marquee) || {};
+    if (mq.items && mq.items.length) return mq.items;
+
+    // No hand-written list — build one from what the channel already publishes.
+    var soc = (s.streamer && s.streamer.socials) || {};
+    var out = [];
+    if (soc.kick || s.streamer.kickChannel) {
+      out.push({ icon: 'kick', text: 'kick.com/' + (s.streamer.kickChannel || '') });
+    }
+    if (soc.discord) out.push({ icon: 'discord', text: String(soc.discord).replace(/^https?:\/\//, '') });
+    if (soc.twitter) out.push({ icon: 'x', text: String(soc.twitter).replace(/^https?:\/\/(www\.)?(x|twitter)\.com\//, '@') });
+    if (mq.website)  out.push({ icon: 'site', text: mq.website, kind: 'site' });
+    if (hero.code)   out.push({ icon: 'code', text: 'CODE ' + hero.code, kind: 'code' });
+    return out;
+  }
+
+  function renderMarquee(s) {
+    var items = marqueeItems(s);
+    if (!items.length) return;
+
+    var one = items.map(function (i) {
+      var ico = i.iconUrl
+        ? '<img src="' + esc(i.iconUrl) + '" alt="" style="width:100%;height:100%;object-fit:contain;">'
+        : (ICONS[i.icon] || ICONS.site);
+      return '<span class="mq-item ' + esc(i.kind || '') + '">'
+        + '<span class="mq-ico">' + ico + '</span>'
+        + '<span class="mq-txt">' + esc(i.text) + '</span>'
+        + '</span><span class="mq-sep"></span>';
+    }).join('');
+
+    // The list is duplicated so the -50% translate lands the copy exactly where
+    // the original began — that's what makes the loop seamless.
+    var el = document.getElementById('slides');
+    el.innerHTML = '<div class="mq-track">' + one + one + '</div>';
+
+    // Auto-duration keeps a constant pixel speed no matter how many items
+    // there are, so adding one lengthens the loop instead of speeding it up.
+    var track = el.firstElementChild;
+    var secs  = SPEED;
+    if (!secs) {
+      var width = track.scrollWidth / 2;          // one copy
+      secs = Math.max(18, Math.round(width / 55)); // ~55px per second — a slow read
+    }
+    track.style.animationDuration = secs + 's';
+  }
+
   function render() {
     document.getElementById('slides').innerHTML = deck.map(function (s, i) {
       return '<div class="slide' + (i === 0 ? ' on' : '') + '" data-i="' + i + '">'
@@ -304,6 +437,14 @@
     if (!s || s.error) return;
     data = s;
     applyTheme(s);
+
+    // The marquee scrolls a single continuous track instead of rotating a
+    // deck, so it takes a different path entirely — and it must NOT be
+    // re-rendered on every refresh, or the scroll would restart mid-loop.
+    if (LAYOUT === 'marquee') {
+      if (!window.__mqDrawn) { window.__mqDrawn = true; renderMarquee(s); }
+      return;
+    }
 
     var next = buildDeck(s);
     if (!next.length) return;
