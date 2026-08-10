@@ -84,8 +84,8 @@ exports.handler = async (event) => {
       : `• Your ${casinoLabel} username, spelled exactly as it appears on your ${casinoLabel} profile`,
     "",
     "**What happens**",
-    "**1.** Press **Verify** below. WenBot replies with a link only you can see",
-    "**2.** Open that link and sign in with Kick",
+    "**1.** Press **Verify** below, then **Continue verifying** in the private reply only you can see",
+    "**2.** Sign in with Kick when it asks",
     casinoOptional
       ? `**3.** Add your ${casinoLabel} username, or skip that step`
       : `**3.** Enter your ${casinoLabel} username`,
