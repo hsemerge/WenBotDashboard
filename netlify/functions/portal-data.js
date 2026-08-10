@@ -10,6 +10,7 @@ const { normalizeGambulls, applyPeriod } = require("./_lib/leaderboard");
 const { fetchDegenRace }     = require("./_lib/degen");
 const { fetchRainbetForPeriod, fetchRainbetRange, applyRainbetExclusions, ymd: rbYmd } = require("./_lib/rainbet");
 const { fetchCsgobigRace }   = require("./_lib/csgobig");
+const { fetchDuelbits }      = require("./_lib/duelbits");
 const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards");
 
 const API_CASINOS = new Set(["gambulls"]);
@@ -592,6 +593,55 @@ exports.handler = async (event) => {
             }
           } catch (err) {
             console.warn("[portal-data] rainbet fetch failed:", err.message);
+          }
+        }
+      }
+      else if (provider === "duelbits") {
+        const provDoc = await db.collection("streamers").doc(uid)
+          .collection("providers").doc("duelbits").get();
+        const cred = provDoc.exists ? provDoc.data() : {};
+        if (cred.affiliateId && cred.password) {
+          try {
+            const cacheRef = db.collection("_cache").doc(`lb_${channel}_duelbits`);
+            let data = null, cachedDoc = null;
+            try {
+              const c = await cacheRef.get();
+              if (c.exists) {
+                cachedDoc = c.data();
+                if (cachedDoc.data && cachedDoc.cachedAt && (Date.now() - cachedDoc.cachedAt) < 45_000) data = cachedDoc.data;
+              }
+            } catch {}
+            if (!data) {
+              data = await fetchDuelbits(cred.affiliateId, cred.password);
+              if (data) { try { await cacheRef.set({ cachedAt: Date.now(), data }); } catch {} }
+              else if (cachedDoc?.data) data = cachedDoc.data;
+            }
+            if (data) {
+              const lbPrizes = Array.isArray(profile.leaderboardPrizes) ? profile.leaderboardPrizes : [];
+              // No baselines/carryover here, unlike Gambulls: Duelbits owns the
+              // cycle and exposes no date parameters, so the standings ARE the
+              // period. Re-basing them against a WenBot window would silently
+              // disagree with the streamer's own Duelbits page.
+              leaderboard = {
+                period:   null,
+                rankings: data.rankings.map((r, i) => ({
+                  rank:        i + 1,
+                  name:        r.username,
+                  // The board ranks on weighted points, so that's what a prize
+                  // position is decided by. Raw volume rides along for display.
+                  wagerAmount: r.wagered || 0,
+                  betAmount:   r.betAmount || 0,
+                  avatarUrl:   null,
+                  prize:       lbPrizes[i] || null,
+                })),
+                totalUsers:   data.totalUsers,
+                totalWagered: data.totalWagered,
+                weighted:     true,
+                updatedAt:    data.cacheUpdatedAt || null,
+              };
+            }
+          } catch (err) {
+            console.warn("[portal-data] duelbits fetch failed:", err.message);
           }
         }
       }
