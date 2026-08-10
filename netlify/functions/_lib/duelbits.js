@@ -78,7 +78,11 @@ async function fetchDuelbits(affiliateId, password, from, to) {
         wagered:   (Number(e.points) || 0) / 100,      // what the board ranks on
         betAmount: (Number(e.betAmount) || 0) / 100,   // raw volume, for display
       }))
-      .sort((a, b) => b.wagered - a.wagered);
+      .sort((a, b) => b.wagered - a.wagered)
+      // Stamped here, like the Rainbet lib does, because Duelbits sends no rank
+      // of its own and every consumer expects one — without it the dashboard
+      // renders "undefined" beside each name.
+      .map((r, i) => ({ rank: i + 1, ...r }));
 
     return {
       from: from || null,

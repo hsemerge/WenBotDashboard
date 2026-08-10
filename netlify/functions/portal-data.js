@@ -625,7 +625,7 @@ exports.handler = async (event) => {
               leaderboard = {
                 period:   null,
                 rankings: data.rankings.map((r, i) => ({
-                  rank:        i + 1,
+                  rank:        r.rank || i + 1,
                   name:        r.username,
                   // The board ranks on weighted points, so that's what a prize
                   // position is decided by. Raw volume rides along for display.
