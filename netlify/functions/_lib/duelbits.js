@@ -125,7 +125,23 @@ const ymd = (ms) => new Date(ms).toISOString().slice(0, 10);
 async function fetchDuelbitsForPeriod(affiliateId, password, period) {
   const startMs = period && period.active && period.startAt ? period.startAt : null;
   if (!startMs) return fetchDuelbits(affiliateId, password);
-  const endMs = period.endAt && period.endAt < Date.now() ? period.endAt : Date.now();
+
+  // endDate behaves EXCLUSIVELY. Clamping it to "today" therefore dropped
+  // everything wagered today: a player whose only activity was today appeared
+  // on the race board when queried to the race's real end date and vanished
+  // when queried to now — same window, one day apart, 76 rows against 75.
+  //
+  // So the race's own end is used, and only clamped for a FINISHED period,
+  // where the end has already passed and freezing is the point. A future end
+  // date costs nothing: the API cannot return wagers that have not happened.
+  //
+  // Capped at 90 days because the API rejects wider ranges outright
+  // ("Time range cannot exceed 90 days"), and a race longer than that would
+  // otherwise fail every fetch rather than degrade.
+  const MAX_DAYS = 90;
+  let endMs = period.endAt || Date.now();
+  if (endMs - startMs > MAX_DAYS * 864e5) endMs = startMs + MAX_DAYS * 864e5;
+
   return fetchDuelbits(affiliateId, password, ymd(startMs), ymd(endMs));
 }
 
