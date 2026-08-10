@@ -16,6 +16,7 @@ const { res, checkRateLimit }          = require("./_lib/http");
 const { CASINO_NAMES }                 = require("./_lib/casinos");
 const { findMatch, fetchGambulls, uidOf } = require("./_lib/affiliate");
 const { fetchDegenRace, degenNameMatch }  = require("./_lib/degen");
+const { fetchDuelbits }      = require("./_lib/duelbits");
 const { logAudit }                     = require("./_lib/audit");
 
 exports.handler = async (event) => {
@@ -51,7 +52,7 @@ exports.handler = async (event) => {
     const streamerDoc = await db.collection("streamers").doc(uid).get();
     const provider = (streamerDoc.exists ? (streamerDoc.data().activeProvider || "") : "").toLowerCase();
     if (!provider) return res(400, { error: "No casino is set for this channel — set one in Settings first." });
-    if (provider !== "gambulls" && provider !== "degen") {
+    if (provider !== "gambulls" && provider !== "degen" && provider !== "duelbits") {
       return res(400, { error: `Re-check isn't available for ${CASINO_NAMES[provider] || provider} yet — it has no wager lookup.` });
     }
     const providerDoc = await db.collection("streamers").doc(uid)
@@ -66,6 +67,26 @@ exports.handler = async (event) => {
       matchFor = (v) => {
         const target = (v.providerUsername_lower || v.providerUsername || "").toLowerCase().trim();
         const { match } = findMatch(board.rankings, target, v.providerUid || null);
+        return match ? { wagerAmount: match.wagerAmount || 0, uid: uidOf(match) } : null;
+      };
+    } else if (provider === "duelbits") {
+      // Same masked-name rules as Gambulls, so it reuses findMatch — but the
+      // rows are flat, so they're adapted into the {user:{id,name}} shape it
+      // expects rather than duplicating the masking logic.
+      const cred = providerDoc.exists ? providerDoc.data() : {};
+      if (!cred.affiliateId || !cred.password) return res(400, { error: "Duelbits API isn't configured." });
+      const board = await fetchDuelbits(cred.affiliateId, cred.password);
+      if (!board || !Array.isArray(board.rankings)) return res(502, { error: "Couldn't reach the Duelbits leaderboard right now." });
+      const adapted = board.rankings.map((r) => ({
+        user: { id: r.uid, name: r.username },
+        wagerAmount: r.wagered || 0,
+      }));
+      matchFor = (v) => {
+        const raw = (v.providerUsername_lower || v.providerUsername || "").toLowerCase().trim();
+        // A viewer may have verified with their Duelbits User ID instead of a
+        // username; that can never match a masked name, so route it as a uid.
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw);
+        const { match } = findMatch(adapted, isUuid ? "" : raw, v.providerUid || (isUuid ? raw : null));
         return match ? { wagerAmount: match.wagerAmount || 0, uid: uidOf(match) } : null;
       };
     } else { // degen — masked-name match against the live race (no per-user UID)
