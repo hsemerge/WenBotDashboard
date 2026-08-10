@@ -155,14 +155,34 @@ async function lookupAffiliate(provider, credential, affiliateUsername, diagnost
     const diag = { type: "duelbits", target, knownUid };
     try {
       const { fetchDuelbits, fetchDuelbitsForPeriod } = require("./duelbits");
-      const board = await fetchDuelbits(cred.affiliateId, cred.password);
-      if (!board) {
+
+      // BOTH boards, unioned. The no-window call returns Duelbits' own current
+      // cycle, which I first assumed was the broader set — it isn't. It's
+      // NARROWER than a 30-day race (41 players against 50), so checking status
+      // against it alone missed anyone who is on the race but hasn't played in
+      // the current cycle. They'd verify, sit visibly at rank 13 on the board,
+      // and still be told they aren't under the code.
+      //
+      // Being under the affiliate is a durable fact, so any board they appear on
+      // proves it. Deduped by uid, race window first so its row wins.
+      const raceBoard  = (opts && opts.period && opts.period.active)
+        ? await fetchDuelbitsForPeriod(cred.affiliateId, cred.password, opts.period)
+        : null;
+      const cycleBoard = await fetchDuelbits(cred.affiliateId, cred.password);
+      if (!raceBoard && !cycleBoard) {
         diag.error = "fetch failed (bad credentials or API error)";
         if (diagnostics) diagnostics.push(diag);
         return null;
       }
+      const byUid = new Map();
+      for (const r of (raceBoard ? raceBoard.rankings : [])) byUid.set(String(r.uid), r);
+      for (const r of (cycleBoard ? cycleBoard.rankings : [])) {
+        if (!byUid.has(String(r.uid))) byUid.set(String(r.uid), r);
+      }
+      const board = { rankings: [...byUid.values()] };
       diag.totalEntries = board.rankings.length;
-      diag.totalWagered = board.totalWagered;
+      diag.raceEntries  = raceBoard ? raceBoard.rankings.length : 0;
+      diag.cycleEntries = cycleBoard ? cycleBoard.rankings.length : 0;
       diag.sample       = board.rankings.slice(0, 5).map(r => r.username);
 
       // findMatch reads e.user.name / e.user.id, so adapt rather than duplicate
@@ -202,13 +222,10 @@ async function lookupAffiliate(provider, credential, affiliateUsername, diagnost
       // which is the honest answer rather than a stale figure.
       let wagerAmount = match.wagerAmount || 0;
       const matchUid = uidOf(match);
-      if (opts && opts.period && opts.period.active) {
-        const windowed = await fetchDuelbitsForPeriod(cred.affiliateId, cred.password, opts.period);
-        if (windowed) {
-          const inRace = windowed.rankings.find(r => String(r.uid) === String(matchUid));
-          wagerAmount = inRace ? (inRace.wagered || 0) : 0;
-          diag.raceWindow = { from: windowed.from, to: windowed.to, onRace: !!inRace };
-        }
+      if (raceBoard) {
+        const inRace = raceBoard.rankings.find(r => String(r.uid) === String(matchUid));
+        wagerAmount = inRace ? (inRace.wagered || 0) : 0;
+        diag.raceWindow = { from: raceBoard.from, to: raceBoard.to, onRace: !!inRace };
       }
       return {
         uid:             matchUid,

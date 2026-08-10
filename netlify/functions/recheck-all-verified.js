@@ -77,21 +77,26 @@ exports.handler = async (event) => {
       if (!cred.affiliateId || !cred.password) return res(400, { error: "Duelbits API isn't configured." });
       const board = await fetchDuelbits(cred.affiliateId, cred.password);
       if (!board || !Array.isArray(board.rankings)) return res(502, { error: "Couldn't reach the Duelbits leaderboard right now." });
-      const adapted = board.rankings.map((r) => ({
+      // Union of both boards for STATUS — Duelbits' current cycle is narrower
+      // than a 30-day race, so matching on it alone marked race-only players as
+      // not under the code even while they sat visibly on the leaderboard.
+      const racePre = (streamerDoc.data().leaderboardPeriod && streamerDoc.data().leaderboardPeriod.active)
+        ? await fetchDuelbitsForPeriod(cred.affiliateId, cred.password, streamerDoc.data().leaderboardPeriod)
+        : null;
+      const union = new Map();
+      for (const r of (racePre ? racePre.rankings : [])) union.set(String(r.uid), r);
+      for (const r of board.rankings) if (!union.has(String(r.uid))) union.set(String(r.uid), r);
+      const adapted = [...union.values()].map((r) => ({
         user: { id: r.uid, name: r.username },
         wagerAmount: r.wagered || 0,
       }));
       // Under-code status is decided on the broad board (durable), but the wager
       // reported has to be the race one or this list disagrees with /lb and the
       // portal. Fetched once and indexed by uid rather than per user.
-      const racePeriod = streamerDoc.data().leaderboardPeriod || null;
-      let raceByUid = null;
-      if (racePeriod && racePeriod.active) {
-        const windowed = await fetchDuelbitsForPeriod(cred.affiliateId, cred.password, racePeriod);
-        if (windowed) {
-          raceByUid = new Map(windowed.rankings.map((r) => [String(r.uid), r.wagered || 0]));
-        }
-      }
+      // Wager comes from the race board fetched above — no second call.
+      const raceByUid = racePre
+        ? new Map(racePre.rankings.map((r) => [String(r.uid), r.wagered || 0]))
+        : null;
       matchFor = (v) => {
         const raw = (v.providerUsername_lower || v.providerUsername || "").toLowerCase().trim();
         // A viewer may have verified with their Duelbits User ID instead of a
