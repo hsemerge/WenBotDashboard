@@ -171,7 +171,17 @@ async function lookupAffiliate(provider, credential, affiliateUsername, diagnost
         user: { id: r.uid, name: r.username },
         wagerAmount: r.wagered || 0,
       }));
-      const { match, via, ambiguous } = findMatch(adapted, target, knownUid);
+      // A viewer who pastes their Duelbits User ID instead of their username
+      // should just work. Duelbits shows that id on the profile page with a copy
+      // button, and it's the same identifier the board returns (verified), so
+      // treat a UUID-shaped entry as a uid rather than comparing it against
+      // masked names — where it could never match.
+      const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(target);
+      const uidToUse  = knownUid || (looksLikeUuid ? target : null);
+      const nameToUse = looksLikeUuid ? "" : target;
+      if (looksLikeUuid) diag.enteredUuid = true;
+
+      const { match, via, ambiguous } = findMatch(adapted, nameToUse, uidToUse);
       if (ambiguous) {
         diag.matched = false;
         diag.ambiguous = ambiguous;
