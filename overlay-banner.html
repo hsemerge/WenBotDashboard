@@ -407,9 +407,10 @@
     el.innerHTML = '<div class="mq-track">' + html + '</div>';
     var track = el.firstElementChild;
 
-    // Pixels per second. Default is a deliberately slow crawl — this sits on
-    // screen permanently, so it should be readable at a glance, not chased.
-    var pps = PPS || (SPEED ? setW / SPEED : 28);
+    // Pixels per second. Sits between the original 55 (too quick to read
+    // comfortably) and 28 (dragged). Tune per-channel with ?pps= rather than
+    // editing this — it needs no redeploy.
+    var pps = PPS || (SPEED ? setW / SPEED : 38);
 
     // Continuous offset, wrapped modulo one set width. Because every copy is
     // identical, x and x-setW render the same picture — so the wrap is
