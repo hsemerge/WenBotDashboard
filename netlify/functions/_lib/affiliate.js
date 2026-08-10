@@ -154,7 +154,7 @@ async function lookupAffiliate(provider, credential, affiliateUsername, diagnost
   if (provider === "duelbits") {
     const diag = { type: "duelbits", target, knownUid };
     try {
-      const { fetchDuelbits } = require("./duelbits");
+      const { fetchDuelbits, fetchDuelbitsForPeriod } = require("./duelbits");
       const board = await fetchDuelbits(cred.affiliateId, cred.password);
       if (!board) {
         diag.error = "fetch failed (bad credentials or API error)";
@@ -192,10 +192,28 @@ async function lookupAffiliate(provider, credential, affiliateUsername, diagnost
       if (via) diag.via = via;
       if (diagnostics) diagnostics.push(diag);
       if (!match) return null;
+
+      // Status and wager answer different questions, so they use different
+      // windows. Being "under the code" is durable — a viewer who played last
+      // month is still referred — so that's decided against the broad board
+      // above. But the WAGER a streamer sees has to be the one on the race, or
+      // the verified list disagrees with /lb, the portal and whatever gets paid
+      // out. Zero when they're under the code but haven't played this race,
+      // which is the honest answer rather than a stale figure.
+      let wagerAmount = match.wagerAmount || 0;
+      const matchUid = uidOf(match);
+      if (opts && opts.period && opts.period.active) {
+        const windowed = await fetchDuelbitsForPeriod(cred.affiliateId, cred.password, opts.period);
+        if (windowed) {
+          const inRace = windowed.rankings.find(r => String(r.uid) === String(matchUid));
+          wagerAmount = inRace ? (inRace.wagered || 0) : 0;
+          diag.raceWindow = { from: windowed.from, to: windowed.to, onRace: !!inRace };
+        }
+      }
       return {
-        uid:             uidOf(match),
+        uid:             matchUid,
         username:        match.user?.name || null,
-        wagerAmount:     match.wagerAmount || 0,
+        wagerAmount,
         leaderboardType: "duelbits",
         matchedViaMask:  via === "mask",
       };

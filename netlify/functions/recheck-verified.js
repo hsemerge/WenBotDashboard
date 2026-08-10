@@ -107,7 +107,10 @@ exports.handler = async (event) => {
     // If we already know this user's provider UID (captured at verify or via a
     // manual link), match on it — reliable and immune to Gambulls' name masking.
     const knownUid = v.providerUid || null;
-    const result = await lookupAffiliate(provider, apiKey, affiliateUsername, diagnostics, { uid: knownUid });
+    // The race window comes along so the wager shown matches /lb and the portal.
+    const streamerSnap = await db.collection("streamers").doc(uid).get();
+    const racePeriod = (streamerSnap.exists ? streamerSnap.data().leaderboardPeriod : null) || null;
+    const result = await lookupAffiliate(provider, apiKey, affiliateUsername, diagnostics, { uid: knownUid, period: racePeriod });
     const wasUnderAffiliate = !!v.underAffiliate;
     const foundOnLeaderboard = !!result;
 

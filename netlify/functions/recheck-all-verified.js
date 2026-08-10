@@ -16,7 +16,7 @@ const { res, checkRateLimit }          = require("./_lib/http");
 const { CASINO_NAMES }                 = require("./_lib/casinos");
 const { findMatch, fetchGambulls, uidOf } = require("./_lib/affiliate");
 const { fetchDegenRace, degenNameMatch }  = require("./_lib/degen");
-const { fetchDuelbits }      = require("./_lib/duelbits");
+const { fetchDuelbits, fetchDuelbitsForPeriod } = require("./_lib/duelbits");
 const { logAudit }                     = require("./_lib/audit");
 
 exports.handler = async (event) => {
@@ -81,13 +81,29 @@ exports.handler = async (event) => {
         user: { id: r.uid, name: r.username },
         wagerAmount: r.wagered || 0,
       }));
+      // Under-code status is decided on the broad board (durable), but the wager
+      // reported has to be the race one or this list disagrees with /lb and the
+      // portal. Fetched once and indexed by uid rather than per user.
+      const racePeriod = streamerDoc.data().leaderboardPeriod || null;
+      let raceByUid = null;
+      if (racePeriod && racePeriod.active) {
+        const windowed = await fetchDuelbitsForPeriod(cred.affiliateId, cred.password, racePeriod);
+        if (windowed) {
+          raceByUid = new Map(windowed.rankings.map((r) => [String(r.uid), r.wagered || 0]));
+        }
+      }
       matchFor = (v) => {
         const raw = (v.providerUsername_lower || v.providerUsername || "").toLowerCase().trim();
         // A viewer may have verified with their Duelbits User ID instead of a
         // username; that can never match a masked name, so route it as a uid.
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw);
         const { match } = findMatch(adapted, isUuid ? "" : raw, v.providerUid || (isUuid ? raw : null));
-        return match ? { wagerAmount: match.wagerAmount || 0, uid: uidOf(match) } : null;
+        if (!match) return null;
+        const mUid = uidOf(match);
+        // Zero when they're under the code but haven't played this race — the
+        // honest answer, rather than carrying a figure from another window.
+        const wager = raceByUid ? (raceByUid.get(String(mUid)) || 0) : (match.wagerAmount || 0);
+        return { wagerAmount: wager, uid: mUid };
       };
     } else { // degen — masked-name match against the live race (no per-user UID)
       const code = providerDoc.exists ? (providerDoc.data().referralCode || providerDoc.data().apiKey) : null;

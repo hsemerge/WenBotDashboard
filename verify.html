@@ -566,6 +566,16 @@
           else if (sData.discordLinkedAny) btn.textContent = 'Looks good';
           else btn.textContent = 'Confirm verification';
           document.getElementById('alreadyVerifiedSection').style.display = 'block';
+
+          // Arriving with a dtoken means they ran /verify INSIDE Discord, so we
+          // already know which Discord account this is — the token proves it.
+          // Asking them to click a button to confirm something we just watched
+          // them do is a step that only ever gets skipped, and viewers were
+          // routinely leaving Discord unlinked as a result. Nothing is being
+          // decided here, so attach it and tell them, rather than waiting.
+          if (dtoken && !sData.discordLinkedAny) {
+            setTimeout(() => confirmExisting(), 300);
+          }
           // Pre-fill the form input too so "change casino username" reveals
           // it with the existing value already typed in.
           document.getElementById('affiliateInput').value = sData.providerUsername;
