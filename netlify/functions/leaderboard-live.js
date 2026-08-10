@@ -8,6 +8,7 @@ const { normalizeGambulls, applyPeriod } = require("./_lib/leaderboard");
 const { fetchDegenRace }   = require("./_lib/degen");
 const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards");
 const { fetchRainbetRange, fetchRainbetForPeriod, applyRainbetExclusions } = require("./_lib/rainbet");
+const { fetchDuelbits } = require("./_lib/duelbits");
 const res = (s, b) => _res(s, b, "*");
 
 async function fetchGambulls(apiKey) {
@@ -222,6 +223,45 @@ exports.handler = async (event) => {
         success: true, casino: provider, casinoName: CASINO_NAMES[provider], period,
         rankings: out.rankings, totalWagered: out.totalWagered, totalUsers: out.totalUsers,
         rangeFrom: data.from, rangeTo: data.to, casinoUpdatedAt: data.cacheUpdatedAt || null,
+      });
+    }
+
+    if (provider === "duelbits") {
+      const provDoc = await db.collection("streamers").doc(streamerDoc.id)
+        .collection("providers").doc("duelbits").get();
+      const cred = provDoc.exists ? provDoc.data() : {};
+      if (!cred.affiliateId || !cred.password) {
+        return res(400, { error: "Streamer hasn't configured their Duelbits API yet." });
+      }
+
+      // Duelbits serves ONE board — the cycle configured on their affiliate
+      // account — with no date parameters, so `period` can't select a window
+      // here the way it does for Rainbet. Cached per channel rather than per
+      // period for the same reason.
+      const cacheRef = db.collection("_cache").doc(`lb_${channel.toLowerCase()}_duelbits`);
+      let data = null, cached = null;
+      try {
+        const doc = await cacheRef.get();
+        if (doc.exists) {
+          cached = doc.data();
+          if (cached.data && cached.cachedAt && (Date.now() - cached.cachedAt) < LB_CACHE_TTL_MS) data = cached.data;
+        }
+      } catch { /* fall through to a live fetch */ }
+
+      if (!data) {
+        data = await fetchDuelbits(cred.affiliateId, cred.password);
+        if (data) { try { await cacheRef.set({ cachedAt: Date.now(), data }); } catch {} }
+        else if (cached?.data) data = cached.data;   // serve stale rather than fail
+      }
+      if (!data) return res(502, { error: "Failed to fetch from Duelbits API." });
+
+      return res(200, {
+        success: true, casino: provider, casinoName: CASINO_NAMES[provider], period,
+        rankings: data.rankings, totalWagered: data.totalWagered, totalUsers: data.totalUsers,
+        // Flagged so the portal can label the column honestly: this board ranks
+        // on weighted points, not raw volume, and the two disagree.
+        weighted: true, totalVolume: data.totalVolume,
+        casinoUpdatedAt: data.cacheUpdatedAt || null,
       });
     }
 
