@@ -716,6 +716,15 @@
         vfState.casinoSkipped = false;
         vfState.casinoUser    = data.affiliateUsername;
         vfState.discordLinked = vfState.discordLinked || !!data.discordLinked || !!data.discordLinkedAny;
+        // "Maybe later" was written to localStorage and never cleared, so a decline
+        // from any previous visit came back on every future one: the progress card
+        // marked Discord as Skipped and showed the flow as finished, while the viewer
+        // still had no Discord attached. A fresh verification is a fresh decision, so
+        // the old decline is dropped here and Discord is offered again.
+        if (!vfState.discordLinked) {
+          vfState.discordDeclined = false;
+          try { localStorage.removeItem('wb_dcskip_' + channel.toLowerCase()); } catch {}
+        }
         renderVfProgress();
         const discordNote = data.discordLinked
           ? `<br><br>✦ <strong style="color:#ffd700;">Fully verified!</strong> Your Kick, ${escHtml(data.casinoName || casinoName)}, and Discord accounts are all linked. Use <strong>/points</strong> and <strong>/buy</strong> in the server.`
@@ -790,6 +799,15 @@
         document.getElementById('alreadyVerifiedSection').style.display = 'none';
         vfState.casinoSkipped = true;
         vfState.discordLinked = vfState.discordLinked || !!data.discordLinked || !!data.discordLinkedAny;
+        // "Maybe later" was written to localStorage and never cleared, so a decline
+        // from any previous visit came back on every future one: the progress card
+        // marked Discord as Skipped and showed the flow as finished, while the viewer
+        // still had no Discord attached. A fresh verification is a fresh decision, so
+        // the old decline is dropped here and Discord is offered again.
+        if (!vfState.discordLinked) {
+          vfState.discordDeclined = false;
+          try { localStorage.removeItem('wb_dcskip_' + channel.toLowerCase()); } catch {}
+        }
         renderVfProgress();
         const discordNote = data.discordLinked
           ? `<br><br>🎮 <strong>Discord linked!</strong> Your Kick and Discord accounts are connected. Use <strong>/points</strong> and <strong>/buy</strong> in the server.`

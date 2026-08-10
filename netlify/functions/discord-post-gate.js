@@ -48,10 +48,23 @@ exports.handler = async (event) => {
   // Never post a gate that points at the wrong casino — require it to be set.
   if (!casino) return res(400, { error: "Set your casino in Settings before posting the verification gate." });
 
-  // src=discord tells the verify page the user is already in the server, so it
-  // skips the "join the server?" step and just links + assigns the role. The
-  // casino param ensures the verify page reflects THIS streamer's casino.
-  const verifyUrl = `https://wenbot.gg/verify.html?channel=${encodeURIComponent(channelName)}&casino=${encodeURIComponent(casino)}&src=discord`;
+  // NOTE: the gate no longer carries a URL. It used to be a link button pointing
+  // at one fixed address for the entire server:
+  //
+  //   https://wenbot.gg/verify.html?channel=…&casino=…&src=discord
+  //
+  // Identical for every member, so Discord never reported who followed it and the
+  // resulting verification had no Discord account attached. Since this is the
+  // route the whole server is pointed at, it was the one route that could not
+  // link Discord on its own — people had to press "Connect Discord" on the
+  // success screen afterwards, and whoever missed that step ended up verified
+  // with no Discord link at all.
+  //
+  // It is now an interaction button (custom_id `verify_gate`, handled in
+  // WenBotServer's discord-webhook). Discord tells us who clicked, the bot mints
+  // that person a one-time link, and Discord attaches by itself. `src=discord`
+  // went with the URL and is no loss: verify.html read it into a variable and
+  // never used it again.
   // The default copy told people to click and little else. It sits pinned in a
   // channel where nobody can ask a follow-up question, so it has to answer what
   // verifying unlocks, what to have ready, and what actually happens, in the
@@ -71,12 +84,12 @@ exports.handler = async (event) => {
       : `• Your ${casinoLabel} username, spelled exactly as it appears on your ${casinoLabel} profile`,
     "",
     "**What happens**",
-    "**1.** Press **Verify** below",
-    "**2.** Sign in with Kick when it asks",
+    "**1.** Press **Verify** below. WenBot replies with a link only you can see",
+    "**2.** Open that link and sign in with Kick",
     casinoOptional
       ? `**3.** Add your ${casinoLabel} username, or skip that step`
       : `**3.** Enter your ${casinoLabel} username`,
-    "**4.** Your role is granted as soon as it goes through",
+    "**4.** Your role is granted as soon as it goes through. Your Discord is attached automatically, so there is nothing else to press",
     "",
     `**If your ${casinoLabel} username will not match**, paste your ${casinoLabel} User ID instead. It is under Profile, then Settings, then User ID, with a copy button beside it.`,
     "",
@@ -87,7 +100,9 @@ exports.handler = async (event) => {
     content: verify.gateMessage || defaultGate,
     components: [{
       type: 1,
-      components: [{ type: 2, style: 5, label: "✅ Verify", url: verifyUrl }],
+      // style 2 (secondary) because that is what a link button already rendered
+      // as, so the pinned post looks unchanged apart from losing the ↗ icon.
+      components: [{ type: 2, style: 2, label: "✅ Verify", custom_id: "verify_gate" }],
     }],
   };
 
