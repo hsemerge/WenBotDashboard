@@ -36,26 +36,45 @@
 <style>
   *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
   :root {
-    --accent:#00e676; --accent2:#34d399; --gold:#ffd24a;
-    --bar:#0b1220; --edge:rgba(255,255,255,.08);
-    --bright:#fff; --dim:#8fa0b4;
+    /* Tuned to the TiltBros banner artwork this sits on: deep navy body, teal
+       rising from the bottom edge, cyan hairline, green for the wordmark. */
+    --accent:#3ddc6b;   /* wordmark green */
+    --accent2:#22d3ee;  /* cyan hairline / secondary */
+    --teal:#14b8a6;     /* the glow that lifts off the bottom edge */
+    --gold:#ffd24a;
+    --bar:#0a141c;
+    --bright:#fff; --dim:#a9c2ce;
   }
   html,body { height:100%; background:transparent; overflow:hidden; }
   body { font-family:'Inter',sans-serif; display:flex; align-items:flex-end; }
 
+  /* Solid bar, matched to the TiltBros banner artwork: deep navy body with a
+     teal glow lifting off the BOTTOM edge (not the top, as before) and a cyan
+     hairline framing it. */
   .bar {
     position:relative; width:100%; height:110px; overflow:hidden;
-    background:linear-gradient(180deg, color-mix(in srgb, var(--bar) 92%, transparent), var(--bar));
-    border-top:2px solid var(--accent);
-    box-shadow:0 -10px 34px rgba(0,0,0,.45);
+    background:var(--bar);
+    border-top:1px solid color-mix(in srgb, var(--accent2) 55%, transparent);
+    border-bottom:1px solid color-mix(in srgb, var(--accent2) 55%, transparent);
     display:flex; align-items:center; justify-content:center;
   }
-  /* Soft accent bloom bleeding up from the top edge. */
+  /* The teal-to-green wash rising from the floor of the bar. */
   .bar::before {
-    content:''; position:absolute; inset:0 0 auto 0; height:60%;
-    background:radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 70%);
+    content:''; position:absolute; inset:auto 0 0 0; height:70%;
+    background:linear-gradient(0deg,
+      color-mix(in srgb, var(--teal) 55%, transparent) 0%,
+      color-mix(in srgb, var(--teal) 18%, transparent) 45%,
+      transparent 100%);
     pointer-events:none;
   }
+  /* A brighter line right on the bottom edge, where the artwork is hottest. */
+  .bar::after {
+    content:''; position:absolute; left:0; right:0; bottom:0; height:2px;
+    background:linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+    opacity:.9; pointer-events:none;
+  }
+  /* Content has to clear the two pseudo-element washes. */
+  #slides { position:absolute; inset:0; z-index:1; }
 
   /* Slides stack; only the active one is visible. */
   .slide {
@@ -68,14 +87,20 @@
 
   .mid { display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.05; }
   .kick { font-size:14px; font-weight:800; letter-spacing:.28em; text-transform:uppercase; color:var(--dim); }
+  /* Numbers are WHITE, not green. The artwork already spends its green on the
+     TILTBROS wordmark, so a green figure next to it reads as a second logo
+     rather than as data. White carries a teal halo instead, which ties it to
+     the bar's glow without competing. */
   .big {
     font-family:'Exo 2',sans-serif; font-weight:900; font-size:46px; letter-spacing:.01em; margin:5px 0 4px;
-    background:linear-gradient(90deg,var(--accent),var(--accent2));
-    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    color:var(--bright);
+    text-shadow:0 0 22px color-mix(in srgb, var(--teal) 60%, transparent),
+                0 2px 4px rgba(0,0,0,.55);
   }
-  .big.plain { background:none; -webkit-text-fill-color:initial; color:var(--bright); }
-  .big.gold  { background:none; -webkit-text-fill-color:initial; color:var(--gold); }
+  .big.gold { color:var(--gold); text-shadow:0 0 22px rgba(255,210,74,.4), 0 2px 4px rgba(0,0,0,.55); }
   .sub { font-size:14px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--dim); }
+  /* The code / highlighted word is where green belongs — it's the call to
+     action, and it echoes the wordmark deliberately. */
   .sub b { color:var(--accent); }
 
   /* Preview backdrop. A transparent overlay opened in a normal browser sits on
@@ -89,27 +114,44 @@
   }
 
   /* ── TRANSPARENT LAYOUT ──────────────────────────────────────────────────
-     No bar, no border, no bloom — the text floats straight over the scene.
-     Legibility comes from layered shadows instead of a background, because an
-     overlay that only works on dark scenes isn't much use. Slightly larger
-     type too, since there's no bar edge giving it structure. */
+     Designed to sit ON TOP of the TiltBros banner artwork — a dark navy bar
+     with teal lifting off its bottom edge — not over an arbitrary scene.
+     That changes the shadow strategy: a heavy black drop-shadow goes muddy
+     against the teal glow, so this uses a tight dark contact shadow for edge
+     definition plus a teal halo that reads as part of the artwork's own light.
+     Text stays white so it never competes with the green wordmark. */
   body.transparent .bar {
-    background:none; border-top:none; box-shadow:none; height:130px;
+    background:none; border-top:none; border-bottom:none; box-shadow:none; height:130px;
   }
-  body.transparent .bar::before { display:none; }
+  body.transparent .bar::before,
+  body.transparent .bar::after { display:none; }
   body.transparent .kick,
-  body.transparent .sub { text-shadow:0 2px 6px rgba(0,0,0,.95), 0 0 18px rgba(0,0,0,.8); color:#e8eef5; }
-  body.transparent .sub b { color:var(--accent); }
-  /* Gradient-clipped text can't carry a shadow, so the transparent layout drops
-     the gradient for a solid accent with a real text-shadow. Legibility over
-     flourish — this one has to survive whatever scene is behind it. */
-  body.transparent .big {
-    font-size:54px;
-    background:none; -webkit-text-fill-color:initial; color:var(--accent);
-    text-shadow:0 3px 10px rgba(0,0,0,.95), 0 0 26px rgba(0,0,0,.8);
+  body.transparent .sub {
+    color:#eaf4f8;
+    text-shadow:0 1px 3px rgba(0,0,0,.85), 0 0 14px color-mix(in srgb, var(--teal) 45%, transparent);
   }
-  body.transparent .big.plain { color:#fff; }
-  body.transparent .big.gold  { color:var(--gold); }
+  body.transparent .sub b { color:var(--accent); text-shadow:0 1px 3px rgba(0,0,0,.85); }
+  body.transparent .big {
+    font-size:54px; color:var(--bright);
+    text-shadow:0 2px 5px rgba(0,0,0,.9),
+                0 0 26px color-mix(in srgb, var(--teal) 65%, transparent),
+                0 0 52px color-mix(in srgb, var(--teal) 35%, transparent);
+  }
+  body.transparent .big.gold {
+    color:var(--gold);
+    text-shadow:0 2px 5px rgba(0,0,0,.9), 0 0 26px rgba(255,210,74,.5);
+  }
+
+  /* Preview backdrop for the transparent layout mimics the real banner, so it
+     can be judged against what it will actually sit on rather than a guess. */
+  body.preview.transparent { background:#0a141c; }
+  body.preview.transparent::before {
+    background:
+      linear-gradient(0deg, color-mix(in srgb, var(--teal) 55%, transparent) 0%,
+                            color-mix(in srgb, var(--teal) 15%, transparent) 45%,
+                            transparent 100%),
+      #0a141c;
+  }
 
   @media (max-width:1100px) { .big { font-size:38px; } }
 </style>
