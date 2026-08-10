@@ -134,6 +134,17 @@ exports.handler = async (event) => {
       // fallback). This auto-recovers users whose cached UID went stale — without
       // this they'd silently drop off "Under Code" forever.
       if (result.uid && result.uid !== v.providerUid) update.providerUid = result.uid;
+
+      // Heal a row where the viewer pasted their provider UID into the username
+      // box. That string is the join key, not a name, and it sits in the Casino
+      // Username column reading like an error next to real names. Now that the
+      // UID has its own field, move the casino's display name into the name
+      // column. Only ever rewrites a UUID — a real username is never touched.
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (result.username && UUID_RE.test(String(v.providerUsername || "").trim())) {
+        update.providerUsername       = result.username;
+        update.providerUsername_lower = String(result.username).toLowerCase();
+      }
     }
     await docRef.update(update);
 

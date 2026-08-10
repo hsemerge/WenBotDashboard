@@ -108,7 +108,9 @@ exports.handler = async (event) => {
         // Zero when they're under the code but haven't played this race — the
         // honest answer, rather than carrying a figure from another window.
         const wager = raceByUid ? (raceByUid.get(String(mUid)) || 0) : (match.wagerAmount || 0);
-        return { wagerAmount: wager, uid: mUid };
+        // name carried out so the loop can heal a row where the viewer pasted
+        // their UID into the username box.
+        return { wagerAmount: wager, uid: mUid, name: match.user?.name || null };
       };
     } else { // degen — masked-name match against the live race (no per-user UID)
       const code = providerDoc.exists ? (providerDoc.data().referralCode || providerDoc.data().apiKey) : null;
@@ -128,6 +130,7 @@ exports.handler = async (event) => {
     const vSnap = await db.collection("streamers").doc(uid)
       .collection("verified_users").where("provider", "==", provider).get();
 
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     let rechecked = 0, healed = 0, upgraded = 0;
     const now = Date.now();
     // Chunk writes under the 500-op batch cap.
@@ -148,6 +151,16 @@ exports.handler = async (event) => {
         lastRecheckAt:     now,
       };
       if (m.uid && m.uid !== v.providerUid) { update.providerUid = m.uid; healed++; }
+
+      // A viewer who verified by pasting their provider UID has that string
+      // sitting in the Casino Username column, reading like an error beside real
+      // names. The UID has its own field now, so move the casino's display name
+      // into the name column. Only ever rewrites a UUID — real usernames are
+      // never touched.
+      if (m.name && UUID_RE.test(String(v.providerUsername || "").trim())) {
+        update.providerUsername       = m.name;
+        update.providerUsername_lower = String(m.name).toLowerCase();
+      }
       if (!v.underAffiliate) upgraded++;
       batch.update(doc.ref, update);
       if (++ops >= 400) await flush();
