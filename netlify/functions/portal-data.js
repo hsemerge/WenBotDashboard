@@ -13,7 +13,11 @@ const { fetchCsgobigRace }   = require("./_lib/csgobig");
 const { fetchDuelbitsForPeriod } = require("./_lib/duelbits");
 const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards");
 
-const API_CASINOS = new Set(["gambulls"]);
+// NOT the shared API_CASINOS from _lib/casinos. This one gates a hardcoded
+// Gambulls board fetch below, so adding a casino here would send that provider to
+// api.gambulls.com. Every other provider has its own branch above. Named local on
+// purpose so nobody "fixes" it by importing the shared set.
+const GAMBULLS_BOARD_ONLY = new Set(["gambulls"]);
 
 // Tier ranking. Anything >= the required tier sees the feature.
 const TIER_RANK = { starter: 0, pro: 1, elite: 2, agency: 3 };
@@ -202,6 +206,204 @@ const PORTAL_PRESETS = {
     ],
     brandCredit: true,
   },
+
+  // ── TILTBROS (Agency / bespoke) ──────────────────────────────────────────
+  // Duelbits affiliate hub. Everything below is CONTENT, not logic — the live
+  // leaderboard, raffle tickets, winners and giveaway history all come from the
+  // shared /api/portal-data response the bespoke page already fetches.
+  thetiltbros: {
+    // Green-on-near-black, matching the existing tiltbros.com aesthetic (and
+    // Duelbits' own palette) rather than inventing a new one.
+    theme: {
+      accent:     "#00e676",  // signal green — CTAs, active nav, rules
+      accent2:    "#34d399",  // softer mint for secondary figures
+      accentGlow: "rgba(0,230,118,0.26)",
+      gold:       "#ffd24a",  // money only, so prize figures still read first
+      // Red is the co-lead, not a highlight: it pairs with green across
+      // headings, rules, marks and tiles, and owns bounties + the closing
+      // countdown outright. Gold is reserved for money so prize figures stay
+      // the one thing neither colour competes with.
+      red:        "#ff3b47",
+      bg:         "#060a07",
+      bgCard:     "#0e150f",
+      border:     "#1d2a20",
+    },
+    logoUrl: null,            // set once a logo file is added to /img/
+    hero: {
+      tagline:  "Wager under code TILTBROS. Get paid every month.",
+      title:    "MONTHLY WAGER RACE",
+      cadence:  "Monthly",
+      code:     "TILTBROS",
+      ctaLabel: "Play on Duelbits — code TILTBROS",
+      ctaHref:  "https://duelbits.com/?a=tiltbros",
+    },
+    // FALLBACK ONLY — the dashboard's Leaderboard Prizes override this the
+    // moment they're set, and buildPortalConfig derives the hero pool from the
+    // same list so the headline can never drift from the payouts.
+    prizes: ["$1,500", "$1,000", "$750", "$500", "$400", "$300", "$200", "$150", "$120", "$80"],
+    links: [
+      { label: "Duelbits", href: "https://duelbits.com/?a=tiltbros", icon: "🎰" },
+      { label: "Discord",  href: "https://discord.gg/tiltbros", icon: "💬" },
+      { label: "Kick",     href: "https://kick.com/tiltbros", icon: "💚" },
+    ],
+    pages: [
+      { id: "raffles",   label: "Raffles" },
+      { id: "giveaways", label: "Giveaways" },
+      { id: "bonuses",   label: "Bonuses" },
+      { id: "bounties",  label: "Bounties" },
+      { id: "faq",       label: "FAQ" },
+    ],
+    rewards: {
+      intro: "Every dollar wagered under code TILTBROS on Duelbits works for you — race payouts, raffle tickets and milestone rewards all come off the same wager.",
+      sections: [
+        {
+          type: "prizes", title: "Monthly Leaderboard", subtitle: "Top 10 get paid",
+          places: [],   // filled from the live prize list by buildPortalConfig
+        },
+        {
+          type: "tiers", title: "Monthly Wager Rewards",
+          columns: ["Wagered", "Reward"],
+          tiers: [
+            { wager: "$5,000",   reward: "$25"  },
+            { wager: "$10,000",  reward: "$60"  },
+            { wager: "$25,000",  reward: "$150" },
+            { wager: "$50,000",  reward: "$325" },
+            { wager: "$100,000", reward: "$700" },
+            { wager: "$250,000", reward: "TiltBros VIP — open a ticket" },
+          ],
+          note: "Milestones reset at the start of each month. Claim by opening a ticket in Discord once you hit a tier.",
+        },
+        {
+          type: "list", title: "Getting Started",
+          bullets: [
+            "Sign up on Duelbits using code TILTBROS",
+            "Type !verify in Kick chat to link your casino account",
+            "Wager — the leaderboard, raffle tickets and milestones all track automatically",
+          ],
+        },
+      ],
+    },
+    // Bespoke-page-only content (see the `content` passthrough in
+    // buildPortalConfig). None of this is used by the standard portal.
+    content: {
+      raffles: {
+        headline: "Weekly Wager Raffle",
+        blurb:    "Every 1,000 wagered under code TILTBROS earns you one ticket. More wager, more tickets, better odds.",
+        drawLine: "Drawn live on Kick every Monday",
+        winnersPerDraw: 3,
+        steps: [
+          { icon: "🎰", title: "Wager on Duelbits", text: "Play under code TILTBROS. Every 1,000 wagered = 1 ticket." },
+          { icon: "🎟️", title: "Tickets stack up",  text: "Tickets are counted automatically — nothing to claim or enter." },
+          { icon: "📺", title: "Drawn live",         text: "Three winners pulled live on stream every Monday." },
+        ],
+      },
+      // "Support the code" promo panel at the top of the Bonuses view. The
+      // browser mock-up is drawn in CSS by the page (themeable, crisp on
+      // retina, and the cursor animates) — promoImage only fills the artwork
+      // panel beside the form, and the panel falls back to a gradient when it's
+      // null, so nothing looks broken until artwork is supplied.
+      promo: {
+        kicker:     "Bonuses",
+        headline:   "Support the code",
+        blurb:      "Play under code TILTBROS on Duelbits and claim your monthly wager rewards through the TiltBros Discord.",
+        dealLabel:  "Exclusive deal",
+        dealTitle:  "Duelbits × TiltBros",
+        dealText:   "Every bet under code TILTBROS counts. Your weighted wager total unlocks milestone rewards every month.",
+        offerLabel: "Main offer",
+        offerTitle: "Monthly Wager Rewards",
+        code:       "TILTBROS",
+        ctaLabel:   "Claim bonus",
+        ctaHref:    "https://duelbits.com/?a=tiltbros",
+        howHref:    "https://discord.gg/tiltbros",
+        howLabel:   "How to claim?",
+        // The real Duelbits sign-up modal with TiltBros' details filled in.
+        // When set, the page frames it in browser chrome and overlays the
+        // animated cursor on the Register button; when null it falls back to
+        // the CSS-drawn mock-up so the panel never looks broken.
+        promoImage: "/img/duelbits-register.png",
+      },
+      giveaways: {
+        blurb: "Giveaways run live on stream — no wager needed for most of them. Winners are logged here automatically as they're drawn.",
+        // No per-winner prize VALUE is stored anywhere (winners_log records who
+        // and when, not how much), so a lifetime total can't be computed from
+        // data. Set it here by hand, or leave null and the tile is hidden —
+        // never show a fabricated number.
+        totalGivenAway: null,
+        sinceLabel:     null,
+      },
+      bounties: {
+        blurb: "Hit a bounty on stream and the payout is yours. Bounties are called out live and paid the same day.",
+        items: [
+          { icon: "🎯", title: "Slot Bounty",   text: "Land the listed multiplier on the called slot." },
+          { icon: "💥", title: "Max Win",       text: "Hit a max win on any bonus bought on stream." },
+          { icon: "🔥", title: "Community Goal", text: "Chat-wide targets — everyone in chat gets paid when it lands." },
+        ],
+        note: "Bounties change often. Current ones are announced on stream and pinned in Discord.",
+      },
+      responsible: "18+ only. Gamble responsibly — never wager more than you can afford to lose.",
+      // FAQ accordion. Answers restate the mechanics that live elsewhere on the
+      // page, so a player never has to hunt — keep them in sync with the raffle
+      // rules and prize list above if those change.
+      faq: {
+        kicker:   "FAQ",
+        headline: "Frequently asked questions",
+        blurb:    "Quick answers before you ask in chat.",
+        items: [
+          {
+            q: "What bonuses are available?",
+            a: "Players under code TILTBROS on Duelbits get Monthly Wager Rewards, claimed by opening a ticket in Discord. The monthly leaderboard runs alongside it. Full details are on the Bonuses page.",
+          },
+          {
+            q: "How does the leaderboard work?",
+            a: "Wager on Duelbits under code TILTBROS and your volume ranks you automatically. The top 10 get paid, and the board resets each month so every race starts level.",
+          },
+          {
+            q: "How do raffles work?",
+            a: "Wagering under code TILTBROS earns points, and every 1,000 points is one raffle ticket — counted automatically from the leaderboard, with nothing to enter. Three winners are drawn live on the Kick stream every Monday.",
+          },
+          {
+            q: "How do I link my casino account?",
+            a: "Type !verify in the Kick chat and follow the link. That ties your Duelbits account to your Kick name so wager-based rewards and raffle tickets track to you.",
+          },
+          {
+            q: "When do payouts land?",
+            a: "Leaderboard prizes are paid once the month closes and the final board is confirmed. Raffle and bounty wins are paid the same day they're drawn. Open a Discord ticket if anything is missing.",
+          },
+        ],
+      },
+      // "Stay in touch" — explicit list, because the channel fronts several
+      // accounts across platforms that streamer.socials can't represent.
+      socialsSection: {
+        kicker:   "Socials",
+        headline: "Stay in touch",
+        blurb:    "Raffle calls, bonus drops and going-live pings land here first.",
+        items: [
+          { handle: "thetiltbros",   platform: "Kick",        icon: "K",  href: "https://kick.com/thetiltbros" },
+          { handle: "@donthelizard", platform: "X / Twitter", icon: "𝕏",  href: "https://x.com/donthelizard" },
+          { handle: "@mrnoface7420", platform: "X / Twitter", icon: "𝕏",  href: "https://x.com/mrnoface7420" },
+          { handle: "thetiltbros",   platform: "Discord",     icon: "💬", href: "https://discord.gg/tiltbros" },
+        ],
+      },
+      // Footer. Quick Links are generated from the nav, so they can't drift out
+      // of sync with the sections that actually exist. Partners and Socials are
+      // listed explicitly because a channel can front several accounts (two X
+      // handles here) that no auto-derivation would get right.
+      footer: {
+        disclaimer: "We take no responsibility for losses incurred on any casino or betting site linked or promoted here. You alone are responsible for your bets. 18+ only — play responsibly.",
+        partners: [
+          { label: "Duelbits", href: "https://duelbits.com/?a=tiltbros" },
+        ],
+        socials: [
+          { label: "Kick",         href: "https://kick.com/thetiltbros" },
+          { label: "X — Donny",    href: "https://x.com/donthelizard" },
+          { label: "X — NoFace",   href: "https://x.com/mrnoface7420" },
+          { label: "Discord",      href: "https://discord.gg/tiltbros" },
+        ],
+        bottomNote: "Play under code TILTBROS. Gamble aware.",
+      },
+    },
+    brandCredit: true,
+  },
 };
 
 // Themed-portal branding (palette/logo/hero/bg). Emitted for Elite+ (the full
@@ -255,6 +457,12 @@ function buildPortalConfig(channel, profile, canBrand) {
     links:       p.links     || preset.links     || [],
     pages:       p.pages     || preset.pages     || [],
     rewards,
+    // Free-form presentational config for bespoke pages (raffle rules, bounty
+    // lists, historical stats...). Deliberately un-shaped: every field above had
+    // to be whitelisted here before a bespoke page could read it, which meant
+    // editing this function for each new agency client. Anything a bespoke page
+    // needs and the standard portal doesn't goes in here instead.
+    content:     p.content || preset.content || null,
     brandCredit: p.brandCredit ?? preset.brandCredit ?? true,
   };
 }
@@ -288,6 +496,11 @@ function res(statusCode, body, extraHeaders = {}) {
     body: JSON.stringify(body),
   };
 }
+
+// Exposed for local preview tooling and tests only — the handler below stays
+// the real entry point. Lets a preview render the EXACT preset a portal will
+// ship with, instead of a hand-copied duplicate that silently drifts from it.
+exports._internal = { PORTAL_PRESETS, buildPortalConfig };
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
@@ -646,7 +859,7 @@ exports.handler = async (event) => {
         }
       }
       // Live leaderboard via the streamer's stored casino API key (server-side only)
-      else if (API_CASINOS.has(provider)) {
+      else if (GAMBULLS_BOARD_ONLY.has(provider)) {
         const provDoc = await db.collection("streamers").doc(uid)
           .collection("providers").doc(provider).get();
         if (provDoc.exists && provDoc.data().apiKey) {

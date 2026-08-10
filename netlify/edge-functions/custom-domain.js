@@ -20,6 +20,8 @@ const HOST_TO_SLUG = {
   "www.irishqueenoftheslots.com": "irishqueenoftheslots",
   "megrewards.com":     "irishqueenoftheslots",
   "www.megrewards.com": "irishqueenoftheslots",
+  "tiltbros.com":       "thetiltbros",
+  "www.tiltbros.com":   "thetiltbros",
 };
 
 // Bespoke (Agency-tier) portals: a slug here is served from its own hand-built
@@ -29,6 +31,7 @@ const HOST_TO_SLUG = {
 const SLUG_TO_PAGE = {
   skslots: "/portals/skslots/index.html",
   irishqueenoftheslots: "/portals/irishqueenoftheslots/index.html",
+  thetiltbros: "/portals/thetiltbros/index.html",
 };
 
 export default async (request, context) => {
