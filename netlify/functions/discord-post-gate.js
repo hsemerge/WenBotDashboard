@@ -8,6 +8,7 @@
 
 const { getDb, admin } = require("./_lib/firebase");
 const { res }          = require("./_lib/http");
+const { CASINO_NAMES } = require("./_lib/casinos");
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
@@ -51,9 +52,39 @@ exports.handler = async (event) => {
   // skips the "join the server?" step and just links + assigns the role. The
   // casino param ensures the verify page reflects THIS streamer's casino.
   const verifyUrl = `https://wenbot.gg/verify.html?channel=${encodeURIComponent(channelName)}&casino=${encodeURIComponent(casino)}&src=discord`;
+  // The default copy told people to click and little else. It sits pinned in a
+  // channel where nobody can ask a follow-up question, so it has to answer what
+  // verifying unlocks, what to have ready, and what actually happens, in the
+  // message itself. Written without dashes.
+  const casinoLabel = CASINO_NAMES[casino] || casino;
+  const casinoOptional = data.casinoRequired === false;
+
+  const defaultGate = [
+    "🛡️ **Verify to unlock the server**",
+    "",
+    `Verification links your Kick account, your Discord, and your ${casinoLabel} account${casinoOptional ? " (optional)" : ""}. It unlocks the rest of the server and lets you enter giveaways, appear on the leaderboard, and earn points in chat.`,
+    "",
+    "**Have ready**",
+    "• Your Kick login",
+    casinoOptional
+      ? `• Your ${casinoLabel} username if you have one. You can skip it and add it later.`
+      : `• Your ${casinoLabel} username, spelled exactly as it appears on your ${casinoLabel} profile`,
+    "",
+    "**What happens**",
+    "**1.** Press **Verify** below",
+    "**2.** Sign in with Kick when it asks",
+    casinoOptional
+      ? `**3.** Add your ${casinoLabel} username, or skip that step`
+      : `**3.** Enter your ${casinoLabel} username`,
+    "**4.** Your role is granted as soon as it goes through",
+    "",
+    `**If your ${casinoLabel} username will not match**, paste your ${casinoLabel} User ID instead. It is under Profile, then Settings, then User ID, with a copy button beside it.`,
+    "",
+    "Already verified? Pressing Verify again just updates your details, so nothing is lost.",
+  ].join("\n");
+
   const body = {
-    content: verify.gateMessage ||
-      `🛡️ **Verify to unlock the server**\n\nClick **Verify** below and link your Kick, Discord, and casino${data.casinoRequired === false ? " (optional)" : ""} accounts. You'll be granted access once you're verified.`,
+    content: verify.gateMessage || defaultGate,
     components: [{
       type: 1,
       components: [{ type: 2, style: 5, label: "✅ Verify", url: verifyUrl }],
