@@ -50,9 +50,17 @@ async function fetchDuelbits(affiliateId, password, from, to) {
     // what made it look like no windowing existed at all. Without them the API
     // returns the current cycle, which is a different (shorter) board than the
     // race a streamer is actually running.
-    const qs = (from && to)
-      ? `?startDate=${encodeURIComponent(from)}&endDate=${encodeURIComponent(to)}`
-      : "";
+    // LIMIT MATTERS MORE THAN IT LOOKS. The endpoint silently returns only 50
+    // rows by default — no total, no pagination hint, nothing to suggest the
+    // list is truncated. A player at rank 59 was simply absent: invisible on the
+    // board AND unverifiable, because the lookup could not see her either. The
+    // streamer's own site showed 75, which is how the gap surfaced at all.
+    // 500 is far above any realistic affiliate board and the response is small.
+    const params = ["limit=500"];
+    if (from && to) {
+      params.push(`startDate=${encodeURIComponent(from)}`, `endDate=${encodeURIComponent(to)}`);
+    }
+    const qs = `?${params.join("&")}`;
     const r = await fetch(`${ENDPOINT}/${encodeURIComponent(affiliateId)}${qs}`, {
       headers: { Authorization: authHeader(affiliateId, password) },
     });
