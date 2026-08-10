@@ -10,7 +10,7 @@ const { normalizeGambulls, applyPeriod } = require("./_lib/leaderboard");
 const { fetchDegenRace }     = require("./_lib/degen");
 const { fetchRainbetForPeriod, fetchRainbetRange, applyRainbetExclusions, ymd: rbYmd } = require("./_lib/rainbet");
 const { fetchCsgobigRace }   = require("./_lib/csgobig");
-const { fetchDuelbits }      = require("./_lib/duelbits");
+const { fetchDuelbitsForPeriod } = require("./_lib/duelbits");
 const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards");
 
 const API_CASINOS = new Set(["gambulls"]);
@@ -602,7 +602,7 @@ exports.handler = async (event) => {
         const cred = provDoc.exists ? provDoc.data() : {};
         if (cred.affiliateId && cred.password) {
           try {
-            const cacheRef = db.collection("_cache").doc(`lb_${channel}_duelbits`);
+            const cacheRef = db.collection("_cache").doc(`lb_${channel}_duelbits_${(mainPeriod && mainPeriod.startAt) || "cycle"}`);
             let data = null, cachedDoc = null;
             try {
               const c = await cacheRef.get();
@@ -612,7 +612,7 @@ exports.handler = async (event) => {
               }
             } catch {}
             if (!data) {
-              data = await fetchDuelbits(cred.affiliateId, cred.password);
+              data = await fetchDuelbitsForPeriod(cred.affiliateId, cred.password, mainPeriod);
               if (data) { try { await cacheRef.set({ cachedAt: Date.now(), data }); } catch {} }
               else if (cachedDoc?.data) data = cachedDoc.data;
             }

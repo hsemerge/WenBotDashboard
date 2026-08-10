@@ -36,14 +36,24 @@ function authHeader(affiliateId, password) {
  *
  * @param {string} affiliateId  uuid from the Duelbits partner
  * @param {string} password     the API password issued with it
+ * @param {string} [from]       YYYY-MM-DD, inclusive. Omit for the current cycle.
+ * @param {string} [to]         YYYY-MM-DD
  * @returns {Promise<{rankings, totalWagered, totalUsers, totalVolume, cacheUpdatedAt}|null>}
  *          null on any failure, so callers can fall back to cache rather than
  *          blanking a live board.
  */
-async function fetchDuelbits(affiliateId, password) {
+async function fetchDuelbits(affiliateId, password, from, to) {
   if (!affiliateId || !password) return null;
   try {
-    const r = await fetch(`${ENDPOINT}/${encodeURIComponent(affiliateId)}`, {
+    // startDate/endDate are the ONLY date parameters this endpoint honours —
+    // from/to, days and period are all accepted silently and ignored, which is
+    // what made it look like no windowing existed at all. Without them the API
+    // returns the current cycle, which is a different (shorter) board than the
+    // race a streamer is actually running.
+    const qs = (from && to)
+      ? `?startDate=${encodeURIComponent(from)}&endDate=${encodeURIComponent(to)}`
+      : "";
+    const r = await fetch(`${ENDPOINT}/${encodeURIComponent(affiliateId)}${qs}`, {
       headers: { Authorization: authHeader(affiliateId, password) },
     });
     if (!r.ok) {
@@ -71,6 +81,8 @@ async function fetchDuelbits(affiliateId, password) {
       .sort((a, b) => b.wagered - a.wagered);
 
     return {
+      from: from || null,
+      to:   to || null,
       rankings,
       totalUsers:    rankings.length,
       totalWagered:  rankings.reduce((s, e) => s + e.wagered, 0),
@@ -83,4 +95,21 @@ async function fetchDuelbits(affiliateId, password) {
   }
 }
 
-module.exports = { fetchDuelbits, authHeader };
+const ymd = (ms) => new Date(ms).toISOString().slice(0, 10);
+
+/**
+ * Fetch the standings for a WenBot leaderboard period.
+ *
+ * Mirrors fetchRainbetForPeriod: an active period supplies the window, a
+ * finished one freezes at its end date, and with no period configured we fall
+ * back to whatever cycle Duelbits serves by default rather than inventing a
+ * range the streamer never set.
+ */
+async function fetchDuelbitsForPeriod(affiliateId, password, period) {
+  const startMs = period && period.active && period.startAt ? period.startAt : null;
+  if (!startMs) return fetchDuelbits(affiliateId, password);
+  const endMs = period.endAt && period.endAt < Date.now() ? period.endAt : Date.now();
+  return fetchDuelbits(affiliateId, password, ymd(startMs), ymd(endMs));
+}
+
+module.exports = { fetchDuelbits, fetchDuelbitsForPeriod, authHeader, ymd };

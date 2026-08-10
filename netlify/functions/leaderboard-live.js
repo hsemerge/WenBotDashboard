@@ -8,7 +8,7 @@ const { normalizeGambulls, applyPeriod } = require("./_lib/leaderboard");
 const { fetchDegenRace }   = require("./_lib/degen");
 const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards");
 const { fetchRainbetRange, fetchRainbetForPeriod, applyRainbetExclusions } = require("./_lib/rainbet");
-const { fetchDuelbits } = require("./_lib/duelbits");
+const { fetchDuelbitsForPeriod } = require("./_lib/duelbits");
 const res = (s, b) => _res(s, b, "*");
 
 async function fetchGambulls(apiKey) {
@@ -238,7 +238,7 @@ exports.handler = async (event) => {
       // account — with no date parameters, so `period` can't select a window
       // here the way it does for Rainbet. Cached per channel rather than per
       // period for the same reason.
-      const cacheRef = db.collection("_cache").doc(`lb_${channel.toLowerCase()}_duelbits`);
+      const cacheRef = db.collection("_cache").doc(`lb_${channel.toLowerCase()}_duelbits_${(period && period.startAt) || "cycle"}`);
       let data = null, cached = null;
       try {
         const doc = await cacheRef.get();
@@ -249,7 +249,7 @@ exports.handler = async (event) => {
       } catch { /* fall through to a live fetch */ }
 
       if (!data) {
-        data = await fetchDuelbits(cred.affiliateId, cred.password);
+        data = await fetchDuelbitsForPeriod(cred.affiliateId, cred.password, period && period.active ? period : null);
         if (data) { try { await cacheRef.set({ cachedAt: Date.now(), data }); } catch {} }
         else if (cached?.data) data = cached.data;   // serve stale rather than fail
       }
