@@ -55,8 +55,13 @@ async function fetchDuelbits(affiliateId, password, from, to) {
     // list is truncated. A player at rank 59 was simply absent: invisible on the
     // board AND unverifiable, because the lookup could not see her either. The
     // streamer's own site showed 75, which is how the gap surfaced at all.
-    // 500 is far above any realistic affiliate board and the response is small.
-    const params = ["limit=500"];
+    // 1000 is the API's hard maximum — it answers 400 "limit must not be greater
+    // than 1000" above that, so asking for more breaks the request entirely
+    // rather than degrading. Taking the ceiling because the failure mode of
+    // asking for too FEW is silent and invisible (a truncated board that looks
+    // complete), while asking for too many is a loud, immediate error. This
+    // affiliate has 76 players, so there is enormous headroom either way.
+    const params = ["limit=1000"];
     if (from && to) {
       params.push(`startDate=${encodeURIComponent(from)}`, `endDate=${encodeURIComponent(to)}`);
     }
