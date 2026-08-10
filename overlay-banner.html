@@ -185,16 +185,13 @@
     -webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);
     mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);
   }
-  .mq-track { display:flex; align-items:center; white-space:nowrap; will-change:transform;
-    animation:mqScroll linear infinite; }
-  /* Shift by ONE SET in pixels, not a percentage of the whole track — the
-     percentage changes whenever the repeat count does, which is what made the
-     loop drift. translate3d keeps it on the compositor so the scroll stays
-     smooth under OBS's capture. */
-  @keyframes mqScroll {
-    from { transform:translate3d(0,0,0); }
-    to   { transform:translate3d(calc(-1 * var(--shift,50%)),0,0); }
-  }
+  /* Driven by requestAnimationFrame, not a CSS animation. A CSS animation
+     always RESTARTS at the end of its cycle, so any sub-pixel error between
+     the measured set width and the real one shows up as a skip on every loop.
+     The rAF loop instead advances a continuous offset and wraps it modulo one
+     set width — because the content is periodic, that wrap is mathematically
+     invisible and there is no reset to see. */
+  .mq-track { display:flex; align-items:center; white-space:nowrap; will-change:transform; }
 
   .mq-item { display:inline-flex; align-items:center; gap:12px; padding:0 34px; flex-shrink:0; }
   .mq-item .mq-ico { width:26px; height:26px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
@@ -247,6 +244,8 @@
   var ONLY    = (qs.get('slides') || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
   var LAYOUT  = (qs.get('layout') || 'bar').toLowerCase();
   var SPEED   = Math.max(10, parseInt(qs.get('speed'), 10) || 0); // seconds per full loop; 0 = auto
+  var PPS     = Math.max(4, parseInt(qs.get('pps'), 10) || 0);    // pixels per second; overrides speed
+  var mqRaf   = null;
   if (LAYOUT === 'transparent') document.body.classList.add('transparent');
   if (LAYOUT === 'marquee')     document.body.classList.add('marquee');
   // Browser-only sanity check: OBS renders a browser source over transparency,
@@ -327,18 +326,25 @@
     return out;
   }
 
-  // ── MARQUEE ──────────────────────────────────────────────────────────────
-  // Simple geometric glyphs rather than the platforms' official marks — those
-  // are trademarked artwork we shouldn't be redistributing. These read clearly
-  // at 26px; swap in licensed assets via content.marquee.items[].iconUrl if
-  // TiltBros has them.
+  // ── MARQUEE ICONS ────────────────────────────────────────────────────────
+  // These are plain lettermark tiles in each platform's brand colour, NOT
+  // reproductions of the official logos — trademarked marks aren't ours to
+  // redraw, and an approximation always looks worse than either the real thing
+  // or an honest letter.
+  //
+  // For the real logos, put the official asset from each platform's brand /
+  // press kit in /img/ and set `iconUrl` on the item in the preset; it takes
+  // priority over everything here.
+  function tile(bg, fg, letter) {
+    return '<svg viewBox="0 0 24 24">'
+      + '<rect x="1" y="1" width="22" height="22" rx="6" fill="' + bg + '"/>'
+      + '<text x="12" y="16.6" text-anchor="middle" font-family="Exo 2, Inter, sans-serif"'
+      + ' font-size="14" font-weight="900" fill="' + fg + '">' + letter + '</text></svg>';
+  }
   var ICONS = {
-    kick: '<svg viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="18" rx="4" fill="#53fc18"/>'
-        + '<path d="M7 7h3v3h1.5V8.5H13V7h4v4h-1.5v1.5H14V14h1.5v1.5H17v2h-4V16h-1.5v-1.5H10V18H7z" fill="#0a0a0a"/></svg>',
-    x:    '<svg viewBox="0 0 24 24" fill="none"><path d="M3 3h4.2l5 6.7L17.6 3H21l-7.3 8.8L21.4 21h-4.2l-5.4-7.2L5.9 21H2.5l7.7-9.3z" fill="#fff"/></svg>',
-    discord: '<svg viewBox="0 0 24 24" fill="none">'
-        + '<path d="M4 17.5c2 1.4 4.6 2.2 8 2.2s6-.8 8-2.2c-.4-4.3-1.7-8.3-3.6-11.2-1.1-.6-2.3-1-3.6-1.2l-.6 1.2h-.4C11.4 6 10.6 6 9.8 6.1L9.2 5c-1.3.2-2.5.6-3.6 1.2C3.7 9.2 2.4 13.2 2 17.5z" fill="#7b8ce8"/>'
-        + '<ellipse cx="9" cy="13" rx="1.5" ry="1.9" fill="#0a0a0a"/><ellipse cx="15" cy="13" rx="1.5" ry="1.9" fill="#0a0a0a"/></svg>',
+    kick:    tile('#53fc18', '#0a0a0a', 'K'),
+    x:       tile('#000000', '#ffffff', 'X'),
+    discord: tile('#5865F2', '#ffffff', 'D'),
     site: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">'
         + '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.7 2.6 15.3 0 18M12 3c-2.6 2.7-2.6 15.3 0 18"/></svg>',
     code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">'
@@ -381,30 +387,46 @@
     var el = document.getElementById('slides');
 
     // Measure with the real webfont applied. Measuring before Exo 2 loads gives
-    // a width for the fallback font, and every later frame is then offset by
-    // the difference — which is exactly the "jumping" this had.
+    // the fallback font's width, and every later frame is then offset by the
+    // difference — a guaranteed drift.
     try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
 
-    // Lay ONE set down first, purely to measure it.
-    el.innerHTML = '<div class="mq-track" style="animation:none;">' + one + '</div>';
-    var setW = el.firstElementChild.scrollWidth;
+    // Lay ONE set down purely to measure it. getBoundingClientRect, not
+    // scrollWidth: the former is fractional, the latter rounds to an integer,
+    // and that rounding error is enough to show a skip on every wrap.
+    el.innerHTML = '<div class="mq-track">' + one + '</div>';
+    var setW = el.firstElementChild.getBoundingClientRect().width;
     if (!setW) return;
 
-    // Repeat until the track covers the viewport PLUS a full set, so there is
-    // always a copy queued off-screen to slide in. Without this the seam
-    // between copies is visible and reads as the content repeating.
-    var reps = Math.ceil(window.innerWidth / setW) + 1;
+    // Enough copies to cover the viewport plus a spare set, so there is always
+    // content queued off-screen on both sides of a wrap.
+    var reps = Math.ceil(window.innerWidth / setW) + 2;
     var html = '';
     for (var i = 0; i < reps; i++) html += one;
 
     el.innerHTML = '<div class="mq-track">' + html + '</div>';
     var track = el.firstElementChild;
 
-    // Shift by exactly one set. Duration from the same measurement, so the
-    // pixel speed is constant no matter how many items or repeats there are.
-    track.style.setProperty('--shift', setW + 'px');
-    var secs = SPEED || Math.max(8, setW / 55); // ~55px/sec — a slow, readable crawl
-    track.style.animationDuration = secs + 's';
+    // Pixels per second. Default is a deliberately slow crawl — this sits on
+    // screen permanently, so it should be readable at a glance, not chased.
+    var pps = PPS || (SPEED ? setW / SPEED : 28);
+
+    // Continuous offset, wrapped modulo one set width. Because every copy is
+    // identical, x and x-setW render the same picture — so the wrap is
+    // invisible and the scroll genuinely never resets.
+    var x = 0, last = null;
+    if (mqRaf) cancelAnimationFrame(mqRaf);
+    function frame(now) {
+      if (last === null) last = now;
+      // Clamp dt so a dropped frame or a stalled tab can't teleport the track.
+      var dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      x -= pps * dt;
+      if (x <= -setW) x += setW;
+      track.style.transform = 'translate3d(' + x + 'px,0,0)';
+      mqRaf = requestAnimationFrame(frame);
+    }
+    mqRaf = requestAnimationFrame(frame);
   }
 
   function render() {
