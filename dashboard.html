@@ -148,6 +148,7 @@
     .os-tag-battles    { background:rgba(255,71,87,0.1);color:var(--red); }
     .os-tag-tournament { background:rgba(255,167,38,0.1);color:var(--orange); }
     .os-tag-chat       { background:rgba(179,136,255,0.12);color:#b388ff; }
+    .os-tag-branding   { background:rgba(255,210,74,0.12);color:var(--gold, #ffd24a); }
     /* Bonus-hunt drag-to-reorder */
     #bhTableBody tr.bh-dragging  { opacity:0.4; }
     #bhTableBody tr.bh-drop-above{ box-shadow: inset 0 2px 0 0 var(--accent); }
@@ -12455,6 +12456,8 @@ const OS_OVERLAYS = [
   { id:'deposits',    name:'Deposits',       icon:'💰', tag:'bankroll',   desc:'Total you have deposited this session.',                    path:'/overlay-deposits.html',      obsW:320,  obsH:130,  demo:true,  header:'💰 Deposited',            note:'Width: 320, height: 130.' },
   { id:'withdrawals', name:'Withdrawals',    icon:'💸', tag:'bankroll',   desc:'Total you have withdrawn this session.',                    path:'/overlay-withdrawals.html',   obsW:320,  obsH:130,  demo:true,  header:'💸 Withdrawn',            note:'Width: 320, height: 130.' },
   { id:'chat',        name:'Live Chat',      icon:'💬', tag:'chat',       desc:'Your Kick chat on stream — themed, with badges and emotes.', path:'/overlay-chat.html',          obsW:380,  obsH:600,  demo:true,  header:null,                     note:'Width: 380, height: 600. Pulls your Kick chat live — no setup needed. Use ?ttl=60 to fade messages after 60s.' },
+  { id:'banner',      name:'Rotating Banner', icon:'📊', tag:'branding',  desc:'Lower-third bar that cycles your prize pool, code, live wager standings and race countdown.', path:'/overlay-banner.html', obsW:1920, obsH:110, demo:true, header:null, note:'Width: 1920, height: 110 — sits along the bottom of the screen. Pulls live from your leaderboard, so there is nothing to set up. Use ?secs=8 to change how long each slide holds, ?rows=3 for how many leaderboard places it rotates through.' },
+  { id:'banner2',     name:'Rotating Banner — Transparent', icon:'📉', tag:'branding', desc:'Same rotation with no bar — the text floats straight over your scene.', path:'/overlay-banner.html', extra:'layout=transparent', obsW:1920, obsH:130, demo:true, header:null, note:'Width: 1920, height: 130. No background, so it suits a busy or light scene where a solid bar would cover artwork. Text carries heavy shadows to stay readable.' },
 ];
 
 let osSelectedId = null;
@@ -12587,7 +12590,7 @@ function loadOverlayStudio() {
     let divider = '';
     if (o.tag !== lastTag) {
       lastTag = o.tag;
-      const tagLabels = { hunting:'Hunting', giveaway:'Giveaway', battles:'Battles', tournament:'Tournament', bankroll:'Bankroll', chat:'Chat' };
+      const tagLabels = { hunting:'Hunting', giveaway:'Giveaway', battles:'Battles', tournament:'Tournament', bankroll:'Bankroll', chat:'Chat', branding:'Branding' };
       divider = `<div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);padding:8px 10px 4px;margin-top:4px;">${tagLabels[o.tag]||o.tag}</div>`;
     }
     return divider + `
@@ -12694,7 +12697,7 @@ function osSelectOverlay(id) {
   document.getElementById('osSelIcon').textContent = o.icon;
   document.getElementById('osSelName').textContent = o.name;
   document.getElementById('osSelDesc').textContent = o.desc;
-  const tagLabels = { hunting:'Hunting', giveaway:'Giveaway', battles:'Battles', tournament:'Tournament', bankroll:'Bankroll', chat:'Chat' };
+  const tagLabels = { hunting:'Hunting', giveaway:'Giveaway', battles:'Battles', tournament:'Tournament', bankroll:'Bankroll', chat:'Chat', branding:'Branding' };
   document.getElementById('osSelBadges').innerHTML =
     `<span class="os-tag os-tag-${o.tag}">${tagLabels[o.tag]||o.tag}</span>`;
 

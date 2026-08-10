@@ -290,6 +290,9 @@ const PORTAL_PRESETS = {
         headline: "Weekly Wager Raffle",
         blurb:    "Every 1,000 wagered under code TILTBROS earns you one ticket. More wager, more tickets, better odds.",
         drawLine: "Drawn live on Kick every Monday",
+        // Short form for the rotating banner overlay, where the full blurb
+        // wouldn't fit on a lower third.
+        prizeShort: "50/50 $200 buy",
         winnersPerDraw: 3,
         steps: [
           { icon: "🎰", title: "Wager on Duelbits", text: "Play under code TILTBROS. Every 1,000 wagered = 1 ticket." },
@@ -339,6 +342,15 @@ const PORTAL_PRESETS = {
           { icon: "🔥", title: "Community Goal", text: "Chat-wide targets — everyone in chat gets paid when it lands." },
         ],
         note: "Bounties change often. Current ones are announced on stream and pinned in Discord.",
+      },
+      // Extra slides for the rotating banner overlay (/overlay-banner.html).
+      // The prize-pool, live-standings, countdown and raffle slides are built
+      // from live data automatically — these are the hand-written extras.
+      banner: {
+        slides: [
+          { kicker: "Join the community", big: "DISCORD",  sub: "Ticket support · bonus drops · raffle pings", left: "💬", right: "🔔", style: "plain" },
+          { kicker: "Wager rewards",      big: "MILESTONES", sub: "Hit a tier, open a ticket, get paid",        left: "🎯", right: "💸", style: "plain" },
+        ],
       },
       responsible: "18+ only. Gamble responsibly — never wager more than you can afford to lose.",
       // FAQ accordion. Answers restate the mechanics that live elsewhere on the

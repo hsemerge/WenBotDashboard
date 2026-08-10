@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rotating Banner Overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@600;700;800&display=swap" rel="stylesheet">
+<!--
+  ROTATING LOWER-THIRD BANNER — sits along the bottom of the stream and cycles
+  through a deck of slides.
+
+  Data comes from /api/portal-data?channel=<slug>, the same endpoint the portals
+  use, so the prize pool, affiliate code, live wager standings and race
+  countdown are always the real numbers. No dashboard setup and no extra
+  endpoint: point OBS at it and it runs.
+
+  Query params
+    ?channel=<slug>   required — whose data to show
+    ?layout=bar       "bar" (default, solid lower third) or "transparent"
+                      (no bar — text floats over the stream, with heavy shadows
+                      so it stays readable on a bright scene)
+    ?secs=8           seconds per slide (default 8)
+    ?rows=3           how many leaderboard positions to rotate through (default 3)
+    ?accent=00e676    override the accent (hex, no #); defaults to the portal theme
+    ?bg=0b1220        override the bar background
+    ?slides=promo,leaders,countdown,raffle,custom   pick/order the deck
+
+  Built for 1920×110. It scales to whatever OBS source size you give it.
+-->
+<style>
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --accent:#00e676; --accent2:#34d399; --gold:#ffd24a;
+    --bar:#0b1220; --edge:rgba(255,255,255,.08);
+    --bright:#fff; --dim:#8fa0b4;
+  }
+  html,body { height:100%; background:transparent; overflow:hidden; }
+  body { font-family:'Inter',sans-serif; display:flex; align-items:flex-end; }
+
+  .bar {
+    position:relative; width:100%; height:110px; overflow:hidden;
+    background:linear-gradient(180deg, color-mix(in srgb, var(--bar) 92%, transparent), var(--bar));
+    border-top:2px solid var(--accent);
+    box-shadow:0 -10px 34px rgba(0,0,0,.45);
+    display:flex; align-items:center; justify-content:center;
+  }
+  /* Soft accent bloom bleeding up from the top edge. */
+  .bar::before {
+    content:''; position:absolute; inset:0 0 auto 0; height:60%;
+    background:radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 70%);
+    pointer-events:none;
+  }
+
+  /* Slides stack; only the active one is visible. */
+  .slide {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    gap:38px; padding:0 40px; text-align:center;
+    opacity:0; transform:translateY(10px); transition:opacity .5s ease, transform .5s ease;
+    pointer-events:none;
+  }
+  .slide.on { opacity:1; transform:none; }
+
+  .mid { display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.05; }
+  .kick { font-size:14px; font-weight:800; letter-spacing:.28em; text-transform:uppercase; color:var(--dim); }
+  .big {
+    font-family:'Exo 2',sans-serif; font-weight:900; font-size:46px; letter-spacing:.01em; margin:5px 0 4px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .big.plain { background:none; -webkit-text-fill-color:initial; color:var(--bright); }
+  .big.gold  { background:none; -webkit-text-fill-color:initial; color:var(--gold); }
+  .sub { font-size:14px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--dim); }
+  .sub b { color:var(--accent); }
+
+  /* Flanking emblems — decorative, and they hide on narrow sources. */
+  .side { font-size:40px; line-height:1; filter:drop-shadow(0 0 12px rgba(0,0,0,.5)); opacity:.95; }
+
+  /* Thin progress line showing time until the next slide. */
+  .prog { position:absolute; left:0; bottom:0; height:2px; width:0; background:var(--accent); opacity:.55; }
+
+  /* ── TRANSPARENT LAYOUT ──────────────────────────────────────────────────
+     No bar, no border, no bloom — the text floats straight over the scene.
+     Legibility comes from layered shadows instead of a background, because an
+     overlay that only works on dark scenes isn't much use. Slightly larger
+     type too, since there's no bar edge giving it structure. */
+  body.transparent .bar {
+    background:none; border-top:none; box-shadow:none; height:130px;
+  }
+  body.transparent .bar::before { display:none; }
+  body.transparent .prog { display:none; }
+  body.transparent .kick,
+  body.transparent .sub { text-shadow:0 2px 6px rgba(0,0,0,.95), 0 0 18px rgba(0,0,0,.8); color:#e8eef5; }
+  body.transparent .sub b { color:var(--accent); }
+  body.transparent .big {
+    font-size:54px;
+    filter:drop-shadow(0 3px 8px rgba(0,0,0,.95)) drop-shadow(0 0 22px rgba(0,0,0,.75));
+  }
+  body.transparent .big.plain,
+  body.transparent .big.gold { text-shadow:0 3px 8px rgba(0,0,0,.95), 0 0 22px rgba(0,0,0,.75); }
+  body.transparent .side { filter:drop-shadow(0 3px 8px rgba(0,0,0,.9)); }
+
+  @media (max-width:1100px) { .side { display:none; } .big { font-size:38px; } }
+</style>
+</head>
+<body>
+<div class="bar" id="bar">
+  <div id="slides"></div>
+  <div class="prog" id="prog"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var qs      = new URLSearchParams(location.search);
+  var CHANNEL = (qs.get('channel') || '').toLowerCase().trim();
+  var SECS    = Math.max(3, parseInt(qs.get('secs'), 10) || 8);
+  var ROWS    = Math.max(1, Math.min(parseInt(qs.get('rows'), 10) || 3, 10));
+  var ONLY    = (qs.get('slides') || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+  var LAYOUT  = (qs.get('layout') || 'bar').toLowerCase();
+  if (LAYOUT === 'transparent') document.body.classList.add('transparent');
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function money(n, dp) {
+    return '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: dp || 0, maximumFractionDigits: dp || 0 });
+  }
+
+  if (qs.get('accent')) document.documentElement.style.setProperty('--accent', '#' + qs.get('accent').replace('#', ''));
+  if (qs.get('bg'))     document.documentElement.style.setProperty('--bar',    '#' + qs.get('bg').replace('#', ''));
+
+  var deck = [], idx = 0, timer = null, data = null;
+
+  // Build the slide deck from whatever the channel actually has. A slide with
+  // no data simply isn't added, so the rotation never shows an empty frame.
+  function buildDeck(s) {
+    var out    = [];
+    var portal = s.portal || {};
+    var hero   = portal.hero || {};
+    var banner = (portal.content && portal.content.banner) || {};
+    var code   = hero.code || '';
+    var lb     = s.leaderboard || {};
+    var ranks  = (lb.rankings || []).map(function (r) {
+      return { rank: r.rank, name: r.name || r.username, wagered: r.wagerAmount != null ? r.wagerAmount : r.wagered };
+    });
+
+    // 1. Prize pool + code.
+    if (hero.prize) {
+      out.push({ id: 'promo', l: '🏆', r: '💰',
+        kick: (hero.cadence ? hero.cadence + ' ' : '') + 'Leaderboard',
+        big: hero.prize, cls: '',
+        sub: (portal.prizes && portal.prizes.length ? 'Top ' + portal.prizes.length + ' wagerers split it' : 'Wager to win')
+             + (code ? ' · Code <b>' + esc(code) + '</b>' : '') });
+    }
+
+    // 2. One slide per leading wagerer.
+    ranks.slice(0, ROWS).forEach(function (r) {
+      out.push({ id: 'leaders', l: '🥇', r: '🎰',
+        kick: 'Wager Leaderboard',
+        big: money(r.wagered), cls: '',
+        sub: '#' + r.rank + ' · ' + esc(String(r.name).toUpperCase()) });
+    });
+
+    // 3. Time left in the race.
+    var t = s.leaderboardTimer;
+    if (t && t.active && t.endAt && t.endAt > Date.now()) {
+      out.push({ id: 'countdown', l: '⏳', r: '🔥', kick: 'Race ends in', big: '', cls: 'plain',
+        sub: code ? 'Play under code <b>' + esc(code) + '</b>' : 'Get your wager in', live: t.endAt });
+    }
+
+    // 4. Raffle mechanic, if the portal describes one.
+    var raf = (portal.content && portal.content.raffles) || null;
+    if (raf && raf.blurb) {
+      out.push({ id: 'raffle', l: '🎟️', r: '📺',
+        kick: raf.headline || 'Weekly Raffle', big: raf.prizeShort || '', cls: 'gold',
+        sub: raf.drawLine || 'Drawn live on stream' });
+    }
+
+    // 5. Anything hand-written in the preset.
+    (banner.slides || []).forEach(function (sl) {
+      out.push({ id: 'custom', l: sl.left || '⭐', r: sl.right || '⭐',
+        kick: sl.kicker || '', big: sl.big || '', cls: sl.style || '', sub: sl.sub || '' });
+    });
+
+    // Honor ?slides= as both a filter and an ordering.
+    if (ONLY.length) {
+      out = ONLY.reduce(function (acc, id) {
+        return acc.concat(out.filter(function (x) { return x.id === id; }));
+      }, []);
+    }
+    return out;
+  }
+
+  function render() {
+    document.getElementById('slides').innerHTML = deck.map(function (s, i) {
+      return '<div class="slide' + (i === 0 ? ' on' : '') + '" data-i="' + i + '">'
+        + '<div class="side">' + esc(s.l) + '</div>'
+        + '<div class="mid">'
+        +   (s.kick ? '<div class="kick">' + esc(s.kick) + '</div>' : '')
+        +   '<div class="big ' + esc(s.cls || '') + '"' + (s.live ? ' data-live="' + s.live + '"' : '') + '>'
+        +     esc(s.big) + '</div>'
+        +   (s.sub ? '<div class="sub">' + s.sub + '</div>' : '')
+        + '</div>'
+        + '<div class="side">' + esc(s.r) + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  // Countdown slides tick every second while visible.
+  function tickLive() {
+    var el = document.querySelector('.slide.on .big[data-live]');
+    if (!el) return;
+    var left = Number(el.getAttribute('data-live')) - Date.now();
+    if (left <= 0) { el.textContent = '00:00:00'; return; }
+    var s = Math.floor(left / 1000);
+    var d = Math.floor(s / 86400);
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    el.textContent = (d > 0 ? d + 'd ' : '')
+      + pad(Math.floor(s % 86400 / 3600)) + ':' + pad(Math.floor(s % 3600 / 60)) + ':' + pad(s % 60);
+  }
+
+  function advance() {
+    var els = document.querySelectorAll('.slide');
+    if (els.length < 2) return;
+    els[idx].classList.remove('on');
+    idx = (idx + 1) % els.length;
+    els[idx].classList.add('on');
+    restartProgress();
+  }
+
+  // The progress line is restarted by re-triggering the animation rather than
+  // by a timer, so it can never drift out of step with the slide change.
+  function restartProgress() {
+    var p = document.getElementById('prog');
+    p.style.transition = 'none';
+    p.style.width = '0';
+    void p.offsetWidth;
+    p.style.transition = 'width ' + SECS + 's linear';
+    p.style.width = '100%';
+  }
+
+  function applyTheme(s) {
+    var t = (s.portal && s.portal.theme) || {};
+    var set = function (k, v) { if (v) document.documentElement.style.setProperty(k, v); };
+    if (!qs.get('accent')) { set('--accent', t.accent); set('--accent2', t.accent2 || t.accent); }
+    set('--gold', t.gold);
+    if (!qs.get('bg') && t.bg) set('--bar', t.bg);
+  }
+
+  async function load() {
+    if (!CHANNEL) {
+      document.getElementById('slides').innerHTML =
+        '<div class="slide on"><div class="mid"><div class="kick">Rotating Banner</div>'
+        + '<div class="big plain" style="font-size:26px;">Add ?channel=yourname</div></div></div>';
+      return;
+    }
+    var s;
+    try { s = await (await fetch('/api/portal-data?channel=' + encodeURIComponent(CHANNEL))).json(); }
+    catch (e) { return; }
+    if (!s || s.error) return;
+    data = s;
+    applyTheme(s);
+
+    var next = buildDeck(s);
+    if (!next.length) return;
+    // Keep position across refreshes when the deck is unchanged, so a 60s data
+    // refresh doesn't visibly snap the rotation back to the first slide.
+    var same = deck.length === next.length && JSON.stringify(deck) === JSON.stringify(next);
+    deck = next;
+    if (!same) { idx = 0; render(); restartProgress(); }
+  }
+
+  load();
+  setInterval(load, 60000);
+  setInterval(tickLive, 1000);
+  timer = setInterval(advance, SECS * 1000);
+})();
+</script>
+</body>
+</html>
