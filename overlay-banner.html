@@ -24,10 +24,14 @@
     ?secs=8           seconds per slide (default 8)
     ?rows=3           how many leaderboard positions to rotate through (default 3)
     ?accent=00e676    override the accent (hex, no #); defaults to the portal theme
-    ?bg=0b1220        override the bar background
+    ?bg=0b1220        override the bar background (bar layout only)
     ?slides=promo,leaders,countdown,raffle,custom   pick/order the deck
+    ?preview=1        paint a mock scene behind it, for checking the transparent
+                      layout in a normal browser tab. Never use this in OBS.
 
-  Built for 1920×110. It scales to whatever OBS source size you give it.
+  Sizes: bar 1920×110, transparent 1920×130. Anchor it to the bottom of the
+  scene. OBS browser sources are transparent by default, so nothing extra is
+  needed for the transparent layout.
 -->
 <style>
   *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
@@ -56,7 +60,7 @@
   /* Slides stack; only the active one is visible. */
   .slide {
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    gap:38px; padding:0 40px; text-align:center;
+    padding:0 40px; text-align:center;
     opacity:0; transform:translateY(10px); transition:opacity .5s ease, transform .5s ease;
     pointer-events:none;
   }
@@ -74,11 +78,15 @@
   .sub { font-size:14px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--dim); }
   .sub b { color:var(--accent); }
 
-  /* Flanking emblems — decorative, and they hide on narrow sources. */
-  .side { font-size:40px; line-height:1; filter:drop-shadow(0 0 12px rgba(0,0,0,.5)); opacity:.95; }
-
-  /* Thin progress line showing time until the next slide. */
-  .prog { position:absolute; left:0; bottom:0; height:2px; width:0; background:var(--accent); opacity:.55; }
+  /* Preview backdrop. A transparent overlay opened in a normal browser sits on
+     white, which makes it look broken — this paints a stream-ish dark scene so
+     it can be checked outside OBS. Never on by default: OBS needs the real
+     transparency. */
+  body.preview { background:#15181c; }
+  body.preview::before {
+    content:''; position:fixed; inset:0; z-index:-1;
+    background:repeating-linear-gradient(45deg,#1b1f24 0 22px,#15181c 22px 44px);
+  }
 
   /* ── TRANSPARENT LAYOUT ──────────────────────────────────────────────────
      No bar, no border, no bloom — the text floats straight over the scene.
@@ -89,25 +97,26 @@
     background:none; border-top:none; box-shadow:none; height:130px;
   }
   body.transparent .bar::before { display:none; }
-  body.transparent .prog { display:none; }
   body.transparent .kick,
   body.transparent .sub { text-shadow:0 2px 6px rgba(0,0,0,.95), 0 0 18px rgba(0,0,0,.8); color:#e8eef5; }
   body.transparent .sub b { color:var(--accent); }
+  /* Gradient-clipped text can't carry a shadow, so the transparent layout drops
+     the gradient for a solid accent with a real text-shadow. Legibility over
+     flourish — this one has to survive whatever scene is behind it. */
   body.transparent .big {
     font-size:54px;
-    filter:drop-shadow(0 3px 8px rgba(0,0,0,.95)) drop-shadow(0 0 22px rgba(0,0,0,.75));
+    background:none; -webkit-text-fill-color:initial; color:var(--accent);
+    text-shadow:0 3px 10px rgba(0,0,0,.95), 0 0 26px rgba(0,0,0,.8);
   }
-  body.transparent .big.plain,
-  body.transparent .big.gold { text-shadow:0 3px 8px rgba(0,0,0,.95), 0 0 22px rgba(0,0,0,.75); }
-  body.transparent .side { filter:drop-shadow(0 3px 8px rgba(0,0,0,.9)); }
+  body.transparent .big.plain { color:#fff; }
+  body.transparent .big.gold  { color:var(--gold); }
 
-  @media (max-width:1100px) { .side { display:none; } .big { font-size:38px; } }
+  @media (max-width:1100px) { .big { font-size:38px; } }
 </style>
 </head>
 <body>
 <div class="bar" id="bar">
   <div id="slides"></div>
-  <div class="prog" id="prog"></div>
 </div>
 
 <script>
@@ -120,6 +129,10 @@
   var ONLY    = (qs.get('slides') || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
   var LAYOUT  = (qs.get('layout') || 'bar').toLowerCase();
   if (LAYOUT === 'transparent') document.body.classList.add('transparent');
+  // Browser-only sanity check: OBS renders a browser source over transparency,
+  // but a normal tab renders it over white, which makes the transparent layout
+  // look broken when it isn't. ?preview=1 paints a mock scene behind it.
+  if (qs.get('preview')) document.body.classList.add('preview');
 
   function esc(s) {
     return String(s == null ? '' : s)
@@ -149,7 +162,7 @@
 
     // 1. Prize pool + code.
     if (hero.prize) {
-      out.push({ id: 'promo', l: '🏆', r: '💰',
+      out.push({ id: 'promo',
         kick: (hero.cadence ? hero.cadence + ' ' : '') + 'Leaderboard',
         big: hero.prize, cls: '',
         sub: (portal.prizes && portal.prizes.length ? 'Top ' + portal.prizes.length + ' wagerers split it' : 'Wager to win')
@@ -158,7 +171,7 @@
 
     // 2. One slide per leading wagerer.
     ranks.slice(0, ROWS).forEach(function (r) {
-      out.push({ id: 'leaders', l: '🥇', r: '🎰',
+      out.push({ id: 'leaders',
         kick: 'Wager Leaderboard',
         big: money(r.wagered), cls: '',
         sub: '#' + r.rank + ' · ' + esc(String(r.name).toUpperCase()) });
@@ -167,21 +180,21 @@
     // 3. Time left in the race.
     var t = s.leaderboardTimer;
     if (t && t.active && t.endAt && t.endAt > Date.now()) {
-      out.push({ id: 'countdown', l: '⏳', r: '🔥', kick: 'Race ends in', big: '', cls: 'plain',
+      out.push({ id: 'countdown', kick: 'Race ends in', big: '', cls: 'plain',
         sub: code ? 'Play under code <b>' + esc(code) + '</b>' : 'Get your wager in', live: t.endAt });
     }
 
     // 4. Raffle mechanic, if the portal describes one.
     var raf = (portal.content && portal.content.raffles) || null;
     if (raf && raf.blurb) {
-      out.push({ id: 'raffle', l: '🎟️', r: '📺',
+      out.push({ id: 'raffle',
         kick: raf.headline || 'Weekly Raffle', big: raf.prizeShort || '', cls: 'gold',
         sub: raf.drawLine || 'Drawn live on stream' });
     }
 
     // 5. Anything hand-written in the preset.
     (banner.slides || []).forEach(function (sl) {
-      out.push({ id: 'custom', l: sl.left || '⭐', r: sl.right || '⭐',
+      out.push({ id: 'custom',
         kick: sl.kicker || '', big: sl.big || '', cls: sl.style || '', sub: sl.sub || '' });
     });
 
@@ -197,14 +210,12 @@
   function render() {
     document.getElementById('slides').innerHTML = deck.map(function (s, i) {
       return '<div class="slide' + (i === 0 ? ' on' : '') + '" data-i="' + i + '">'
-        + '<div class="side">' + esc(s.l) + '</div>'
         + '<div class="mid">'
         +   (s.kick ? '<div class="kick">' + esc(s.kick) + '</div>' : '')
         +   '<div class="big ' + esc(s.cls || '') + '"' + (s.live ? ' data-live="' + s.live + '"' : '') + '>'
         +     esc(s.big) + '</div>'
         +   (s.sub ? '<div class="sub">' + s.sub + '</div>' : '')
         + '</div>'
-        + '<div class="side">' + esc(s.r) + '</div>'
         + '</div>';
     }).join('');
   }
@@ -228,18 +239,6 @@
     els[idx].classList.remove('on');
     idx = (idx + 1) % els.length;
     els[idx].classList.add('on');
-    restartProgress();
-  }
-
-  // The progress line is restarted by re-triggering the animation rather than
-  // by a timer, so it can never drift out of step with the slide change.
-  function restartProgress() {
-    var p = document.getElementById('prog');
-    p.style.transition = 'none';
-    p.style.width = '0';
-    void p.offsetWidth;
-    p.style.transition = 'width ' + SECS + 's linear';
-    p.style.width = '100%';
   }
 
   function applyTheme(s) {
@@ -270,7 +269,7 @@
     // refresh doesn't visibly snap the rotation back to the first slide.
     var same = deck.length === next.length && JSON.stringify(deck) === JSON.stringify(next);
     deck = next;
-    if (!same) { idx = 0; render(); restartProgress(); }
+    if (!same) { idx = 0; render(); }
   }
 
   load();
