@@ -68,19 +68,28 @@ exports.handler = async (event) => {
     // If a Discord verification token was provided, consume it and link Discord identity
     let discordUserId   = null;
     let discordUsername = null;
+    // The token is VALIDATED here but deliberately NOT consumed yet — see
+    // burnDtoken() at the end. Marking it used up-front burned it even when the
+    // verification that followed failed (a mistyped casino username, a lookup
+    // error), so the retry that should have worked came back "already been
+    // used" and the viewer's Discord silently never attached. They then had to
+    // link it by hand, which is exactly the step this flow exists to remove.
+    let dtokenRef = null;
     if (dtoken) {
-      const dtokenRef = db.collection("discord_verify_tokens").doc(dtoken);
-      await db.runTransaction(async (txn) => {
-        const dtokenDoc = await txn.get(dtokenRef);
-        if (!dtokenDoc.exists)          throw Object.assign(new Error("Invalid or expired Discord link. Use /register in Discord to get a new one."), { status: 404 });
-        const td = dtokenDoc.data();
-        if (td.used)                    throw Object.assign(new Error("This Discord link has already been used."), { status: 410 });
-        if (Date.now() > td.expiresAt)  throw Object.assign(new Error("This Discord link has expired. Use /register in Discord to get a new one."), { status: 410 });
-        discordUserId   = td.discordUserId;
-        discordUsername = td.discordUsername;
-        txn.update(dtokenRef, { used: true });
-      });
+      dtokenRef = db.collection("discord_verify_tokens").doc(dtoken);
+      const dtokenDoc = await dtokenRef.get();
+      if (!dtokenDoc.exists)          throw Object.assign(new Error("Invalid or expired Discord link. Use /verify in Discord to get a new one."), { status: 404 });
+      const td = dtokenDoc.data();
+      if (td.used)                    throw Object.assign(new Error("This Discord link has already been used."), { status: 410 });
+      if (Date.now() > td.expiresAt)  throw Object.assign(new Error("This Discord link has expired. Use /verify in Discord to get a new one."), { status: 410 });
+      discordUserId   = td.discordUserId;
+      discordUsername = td.discordUsername;
     }
+    // Consumed only once the verification it authorises has actually landed.
+    const burnDtoken = async () => {
+      if (!dtokenRef) return;
+      try { await dtokenRef.update({ used: true }); } catch { /* best effort */ }
+    };
 
     const kickKey      = kickUsername.toLowerCase();
     const affiliateKey = (affiliateUsername || "").toLowerCase();
@@ -148,6 +157,7 @@ exports.handler = async (event) => {
 
       logAudit(streamerUid, "verify", { kickUsername, provider: "none", casinoSkipped: true, discordLinked: !!discordUserId });
 
+      await burnDtoken();
       return res(200, {
         success:            true,
         kickUsername,
@@ -324,6 +334,7 @@ exports.handler = async (event) => {
     batch.delete(db.collection("streamers").doc(streamerUid)
       .collection("verified_users").doc(`${kickKey}_none`));
     await batch.commit();
+    await burnDtoken();
 
     // Discord-initiated flow: also save the discord_link
     if (discordUserId) {
