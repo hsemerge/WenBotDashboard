@@ -26,4 +26,21 @@ const CASINO_NAMES = {
   csgobig:    "CSGOBig",
 };
 
-module.exports = { CASINO_NAMES };
+// Casinos whose affiliate API lookupAffiliate() can actually query, i.e. the ones
+// where "is this viewer under the code" is answerable live rather than on the
+// honour system.
+//
+// This lived as a private `const API_CASINOS` copy inside verify-affiliate,
+// recheck-verified and link-verified. Duelbits was added to the lookup itself but
+// to none of those three sets, so every Duelbits viewer fell through to the
+// honour-system branch: verification never ran the check, told them they were not
+// under the code, and saved them as Standard. Only the bulk "Re-check all"
+// endpoint (which branches on the provider by hand) ever confirmed them, which is
+// why an entire channel would flip green the moment someone pressed it.
+//
+// One copy, imported everywhere, so adding the next casino can't half-land.
+// NOTE: portal-data.js keeps a separate local set of the same name — that one
+// gates a hardcoded Gambulls board fetch, not affiliate lookups. Don't merge them.
+const API_CASINOS = new Set(["gambulls", "rainbet", "duelbits"]);
+
+module.exports = { CASINO_NAMES, API_CASINOS };

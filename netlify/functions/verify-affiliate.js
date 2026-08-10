@@ -8,16 +8,14 @@
 
 const { getDb, admin }         = require("./_lib/firebase");
 const { res, checkRateLimit }  = require("./_lib/http");
-const { CASINO_NAMES }         = require("./_lib/casinos");
+const { CASINO_NAMES, API_CASINOS } = require("./_lib/casinos");
 const { logAudit }             = require("./_lib/audit");
 const { lookupAffiliate }      = require("./_lib/affiliate");
 const { lookupDegen }          = require("./_lib/degen");
 const { normalizeBoard, boardWindow } = require("./_lib/leaderboards");
 const { getKickUser }          = require("./_lib/kick");
+const { saveDiscordLink, stampDiscordVerified, findExistingDiscordLink } = require("./_lib/discord-link");
 const crypto                   = require("crypto");
-
-// Casinos with live API verification
-const API_CASINOS = new Set(["gambulls", "rainbet"]);
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
@@ -122,12 +120,7 @@ exports.handler = async (event) => {
       });
 
       if (discordUserId) {
-        await db.collection("streamers").doc(streamerUid)
-          .collection("discord_links").doc(discordUserId).set({
-            kickUsername,
-            discordUsername,
-            linkedAt: Date.now(),
-          });
+        await saveDiscordLink(db, streamerUid, discordUserId, { kickUsername, discordUsername });
       }
 
       // First-verify bonus applies to Kick-only verifies too (idempotent flag).
@@ -148,11 +141,18 @@ exports.handler = async (event) => {
         } catch (err) { console.warn("[verify-affiliate] first-verify bonus failed:", err.message); }
       }
 
+      // They may have linked Discord on an earlier pass, before this doc existed.
+      // The doc we just wrote would carry no flag, so carry it over from the link.
       let hasExistingDiscordLink = !!discordUserId;
       if (!hasExistingDiscordLink) {
-        const existingLink = await db.collection("streamers").doc(streamerUid)
-          .collection("discord_links").where("kickUsername", "==", kickUsername).limit(1).get();
-        hasExistingDiscordLink = !existingLink.empty;
+        const existing = await findExistingDiscordLink(db, streamerUid, kickUsername);
+        hasExistingDiscordLink = !!existing;
+        if (existing) {
+          await stampDiscordVerified(db, streamerUid, kickUsername, {
+            discordUserId:   existing.id,
+            discordUsername: existing.discordUsername,
+          }).catch(() => {});
+        }
       }
 
       logAudit(streamerUid, "verify", { kickUsername, provider: "none", casinoSkipped: true, discordLinked: !!discordUserId });
@@ -242,7 +242,16 @@ exports.handler = async (event) => {
       if (!providerDoc.exists) {
         return res(400, { error: `This streamer hasn't configured their ${CASINO_NAMES[provider]} API yet.` });
       }
-      const result = await lookupAffiliate(provider, providerDoc.data(), affiliateUsername);
+      // Pass the race period, exactly as the Re-check paths do. Without it
+      // lookupAffiliate can only check Duelbits' own current cycle, which is
+      // NARROWER than the streamer's race window. Someone who wagered in the race
+      // but not in the live cycle was told at verify time that they aren't under
+      // the code, then turned green the moment a Re-check ran with the period in
+      // hand. Verify now sees the same two boards the Re-check sees.
+      const result = await lookupAffiliate(
+        provider, providerDoc.data(), affiliateUsername, null,
+        { period: streamerData.leaderboardPeriod || null }
+      );
       if (result) {
         // For an exact match, prefer the board's canonical casing. For a MASKED
         // match the board name is anonymized ("Be***x"), so keep the user's
@@ -338,12 +347,7 @@ exports.handler = async (event) => {
 
     // Discord-initiated flow: also save the discord_link
     if (discordUserId) {
-      await db.collection("streamers").doc(streamerUid)
-        .collection("discord_links").doc(discordUserId).set({
-          kickUsername,
-          discordUsername,
-          linkedAt: Date.now(),
-        });
+      await saveDiscordLink(db, streamerUid, discordUserId, { kickUsername, discordUsername });
     }
 
     // First-time verify bonus — idempotent via firstVerifyBonusAt on the viewer doc.
@@ -373,13 +377,18 @@ exports.handler = async (event) => {
 
     // Check whether this Kick user already has any Discord link on this streamer
     // (so the success screen doesn't keep prompting "Connect Discord" forever).
+    // Same carry-over as the Kick-only path: a link made before this verification
+    // has to be stamped onto the doc we just wrote, or the gate can't see it.
     let hasExistingDiscordLink = !!discordUserId;
     if (!hasExistingDiscordLink) {
-      const existingLink = await db.collection("streamers").doc(streamerUid)
-        .collection("discord_links")
-        .where("kickUsername", "==", kickUsername)
-        .limit(1).get();
-      hasExistingDiscordLink = !existingLink.empty;
+      const existing = await findExistingDiscordLink(db, streamerUid, kickUsername);
+      hasExistingDiscordLink = !!existing;
+      if (existing) {
+        await stampDiscordVerified(db, streamerUid, kickUsername, {
+          discordUserId:   existing.id,
+          discordUsername: existing.discordUsername,
+        }).catch(() => {});
+      }
     }
 
     // Audit log — best-effort, never blocks the response

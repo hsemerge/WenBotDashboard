@@ -147,10 +147,11 @@ async function lookupAffiliate(provider, credential, affiliateUsername, diagnost
   // ids (like Rainbet), so it reuses findMatch for the masking while mapping the
   // flat shape into what findMatch expects.
   //
-  // Deliberately queried WITHOUT a date window: verification asks "is this
-  // person under the affiliate at all", which is a broader question than "are
-  // they on the current race". Someone who played last month and not this one
-  // is still under the code.
+  // Verification asks "is this person under the affiliate at all", which is a
+  // broader question than "are they on the current race", so it unions every
+  // board it can see rather than querying one window. Callers must pass
+  // opts.period or they only get Duelbits' current cycle, which is the narrower
+  // of the two.
   if (provider === "duelbits") {
     const diag = { type: "duelbits", target, knownUid };
     try {
@@ -165,10 +166,16 @@ async function lookupAffiliate(provider, credential, affiliateUsername, diagnost
       //
       // Being under the affiliate is a durable fact, so any board they appear on
       // proves it. Deduped by uid, race window first so its row wins.
-      const raceBoard  = (opts && opts.period && opts.period.active)
-        ? await fetchDuelbitsForPeriod(cred.affiliateId, cred.password, opts.period)
-        : null;
-      const cycleBoard = await fetchDuelbits(cred.affiliateId, cred.password);
+      // Fetched CONCURRENTLY. Each call is ~2.5s against Duelbits, and this now
+      // runs inside verify-affiliate, which has a viewer waiting on it and a
+      // function timeout to stay under. Sequentially that was 5s of the budget
+      // spent on two independent requests.
+      const [raceBoard, cycleBoard] = await Promise.all([
+        (opts && opts.period && opts.period.active)
+          ? fetchDuelbitsForPeriod(cred.affiliateId, cred.password, opts.period)
+          : Promise.resolve(null),
+        fetchDuelbits(cred.affiliateId, cred.password),
+      ]);
       if (!raceBoard && !cycleBoard) {
         diag.error = "fetch failed (bad credentials or API error)";
         if (diagnostics) diagnostics.push(diag);

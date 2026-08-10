@@ -6,6 +6,7 @@
 const { getDb, admin } = require("./_lib/firebase");
 const { res }          = require("./_lib/http");
 const { getKickUser }  = require("./_lib/kick");
+const { saveDiscordLink } = require("./_lib/discord-link");
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
@@ -158,15 +159,14 @@ exports.handler = async (event) => {
     }
   }
 
-  // Save the discord_link.
-  await db.collection("streamers").doc(streamerUid)
-    .collection("discord_links").doc(discordUserId).set({
-      kickUsername,
-      discordUsername,
-      guildId,
-      guildVerified: isMember,
-      linkedAt: Date.now(),
-    });
+  // Save the discord_link — and stamp discordVerified onto their verified_users
+  // docs, which is the only copy the bot's giveaway gate can see.
+  await saveDiscordLink(db, streamerUid, discordUserId, {
+    kickUsername,
+    discordUsername,
+    guildId,
+    guildVerified: isMember,
+  });
 
   // Assign the verified role (idempotent). We attempt it regardless of our own
   // membership detection: reading /users/@me/guilds is unreliable for users in

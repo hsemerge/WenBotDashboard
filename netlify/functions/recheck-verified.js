@@ -9,12 +9,11 @@
 
 const { getDb, admin }        = require("./_lib/firebase");
 const { res, checkRateLimit } = require("./_lib/http");
-const { CASINO_NAMES }        = require("./_lib/casinos");
+const { CASINO_NAMES, API_CASINOS } = require("./_lib/casinos");
 const { lookupAffiliate }     = require("./_lib/affiliate");
 const { lookupDegen }         = require("./_lib/degen");
 const { logAudit }            = require("./_lib/audit");
 
-const API_CASINOS = new Set(["gambulls", "rainbet"]);
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});

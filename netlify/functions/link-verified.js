@@ -10,11 +10,10 @@
 
 const { getDb, admin }        = require("./_lib/firebase");
 const { res, checkRateLimit } = require("./_lib/http");
-const { CASINO_NAMES }        = require("./_lib/casinos");
+const { CASINO_NAMES, API_CASINOS } = require("./_lib/casinos");
 const { lookupAffiliate }     = require("./_lib/affiliate");
 const { logAudit }            = require("./_lib/audit");
 
-const API_CASINOS = new Set(["gambulls", "rainbet"]);
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
@@ -64,8 +63,16 @@ exports.handler = async (event) => {
     const apiKey = providerDoc.data();   // whole doc: some casinos need more than one secret
 
     // Validate the chosen UID is actually on the live board (and grab its wager).
+    // Same period passthrough as verify and re-check: without it a manual link to
+    // someone who only appears on the race window gets rejected as "no longer on
+    // the current board", which is the one board they were never on.
+    const streamerSnap = await db.collection("streamers").doc(uid).get();
+    const racePeriod   = (streamerSnap.exists ? streamerSnap.data().leaderboardPeriod : null) || null;
+
     const diagnostics = [];
-    const result = await lookupAffiliate(provider, apiKey, null, diagnostics, { uid: String(providerUid) });
+    const result = await lookupAffiliate(provider, apiKey, null, diagnostics, {
+      uid: String(providerUid), period: racePeriod,
+    });
     if (!result) {
       return res(404, { error: "That leaderboard entry is no longer on the current board. Refresh and try again.", diagnostics });
     }
