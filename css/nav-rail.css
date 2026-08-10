@@ -288,6 +288,30 @@ html.nebula #railPop::before { border-color: rgba(0, 229, 255, 0.22); }
   #railPop { max-width: calc(100vw - 100px); }
 }
 
+/* ── phones ──
+   The rail is a desktop affordance and does not survive the trip down. It sits
+   in the layout flow, so at 164px it was eating 42% of a 390px phone and
+   squeezing every page into the strip left over. Worse, reaching a page costs
+   three taps here (category tile, then flyout item, then the page) where the
+   list costs two, and the flyout itself is a fixed panel positioned from the
+   tile's coordinates, which has nowhere to go on a screen this narrow.
+
+   So below 768px, rail mode falls back to the list drawer the dashboard already
+   has. The sidebar is static markup that is only ever hidden, never removed, so
+   unhiding it reuses the whole existing mechanism unchanged: the hamburger, the
+   dimming overlay, toggleSidebar(), and the close-on-navigate handler. Nothing
+   in JS needs to know which nav mode is active.
+
+   Desktop keeps the rail exactly as it is. */
+@media (max-width: 768px) {
+  body.nav-rail #navRail { display: none; }
+  body.nav-rail .sidebar { display: flex; }
+  /* Both are position:fixed, so a menu left open before a rotate or resize
+     would otherwise stay pinned over the page with no way to dismiss it. */
+  body.nav-rail #railScrim,
+  body.nav-rail #railPop { display: none !important; }
+}
+
 /* ── themes dialog ── */
 #themeModal {
   display: none;

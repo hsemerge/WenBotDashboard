@@ -59,6 +59,15 @@
     let   statePayload = null; // populated inside run() from localStorage
     let   viewerSession = null; // built in run(); used directly by the cross-domain handoff
 
+    // Local copy rather than pulling in kick-auth.js: this page only needs to
+    // READ the return address out of the state, and kick-auth.js exists to start
+    // OAuth flows, which is the one thing the callback must never do.
+    function b64urlDecode(str) {
+      const pad = str.length % 4 ? "=".repeat(4 - (str.length % 4)) : "";
+      const bin = atob(str.replace(/-/g, "+").replace(/_/g, "/") + pad);
+      return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
+    }
+
     function setStatus(msg, type) {
       const el = document.getElementById("status");
       el.textContent  = msg;
@@ -88,25 +97,24 @@
         return;
       }
 
-      const verifier = localStorage.getItem("kick_code_verifier");
-      if (!verifier) {
-        hideSpinner();
-        setStatus("Session expired", "error");
-        setDetail("Your browser session ended during Kick login (common when the page is opened from an email link in a new tab). Try Connect Kick again once you land back on setup.");
-        redirectBack(3000);
-        return;
-      }
-
       const isWenBot   = state && state.startsWith("wenbot_");
       const isViewer   = state && state.startsWith("viewer_");
       const isVerify   = state && state.startsWith("verify_");
       const isLogin    = state && state.startsWith("login_");
       const isStreamer = !isWenBot && !isViewer && !isVerify && !isLogin;
 
-      // Look up the OAuth state payload from localStorage (set by initiateKickAuth)
+      // Look up the OAuth state payload from localStorage (set by initiateKickAuth).
+      //
+      // Resolved BEFORE the PKCE verifier check, not after. Both live in the same
+      // storage, so when that storage is missing every failure below needs the
+      // payload to know where to send the viewer back to — and it used to run
+      // second, which meant redirectBack() always saw a null payload on the
+      // "Session expired" path and fell through to a bare /verify.html.
       if (isWenBot || isViewer || isVerify) {
         const prefix = isWenBot ? "wenbot_" : isViewer ? "viewer_" : "verify_";
-        const nonce  = state.slice(prefix.length);
+        // The verify flow appends `~<base64url ctx>` to the nonce; everything
+        // after the tilde is the return address, not part of the nonce.
+        const nonce  = state.slice(prefix.length).split("~")[0];
         const key    = `oauth_state_${nonce}`;
         try {
           const raw = localStorage.getItem(key);
@@ -115,13 +123,31 @@
             localStorage.removeItem(key); // consume — single-use
           }
         } catch {}
-        if (!statePayload) {
-          hideSpinner();
-          setStatus("Invalid or expired OAuth session", "error");
-          setDetail("Please try again from the original page.");
-          redirectBack(3000);
-          return;
-        }
+      }
+
+      const verifier = localStorage.getItem("kick_code_verifier");
+      if (!verifier) {
+        hideSpinner();
+        setStatus("Session expired", "error");
+        // The old copy said "once you land back on setup", which is the streamer
+        // page — a viewer verifying from Discord has never seen it. It also
+        // blamed email links, when the common cause is an in-app browser (Discord,
+        // Twitter) handing the Kick login off to Safari partway through: the
+        // second browser has none of the first one's storage, so the login cannot
+        // be completed there.
+        setDetail(isVerify || isViewer
+          ? "Your login started in one browser and finished in another, so the security check could not be completed. Opening the link directly in your normal browser, rather than from inside another app, will fix it."
+          : "Your browser session ended during Kick login (common when the page is opened from an email link in a new tab). Try Connect Kick again once you land back on setup.");
+        redirectBack(3000);
+        return;
+      }
+
+      if ((isWenBot || isViewer || isVerify) && !statePayload) {
+        hideSpinner();
+        setStatus("Invalid or expired OAuth session", "error");
+        setDetail("Please try again from the original page.");
+        redirectBack(3000);
+        return;
       }
 
       try {
@@ -323,10 +349,32 @@
         const ch = (typeof statePayload === 'object' && statePayload?.channel) || "";
         dest = ch ? `/bonus-battle.html?channel=${encodeURIComponent(ch)}` : "/";
       } else if (state && state.startsWith("verify_")) {
-        if (typeof statePayload === 'object' && statePayload) {
-          const q = new URLSearchParams({ channel: statePayload.channel||"", casino: statePayload.casino||"gambulls" });
-          if (statePayload.dtoken) q.set("dtoken", statePayload.dtoken);
-          if (statePayload.ret)    q.set("ret",    statePayload.ret);
+        // Prefer the stored payload — it's the only place the dtoken lives, so
+        // taking it keeps the Discord auto-attach working on a normal retry.
+        let ctx = (typeof statePayload === 'object' && statePayload) ? statePayload : null;
+        let fromState = false;
+        // Fall back to the return address carried in the state itself. Without
+        // this, a round-trip that crossed browsing contexts (Discord's in-app
+        // browser handing off to Safari, which is exactly what "Continue with
+        // Google" forces, since Google refuses OAuth inside embedded webviews)
+        // landed on a bare /verify.html: "Unknown channel", "Casino not set up
+        // yet", "Invalid verification link". A dead end with nothing to click.
+        if (!ctx) {
+          try {
+            const raw = state.slice("verify_".length).split("~")[1];
+            if (raw) {
+              const d = JSON.parse(b64urlDecode(raw));
+              if (d && d.c) { ctx = { channel: d.c, casino: d.k, ret: d.r }; fromState = true; }
+            }
+          } catch {}
+        }
+        if (ctx && ctx.channel) {
+          const q = new URLSearchParams({ channel: ctx.channel, casino: ctx.casino || "gambulls" });
+          if (ctx.dtoken) q.set("dtoken", ctx.dtoken);
+          if (ctx.ret)    q.set("ret",    ctx.ret);
+          // Tells verify.html to explain what happened rather than looking like
+          // a fresh visit that inexplicably lost their progress.
+          if (fromState) q.set("resumed", "1");
           dest = `/verify.html?${q}`;
         } else {
           dest = "/verify.html";

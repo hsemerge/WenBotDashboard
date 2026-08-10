@@ -260,6 +260,11 @@
   let primaryCasinoName = casinoName;
   const discordMode   = !!dtoken;
   const kickConnected = params.get('kick') === 'connected';
+  // Set by the OAuth callback when it had to rebuild this URL from the state
+  // because the stored payload was gone — i.e. the login round-trip crossed
+  // browsing contexts. Retrying blindly would just fail the same way, so the
+  // page explains the cause instead of silently bouncing them back in.
+  const kickResumed   = params.get('resumed') === '1';
   // Where the viewer came from — whitelisted keys only (never a raw URL, so
   // this can't be abused as an open redirect). Carried through the Kick OAuth
   // round-trip via the state payload.
@@ -498,6 +503,24 @@
     const session = getKickViewerSession();
 
     if (!session) {
+      // Came back from a login that crossed browsers. Auto-reconnecting here
+      // would send them straight back into the same dead end, so stop, say what
+      // happened, and give them the one action that actually works.
+      if (kickResumed) {
+        document.getElementById('kickUsernameDisplay').textContent = 'Sign in with Kick to continue';
+        document.getElementById('formSection').style.display = 'none';
+        document.getElementById('kickGate').style.display = 'block';
+        const note = document.createElement('p');
+        note.style.cssText = 'font-size:12.5px;line-height:1.6;color:#ffa726;background:rgba(255,167,38,0.08);border:1px solid rgba(255,167,38,0.3);border-radius:10px;padding:11px 13px;margin:0 0 14px;text-align:left;';
+        note.innerHTML = "<strong>Your login opened in a different browser.</strong><br>" +
+          "That happens when you tap this link inside another app, such as Discord, and then choose Sign in with Google. " +
+          "Google will not sign you in inside an app's built in browser, so it hands you to Safari or Chrome partway through and the check cannot finish.<br><br>" +
+          "To fix it, open this page in your normal browser first. Tap the <strong>…</strong> or share button and choose <strong>Open in browser</strong>, then press Connect with Kick below. " +
+          "Signing in with your Kick email and password instead of Google also works.";
+        const gate = document.getElementById('kickGate');
+        gate.insertBefore(note, gate.firstChild);
+        return;
+      }
       // No valid session — show gate. If they JUST came back from OAuth with kick=connected
       // but the session isn't there, treat as session expired and auto-reconnect.
       if (kickConnected) {

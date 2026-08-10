@@ -2,10 +2,18 @@
 // Used for streamer connect, WenBot admin auth, and viewer/verify flows.
 //
 // State handling:
-//   The OAuth `state` parameter is a short random nonce only — never carries payload.
-//   The real payload (channel, casino, dtoken, adminKey, etc.) is stored in localStorage
-//   keyed by that nonce. The callback page consumes it. This prevents URL/state tampering
-//   and keeps secrets like admin keys out of browser history / server logs.
+//   The OAuth `state` parameter is a short random nonce. The real payload
+//   (channel, casino, dtoken, adminKey, etc.) is stored in localStorage keyed by
+//   that nonce, and the callback page consumes it. This prevents URL/state
+//   tampering and keeps secrets like admin keys out of browser history / server
+//   logs.
+//
+//   The one exception is the verify flow, where the state also carries a
+//   base64url'd {channel, casino} after a `~`. That is a non-secret return
+//   address, used ONLY to pick the redirect destination when the stored payload
+//   is unreachable — which happens when the round-trip crosses browsing contexts
+//   (Discord's in-app browser handing off to Safari, say). Secrets, including the
+//   dtoken, still never go in the state.
 
 const KICK_CLIENT_ID    = "01KQTY89PFZ2GAZ68ZTAXKGTF8";
 // Must match the redirect URI configured in the Kick OAuth app's settings.
@@ -26,6 +34,19 @@ async function generateCodeVerifier() {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
   return base64urlEncode(bytes);
+}
+
+// Same encoding for a plain string. Used to carry the non-secret return context
+// (channel, casino) inside the OAuth state, so the callback can still send a
+// viewer back to the right page when localStorage did not survive the trip.
+// TextEncoder first so a channel name with non-ASCII characters can't throw.
+function b64urlEncode(str) {
+  return base64urlEncode(new TextEncoder().encode(str));
+}
+function b64urlDecode(str) {
+  const pad = str.length % 4 ? "=".repeat(4 - (str.length % 4)) : "";
+  const bin = atob(str.replace(/-/g, "+").replace(/_/g, "/") + pad);
+  return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
 }
 
 async function generateCodeChallenge(verifier) {
@@ -152,7 +173,29 @@ async function initiateKickAuth(purpose = "streamer", payload = "") {
       ret:       p.ret || null,
       createdAt: Date.now(),
     }));
-    state  = `verify_${nonce}`;
+    // The channel and casino are ALSO encoded into the state string, not just
+    // into localStorage. state round-trips through Kick in the URL, so it comes
+    // back even when the storage that held the payload does not.
+    //
+    // That happens for real: a viewer opening the Discord verify link gets
+    // Discord's in-app browser, and signing into Kick with Google kicks them out
+    // to Safari. Different browsing context, different localStorage, so the
+    // callback found nothing and dumped them on a bare /verify.html reading
+    // "Unknown channel / Casino not set up yet / Invalid verification link",
+    // with no way back to the right page.
+    //
+    // This is a fallback for the REDIRECT DESTINATION only. The nonce is still
+    // the CSRF token and the stored payload is still authoritative when present;
+    // neither is weakened by the destination also travelling in the open. The
+    // dtoken is deliberately NOT included: it is a bearer credential for
+    // attaching a Discord identity and does not belong in a URL handed to a
+    // third party.
+    const ctx = b64urlEncode(JSON.stringify({
+      c: (p.channel || "").toLowerCase(),
+      k: p.casino || "gambulls",
+      r: p.ret || undefined,
+    }));
+    state  = `verify_${nonce}~${ctx}`;
     scopes = "user:read";
 
   } else {
