@@ -2560,6 +2560,11 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <label id="settingsApiKeyLabel">Leaderboard API Key</label>
             <input type="password" id="settingsApiKey" placeholder="sk_...">
             <div class="hint" id="settingsApiKeyHint"></div>
+            <!-- Second credential, shown only for casinos that need one. -->
+            <div id="settingsApiKey2Wrap" style="display:none;margin-top:10px;">
+              <label id="settingsApiKey2Label">API Password</label>
+              <input type="password" id="settingsApiKey2" placeholder="">
+            </div>
           </div>
           <label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;color:var(--text);margin-bottom:12px;cursor:pointer;">
             <input type="checkbox" id="settingsCasinoRequired" checked style="width:16px;height:16px;margin-top:1px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
@@ -7267,7 +7272,7 @@ const PLATFORM_NAMES = {
   duelbits: 'Duelbits', rollbit: 'Rollbit', chipsgg: 'Chips.gg',
 };
 
-const PLATFORMS_WITH_LEADERBOARD_API = ['gambulls', 'rainbet'];
+const PLATFORMS_WITH_LEADERBOARD_API = ['gambulls', 'rainbet', 'duelbits'];
 
 function updatePlatformDisplays() {
   const p    = profile?.activeProvider || '';
@@ -7292,8 +7297,22 @@ function srProviderChange() {
     if (label) label.textContent = cred.label;
     hint.textContent  = cred.hint;
     input.placeholder = cred.placeholder || '';
-    input.type        = (cred.field === 'apiKey') ? 'password' : 'text';
-  } else {
+    // Anything that isn't a public referral code is treated as a secret.
+    input.type        = (cred.field === 'referralCode') ? 'text' : 'password';
+  }
+  // The second field appears only for casinos that declare one.
+  const wrap2 = document.getElementById('settingsApiKey2Wrap');
+  if (wrap2) {
+    const has2 = !!(cred && cred.field2);
+    wrap2.style.display = has2 ? '' : 'none';
+    if (has2) {
+      document.getElementById('settingsApiKey2Label').textContent = cred.label2 || 'API Password';
+      document.getElementById('settingsApiKey2').placeholder = cred.placeholder2 || '';
+    } else {
+      document.getElementById('settingsApiKey2').value = '';
+    }
+  }
+  if (!cred) {
     // No leaderboard integration for this casino yet — verification still works.
     input.style.display = 'none';
     if (label) label.textContent = 'Leaderboard';
@@ -10439,6 +10458,9 @@ async function loadProviderSettings() {
   const doc = await getProviderConfig(profile.activeProvider);
   const cred = (typeof CASINO_CREDENTIALS !== 'undefined') ? CASINO_CREDENTIALS[profile.activeProvider] : null;
   if (doc && cred && doc[cred.field]) document.getElementById('settingsApiKey').value = doc[cred.field];
+  if (doc && cred && cred.field2 && doc[cred.field2]) {
+    document.getElementById('settingsApiKey2').value = doc[cred.field2];
+  }
 }
 
 async function saveProviderSettings() {
@@ -10448,7 +10470,17 @@ async function saveProviderSettings() {
 
   // Save the value to the field THIS casino uses (apiKey / referralCode / …).
   // Optional — they can set the casino now and add the credential later.
-  if (cred && value) await saveProviderConfig(provider, { [cred.field]: value, enabled: true });
+  if (cred && value) {
+    const payload = { [cred.field]: value, enabled: true };
+    // Written in the same call as the first: a Duelbits credential is only
+    // usable as a PAIR, so saving one without the other would leave a provider
+    // that looks configured and fails on every fetch.
+    if (cred.field2) {
+      const v2 = document.getElementById('settingsApiKey2')?.value.trim();
+      if (v2) payload[cred.field2] = v2;
+    }
+    await saveProviderConfig(provider, payload);
+  }
   const casinoRequired = document.getElementById('settingsCasinoRequired')?.checked !== false;
   await saveStreamerProfile({ activeProvider: provider, casinoRequired });
   if (profile) { profile.activeProvider = provider; profile.casinoRequired = casinoRequired; }

@@ -29,7 +29,20 @@ const CASINO_NAMES = {
 // `field` is the providers/<casino> doc field the value saves to; the backend
 // leaderboard fetchers read exactly that. Casinos NOT listed here have no
 // leaderboard integration yet (the UI tells the streamer so).
+// Most casinos onboard with ONE secret. Duelbits needs two (an affiliate id
+// that also forms part of the URL, plus a password), so `field2` is optional
+// extra metadata rather than a second shape — everything that reads `field`
+// keeps working untouched, and only the entry form checks for `field2`.
 const CASINO_CREDENTIALS = {
+  duelbits: {
+    field:        "affiliateId",
+    label:        "Duelbits Affiliate ID",
+    placeholder:  "e.g. 0f8c1a2b-3d4e-5f60-7a89-bcdef0123456",
+    hint:         "Both values come from your Duelbits affiliate manager. Your leaderboard ranks on Duelbits' weighted points, the same as your Duelbits page.",
+    field2:       "password",
+    label2:       "Duelbits API Password",
+    placeholder2: "paste your API password",
+  },
   rainbet: {
     field:       "apiKey",
     label:       "Rainbet Affiliate API Key",
