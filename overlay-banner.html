@@ -220,14 +220,23 @@
      No pill — a box around it just made it look like a button that can't be
      clicked. The separators either side are dropped so it reads as one unit. */
   .mq-item.site { padding:0 46px; gap:16px; }
+  /* Sized off the strip height, not a fixed 52px. The artwork is a dark figure
+     on a night skyline — at thumbnail size it reads as a black disc, because
+     the only bright pixels are a few city lights. It needs to be big to read
+     at all, so it fills most of the strip. */
   .mq-item.site .mq-ico {
-    width:var(--mq-logo,52px); height:var(--mq-logo,52px); border-radius:50%;
+    width:var(--mq-logo); height:var(--mq-logo); border-radius:50%;
     overflow:hidden; border:2px solid var(--accent);
-    box-shadow:0 0 18px color-mix(in srgb, var(--accent) 55%, transparent),
-               inset 0 0 12px rgba(0,0,0,.6);
+    box-shadow:0 0 18px color-mix(in srgb, var(--accent) 55%, transparent);
     animation:sitePulse 3.2s ease-in-out infinite;
   }
-  .mq-item.site .mq-ico img { border-radius:50%; }
+  /* cover + a slight zoom crops the black square margin off the artwork so the
+     subject fills the circle, and the lift makes it survive on a black bar.
+     The inset shadow that used to be here was darkening it further. */
+  .mq-item.site .mq-ico img {
+    border-radius:50%; object-fit:cover; transform:scale(1.18);
+    filter:brightness(1.35) contrast(1.12) saturate(1.15);
+  }
   @keyframes sitePulse {
     0%,100% { box-shadow:0 0 16px color-mix(in srgb, var(--accent) 45%, transparent), inset 0 0 12px rgba(0,0,0,.6); }
     50%     { box-shadow:0 0 30px color-mix(in srgb, var(--accent) 80%, transparent), inset 0 0 12px rgba(0,0,0,.6); }
@@ -273,6 +282,10 @@
   // than to the OBS source, which is usually dragged larger than the strip.
   var MQH = Math.max(30, Math.min(parseInt(qs.get('h'), 10) || 101, 400));
   document.documentElement.style.setProperty('--mq-h', MQH + 'px');
+  // Site logo scales with the strip (~78% of its height) so it reads at a
+  // glance, with ?logo= to override in px.
+  var MQLOGO = parseInt(qs.get('logo'), 10) || Math.round(MQH * 0.78);
+  document.documentElement.style.setProperty('--mq-logo', MQLOGO + 'px');
   // Browser-only sanity check: OBS renders a browser source over transparency,
   // but a normal tab renders it over white, which makes the transparent layout
   // look broken when it isn't. ?preview=1 paints a mock scene behind it.
