@@ -4000,6 +4000,12 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
                   style="width:100%;accent-color:var(--accent);">
                 <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">How long the winner stays on screen after the spin. 0 = stay forever.</div>
               </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin:10px 0 6px;">
+                <div style="font-size:11px;color:var(--text-dim);font-weight:600;">Header size</div>
+                <span id="osHdrSizeVal" style="font-size:11px;color:var(--accent);font-weight:700;">12px</span>
+              </div>
+              <input type="range" id="osHdrSizeSlider" min="8" max="32" value="12" oninput="osHdrSizeChange(this.value)"
+                style="width:100%;accent-color:var(--accent);cursor:pointer;">
             </div>
 
             <!-- Size — scales the whole overlay. Applies to every overlay. -->
@@ -12539,6 +12545,7 @@ function osDefaultTheme(overlayId) {
     edges:     true,           // false strips borders/shadows from the overlay card
     headerPos: 'top',          // 'top' | 'beside' | 'off'
     headerAlign: 'left',       // 'left' | 'center' | 'right'
+    headerSize: 12,            // px
     scale:     100,            // % — scales the whole overlay
     rows:      5,              // visible rows before a scrolling list scrolls
     bgColor:   '#0d1117',
@@ -12615,6 +12622,7 @@ function gwOverlayUrl(overlayId, opts) {
   if (t.edges === false) p.set('edges', 'off');
   if (o.header && t.headerPos && t.headerPos !== 'top') p.set('hdrpos', t.headerPos);
   if (o.header && t.headerAlign && t.headerAlign !== 'left') p.set('hdralign', t.headerAlign);
+  if (o.header && t.headerSize && Number(t.headerSize) !== 12) p.set('hdrsize', t.headerSize);
   if (t.scale && Number(t.scale) !== 100) p.set('scale', t.scale);
   if (o.hasRows && t.rows) p.set('rows', t.rows);
   if (o.header && t.header && t.header.trim()) p.set('header', t.header.trim());
@@ -12809,6 +12817,9 @@ function osSelectOverlay(id) {
     document.getElementById('osHeaderInput').placeholder = o.header;
     document.getElementById('osHeaderPos').value = t.headerPos || 'top';
     document.getElementById('osHeaderAlign').value = t.headerAlign || 'left';
+    const hs = t.headerSize != null ? t.headerSize : 12;
+    document.getElementById('osHdrSizeSlider').value = hs;
+    document.getElementById('osHdrSizeVal').textContent = hs + 'px';
   } else {
     hdrWrap.style.display = 'none';
   }
@@ -12985,6 +12996,11 @@ function osHeaderPosChange(val) {
   osCur().headerPos = val;
   osRefresh();
 }
+function osHdrSizeChange(val) {
+  osCur().headerSize = parseInt(val, 10) || 12;
+  document.getElementById('osHdrSizeVal').textContent = val + 'px';
+  osRefresh();
+}
 function osHeaderAlignChange(val) {
   osCur().headerAlign = val;
   osRefresh();
@@ -13048,7 +13064,7 @@ function osApplyToAll() {
   OS_OVERLAYS.forEach(o => {
     const keepHeader = (osThemes[o.id] && osThemes[o.id].header) || (o.header || '');
     osThemes[o.id] = {
-      accent: cur.accent, bgMode: cur.bgMode, bgColor: cur.bgColor, edges: cur.edges !== false, headerPos: cur.headerPos || 'top', headerAlign: cur.headerAlign || 'left', scale: cur.scale || 100, rows: cur.rows || 5,
+      accent: cur.accent, bgMode: cur.bgMode, bgColor: cur.bgColor, edges: cur.edges !== false, headerPos: cur.headerPos || 'top', headerAlign: cur.headerAlign || 'left', headerSize: cur.headerSize || 12, scale: cur.scale || 100, rows: cur.rows || 5,
       bgOpacity: cur.bgOpacity, text: cur.text, font: cur.font,
       header: keepHeader,
     };

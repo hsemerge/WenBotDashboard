@@ -166,9 +166,12 @@
      Two copies alone is NOT enough — if one set is narrower than the screen
      you can see the seam between the copies, which reads as the content
      repeating itself. The repeat count is computed from the measured width. */
-  body.marquee { align-items:flex-start; }
+  body.marquee { align-items:stretch; }
+  /* Fills the OBS source height rather than a fixed 70px, so it can be sized
+     to sit inside a streamer's own banner strip (TiltBros' is 1391x101). The
+     min-height keeps it usable if the source is dragged very short. */
   body.marquee .bar {
-    height:70px; border-top:none;
+    height:100%; min-height:44px; border-top:none;
     border-bottom:1px solid color-mix(in srgb, var(--accent2) 55%, transparent);
     justify-content:flex-start; overflow:hidden;
   }

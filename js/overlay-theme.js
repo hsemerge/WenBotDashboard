@@ -137,6 +137,54 @@
     // Anchored top-left so the overlay grows away from where it's positioned
     // in OBS, rather than drifting off its anchor.
     if (t.scale) setScale(t.scale);
+
+    // Header placement / alignment / size. Done generically here rather than
+    // per-overlay: every overlay marks its header [data-ov-header], so align,
+    // size and hide work everywhere. "beside" is a layout change only some
+    // panels can express, so it's passed through as a body class for those
+    // that implement it and is simply inert elsewhere.
+    applyHeaderStyle(t);
+
+    // Row count for list overlays. The page owns the re-render (it has to
+    // rebuild its clones), so publish the value and let it react.
+    if (t.rows) {
+      var r = parseInt(t.rows, 10);
+      if (!isNaN(r) && r > 0 && window.__ovRows !== r) {
+        window.__ovRows = r;
+        try { window.dispatchEvent(new CustomEvent('ov-rows', { detail: r })); } catch (e) {}
+      }
+    }
+  }
+
+  var _hdrStyle = null;
+  function applyHeaderStyle(t) {
+    var rules = [];
+    if (t.hdralign === 'center' || t.hdralign === 'right') {
+      rules.push('text-align:' + t.hdralign + ';justify-content:' +
+                 (t.hdralign === 'center' ? 'center' : 'flex-end') + ';');
+    }
+    if (t.hdrsize) {
+      var px = parseInt(t.hdrsize, 10);
+      if (!isNaN(px)) rules.push('font-size:' + Math.max(8, Math.min(px, 48)) + 'px;');
+    }
+    if (t.hdrpos === 'off') rules.push('display:none;');
+
+    var run = function () {
+      // 'beside' is layout, not typography — hand it to the page as a class.
+      var b = document.body;
+      if (b) {
+        b.classList.toggle('hdr-beside', t.hdrpos === 'beside');
+        b.classList.toggle('hdr-off',    t.hdrpos === 'off');
+      }
+      if (!rules.length) { if (_hdrStyle) _hdrStyle.textContent = ''; return; }
+      if (!_hdrStyle) {
+        _hdrStyle = document.createElement('style');
+        (document.head || document.documentElement).appendChild(_hdrStyle);
+      }
+      _hdrStyle.textContent = '[data-ov-header]{' + rules.join('') + '}';
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+    else run();
   }
 
   var _scaleStyle = null;
@@ -173,6 +221,10 @@
       header: p.get('header'),
       edges:  p.get('edges'),
       scale:  p.get('scale'),
+      hdrpos:   p.get('hdrpos'),
+      hdralign: p.get('hdralign'),
+      hdrsize:  p.get('hdrsize'),
+      rows:     p.get('rows'),
     };
   }
 
@@ -189,6 +241,10 @@
       // Saved as a boolean; the param form is the string 'off'.
       edges:  (s.edges === false) ? 'off' : null,
       scale:  s.scale,
+      hdrpos:   s.headerPos,
+      hdralign: s.headerAlign,
+      hdrsize:  s.headerSize,
+      rows:     s.rows,
     };
   }
 

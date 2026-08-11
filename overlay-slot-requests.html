@@ -167,8 +167,17 @@
   const CHANNEL = params.get('channel') || '';
   const DEMO    = params.get('demo') === '1';
   // Visible rows before the queue starts scrolling. Clamped so a typo can't
-  // produce a zero-height window or a wall of rows.
-  const ROWS    = Math.max(1, Math.min(parseInt(params.get('rows'), 10) || 5, 20));
+  // produce a zero-height window or a wall of rows. `let`, not `const` — the
+  // saved theme can change it after load (Overlay Studio), and the queue has
+  // to rebuild when it does rather than waiting for the next poll.
+  let ROWS = Math.max(1, Math.min(parseInt(params.get('rows'), 10) || 5, 20));
+  let lastRequests = [];
+  window.addEventListener('ov-rows', (e) => {
+    const n = Math.max(1, Math.min(parseInt(e.detail, 10) || 5, 20));
+    if (n === ROWS) return;
+    ROWS = n;
+    buildRows(lastRequests);
+  });
   const POLL_MS = 800;
 
   const DEMO_DATA = [
@@ -191,6 +200,7 @@
   const scrollWrap  = document.getElementById('scrollWrap');
 
   function buildRows(requests) {
+    lastRequests = requests || [];
     if (requests.length === 0) {
       scrollInner.innerHTML = '<div class="empty" id="emptyState">No requests yet — type <code style="color:var(--accent);font-family:monospace;">!r &lt;slot name&gt;</code></div>';
       document.getElementById('countNum').textContent = '0';
