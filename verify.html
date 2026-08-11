@@ -162,6 +162,14 @@
       <button class="btn-verify" id="connectKickBtn" onclick="connectKick()">
         🟢 Connect with Kick
       </button>
+      <!-- Kick's consent screen displays the email on the account being used,
+           which reads to some viewers as though we're collecting it. We ask for
+           read-only profile access and only ever receive the username and user
+           id, so say that plainly at the point they're deciding. -->
+      <p style="font-size:11.5px; color:var(--text-dim); margin-top:14px; line-height:1.65; max-width:340px; margin-left:auto; margin-right:auto; opacity:.9;">
+        🔒 We only receive your Kick username. We never see your email or your password,
+        and you can disconnect any time from your Kick account settings.
+      </p>
     </div>
 
     <!-- Already-verified short-circuit. Shown after Kick OAuth resolves and
@@ -240,6 +248,14 @@
 
 <footer>
   <p>Powered by <a href="/">WenBot</a> — Streamer tools for Kick</p>
+  <!-- Absolute wenbot.gg URLs on purpose. This page also serves on white-label
+       custom domains, where a relative /privacy hits the edge function's
+       catch-all and returns the portal page instead of the policy. -->
+  <p style="margin-top:6px;font-size:11.5px;opacity:.75;">
+    <a href="https://wenbot.gg/privacy" target="_blank" rel="noopener">Privacy Policy</a>
+    &nbsp;·&nbsp;
+    <a href="https://wenbot.gg/terms" target="_blank" rel="noopener">Terms</a>
+  </p>
 </footer>
 
 <script src="/js/kick-auth.js"></script>

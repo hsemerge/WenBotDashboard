@@ -46,7 +46,12 @@ const DISCORD_CONFIG_FIELDS = [
 // discord_verify_tokens (short-lived secrets), _cache, _rate_limits, bot_locks,
 // bot_status, system — none belong in a user export.
 const SUBCOLLECTION_FIELDS = {
-  viewers:            null, // username + points + lastSeen — safe
+  // Pinned, NOT null. This was the last collection exporting every field, so
+  // anything later added to a viewer doc rode along automatically — exactly the
+  // pattern the allowlist exists to prevent. It has already picked up
+  // botrixImportedAt and msgCount. Doc id is the viewer's lowercased username
+  // and is emitted separately, so the migration payload is unaffected.
+  viewers:            ["points", "lastSeen", "followedAt", "msgCount"],
   store_items:        null,
   store_redemptions:  null,
   raffle_history:     null,
@@ -93,6 +98,7 @@ exports.handler = async (event) => {
   }
 
   try {
+    const wantsCsv     = String((event.queryStringParameters || {}).format || "").toLowerCase() === "csv";
     const streamerRef  = db.collection("streamers").doc(uid);
     const profileSnap  = await streamerRef.get();
     if (!profileSnap.exists) return res(404, { error: "Account not found" });
@@ -121,6 +127,37 @@ exports.handler = async (event) => {
       collections: data,
       _note: "This export includes only your non-sensitive account data. Secrets (casino API keys, OAuth tokens) are never exported.",
     };
+
+    // Leave a trace. Without this there's no way to answer "was my data
+    // exported, and when" — either for a streamer disputing what a departing
+    // co-host took, or for a viewer asking under a data request.
+    try {
+      await streamerRef.collection("audit_logs").add({
+        action:    "data_export",
+        actingUid: uid,
+        format:    wantsCsv ? "csv" : "json",
+        counts:    Object.fromEntries(Object.entries(data).map(([k, v]) => [k, v.length])),
+        ts:        Date.now(),
+      });
+    } catch (e) { console.warn("[export-data] audit write failed:", e.message); }
+
+    // CSV is the migration format. A departing streamer hands "username,points"
+    // to another bot's support; JSON is for backups and developers.
+    if (wantsCsv) {
+      const rows = (data.viewers || []).map((v) => [v.id, v.points || 0]);
+      const header = "username,points";
+      const lines  = rows.map(([u, p]) => '"' + String(u).replace(/"/g, '""') + '",' + p);
+      const csv    = [header].concat(lines).join("\r\n");
+      return {
+        statusCode: 200,
+        headers: {
+          "Content-Type":        "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="wenbot-viewers-${uid}.csv"`,
+          "Cache-Control":       "no-store",
+        },
+        body: csv,
+      };
+    }
 
     return res(200, exportPayload);
   } catch (err) {

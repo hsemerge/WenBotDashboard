@@ -435,6 +435,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/admin-erase-viewer"
+  to     = "/.netlify/functions/admin-erase-viewer"
+  status = 200
+
+[[redirects]]
   from   = "/api/admin-set-referrer"
   to     = "/.netlify/functions/admin-set-referrer"
   status = 200
