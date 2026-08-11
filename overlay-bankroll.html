@@ -13,7 +13,12 @@
        uses whatever width the source is given; 380 is still the recommended
        minimum, and autoFit covers anything narrower. */
     body { background: transparent; font-family: var(--ov-font); width: 100%; padding: 12px; }
+    /* Sized to its content and centred, rather than filling the source. A
+       fluid panel in a 1900px-wide source gave each of the three columns ~630px
+       and flung the figures apart; max-content keeps the group tight whatever
+       width the source is, and max-width stops it overflowing a narrow one. */
     .panel {
+      width: max-content; max-width: 100%; margin: 0 auto;
       background: var(--ov-panel);
       border: 1px solid rgba(var(--ov-accent-rgb),0.3);
       border-radius: 14px; overflow: hidden;
@@ -27,7 +32,10 @@
       border-bottom: 1px solid rgba(var(--ov-accent-rgb),0.12);
     }
     .row { display: flex; align-items: stretch; }
-    .col { flex: 1; padding: 14px 12px; text-align: center; }
+    /* Content-width columns, not equal thirds — equal thirds is what stretched
+       the gaps. min-width keeps the three reading as a set when the values are
+       short ($0 next to $30,000 otherwise looks lopsided). */
+    .col { flex: 0 0 auto; min-width: 104px; padding: 14px 18px; text-align: center; }
     .col + .col { border-left: 1px solid rgba(255,255,255,0.07); }
     .k {
       font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
