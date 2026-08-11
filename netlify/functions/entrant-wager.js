@@ -87,14 +87,26 @@ exports.handler = async (event) => {
 
     // Resolve the entrant's casino identity + under-code status (case-insensitive).
     let pUser = username, pUid = null, underCode = false;
+    // The figure the Verified Users table shows, written by the re-check and the
+    // background syncs. Carried here so the card can fall back to it instead of
+    // claiming a wager is unavailable while the table two clicks away prints it.
+    let storedWager = null, storedAt = null;
     try {
       const v = await findVerified(db, uid, username);
       if (v) {
         if (v.providerUsername) pUser = String(v.providerUsername).toLowerCase();
         if (v.providerUid)      pUid  = v.providerUid;
         underCode = !!v.underAffiliate;
+        if (typeof v.wagerAmount === "number" && v.wagerAmount > 0) storedWager = v.wagerAmount;
+        storedAt = v.wagerLastSyncedAt || null;
       }
     } catch { /* non-fatal */ }
+
+    // Rendered as the sub-label under the figure, so it never reads as live when
+    // it isn't. Falls back to a bare description when nothing stamped a time.
+    const storedLabel = () => storedAt
+      ? `last confirmed ${new Date(storedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+      : "last confirmed figure";
 
     const base = { provider, providerName, supportsWindows: provider === "gambulls", underCode };
 
@@ -121,13 +133,25 @@ exports.handler = async (event) => {
       const code = cfg.referralCode || cfg.apiKey;
       if (!code) return res(200, { ...base, available: false, reason: "Degen referral code not configured." });
       const race = await fetchDegenRace(code);
-      if (!race) return res(200, { ...base, available: false, reason: "Couldn't reach Degen right now — try again." });
+      if (!race) {
+        // Degen unreachable. A figure we already hold beats "try again".
+        if (storedWager) return res(200, { ...base, available: true, currentWager: storedWager, raceLabel: storedLabel() });
+        return res(200, { ...base, available: false, reason: "Couldn't reach Degen right now — try again." });
+      }
       const m = race.rankings.find(r =>
         (pUid && r.uid && String(r.uid) === String(pUid)) ||
         String(r.username || "").toLowerCase() === pUser ||
         degenNameMatch(pUser, r.username)
       );
-      if (!m) return res(200, { ...base, available: false, reason: "Outside Degen's published top 20 — Degen doesn't expose wager below that." });
+      // Degen publishes only its top 20, so anyone below that is invisible to a
+      // live lookup. Their wager is not unknown though: the re-check recorded it
+      // and the Verified Users table has been printing it all along, which is why
+      // the card saying "Not available" for an under-code viewer with a visible
+      // wager read as a bug. Show what we hold, dated so it can't pass for live.
+      if (!m) {
+        if (storedWager) return res(200, { ...base, available: true, currentWager: storedWager, raceLabel: storedLabel() });
+        return res(200, { ...base, available: false, reason: "Outside Degen's published top 20 — Degen doesn't expose wager below that." });
+      }
       const end = race.endAt ? new Date(race.endAt) : null;
       const raceLabel = end && !isNaN(end.getTime())
         ? `current race · ends ${end.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
@@ -135,7 +159,16 @@ exports.handler = async (event) => {
       return res(200, { ...base, available: true, currentWager: m.wagered || 0, raceLabel });
     }
 
-    return res(200, { ...base, available: false, reason: `${providerName} doesn't expose per-user wager data.` });
+    // Any casino without a live per-user branch here — Duelbits, Rainbet,
+    // CSGOBig. They still get a wager recorded on the verified record by the
+    // re-check and the background syncs, so the card can show it even with no
+    // live lookup of its own. Without this, Duelbits viewers with five figures of
+    // wager on the leaderboard were told the casino "doesn't expose per-user
+    // wager data", which stopped being true the moment that board was wired up.
+    if (storedWager) {
+      return res(200, { ...base, available: true, currentWager: storedWager, raceLabel: storedLabel() });
+    }
+    return res(200, { ...base, available: false, reason: `No wager recorded for this viewer under your ${providerName} code yet.` });
   } catch (err) {
     console.error("[entrant-wager] error:", err.message);
     return res(500, { error: "Internal server error" });
