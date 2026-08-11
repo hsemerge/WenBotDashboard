@@ -105,14 +105,46 @@ async function fetchRainbetForPeriod(apiKey, period) {
   return fetchRainbetRange(apiKey, range.from, range.to);
 }
 
-// Apply only the parts of a WenBot period that Rainbet can't express itself:
-// manual exclusions (removed users), then re-rank. Baselines/carryover are
-// unnecessary because the date range already scopes the numbers.
+// Wager each player had already done on the period's START DAY at the moment the
+// period began. Rainbet only accepts whole dates, so a period beginning at, say,
+// 22:49 is queried as `start_at=<that date>` and drags in the whole day before
+// it. Subtracting this removes exactly that overhang.
+//
+// Captured once, when the period starts, by the dashboard's Start button and by
+// the scheduler's auto-roll. Nothing can reconstruct it later: the API cannot be
+// asked what a day looked like at 22:49 once the day has closed.
+async function fetchRainbetDayBaseline(apiKey, startMs) {
+  const day  = ymd(startMs);
+  const data = await fetchRainbetRange(apiKey, day, day);
+  const out  = {};
+  for (const r of ((data && data.rankings) || [])) {
+    if (r.uid != null) out[`id:${r.uid}`] = r.wagered || 0;
+  }
+  return out;
+}
+
+// Apply the parts of a WenBot period that Rainbet can't express itself: the
+// start-day baseline above, manual exclusions (removed users), then re-rank.
+//
+// `dayBaselines` is deliberately a NEW field rather than the shared `baselines`.
+// That one is captured from whatever window was live at roll time, which for
+// Gambulls is a monthly total and correct, but for Rainbet is the OLD period's
+// range and meaningless against the new one — Cherubxm's read $22,914 against a
+// raw $1,306, so subtracting it would have produced large negatives. A separate
+// field means a board only changes once a correct baseline exists for it, and
+// every board without one behaves exactly as it does today.
 function applyRainbetExclusions(data, period) {
-  const excluded = new Set((period?.excluded || []).map(String));
-  if (!data || excluded.size === 0) return data;
+  const excluded  = new Set((period?.excluded || []).map(String));
+  const dayBase   = (period && period.active && period.dayBaselines) || null;
+  if (!data || (excluded.size === 0 && !dayBase)) return data;
   const rankings = data.rankings
     .filter((r) => !excluded.has(String(r.uid)) && !excluded.has((r.username || "").toLowerCase()))
+    // Clamped at zero: Rainbet can restate a day slightly, and a negative wager
+    // is never the honest answer.
+    .map((r) => dayBase
+      ? { ...r, wagered: Math.max(0, (r.wagered || 0) - (dayBase[`id:${r.uid}`] || 0)) }
+      : r)
+    .sort((a, b) => b.wagered - a.wagered)
     .map((r, i) => ({ ...r, rank: i + 1 }));
   return {
     ...data,
@@ -125,6 +157,7 @@ function applyRainbetExclusions(data, period) {
 module.exports = {
   fetchRainbetRange,
   fetchRainbetForPeriod,
+  fetchRainbetDayBaseline,
   applyRainbetExclusions,
   monthToDateRange,
   clampRange,

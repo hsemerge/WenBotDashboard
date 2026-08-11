@@ -605,7 +605,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         🎨 <span id="themeToggleLabel">Themes</span>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.22.2</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.22.3</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3054,9 +3054,22 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.22.2</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.22.3</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.22.3 &middot; Rainbet boards start at zero properly</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 11, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🎯 <strong>Rainbet: a new leaderboard no longer opens with wager already on it.</strong> Rainbet only reports whole days, so a board you started at, say, 6pm was counting everything your players had wagered since midnight that morning as if it were part of the new race. One streamer's fresh board opened with over $2,000 on it, and the player at the top had genuinely not played since the day before. New boards now measure from the moment you press Start.</li>
+            <li>✅ Nobody loses wager. Anything played after you pressed Start still counts in full, including on the first evening.</li>
+            <li>💰 <strong>Wager now shows on more viewer cards.</strong> Clicking a viewer used to say the wager was unavailable whenever your casino has no live per-user lookup, even though the figure was sitting in your Verified Users table. It now shows what was last confirmed, with the date beside it.</li>
+            <li>🔍 Gambulls and Degen leaderboards are unchanged.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -11277,6 +11290,8 @@ async function startLeaderboard() {
   flash('Capturing baselines…');
   // Snapshot the RAW (unbaselined) casino totals as the new baseline.
   let baselines = {};
+  // Rainbet-only, see the capture below. Left null for every other casino.
+  let dayBaselines = null;
   // Backdated custom start: if the chosen start is in the past, the board should
   // count wager since THAT date — not since this click. We fetch each user's
   // wager from startAt→now (date-range) and set baseline = raw_now − that, so the
@@ -11307,6 +11322,28 @@ async function startLeaderboard() {
       const raw = e.wagered || 0;
       baselines[k] = sinceStart ? Math.max(0, raw - (sinceStart[k] || 0)) : raw;
     });
+
+    // Rainbet only accepts whole DATES, so a board started at 22:49 is queried
+    // from the start of that day and silently counts the preceding 23 hours as
+    // period activity. (Bama's fresh board opened with $2,048 of wager already on
+    // it, and its top player had genuinely not played since the day before.)
+    //
+    // The generic baseline above cannot fix that: it is captured from the OLD
+    // period's window, which for Rainbet is a different query entirely. So take a
+    // second, Rainbet-specific one scoped to the start DAY, which is exactly the
+    // overhang to remove. It has to happen now — once the day closes there is no
+    // way to ask what it looked like at 22:49.
+    if (casino === 'rainbet') {
+      try {
+        const dayStr = _lbYmd(startAt);
+        const dr = await fetch(`/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=rainbet&internal=1&from=${dayStr}&to=${dayStr}`);
+        const dd = await dr.json();
+        if (dr.ok && Array.isArray(dd.rankings)) {
+          dayBaselines = {};
+          dd.rankings.forEach(e => { const k = _lbPeriodKey(e); if (k) dayBaselines[k] = e.wagered || 0; });
+        }
+      } catch { /* leave unset — board behaves as it does today rather than wrongly */ }
+    }
   } catch (e) {
     flash('Failed to capture baselines: ' + e.message, 'error');
     return;
@@ -11325,6 +11362,9 @@ async function startLeaderboard() {
     autoRenew: autoEl ? autoEl.checked : (prev.autoRenew !== false),
     active:    true,
     baselines,
+    // Only set for Rainbet, and only when the capture succeeded. Its absence is
+    // meaningful: applyRainbetExclusions leaves a board untouched without one.
+    ...(dayBaselines ? { dayBaselines } : {}),
     excluded:  [], // a fresh Start clears any prior removals
     // Month the baselines were captured in (UTC). The bot scheduler uses this to
     // bank carryover when a period spans a casino month-reset, so the board
