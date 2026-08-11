@@ -145,6 +145,14 @@
     // that implement it and is simply inert elsewhere.
     applyHeaderStyle(t);
 
+    // Message/body font size (chat). A plain CSS variable, so the overlay's own
+    // rules stay in charge of what uses it — badges and emotes are sized in em
+    // off the same value, which keeps a resized line from overflowing.
+    if (t.fontSize) {
+      var fs = parseInt(t.fontSize, 10);
+      if (!isNaN(fs)) root.style.setProperty('--ov-font-size', Math.max(9, Math.min(fs, 48)) + 'px');
+    }
+
     // Row count for list overlays. The page owns the re-render (it has to
     // rebuild its clones), so publish the value and let it react.
     if (t.rows) {
@@ -225,6 +233,7 @@
       hdralign: p.get('hdralign'),
       hdrsize:  p.get('hdrsize'),
       rows:     p.get('rows'),
+      fontSize: p.get('size'),
     };
   }
 
@@ -245,6 +254,7 @@
       hdralign: s.headerAlign,
       hdrsize:  s.headerSize,
       rows:     s.rows,
+      fontSize: s.fontSize,
     };
   }
 

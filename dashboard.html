@@ -3971,6 +3971,19 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <!-- Winner reveal customization — only shown for spinner-style overlays
                  (hasWinnerReveal:true). Lets streamers theme the winner name color
                  and how long the reveal stays on stream before fading. -->
+            <!-- Message font size — only for overlays that render a text feed. -->
+            <div id="osFontSizeWrap" style="margin-bottom:12px;display:none;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <div style="font-size:11px;color:var(--text-dim);font-weight:600;">Message font size</div>
+                <span id="osFontSizeVal" style="font-size:11px;color:var(--accent);font-weight:700;">15px</span>
+              </div>
+              <input type="range" id="osFontSizeSlider" min="10" max="34" value="15" oninput="osFontSizeChange(this.value)"
+                style="width:100%;accent-color:var(--accent);cursor:pointer;">
+              <div style="font-size:10px;color:var(--text-dim);margin-top:4px;line-height:1.5;">
+                Badges and emotes scale with it, and long messages wrap rather than being cut off.
+              </div>
+            </div>
+
             <!-- Visible rows — only for list overlays that scroll (slot requests). -->
             <div id="osRowsWrap" style="margin-bottom:12px;display:none;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
@@ -12526,7 +12539,7 @@ const OS_OVERLAYS = [
   { id:'bankroll',    name:'Session P/L',    icon:'💵', tag:'bankroll',   desc:'Combined deposits, withdrawals, and net profit/loss for the session.', path:'/overlay-bankroll.html',      obsW:380,  obsH:170,  demo:true,  header:'💵 Session P/L',          note:'Width: 380, height: 170. Updates live as you log deposits/withdrawals on the Overview.' },
   { id:'deposits',    name:'Deposits',       icon:'💰', tag:'bankroll',   desc:'Total you have deposited this session.',                    path:'/overlay-deposits.html',      obsW:320,  obsH:130,  demo:true,  header:'💰 Deposited',            note:'Width: 320, height: 130.' },
   { id:'withdrawals', name:'Withdrawals',    icon:'💸', tag:'bankroll',   desc:'Total you have withdrawn this session.',                    path:'/overlay-withdrawals.html',   obsW:320,  obsH:130,  demo:true,  header:'💸 Withdrawn',            note:'Width: 320, height: 130.' },
-  { id:'chat',        name:'Live Chat',      icon:'💬', tag:'chat',       desc:'Your Kick chat on stream — themed, with badges and emotes.', path:'/overlay-chat.html',          obsW:380,  obsH:600,  demo:true,  header:null,                     note:'Width: 380, height: 600. Pulls your Kick chat live — no setup needed. Use ?ttl=60 to fade messages after 60s.' },
+  { id:'chat',        name:'Live Chat',      icon:'💬', tag:'chat',       desc:'Your Kick chat on stream — themed, with badges and emotes.', hasFontSize:true, path:'/overlay-chat.html',          obsW:380,  obsH:600,  demo:true,  header:null,                     note:'Width: 380, height: 600. Pulls your Kick chat live — no setup needed. Use ?ttl=60 to fade messages after 60s.' },
   { id:'banner',      name:'Rotating Banner', icon:'📊', tag:'branding',  desc:'Lower-third bar that cycles your prize pool, code, live wager standings and race countdown.', path:'/overlay-banner.html', obsW:1920, obsH:110, demo:true, header:null, note:'Width: 1920, height: 110 — sits along the bottom of the screen. Pulls live from your leaderboard, so there is nothing to set up. Use ?secs=8 to change how long each slide holds, ?rows=3 for how many leaderboard places it rotates through.' },
   { id:'banner2',     name:'Rotating Banner — Transparent', icon:'📉', tag:'branding', desc:'Same rotation with no bar — the text floats straight over your scene.', path:'/overlay-banner.html', extra:'layout=transparent', obsW:1920, obsH:130, demo:true, header:null, note:'Width: 1920, height: 130. No background, so it suits a busy or light scene where a solid bar would cover artwork. Text carries heavy shadows to stay readable.' },
   { id:'ticker',      name:'Scrolling Ticker', icon:'📰', tag:'branding', desc:'Top strip that scrolls your socials, website and code across the screen, non-stop.', path:'/overlay-banner.html', extra:'layout=marquee', obsW:1391, obsH:101, demo:true, header:null, note:'Sits along the TOP of the screen. Size the OBS source to match the strip in your own artwork, then pass the same height with &h= (e.g. &h=101) so the text lands inside it. Transparent by default. Scrolls continuously with no jump. Speed adapts to how many items you have; override with ?speed=60 (seconds per full loop).' },
@@ -12548,6 +12561,7 @@ function osDefaultTheme(overlayId) {
     headerSize: 12,            // px
     scale:     100,            // % — scales the whole overlay
     rows:      5,              // visible rows before a scrolling list scrolls
+    fontSize:  15,             // px — message text size (chat)
     bgColor:   '#0d1117',
     bgOpacity: 90,
     text:      '#ffffff',
@@ -12625,6 +12639,7 @@ function gwOverlayUrl(overlayId, opts) {
   if (o.header && t.headerSize && Number(t.headerSize) !== 12) p.set('hdrsize', t.headerSize);
   if (t.scale && Number(t.scale) !== 100) p.set('scale', t.scale);
   if (o.hasRows && t.rows) p.set('rows', t.rows);
+  if (o.hasFontSize && t.fontSize) p.set('size', t.fontSize);
   if (o.header && t.header && t.header.trim()) p.set('header', t.header.trim());
   if (o.hasWinnerReveal) {
     if (t.winner)             p.set('winner',   t.winner.replace('#',''));
@@ -12721,6 +12736,17 @@ function osSyncThemeUI() {
     const sc = t.scale != null ? t.scale : 100;
     scaleS.value = sc;
     document.getElementById('osScaleVal').textContent = sc + '%';
+  }
+  const fsWrap = document.getElementById('osFontSizeWrap');
+  if (fsWrap) {
+    if (o && o.hasFontSize) {
+      fsWrap.style.display = '';
+      const fs = t.fontSize != null ? t.fontSize : 15;
+      document.getElementById('osFontSizeSlider').value = fs;
+      document.getElementById('osFontSizeVal').textContent = fs + 'px';
+    } else {
+      fsWrap.style.display = 'none';
+    }
   }
   const rowsWrap = document.getElementById('osRowsWrap');
   if (rowsWrap) {
@@ -12987,6 +13013,11 @@ function osToggleTransparent() {
 // Edges off strips the card's outline + drop shadow, so the overlay reads as
 // content sitting on the scene rather than a boxed panel. Applied by
 // overlay-theme.js, so every overlay honours it.
+function osFontSizeChange(val) {
+  osCur().fontSize = parseInt(val, 10) || 15;
+  document.getElementById('osFontSizeVal').textContent = val + 'px';
+  osRefresh();
+}
 function osRowsChange(val) {
   osCur().rows = parseInt(val, 10) || 5;
   document.getElementById('osRowsVal').textContent = val;
@@ -13064,7 +13095,7 @@ function osApplyToAll() {
   OS_OVERLAYS.forEach(o => {
     const keepHeader = (osThemes[o.id] && osThemes[o.id].header) || (o.header || '');
     osThemes[o.id] = {
-      accent: cur.accent, bgMode: cur.bgMode, bgColor: cur.bgColor, edges: cur.edges !== false, headerPos: cur.headerPos || 'top', headerAlign: cur.headerAlign || 'left', headerSize: cur.headerSize || 12, scale: cur.scale || 100, rows: cur.rows || 5,
+      accent: cur.accent, bgMode: cur.bgMode, bgColor: cur.bgColor, edges: cur.edges !== false, headerPos: cur.headerPos || 'top', headerAlign: cur.headerAlign || 'left', headerSize: cur.headerSize || 12, scale: cur.scale || 100, rows: cur.rows || 5, fontSize: cur.fontSize || 15,
       bgOpacity: cur.bgOpacity, text: cur.text, font: cur.font,
       header: keepHeader,
     };

@@ -29,17 +29,27 @@
       gap: 6px;
       padding: 10px;
       max-height: 100%;
+      overflow: hidden;
     }
 
     .msg {
       background: var(--ov-panel);
       border: 1px solid rgba(var(--ov-accent-rgb), 0.18);
       border-radius: 10px;
-      padding: 7px 11px;
-      font-size: 15px;
+      padding: 0.5em 0.75em;
+      /* Driven by a variable so Overlay Studio can change it live. Padding is
+         in em so the bubble grows with the text instead of staying cramped. */
+      font-size: var(--ov-font-size, 15px);
       line-height: 1.4;
+      /* Belt and braces against clipping: break long words, never exceed the
+         column, and let the box shrink inside the flex column (min-width:auto
+         on a flex item is what lets long content push a box wider than its
+         parent). */
+      max-width: 100%;
+      min-width: 0;
       word-wrap: break-word;
       overflow-wrap: anywhere;
+      word-break: break-word;
       text-shadow: 0 1px 3px rgba(0,0,0,0.85);
       backdrop-filter: blur(4px);
       animation: slideIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -57,7 +67,7 @@
     }
 
     .badges { display: inline-flex; gap: 3px; margin-right: 4px; vertical-align: middle; }
-    .badge  { font-size: 12px; line-height: 1; }
+    .badge  { font-size: 0.8em; line-height: 1; }
 
     .user {
       font-weight: 700;
@@ -66,8 +76,11 @@
     .sep { color: var(--ov-text); opacity: 0.5; margin-right: 5px; }
     .body { color: var(--ov-text); opacity: 0.96; }
 
+    /* em-based so emotes scale with the chosen font size; max-width stops a
+       wide emote forcing the bubble past the overlay edge. */
     .emote {
-      height: 22px;
+      height: 1.45em;
+      max-width: 100%;
       vertical-align: middle;
       margin: 0 1px;
     }
