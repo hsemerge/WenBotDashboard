@@ -166,22 +166,25 @@
      Two copies alone is NOT enough — if one set is narrower than the screen
      you can see the seam between the copies, which reads as the content
      repeating itself. The repeat count is computed from the measured width. */
-  body.marquee { align-items:stretch; }
-  /* Fills the OBS source height rather than a fixed 70px, so it can be sized
-     to sit inside a streamer's own banner strip (TiltBros' is 1391x101). The
-     min-height keeps it usable if the source is dragged very short. */
+  body.marquee { align-items:flex-start; }
+  /* A fixed-height strip, top-anchored — NOT the full source height. Filling
+     the source turned it into a large coloured slab whenever the OBS source
+     was taller than the strip. Height comes from ?h= (default 101, matching
+     the TiltBros top bar) so it can be matched to a streamer's own artwork.
+     No background either: this sits inside a dark area of their layout, and a
+     wash there just fights the artwork behind it. ?bg= puts one back. */
   body.marquee .bar {
-    height:100%; min-height:44px; border-top:none;
-    border-bottom:1px solid color-mix(in srgb, var(--accent2) 55%, transparent);
+    height:var(--mq-h,101px); border:none; background:none;
     justify-content:flex-start; overflow:hidden;
   }
-  body.marquee .bar::before {
-    inset:0 0 auto 0; height:100%;
-    background:linear-gradient(180deg,
-      color-mix(in srgb, var(--teal) 40%, transparent) 0%,
-      transparent 85%);
+  body.marquee .bar::before { display:none; }
+  /* One hairline along the bottom, the only chrome it needs. */
+  body.marquee .bar::after {
+    top:auto; bottom:0; opacity:.55;
+    background:linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
   }
-  body.marquee .bar::after { top:auto; bottom:0; }
+  /* Text carries its own shadow now there's no bar behind it. */
+  body.marquee .mq-txt { text-shadow:0 2px 6px rgba(0,0,0,.9), 0 0 16px rgba(0,0,0,.6); }
   /* Feather both ends so items enter and leave rather than popping. */
   body.marquee #slides {
     position:absolute; inset:0; display:flex; align-items:center;
@@ -251,6 +254,10 @@
   var mqRaf   = null;
   if (LAYOUT === 'transparent') document.body.classList.add('transparent');
   if (LAYOUT === 'marquee')     document.body.classList.add('marquee');
+  // Strip height for the marquee. Match it to the artwork it sits in rather
+  // than to the OBS source, which is usually dragged larger than the strip.
+  var MQH = Math.max(30, Math.min(parseInt(qs.get('h'), 10) || 101, 400));
+  document.documentElement.style.setProperty('--mq-h', MQH + 'px');
   // Browser-only sanity check: OBS renders a browser source over transparency,
   // but a normal tab renders it over white, which makes the transparent layout
   // look broken when it isn't. ?preview=1 paints a mock scene behind it.
