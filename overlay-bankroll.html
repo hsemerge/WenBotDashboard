@@ -8,7 +8,11 @@
   <style>
     :root{--ov-accent:#00e5ff;--ov-accent-rgb:0,229,255;--ov-panel:rgba(13,17,23,0.93);--ov-text:#ffffff;--ov-font:'Inter',sans-serif;--ov-font-heading:'Exo 2',sans-serif;}
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: transparent; font-family: var(--ov-font); width: 380px; padding: 12px; }
+    /* Fluid, not a fixed 380px. The width was pinned, so sizing the OBS source
+       wider laid the panel out at 380 anyway and clipped long figures. Now it
+       uses whatever width the source is given; 380 is still the recommended
+       minimum, and autoFit covers anything narrower. */
+    body { background: transparent; font-family: var(--ov-font); width: 100%; padding: 12px; }
     .panel {
       background: var(--ov-panel);
       border: 1px solid rgba(var(--ov-accent-rgb),0.3);
@@ -65,22 +69,41 @@
     const netEl = document.getElementById('net');
     netEl.textContent = (net >= 0 ? '+' : '−') + fmt(net);
     netEl.style.color = net >= 0 ? '#4ade80' : '#ff6b6b';
-    ['dep', 'wd', 'net'].forEach(autoFit);
+    fitAll();
   }
 
   // Shrink a figure until it fits its column. Six-figure totals overflow at the
   // base size, and clipping or wrapping a P/L number is worse than a smaller
   // one. Reset to the base size first so it can grow back when the value drops.
+  //
+  // Measured against the COLUMN's inner width, not the element's own — a block
+  // element sized by its parent can report scrollWidth == clientWidth even
+  // while its nowrap content spills, so comparing against itself misses.
   function autoFit(id) {
     const el = document.getElementById(id);
-    if (!el) return;
+    if (!el || !el.parentElement) return;
+    const style = getComputedStyle(el.parentElement);
+    const avail = el.parentElement.clientWidth
+                - parseFloat(style.paddingLeft || 0)
+                - parseFloat(style.paddingRight || 0);
+    if (avail <= 0) return;
     let size = 24;
     el.style.fontSize = size + 'px';
-    while (el.scrollWidth > el.clientWidth && size > 12) {
+    // measureWidth of the text itself, independent of how the box is sized.
+    while (el.scrollWidth > avail && size > 10) {
       size -= 1;
       el.style.fontSize = size + 'px';
     }
   }
+
+  function fitAll() { ['dep', 'wd', 'net'].forEach(autoFit); }
+
+  // Re-fit once the real font is in. The first fit runs against the fallback
+  // font, which is narrower — Exo 2 then swaps in and the figure overflows.
+  // That was the clipping. Also re-fit on resize, since OBS sources get
+  // dragged to new widths.
+  try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitAll); } catch (e) {}
+  window.addEventListener('resize', fitAll);
 
   async function poll() {
     if (DEMO) { paint({ deposited: 1250, withdrawn: 2100, net: 850 }); return; }
