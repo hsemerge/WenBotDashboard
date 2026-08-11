@@ -10,7 +10,7 @@ const { normalizeGambulls, applyPeriod } = require("./_lib/leaderboard");
 const { fetchDegenRace }     = require("./_lib/degen");
 const { fetchRainbetForPeriod, fetchRainbetRange, applyRainbetExclusions, ymd: rbYmd } = require("./_lib/rainbet");
 const { fetchCsgobigRace }   = require("./_lib/csgobig");
-const { fetchDuelbitsForPeriod } = require("./_lib/duelbits");
+const { fetchDuelbitsForPeriod, applyDuelbitsPeriod } = require("./_lib/duelbits");
 const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards");
 
 // NOT the shared API_CASINOS from _lib/casinos. This one gates a hardcoded
@@ -858,6 +858,9 @@ exports.handler = async (event) => {
               if (data) { try { await cacheRef.set({ cachedAt: Date.now(), data }); } catch {} }
               else if (cachedDoc?.data) data = cachedDoc.data;
             }
+            // After the cache, never before the write: what's stored stays the
+            // raw casino response, so changing a baseline doesn't need a bust.
+            data = applyDuelbitsPeriod(data, mainPeriod);
             if (data) {
               const lbPrizes = Array.isArray(profile.leaderboardPrizes) ? profile.leaderboardPrizes : [];
               // No baselines/carryover here, unlike Gambulls: Duelbits owns the

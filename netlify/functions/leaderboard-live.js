@@ -8,7 +8,7 @@ const { normalizeGambulls, applyPeriod } = require("./_lib/leaderboard");
 const { fetchDegenRace }   = require("./_lib/degen");
 const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards");
 const { fetchRainbetRange, fetchRainbetForPeriod, applyRainbetExclusions } = require("./_lib/rainbet");
-const { fetchDuelbitsForPeriod } = require("./_lib/duelbits");
+const { fetchDuelbits, fetchDuelbitsForPeriod, fetchDuelbitsDayBaseline, applyDuelbitsPeriod, ymdNext } = require("./_lib/duelbits");
 const res = (s, b) => _res(s, b, "*");
 
 async function fetchGambulls(apiKey) {
@@ -234,10 +234,25 @@ exports.handler = async (event) => {
         return res(400, { error: "Streamer hasn't configured their Duelbits API yet." });
       }
 
-      // Duelbits serves ONE board — the cycle configured on their affiliate
-      // account — with no date parameters, so `period` can't select a window
-      // here the way it does for Rainbet. Cached per channel rather than per
-      // period for the same reason.
+      // Explicit date range, used by the dashboard when it captures a start-day
+      // baseline and by the past-period view. `to` is INCLUSIVE here, matching
+      // every other provider, and translated on the way out because Duelbits'
+      // own endDate is exclusive. Uncached: these are one-off lookups, not the
+      // live board.
+      const dFrom = (event.queryStringParameters?.from || "").trim();
+      const dTo   = (event.queryStringParameters?.to   || "").trim();
+      if (dFrom && dTo) {
+        const ranged = await fetchDuelbits(cred.affiliateId, cred.password, dFrom, ymdNext(Date.parse(dTo + "T00:00:00Z")));
+        if (!ranged) return res(502, { error: "Failed to fetch from Duelbits API." });
+        return res(200, {
+          success: true, casino: provider, casinoName: CASINO_NAMES[provider], period,
+          rankings: ranged.rankings, totalWagered: ranged.totalWagered, totalUsers: ranged.totalUsers,
+          weighted: true, totalVolume: ranged.totalVolume,
+          casinoUpdatedAt: ranged.cacheUpdatedAt || null,
+        });
+      }
+
+      // The live board. Cached per channel + period start.
       const cacheRef = db.collection("_cache").doc(`lb_${channel.toLowerCase()}_duelbits_${(period && period.startAt) || "cycle"}`);
       let data = null, cached = null;
       try {
@@ -254,6 +269,11 @@ exports.handler = async (event) => {
         else if (cached?.data) data = cached.data;   // serve stale rather than fail
       }
       if (!data) return res(502, { error: "Failed to fetch from Duelbits API." });
+
+      // Applied AFTER the cache read, never before the write, so what is stored
+      // stays the raw casino response and a later change of baseline does not
+      // need the cache busting.
+      if (event.queryStringParameters?.raw !== "1") data = applyDuelbitsPeriod(data, period);
 
       return res(200, {
         success: true, casino: provider, casinoName: CASINO_NAMES[provider], period,

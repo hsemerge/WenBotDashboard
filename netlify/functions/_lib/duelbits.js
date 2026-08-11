@@ -145,4 +145,85 @@ async function fetchDuelbitsForPeriod(affiliateId, password, period) {
   return fetchDuelbits(affiliateId, password, ymd(startMs), ymd(endMs));
 }
 
-module.exports = { fetchDuelbits, fetchDuelbitsForPeriod, authHeader, ymd };
+// One day forward. Duelbits' endDate is EXCLUSIVE, so asking for [day, day] is
+// an empty window and returns nothing. Getting this wrong is quiet: the baseline
+// comes back empty, subtracts zero, and the bug it exists to fix stays.
+const ymdNext = (ms) => ymd(ms + 864e5);
+
+/**
+ * What each player had already wagered on the period's START DAY at the moment
+ * the period began.
+ *
+ * Duelbits takes whole DATES, so a period starting at, say, 22:49 is queried as
+ * startDate=<that date> and drags in the whole day before it — the same fault
+ * that opened a Rainbet board with $2,048 of wager already on it and its top
+ * player on $837 having genuinely not played since the previous night.
+ *
+ * Captured once, when the period starts. Nothing can rebuild it afterwards: the
+ * API cannot be asked what a day looked like partway through once it has closed.
+ * Both figures are stored because the board ranks on `wagered` (weighted points)
+ * while `betAmount` carries the raw volume shown beside it, and leaving one
+ * unadjusted would make the two disagree.
+ */
+async function fetchDuelbitsDayBaseline(affiliateId, password, startMs) {
+  // A midnight-aligned start has NOTHING before it on its own day, so the
+  // baseline is zero by definition and asking for it is not merely pointless but
+  // dangerous: if the capture ever runs late (a retry, a backfill, a scheduler
+  // tick after the boundary) the query returns wager done INSIDE the period and
+  // subtracts it. Every auto-roll from a midnight period lands here.
+  if (startMs % 864e5 === 0) return {};
+  const data = await fetchDuelbits(affiliateId, password, ymd(startMs), ymdNext(startMs));
+  const out  = {};
+  for (const r of ((data && data.rankings) || [])) {
+    if (r.uid != null) out[`id:${r.uid}`] = { wagered: r.wagered || 0, betAmount: r.betAmount || 0 };
+  }
+  return out;
+}
+
+/**
+ * Subtract the start-day baseline and re-rank.
+ *
+ * `dayBaselines` is deliberately its own field rather than the shared
+ * `baselines`, which is captured from whatever window was live at roll time and
+ * means something different per provider. A board without one is returned
+ * untouched, so nothing changes underneath a streamer until a correct baseline
+ * exists for their period.
+ */
+function applyDuelbitsPeriod(data, period) {
+  const base = (period && period.active && period.dayBaselines) || null;
+  if (!data || !base) return data;
+  // Two shapes are accepted on purpose. The scheduler stores the rich one
+  // ({wagered, betAmount}), while the dashboard's capture is shared with Rainbet
+  // and stores a bare number. Normalizing here keeps one capture path instead of
+  // forking it per provider, and a bare number simply leaves volume unadjusted.
+  const at = (uid) => {
+    const b = base[`id:${uid}`];
+    if (b == null) return { wagered: 0, betAmount: 0 };
+    return typeof b === "number" ? { wagered: b, betAmount: 0 } : b;
+  };
+  const rankings = data.rankings
+    .map((r) => {
+      const b = at(r.uid);
+      // Clamped: a casino can restate a day slightly, and a negative wager is
+      // never the honest answer.
+      return {
+        ...r,
+        wagered:   Math.max(0, (r.wagered   || 0) - (b.wagered   || 0)),
+        betAmount: Math.max(0, (r.betAmount || 0) - (b.betAmount || 0)),
+      };
+    })
+    .sort((a, b) => b.wagered - a.wagered)
+    .map((r, i) => ({ ...r, rank: i + 1 }));
+  return {
+    ...data,
+    rankings,
+    totalUsers:   rankings.length,
+    totalWagered: rankings.reduce((s, e) => s + e.wagered, 0),
+    totalVolume:  rankings.reduce((s, e) => s + e.betAmount, 0),
+  };
+}
+
+module.exports = {
+  fetchDuelbits, fetchDuelbitsForPeriod, fetchDuelbitsDayBaseline,
+  applyDuelbitsPeriod, authHeader, ymd, ymdNext,
+};

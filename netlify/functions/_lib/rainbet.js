@@ -114,6 +114,12 @@ async function fetchRainbetForPeriod(apiKey, period) {
 // the scheduler's auto-roll. Nothing can reconstruct it later: the API cannot be
 // asked what a day looked like at 22:49 once the day has closed.
 async function fetchRainbetDayBaseline(apiKey, startMs) {
+  // A midnight-aligned start has NOTHING before it on its own day, so the
+  // baseline is zero by definition and asking for it is not merely pointless but
+  // dangerous: if the capture ever runs late (a retry, a backfill, a scheduler
+  // tick after the boundary) the query returns wager done INSIDE the period and
+  // subtracts it. Every auto-roll from a midnight period lands here.
+  if (startMs % 864e5 === 0) return {};
   const day  = ymd(startMs);
   const data = await fetchRainbetRange(apiKey, day, day);
   const out  = {};

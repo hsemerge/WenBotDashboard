@@ -11334,10 +11334,13 @@ async function startLeaderboard() {
     // second, Rainbet-specific one scoped to the start DAY, which is exactly the
     // overhang to remove. It has to happen now — once the day closes there is no
     // way to ask what it looked like at 22:49.
-    if (casino === 'rainbet') {
+    // Rainbet and Duelbits both take whole DATES, so a board started at 22:49 is
+    // queried from the start of that day and silently counts the preceding hours
+    // as period activity. Gambulls and Degen are unaffected.
+    if (casino === 'rainbet' || casino === 'duelbits') {
       try {
         const dayStr = _lbYmd(startAt);
-        const dr = await fetch(`/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=rainbet&internal=1&from=${dayStr}&to=${dayStr}`);
+        const dr = await fetch(`/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(casino)}&internal=1&from=${dayStr}&to=${dayStr}`);
         const dd = await dr.json();
         if (dr.ok && Array.isArray(dd.rankings)) {
           dayBaselines = {};
