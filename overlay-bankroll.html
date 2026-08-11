@@ -29,7 +29,11 @@
       font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
       color: rgba(255,255,255,0.5); margin-bottom: 6px;
     }
-    .v { font-family: var(--ov-font-heading); font-size: 24px; font-weight: 900; line-height: 1; }
+    /* nowrap so a negative net renders as "−$27,000" on ONE line — the minus
+       was being treated as a break opportunity and wrapping onto its own row.
+       Auto-fit below shrinks the figure if it still overflows its column. */
+    .v { font-family: var(--ov-font-heading); font-size: 24px; font-weight: 900; line-height: 1;
+         white-space: nowrap; }
     .v.dep { color: #ff6b6b; }
     .v.wd  { color: #4ade80; }
     .v.net { color: var(--ov-text); }
@@ -61,6 +65,21 @@
     const netEl = document.getElementById('net');
     netEl.textContent = (net >= 0 ? '+' : '−') + fmt(net);
     netEl.style.color = net >= 0 ? '#4ade80' : '#ff6b6b';
+    ['dep', 'wd', 'net'].forEach(autoFit);
+  }
+
+  // Shrink a figure until it fits its column. Six-figure totals overflow at the
+  // base size, and clipping or wrapping a P/L number is worse than a smaller
+  // one. Reset to the base size first so it can grow back when the value drops.
+  function autoFit(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    let size = 24;
+    el.style.fontSize = size + 'px';
+    while (el.scrollWidth > el.clientWidth && size > 12) {
+      size -= 1;
+      el.style.fontSize = size + 'px';
+    }
   }
 
   async function poll() {

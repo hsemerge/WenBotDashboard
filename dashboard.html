@@ -3969,6 +3969,25 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
               </div>
             </div>
 
+            <!-- Edges — strips the outline + drop shadow from the overlay card.
+                 Useful when the overlay sits on top of the streamer's own
+                 artwork, where a second frame around it just looks doubled. -->
+            <div style="margin-bottom:12px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div style="font-size:11px;color:var(--text-dim);font-weight:600;">Edges
+                  <span style="font-weight:400;">(border &amp; shadow)</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:7px;cursor:pointer;" onclick="osToggleEdges()">
+                  <span style="font-size:10px;color:var(--text-dim);">Show</span>
+                  <div style="position:relative;width:36px;height:20px;">
+                    <input type="checkbox" id="osEdges" style="opacity:0;position:absolute;width:0;height:0;">
+                    <div id="osEdgesTrack" style="position:absolute;inset:0;border-radius:10px;background:var(--bg-card);border:1px solid var(--border);transition:background 0.2s;"></div>
+                    <div id="osEdgesThumb" style="position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--text-dim);transition:all 0.2s;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Background -->
             <div style="margin-bottom:12px;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
@@ -12471,6 +12490,7 @@ function osDefaultTheme(overlayId) {
   return {
     accent:    '#00e5ff',
     bgMode:    'transparent',  // 'transparent' | 'solid'
+    edges:     true,           // false strips borders/shadows from the overlay card
     bgColor:   '#0d1117',
     bgOpacity: 90,
     text:      '#ffffff',
@@ -12542,6 +12562,7 @@ function gwOverlayUrl(overlayId, opts) {
     p.set('bg',  (t.bgColor || '#0d1117').replace('#',''));
     p.set('bgo', (t.bgOpacity != null ? t.bgOpacity : 90));
   }
+  if (t.edges === false) p.set('edges', 'off');
   if (o.header && t.header && t.header.trim()) p.set('header', t.header.trim());
   if (o.hasWinnerReveal) {
     if (t.winner)             p.set('winner',   t.winner.replace('#',''));
@@ -12649,6 +12670,7 @@ function osSyncThemeUI() {
 }
 
 function osSetTransparentUI(on) {
+  osSetEdgesUI(osCur().edges !== false);
   document.getElementById('osBgTransparent').checked = on;
   document.getElementById('osBgTrack').style.background = on ? 'var(--accent)' : 'var(--bg-card)';
   document.getElementById('osBgThumb').style.background = on ? '#0d1117' : 'var(--text-dim)';
@@ -12878,6 +12900,23 @@ function osToggleTransparent() {
   osSetTransparentUI(t.bgMode === 'transparent');
   osRefresh();
 }
+// Edges off strips the card's outline + drop shadow, so the overlay reads as
+// content sitting on the scene rather than a boxed panel. Applied by
+// overlay-theme.js, so every overlay honours it.
+function osToggleEdges() {
+  const t = osCur();
+  t.edges = (t.edges === false);   // undefined/true -> false, false -> true
+  osSetEdgesUI(t.edges !== false);
+  osRefresh();
+}
+function osSetEdgesUI(on) {
+  const cb = document.getElementById('osEdges');
+  if (!cb) return;
+  cb.checked = on;
+  document.getElementById('osEdgesTrack').style.background = on ? 'var(--accent)' : 'var(--bg-card)';
+  document.getElementById('osEdgesThumb').style.background = on ? '#0d1117' : 'var(--text-dim)';
+  document.getElementById('osEdgesThumb').style.left = on ? '18px' : '2px';
+}
 function osTextChange(val) {
   osCur().text = val;
   document.getElementById('osTextHex').value = val;
@@ -12918,7 +12957,7 @@ function osApplyToAll() {
   OS_OVERLAYS.forEach(o => {
     const keepHeader = (osThemes[o.id] && osThemes[o.id].header) || (o.header || '');
     osThemes[o.id] = {
-      accent: cur.accent, bgMode: cur.bgMode, bgColor: cur.bgColor,
+      accent: cur.accent, bgMode: cur.bgMode, bgColor: cur.bgColor, edges: cur.edges !== false,
       bgOpacity: cur.bgOpacity, text: cur.text, font: cur.font,
       header: keepHeader,
     };

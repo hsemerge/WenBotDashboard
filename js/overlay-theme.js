@@ -124,6 +124,22 @@
     }
 
     if (t.header != null && t.header !== '') setHeader(t.header);
+
+    // Edges off — strip the outlines and drop shadows so the overlay reads as
+    // content floating on the scene rather than a boxed card. Applied as one
+    // injected rule rather than per-overlay CSS, so every overlay honours it
+    // without each needing its own variant.
+    if (t.edges === 'off' || t.edges === false) hideEdges();
+  }
+
+  var _edgesStyle = null;
+  function hideEdges() {
+    if (_edgesStyle) return;
+    _edgesStyle = document.createElement('style');
+    _edgesStyle.textContent =
+      '.panel,.card,.box,.bar,[data-ov-panel]{' +
+      'border:none!important;box-shadow:none!important;backdrop-filter:none!important;}';
+    (document.head || document.documentElement).appendChild(_edgesStyle);
   }
 
   function themeFromParams() {
@@ -135,6 +151,7 @@
       text:   p.get('text'),
       font:   p.get('font'),
       header: p.get('header'),
+      edges:  p.get('edges'),
     };
   }
 
@@ -148,6 +165,8 @@
       text:   s.text,
       font:   s.font,
       header: s.header,
+      // Saved as a boolean; the param form is the string 'off'.
+      edges:  (s.edges === false) ? 'off' : null,
     };
   }
 
