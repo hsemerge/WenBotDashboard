@@ -3945,6 +3945,12 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
                   </select>
                 </div>
               </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin:10px 0 6px;">
+                <div style="font-size:11px;color:var(--text-dim);font-weight:600;">Header size</div>
+                <span id="osHdrSizeVal" style="font-size:11px;color:var(--accent);font-weight:700;">12px</span>
+              </div>
+              <input type="range" id="osHdrSizeSlider" min="8" max="32" value="12" oninput="osHdrSizeChange(this.value)"
+                style="width:100%;accent-color:var(--accent);cursor:pointer;">
             </div>
 
             <!-- Accent color -->
@@ -4000,12 +4006,6 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
                   style="width:100%;accent-color:var(--accent);">
                 <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">How long the winner stays on screen after the spin. 0 = stay forever.</div>
               </div>
-              <div style="display:flex;align-items:center;justify-content:space-between;margin:10px 0 6px;">
-                <div style="font-size:11px;color:var(--text-dim);font-weight:600;">Header size</div>
-                <span id="osHdrSizeVal" style="font-size:11px;color:var(--accent);font-weight:700;">12px</span>
-              </div>
-              <input type="range" id="osHdrSizeSlider" min="8" max="32" value="12" oninput="osHdrSizeChange(this.value)"
-                style="width:100%;accent-color:var(--accent);cursor:pointer;">
             </div>
 
             <!-- Size — scales the whole overlay. Applies to every overlay. -->
