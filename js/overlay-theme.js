@@ -301,4 +301,21 @@
   }
 
   window.OV_FONTS = OV_FONTS;
+
+  // Live theming hook for the dashboard's Overlay Studio preview.
+  //
+  // The Studio used to reload this whole iframe on every keystroke and slider
+  // tick, so a change cost a full overlay boot: blank frame, refetch, refonts,
+  // re-render. Dragging a size slider looked broken rather than live. Same
+  // origin, so it can simply hand the theme straight in and let applyTheme do
+  // its normal work with no reload at all.
+  //
+  // Accepts the dashboard's SAVED theme shape (the one the Studio edits), so
+  // there is one translation, fromSaved, and the preview cannot drift from what
+  // an OBS source renders.
+  //
+  // Harmless standalone: nothing in OBS ever calls it.
+  window.OV_APPLY_SAVED = function (saved) {
+    try { applyTheme(fromSaved(saved)); } catch (e) {}
+  };
 })();
