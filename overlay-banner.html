@@ -237,9 +237,12 @@
     border-radius:50%; object-fit:cover; transform:scale(1.18);
     filter:brightness(1.35) contrast(1.12) saturate(1.15);
   }
+  /* Outer glow only. The inset shadow that used to be in these keyframes was
+     re-darkening the artwork on every frame, overriding the static rule above
+     and undoing the brightness lift. */
   @keyframes sitePulse {
-    0%,100% { box-shadow:0 0 16px color-mix(in srgb, var(--accent) 45%, transparent), inset 0 0 12px rgba(0,0,0,.6); }
-    50%     { box-shadow:0 0 30px color-mix(in srgb, var(--accent) 80%, transparent), inset 0 0 12px rgba(0,0,0,.6); }
+    0%,100% { box-shadow:0 0 16px color-mix(in srgb, var(--accent) 45%, transparent); }
+    50%     { box-shadow:0 0 30px color-mix(in srgb, var(--accent) 80%, transparent); }
   }
   .mq-item.site .mq-txt {
     font-size:34px; font-style:italic; letter-spacing:.05em;
