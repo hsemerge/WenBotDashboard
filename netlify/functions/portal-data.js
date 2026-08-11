@@ -357,11 +357,14 @@ const PORTAL_PRESETS = {
       // the gold treatment; everything else is a plain icon + label.
       marquee: {
         website: "TILTBROS.COM",
+        // iconUrl wins over the built-in glyphs. Files live in /img/ (same
+        // origin, so the overlay CSP allows them). The X mark is still the
+        // lettermark — drop an x-logo.png in /img/ and add its iconUrl here.
         items: [
-          { icon: "kick",    text: "kick.com/thetiltbros" },
+          { icon: "kick",    iconUrl: "/img/kick-logo.png",    text: "kick.com/thetiltbros" },
           { icon: "x",       text: "@Mrnoface7420" },
-          { icon: "site",    text: "TILTBROS.COM", kind: "site" },
-          { icon: "discord", text: "discord.gg/thetiltbros" },
+          { icon: "site",    iconUrl: "/img/tiltbros-logo.png", text: "TILTBROS.COM", kind: "site" },
+          { icon: "discord", iconUrl: "/img/discord-logo.png", text: "discord.gg/thetiltbros" },
           { icon: "x",       text: "@DonTheLizard" },
           { icon: "code",    text: "JOIN CODE TILTBROS", kind: "code" },
         ],

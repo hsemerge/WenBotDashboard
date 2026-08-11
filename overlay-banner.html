@@ -174,7 +174,7 @@
      No background either: this sits inside a dark area of their layout, and a
      wash there just fights the artwork behind it. ?bg= puts one back. */
   body.marquee .bar {
-    height:var(--mq-h,101px); border:none; background:none;
+    height:var(--mq-h,101px); border:none; background:#000;
     justify-content:flex-start; overflow:hidden;
   }
   body.marquee .bar::before { display:none; }
@@ -200,8 +200,13 @@
   .mq-track { display:flex; align-items:center; white-space:nowrap; will-change:transform; }
 
   .mq-item { display:inline-flex; align-items:center; gap:12px; padding:0 34px; flex-shrink:0; }
-  .mq-item .mq-ico { width:26px; height:26px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .mq-item .mq-ico { width:34px; height:34px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    border-radius:8px; overflow:hidden; }
   .mq-item .mq-ico svg { width:100%; height:100%; }
+  /* Supplied artwork is rounded and contained. Some brand PNGs ship on a solid
+     white background rather than transparent — the rounded tile makes that
+     read as a deliberate badge instead of a stray white square. */
+  .mq-item .mq-ico img { width:100%; height:100%; object-fit:contain; display:block; }
   .mq-item .mq-txt {
     font-family:'Exo 2',sans-serif; font-weight:800; font-size:25px; letter-spacing:.02em;
     color:var(--bright); text-shadow:0 2px 4px rgba(0,0,0,.6);
@@ -209,23 +214,33 @@
   /* Separator between items. */
   .mq-sep { width:5px; height:5px; border-radius:50%; background:var(--accent2); opacity:.5; flex-shrink:0; }
 
-  /* The website is the one item that gets emphasis — it's the destination
-     everything else supports, so it's a bordered pill with a moving sheen
-     rather than another line of text. */
-  .mq-item.site { padding:0 30px; }
+  /* The website is the destination everything else supports, so it gets the
+     one piece of real branding in the strip: the channel's own artwork in a
+     glowing ring, then the domain set larger and heavier than the socials.
+     No pill — a box around it just made it look like a button that can't be
+     clicked. The separators either side are dropped so it reads as one unit. */
+  .mq-item.site { padding:0 46px; gap:16px; }
+  .mq-item.site .mq-ico {
+    width:var(--mq-logo,52px); height:var(--mq-logo,52px); border-radius:50%;
+    overflow:hidden; border:2px solid var(--accent);
+    box-shadow:0 0 18px color-mix(in srgb, var(--accent) 55%, transparent),
+               inset 0 0 12px rgba(0,0,0,.6);
+    animation:sitePulse 3.2s ease-in-out infinite;
+  }
+  .mq-item.site .mq-ico img { border-radius:50%; }
+  @keyframes sitePulse {
+    0%,100% { box-shadow:0 0 16px color-mix(in srgb, var(--accent) 45%, transparent), inset 0 0 12px rgba(0,0,0,.6); }
+    50%     { box-shadow:0 0 30px color-mix(in srgb, var(--accent) 80%, transparent), inset 0 0 12px rgba(0,0,0,.6); }
+  }
   .mq-item.site .mq-txt {
-    position:relative; overflow:hidden;
-    border:1px solid var(--accent); border-radius:9px; padding:7px 20px;
-    background:color-mix(in srgb, var(--accent) 12%, transparent);
-    color:var(--accent); letter-spacing:.09em;
-    box-shadow:0 0 20px color-mix(in srgb, var(--accent) 30%, transparent);
+    font-size:34px; font-style:italic; letter-spacing:.05em;
+    background:linear-gradient(92deg,var(--accent) 0%,#fff 55%,var(--accent2) 100%);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    text-shadow:none;
+    filter:drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 45%, transparent));
   }
-  .mq-item.site .mq-txt::after {
-    content:''; position:absolute; top:0; bottom:0; width:45%;
-    background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);
-    animation:sheen 3.6s ease-in-out infinite;
-  }
-  @keyframes sheen { 0% { left:-50%; } 60%,100% { left:120%; } }
+  /* Its own separators are hidden so the logo + domain read as one block. */
+  .mq-item.site + .mq-sep { opacity:0; }
 
   .mq-item.code .mq-txt { color:var(--gold); }
 
@@ -420,7 +435,7 @@
     // Pixels per second. Sits between the original 55 (too quick to read
     // comfortably) and 28 (dragged). Tune per-channel with ?pps= rather than
     // editing this — it needs no redeploy.
-    var pps = PPS || (SPEED ? setW / SPEED : 38);
+    var pps = PPS || (SPEED ? setW / SPEED : 70);
 
     // Continuous offset, wrapped modulo one set width. Because every copy is
     // identical, x and x-setW render the same picture — so the wrap is
