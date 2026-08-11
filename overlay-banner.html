@@ -197,7 +197,13 @@
      The rAF loop instead advances a continuous offset and wraps it modulo one
      set width — because the content is periodic, that wrap is mathematically
      invisible and there is no reset to see. */
-  .mq-track { display:flex; align-items:center; white-space:nowrap; will-change:transform; }
+  /* flex:0 0 auto + max-content is load-bearing, not tidying. #slides is a flex
+     container, so by default this track is a flex ITEM and shrinks to the
+     container width while its (flex-shrink:0) children overflow. Its measured
+     box was therefore the viewport width, not one set's width — so the loop
+     wrapped at the wrong distance and visibly jumped. */
+  .mq-track { display:flex; align-items:center; white-space:nowrap; will-change:transform;
+    flex:0 0 auto; width:max-content; }
 
   .mq-item { display:inline-flex; align-items:center; gap:12px; padding:0 34px; flex-shrink:0; }
   .mq-item .mq-ico { width:34px; height:34px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
@@ -453,7 +459,13 @@
     // scrollWidth: the former is fractional, the latter rounds to an integer,
     // and that rounding error is enough to show a skip on every wrap.
     el.innerHTML = '<div class="mq-track">' + one + '</div>';
-    var setW = el.firstElementChild.getBoundingClientRect().width;
+    // Belt and braces: if anything ever clamps the track box again, the rect
+    // width would read as the container width and the loop would wrap short.
+    // scrollWidth reports the true content width even when the box is clamped,
+    // so take whichever is larger. rect stays preferred when both agree
+    // because it's fractional and scrollWidth rounds to a whole pixel.
+    var probe = el.firstElementChild;
+    var setW  = Math.max(probe.getBoundingClientRect().width, probe.scrollWidth);
     if (!setW) return;
 
     // Enough copies to cover the viewport plus a spare set, so there is always
