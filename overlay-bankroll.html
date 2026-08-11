@@ -32,6 +32,20 @@
       border-bottom: 1px solid rgba(var(--ov-accent-rgb),0.12);
     }
     .row { display: flex; align-items: stretch; }
+
+    /* Header placement (?hdrpos=). Default is the existing above-left. */
+    body.hdr-topcenter .hdr { text-align: center; }
+    body.hdr-off .hdr { display: none; }
+    /* "left" turns the panel into a single row: header on the left, stats
+       beside it. Suits a wide lower-third strip where a stacked header wastes
+       vertical space. */
+    body.hdr-left .panel { display: flex; align-items: center; }
+    body.hdr-left .hdr {
+      border-bottom: none;
+      border-right: 1px solid rgba(var(--ov-accent-rgb),0.12);
+      white-space: nowrap; padding: 12px 18px; align-self: stretch;
+      display: flex; align-items: center;
+    }
     /* Content-width columns, not equal thirds — equal thirds is what stretched
        the gaps. min-width keeps the three reading as a set when the values are
        short ($0 next to $30,000 otherwise looks lopsided). */
@@ -65,6 +79,13 @@
   const params  = new URLSearchParams(location.search);
   const CHANNEL = (params.get('channel') || '').toLowerCase();
   const DEMO    = params.get('demo') === '1';
+
+  // Header placement — set before first paint so the layout never flashes in
+  // the default position and then jump.
+  const HDRPOS = (params.get('hdrpos') || 'top').toLowerCase();
+  if (['topcenter', 'left', 'off'].indexOf(HDRPOS) !== -1) {
+    document.body.classList.add('hdr-' + HDRPOS);
+  }
 
   function fmt(n) { return '$' + Math.round(Math.abs(Number(n) || 0)).toLocaleString(); }
 

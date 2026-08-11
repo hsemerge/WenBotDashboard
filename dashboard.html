@@ -3925,6 +3925,14 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
                 oninput="osHeaderChange(this.value)"
                 style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:7px 9px;font-size:12px;color:var(--bright);outline:none;"
                 onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+              <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin:10px 0 6px;">Header Position</div>
+              <select id="osHeaderPos" onchange="osHeaderPosChange(this.value)"
+                style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:7px 9px;font-size:12px;color:var(--bright);outline:none;">
+                <option value="top">Above — left aligned</option>
+                <option value="topcenter">Above — centred</option>
+                <option value="left">Beside — to the left</option>
+                <option value="off">Hidden</option>
+              </select>
             </div>
 
             <!-- Accent color -->
@@ -12491,6 +12499,7 @@ function osDefaultTheme(overlayId) {
     accent:    '#00e5ff',
     bgMode:    'transparent',  // 'transparent' | 'solid'
     edges:     true,           // false strips borders/shadows from the overlay card
+    headerPos: 'top',          // 'top' | 'topcenter' | 'left' | 'off'
     bgColor:   '#0d1117',
     bgOpacity: 90,
     text:      '#ffffff',
@@ -12563,6 +12572,7 @@ function gwOverlayUrl(overlayId, opts) {
     p.set('bgo', (t.bgOpacity != null ? t.bgOpacity : 90));
   }
   if (t.edges === false) p.set('edges', 'off');
+  if (o.header && t.headerPos && t.headerPos !== 'top') p.set('hdrpos', t.headerPos);
   if (o.header && t.header && t.header.trim()) p.set('header', t.header.trim());
   if (o.hasWinnerReveal) {
     if (t.winner)             p.set('winner',   t.winner.replace('#',''));
@@ -12736,6 +12746,7 @@ function osSelectOverlay(id) {
     if (!t.header) t.header = o.header;
     document.getElementById('osHeaderInput').value = t.header;
     document.getElementById('osHeaderInput').placeholder = o.header;
+    document.getElementById('osHeaderPos').value = t.headerPos || 'top';
   } else {
     hdrWrap.style.display = 'none';
   }
@@ -12903,6 +12914,10 @@ function osToggleTransparent() {
 // Edges off strips the card's outline + drop shadow, so the overlay reads as
 // content sitting on the scene rather than a boxed panel. Applied by
 // overlay-theme.js, so every overlay honours it.
+function osHeaderPosChange(val) {
+  osCur().headerPos = val;
+  osRefresh();
+}
 function osToggleEdges() {
   const t = osCur();
   t.edges = (t.edges === false);   // undefined/true -> false, false -> true
@@ -12957,7 +12972,7 @@ function osApplyToAll() {
   OS_OVERLAYS.forEach(o => {
     const keepHeader = (osThemes[o.id] && osThemes[o.id].header) || (o.header || '');
     osThemes[o.id] = {
-      accent: cur.accent, bgMode: cur.bgMode, bgColor: cur.bgColor, edges: cur.edges !== false,
+      accent: cur.accent, bgMode: cur.bgMode, bgColor: cur.bgColor, edges: cur.edges !== false, headerPos: cur.headerPos || 'top',
       bgOpacity: cur.bgOpacity, text: cur.text, font: cur.font,
       header: keepHeader,
     };
