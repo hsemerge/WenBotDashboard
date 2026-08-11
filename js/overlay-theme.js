@@ -130,6 +130,26 @@
     // injected rule rather than per-overlay CSS, so every overlay honours it
     // without each needing its own variant.
     if (t.edges === 'off' || t.edges === false) hideEdges();
+
+    // Size — scales the whole overlay. Applied as a transform on the outer
+    // card rather than a font-size change, so spacing, borders and artwork
+    // scale together instead of the text growing out of its own box.
+    // Anchored top-left so the overlay grows away from where it's positioned
+    // in OBS, rather than drifting off its anchor.
+    if (t.scale) setScale(t.scale);
+  }
+
+  var _scaleStyle = null;
+  function setScale(pct) {
+    var n = parseInt(pct, 10);
+    if (isNaN(n) || n === 100) return;
+    n = Math.max(40, Math.min(n, 300)) / 100;
+    if (!_scaleStyle) {
+      _scaleStyle = document.createElement('style');
+      (document.head || document.documentElement).appendChild(_scaleStyle);
+    }
+    _scaleStyle.textContent =
+      '.panel,.bar,[data-ov-panel]{transform:scale(' + n + ');transform-origin:top left;}';
   }
 
   var _edgesStyle = null;
@@ -152,6 +172,7 @@
       font:   p.get('font'),
       header: p.get('header'),
       edges:  p.get('edges'),
+      scale:  p.get('scale'),
     };
   }
 
@@ -167,6 +188,7 @@
       header: s.header,
       // Saved as a boolean; the param form is the string 'off'.
       edges:  (s.edges === false) ? 'off' : null,
+      scale:  s.scale,
     };
   }
 

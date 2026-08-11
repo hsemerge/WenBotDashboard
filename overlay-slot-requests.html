@@ -166,6 +166,9 @@
   const params  = new URLSearchParams(location.search);
   const CHANNEL = params.get('channel') || '';
   const DEMO    = params.get('demo') === '1';
+  // Visible rows before the queue starts scrolling. Clamped so a typo can't
+  // produce a zero-height window or a wall of rows.
+  const ROWS    = Math.max(1, Math.min(parseInt(params.get('rows'), 10) || 5, 20));
   const POLL_MS = 800;
 
   const DEMO_DATA = [
@@ -212,12 +215,15 @@
       return div;
     }
 
-    // Only scroll if more than 3 requests (otherwise static)
-    const VISIBLE = 5;
-    const maxH = VISIBLE * ROW_H;
+    // How many rows are visible before it starts scrolling — ?rows=, so a
+    // streamer can run a one- or two-slot window in a tight corner.
+    // The window height and the scroll threshold are the SAME number on
+    // purpose: previously it showed 5 but scrolled past 3, so a 4-item queue
+    // scrolled while sitting entirely on screen.
+    const maxH = ROWS * ROW_H;
     scrollWrap.style.maxHeight = maxH + 'px';
 
-    if (requests.length <= 3) {
+    if (requests.length <= ROWS) {
       // Static — no scroll
       cancelAnimationFrame(rafId);
       scrollInner.innerHTML = '';

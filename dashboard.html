@@ -3925,14 +3925,26 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
                 oninput="osHeaderChange(this.value)"
                 style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:7px 9px;font-size:12px;color:var(--bright);outline:none;"
                 onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
-              <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin:10px 0 6px;">Header Position</div>
-              <select id="osHeaderPos" onchange="osHeaderPosChange(this.value)"
-                style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:7px 9px;font-size:12px;color:var(--bright);outline:none;">
-                <option value="top">Above — left aligned</option>
-                <option value="topcenter">Above — centred</option>
-                <option value="left">Beside — to the left</option>
-                <option value="off">Hidden</option>
-              </select>
+              <div style="display:flex;gap:8px;margin-top:10px;">
+                <div style="flex:1;">
+                  <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:6px;">Header</div>
+                  <select id="osHeaderPos" onchange="osHeaderPosChange(this.value)"
+                    style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:7px 9px;font-size:12px;color:var(--bright);outline:none;">
+                    <option value="top">Above the stats</option>
+                    <option value="beside">Beside the stats</option>
+                    <option value="off">Hidden</option>
+                  </select>
+                </div>
+                <div style="flex:1;">
+                  <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:6px;">Align</div>
+                  <select id="osHeaderAlign" onchange="osHeaderAlignChange(this.value)"
+                    style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:7px 9px;font-size:12px;color:var(--bright);outline:none;">
+                    <option value="left">Left</option>
+                    <option value="center">Center</option>
+                    <option value="right">Right</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             <!-- Accent color -->
@@ -3953,6 +3965,19 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <!-- Winner reveal customization — only shown for spinner-style overlays
                  (hasWinnerReveal:true). Lets streamers theme the winner name color
                  and how long the reveal stays on stream before fading. -->
+            <!-- Visible rows — only for list overlays that scroll (slot requests). -->
+            <div id="osRowsWrap" style="margin-bottom:12px;display:none;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <div style="font-size:11px;color:var(--text-dim);font-weight:600;">Visible rows</div>
+                <span id="osRowsVal" style="font-size:11px;color:var(--accent);font-weight:700;">5</span>
+              </div>
+              <input type="range" id="osRowsSlider" min="1" max="12" value="5" oninput="osRowsChange(this.value)"
+                style="width:100%;accent-color:var(--accent);cursor:pointer;">
+              <div style="font-size:10px;color:var(--text-dim);margin-top:4px;line-height:1.5;">
+                How many requests show before the list starts scrolling. Set it to 1 or 2 for a compact window.
+              </div>
+            </div>
+
             <div id="osWinnerWrap" style="margin-bottom:12px;display:none;">
               <div style="font-size:11px;color:var(--text-dim);font-weight:600;margin-bottom:6px;">Winner Color</div>
               <div style="display:flex;gap:8px;align-items:center;">
@@ -3974,6 +3999,19 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
                   oninput="osDurationChange(this.value)"
                   style="width:100%;accent-color:var(--accent);">
                 <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">How long the winner stays on screen after the spin. 0 = stay forever.</div>
+              </div>
+            </div>
+
+            <!-- Size — scales the whole overlay. Applies to every overlay. -->
+            <div style="margin-bottom:12px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <div style="font-size:11px;color:var(--text-dim);font-weight:600;">Size</div>
+                <span id="osScaleVal" style="font-size:11px;color:var(--accent);font-weight:700;">100%</span>
+              </div>
+              <input type="range" id="osScaleSlider" min="50" max="250" step="5" value="100" oninput="osScaleChange(this.value)"
+                style="width:100%;accent-color:var(--accent);cursor:pointer;">
+              <div style="font-size:10px;color:var(--text-dim);margin-top:4px;line-height:1.5;">
+                Scales the whole overlay. Grows from the top-left, so it stays on its anchor in OBS.
               </div>
             </div>
 
@@ -12469,7 +12507,7 @@ async function stopFinalizeAndRecord() {
 
 const OS_OVERLAYS = [
   { id:'bonushunt',   name:'Bonus Hunt',     icon:'🎰', tag:'hunting',    desc:'Live tracker — progress, stats, and full slot list.',       path:'/overlay-bonus-hunt.html',    obsW:500,  obsH:700,  demo:true,  header:'🎰 Bonus Hunt',          note:'Width: 500px recommended.' },
-  { id:'slotreqs',    name:'Slot Requests',  icon:'📋', tag:'hunting',    desc:'Scrolling queue of viewer !r requests in real time.',        path:'/overlay-slot-requests.html', obsW:360,  obsH:500,  demo:true,  header:'🎰 Slot Requests',       note:'Width: 360px recommended.' },
+  { id:'slotreqs',    name:'Slot Requests',  icon:'📋', tag:'hunting',    desc:'Scrolling queue of viewer !r requests in real time.', hasRows:true,        path:'/overlay-slot-requests.html', obsW:360,  obsH:500,  demo:true,  header:'🎰 Slot Requests',       note:'Width: 360px recommended.' },
   { id:'slotpicker',  name:'Slot Picker',    icon:'🎲', tag:'hunting',    desc:'Horizontal carousel that spins through slots and lands on the pick.', path:'/overlay-slot-picker.html',   obsW:560,  obsH:380,  demo:true,  hasWinnerReveal:true, header:'🎰 Random Slot Picker',  note:'Width: 560, height: 380.' },
   { id:'reqspinner',  name:'Request Raffle', icon:'🎡', tag:'hunting',    desc:'Spins through pending slot-request viewers and lands on @user + their slot.', path:'/overlay-request-spinner.html', obsW:560,  obsH:380,  demo:true,  hasWinnerReveal:true, header:'🎰 Slot Request Draw',  note:'Width: 560, height: 380.' },
   { id:'gwspinner',   name:'Giveaway Carousel', icon:'🎲', tag:'giveaway', desc:'Horizontal carousel with Kick avatars that scrolls and lands on the winner.', path:'/overlay-giveaway-spinner.html', obsW:560, obsH:380, demo:true, hasWinnerReveal:true, header:'🎁 Giveaway Winner', note:'Width: 560, height: 380.' },
@@ -12499,7 +12537,10 @@ function osDefaultTheme(overlayId) {
     accent:    '#00e5ff',
     bgMode:    'transparent',  // 'transparent' | 'solid'
     edges:     true,           // false strips borders/shadows from the overlay card
-    headerPos: 'top',          // 'top' | 'topcenter' | 'left' | 'off'
+    headerPos: 'top',          // 'top' | 'beside' | 'off'
+    headerAlign: 'left',       // 'left' | 'center' | 'right'
+    scale:     100,            // % — scales the whole overlay
+    rows:      5,              // visible rows before a scrolling list scrolls
     bgColor:   '#0d1117',
     bgOpacity: 90,
     text:      '#ffffff',
@@ -12573,6 +12614,9 @@ function gwOverlayUrl(overlayId, opts) {
   }
   if (t.edges === false) p.set('edges', 'off');
   if (o.header && t.headerPos && t.headerPos !== 'top') p.set('hdrpos', t.headerPos);
+  if (o.header && t.headerAlign && t.headerAlign !== 'left') p.set('hdralign', t.headerAlign);
+  if (t.scale && Number(t.scale) !== 100) p.set('scale', t.scale);
+  if (o.hasRows && t.rows) p.set('rows', t.rows);
   if (o.header && t.header && t.header.trim()) p.set('header', t.header.trim());
   if (o.hasWinnerReveal) {
     if (t.winner)             p.set('winner',   t.winner.replace('#',''));
@@ -12664,6 +12708,23 @@ function osSyncThemeUI() {
 
   // Winner-reveal controls — only meaningful for spinner-style overlays
   const o = OS_OVERLAYS.find(x => x.id === osSelectedId);
+  const scaleS = document.getElementById('osScaleSlider');
+  if (scaleS) {
+    const sc = t.scale != null ? t.scale : 100;
+    scaleS.value = sc;
+    document.getElementById('osScaleVal').textContent = sc + '%';
+  }
+  const rowsWrap = document.getElementById('osRowsWrap');
+  if (rowsWrap) {
+    if (o && o.hasRows) {
+      rowsWrap.style.display = '';
+      const r = t.rows != null ? t.rows : 5;
+      document.getElementById('osRowsSlider').value = r;
+      document.getElementById('osRowsVal').textContent = r;
+    } else {
+      rowsWrap.style.display = 'none';
+    }
+  }
   const winWrap = document.getElementById('osWinnerWrap');
   if (winWrap) {
     if (o && o.hasWinnerReveal) {
@@ -12747,6 +12808,7 @@ function osSelectOverlay(id) {
     document.getElementById('osHeaderInput').value = t.header;
     document.getElementById('osHeaderInput').placeholder = o.header;
     document.getElementById('osHeaderPos').value = t.headerPos || 'top';
+    document.getElementById('osHeaderAlign').value = t.headerAlign || 'left';
   } else {
     hdrWrap.style.display = 'none';
   }
@@ -12914,8 +12976,22 @@ function osToggleTransparent() {
 // Edges off strips the card's outline + drop shadow, so the overlay reads as
 // content sitting on the scene rather than a boxed panel. Applied by
 // overlay-theme.js, so every overlay honours it.
+function osRowsChange(val) {
+  osCur().rows = parseInt(val, 10) || 5;
+  document.getElementById('osRowsVal').textContent = val;
+  osRefresh();
+}
 function osHeaderPosChange(val) {
   osCur().headerPos = val;
+  osRefresh();
+}
+function osHeaderAlignChange(val) {
+  osCur().headerAlign = val;
+  osRefresh();
+}
+function osScaleChange(val) {
+  osCur().scale = parseInt(val, 10) || 100;
+  document.getElementById('osScaleVal').textContent = val + '%';
   osRefresh();
 }
 function osToggleEdges() {
@@ -12972,7 +13048,7 @@ function osApplyToAll() {
   OS_OVERLAYS.forEach(o => {
     const keepHeader = (osThemes[o.id] && osThemes[o.id].header) || (o.header || '');
     osThemes[o.id] = {
-      accent: cur.accent, bgMode: cur.bgMode, bgColor: cur.bgColor, edges: cur.edges !== false, headerPos: cur.headerPos || 'top',
+      accent: cur.accent, bgMode: cur.bgMode, bgColor: cur.bgColor, edges: cur.edges !== false, headerPos: cur.headerPos || 'top', headerAlign: cur.headerAlign || 'left', scale: cur.scale || 100, rows: cur.rows || 5,
       bgOpacity: cur.bgOpacity, text: cur.text, font: cur.font,
       header: keepHeader,
     };
