@@ -244,12 +244,21 @@
     0%,100% { box-shadow:0 0 16px color-mix(in srgb, var(--accent) 45%, transparent); }
     50%     { box-shadow:0 0 30px color-mix(in srgb, var(--accent) 80%, transparent); }
   }
+  /* Solid white, not the green gradient — the green ring beside it and the
+     wordmark elsewhere already carry the brand colour, so the domain reads
+     harder in plain white. The glow stays accent-tinted so it still belongs to
+     the strip without tinting the letters themselves. */
   .mq-item.site .mq-txt {
-    font-size:34px; font-style:italic; letter-spacing:.05em;
-    background:linear-gradient(92deg,var(--accent) 0%,#fff 55%,var(--accent2) 100%);
-    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
-    text-shadow:none;
-    filter:drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 45%, transparent));
+    font-size:38px; font-style:italic; font-weight:900;
+    letter-spacing:.08em; color:#fff; text-transform:uppercase;
+    text-shadow:0 0 18px rgba(255,255,255,.35),
+                0 0 42px color-mix(in srgb, var(--accent) 55%, transparent),
+                0 2px 5px rgba(0,0,0,.8);
+  }
+  /* The TLD sits back so the name itself lands first — same size, less weight
+     and presence, which reads as one lockup rather than two words. */
+  .mq-item.site .mq-txt .tld {
+    font-weight:700; opacity:.55; letter-spacing:.04em;
   }
   /* Its own separators are hidden so the logo + domain read as one block. */
   .mq-item.site + .mq-sep { opacity:0; }
@@ -419,9 +428,17 @@
       var ico = i.iconUrl
         ? '<img src="' + esc(i.iconUrl) + '" alt="" style="width:100%;height:100%;object-fit:contain;">'
         : (ICONS[i.icon] || ICONS.site);
+      // Site items split the TLD onto its own span so ".COM" can sit back and
+      // the name lands first. Split on the LAST dot, so a subdomain stays with
+      // the name rather than being treated as the suffix.
+      var label = esc(i.text);
+      if (i.kind === 'site') {
+        var dot = label.lastIndexOf('.');
+        if (dot > 0) label = label.slice(0, dot) + '<span class="tld">' + label.slice(dot) + '</span>';
+      }
       return '<span class="mq-item ' + esc(i.kind || '') + '">'
         + '<span class="mq-ico">' + ico + '</span>'
-        + '<span class="mq-txt">' + esc(i.text) + '</span>'
+        + '<span class="mq-txt">' + label + '</span>'
         + '</span><span class="mq-sep"></span>';
     }).join('');
 
