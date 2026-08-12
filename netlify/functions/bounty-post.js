@@ -84,6 +84,9 @@ exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
   if (event.httpMethod !== "POST")    return res(405, { error: "POST only" });
 
+  // getDb() initialises the Admin SDK; admin.auth() below depends on it.
+  const db = getDb();
+
   const idToken = (event.headers["authorization"] || "").replace("Bearer ", "").trim();
   if (!idToken) return res(401, { error: "Missing auth token" });
 
@@ -105,7 +108,6 @@ exports.handler = async (event) => {
   const action   = String(body.action || "post").trim();
   if (!bountyId) return res(400, { error: "Missing bountyId" });
 
-  const db = getDb();
   if (!(await checkRateLimit(db, uid, "bounty_post", 30, 60))) {
     return res(429, { error: "Too many requests" });
   }

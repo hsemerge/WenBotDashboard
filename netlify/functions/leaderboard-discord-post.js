@@ -16,6 +16,11 @@ exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
   if (event.httpMethod !== "POST")    return res(405, { error: "POST only" });
 
+  // getDb() is what initialises the Admin SDK, so it MUST run before
+  // admin.auth() — otherwise a cold start throws inside verifyIdToken and
+  // reports a perfectly good token as invalid.
+  const db = getDb();
+
   const idToken = (event.headers["authorization"] || "").replace("Bearer ", "").trim();
   if (!idToken) return res(401, { error: "Missing auth token" });
 
@@ -32,7 +37,6 @@ exports.handler = async (event) => {
     return res(403, { error: "Not authorized for that account" });
   }
 
-  const db = getDb();
   if (!(await checkRateLimit(db, uid, "lb_discord_post", 10, 60))) {
     return res(429, { error: "Too many requests — wait a minute." });
   }
