@@ -440,7 +440,7 @@
 
 [[redirects]]
   from   = "/api/leaderboard-discord-post"
-  to     = "/.netlify/functions/leaderboard-discord-cron"
+  to     = "/.netlify/functions/leaderboard-discord-post"
   status = 200
 
 [[redirects]]
