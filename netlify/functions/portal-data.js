@@ -691,8 +691,11 @@ exports.handler = async (event) => {
     let store        = null;
     let pastWinners  = null;
     let giveawayWinners = null;
+    // Live bounties for the portal's Bounties section. Only ACTIVE ones are
+    // public — completed and closed bounties stay in the dashboard and Discord.
+    let bounties = null;
     if (tier >= TIER_RANK.pro) {
-      const [itemsSnap, winnersSnap, gwSnap] = await Promise.all([
+      const [itemsSnap, winnersSnap, gwSnap, bountySnap] = await Promise.all([
         db.collection("streamers").doc(uid).collection("store_items")
           .where("enabled", "==", true).get(),
         db.collection("streamers").doc(uid).collection("raffle_history")
@@ -701,6 +704,8 @@ exports.handler = async (event) => {
         // field is auto-indexed; filter to giveaway type in JS.
         db.collection("streamers").doc(uid).collection("winners_log")
           .orderBy("drawnAt", "desc").limit(30).get(),
+        db.collection("streamers").doc(uid).collection("bounties")
+          .where("status", "==", "active").limit(20).get(),
       ]);
       store = {
         items: itemsSnap.docs.map(d => {
@@ -720,6 +725,20 @@ exports.handler = async (event) => {
         const w = d.data();
         return { winner: w.winner, mode: w.mode, itemName: w.itemName || null, drawnAt: w.drawnAt };
       });
+      bounties = bountySnap.docs
+        .map(d => d.data())
+        .map(b => ({
+          game:      b.game || "",
+          objective: b.objective || "",
+          prize:     b.prize || "",
+          deadline:  b.deadline || null,
+          extraRule: b.extraRule || null,
+          howTo:     b.howTo || null,
+          imageUrl:  b.imageUrl || null,
+          createdAt: b.createdAt || null,
+        }))
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
       giveawayWinners = gwSnap.docs
         .map(d => d.data())
         .filter(w => (w.type || "giveaway") === "giveaway")
@@ -1207,6 +1226,7 @@ exports.handler = async (event) => {
       store,
       pastWinners,
       giveawayWinners,
+      bounties,
       // Used by the page to know what to render (and what to lock)
       features: {
         leaderboard: tier >= TIER_RANK.elite,

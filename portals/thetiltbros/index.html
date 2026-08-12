@@ -901,13 +901,44 @@
   }
 
   // ── bounties ─────────────────────────────────────────────────────────────
-  function renderBounties(content) {
+  function renderBounties(content, s) {
     var c = (content && content.bounties) || {};
     $('btBlurb').textContent = c.blurb || '';
-    $('btItems').innerHTML = (c.items || []).map(function (b) {
-      return '<div class="card bounty"><span class="ico">' + esc(b.icon || '🎯') + '</span>'
-        + '<h3>' + esc(b.title) + '</h3><p>' + esc(b.text) + '</p></div>';
-    }).join('');
+
+    // LIVE bounties set in the dashboard win over the preset's static examples.
+    // The preset copy stays as the fallback so the section never reads empty
+    // before the first bounty is created.
+    var live = (s && s.bounties) || [];
+    if (live.length) {
+      $('btItems').innerHTML = live.map(function (b) {
+        var rules = [];
+        if (b.howTo) rules = String(b.howTo).split('\n').filter(Boolean);
+        if (b.extraRule) rules.push(b.extraRule);
+        return '<div class="card bounty">'
+          + (b.imageUrl
+              ? '<img src="' + esc(b.imageUrl) + '" alt="" onerror="this.remove()"'
+                + ' style="width:100%;height:120px;object-fit:cover;border-radius:10px;margin-bottom:12px;">'
+              : '<span class="ico">🎯</span>')
+          + '<h3>' + esc(b.game) + '</h3>'
+          + '<div style="font-family:\'Exo 2\',sans-serif;font-weight:900;font-size:24px;color:var(--gold);margin:6px 0 8px;">'
+          +   esc(b.prize) + '</div>'
+          + '<p>' + esc(b.objective) + '</p>'
+          + (b.deadline
+              ? '<p style="margin-top:8px;color:var(--red);font-weight:700;font-size:12px;">Ends ' + esc(b.deadline) + '</p>'
+              : '')
+          + (rules.length
+              ? '<ul style="margin-top:10px;">' + rules.map(function (r) {
+                  return '<li>' + esc(String(r).replace(/^•\s*/, '')) + '</li>';
+                }).join('') + '</ul>'
+              : '')
+          + '</div>';
+      }).join('');
+    } else {
+      $('btItems').innerHTML = (c.items || []).map(function (b) {
+        return '<div class="card bounty"><span class="ico">' + esc(b.icon || '🎯') + '</span>'
+          + '<h3>' + esc(b.title) + '</h3><p>' + esc(b.text) + '</p></div>';
+      }).join('');
+    }
     $('btNote').textContent = c.note || '';
   }
 
@@ -1089,7 +1120,7 @@
     renderGiveaways(s, content);
     renderPromo(s, content);
     renderBonuses(s);
-    renderBounties(content);
+    renderBounties(content, s);
     renderFaq(content);
     renderSocialsBlock(s, content);
     renderFooter(s, content, portal);

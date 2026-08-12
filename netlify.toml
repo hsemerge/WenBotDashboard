@@ -435,6 +435,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/bounty-post"
+  to     = "/.netlify/functions/bounty-post"
+  status = 200
+
+[[redirects]]
   from   = "/api/admin-erase-viewer"
   to     = "/.netlify/functions/admin-erase-viewer"
   status = 200

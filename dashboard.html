@@ -568,6 +568,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="nav-item" onclick="showPage('games',this)"><span class="icon">🎮</span> Games</div>
         <div class="nav-item" onclick="showPage('commands',this)"><span class="icon">💬</span> Commands</div>
         <div class="nav-item" onclick="showPage('moderation',this)"><span class="icon">🛡️</span> Moderation</div>
+        <div class="nav-item" onclick="showPage('bounties',this)"><span class="icon">🎯</span> Bounties</div>
         <div class="nav-item" onclick="showPage('overlays',this)"><span class="icon">🖥</span> Overlays</div>
         <div class="nav-item" onclick="showPage('extension',this)"><span class="icon">🧩</span> Companion Extension</div>
       </div>
@@ -605,7 +606,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         🎨 <span id="themeToggleLabel">Themes</span>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.22.3</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.23.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -2125,6 +2126,88 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
       </div>
     </div>
 
+    <!-- ── BOUNTIES ──
+         Streamer-run challenges announced in Discord and shown on the portal.
+         Docs live at streamers/{uid}/bounties/{id}; the Discord post/edit goes
+         through /api/bounty-post so the bot token never reaches the browser.
+         Status changes EDIT the original Discord message rather than posting a
+         new one, so the channel never fills with stale copies. -->
+    <div class="page" id="page-bounties">
+
+      <div class="card">
+        <div class="card-title">🎯 Bounties <span style="font-weight:400;color:var(--text-dim);font-size:12px;margin-left:6px;">(challenges posted to Discord)</span></div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.5;">
+          Set a challenge with a prize, announce it in your Discord, and show it on your portal.
+          Editing or closing a bounty updates the original Discord message, so your channel stays clean.
+        </div>
+        <div class="field" style="max-width:420px;">
+          <label>Discord bounty channel</label>
+          <select id="bnChannel" onchange="saveBountyChannel(this.value)"
+            style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+            <option value="">Loading channels…</option>
+          </select>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:5px;">Where new bounties are announced. Connect Discord on the Settings page first.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" id="bnFormTitle">➕ New bounty</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="field">
+            <label>Game *</label>
+            <input type="text" id="bnGame" maxlength="80" placeholder="e.g. Frkn Bananas"
+              style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+          </div>
+          <div class="field">
+            <label>Prize *</label>
+            <input type="text" id="bnPrize" maxlength="60" placeholder="e.g. $200"
+              style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+          </div>
+        </div>
+        <div class="field" style="margin-top:4px;">
+          <label>Objective *</label>
+          <textarea id="bnObjective" maxlength="300" rows="2" placeholder="e.g. Get a 2,000x or higher on Frkn Bananas. Minimum bet $0.40 USD"
+            style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:13px;padding:9px 12px;resize:vertical;"></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="field">
+            <label>Deadline <span style="color:var(--text-dim);font-weight:400;">(optional)</span></label>
+            <input type="text" id="bnDeadline" maxlength="40" placeholder="e.g. 08/22/26"
+              style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+          </div>
+          <div class="field">
+            <label>Image URL <span style="color:var(--text-dim);font-weight:400;">(optional)</span></label>
+            <input type="text" id="bnImage" placeholder="slot artwork shown in the embed"
+              style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+          </div>
+        </div>
+        <div class="field">
+          <label>Extra rule <span style="color:var(--text-dim);font-weight:400;">(optional)</span></label>
+          <textarea id="bnExtra" maxlength="400" rows="2" placeholder="e.g. Only spins and bonus buys count. Each game can only be claimed once"
+            style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:13px;padding:9px 12px;resize:vertical;"></textarea>
+        </div>
+        <div class="field">
+          <label>How to enter <span style="color:var(--text-dim);font-weight:400;">(optional — leave blank for the standard rules)</span></label>
+          <textarea id="bnHowTo" maxlength="600" rows="3" placeholder="One rule per line. Blank uses: spin + bet visible, clip or VOD, no demo/hyperplay."
+            style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:13px;padding:9px 12px;resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">
+          <button class="btn btn-accent" onclick="saveBounty()" id="bnSaveBtn">Save &amp; post to Discord</button>
+          <button class="btn btn-ghost" onclick="saveBounty(true)">Save without posting</button>
+          <button class="btn btn-ghost" id="bnCancelBtn" onclick="cancelBountyEdit()" style="display:none;">Cancel edit</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📋 Your bounties
+          <button class="btn btn-ghost btn-sm" style="float:right;" onclick="loadBounties()">Refresh</button>
+        </div>
+        <div id="bountyList">
+          <div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">No bounties yet</div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── LEADERBOARD ── -->
     <div class="page" id="page-leaderboard">
 
@@ -2616,6 +2699,30 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <button id="botEnabledBtn" onclick="toggleBotEnabled()" class="btn">—</button>
             <span id="botEnabledState" style="font-size:13px;font-weight:600;color:var(--text-dim);">—</span>
           </div>
+
+          <!-- Follow alert. Sits here rather than with the Follow Bonus on the
+               Points page: that one hands out points, this one speaks in chat,
+               and this card is where everything the bot SAYS is controlled. -->
+          <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <div style="position:relative;width:44px;height:24px;flex-shrink:0;" onclick="toggleFollowAlert()">
+                <input type="checkbox" id="followAlertEnabled" style="opacity:0;position:absolute;width:0;height:0;">
+                <div id="followAlertTrack" style="position:absolute;inset:0;border-radius:12px;background:var(--bg-card);border:1px solid var(--border);transition:background 0.2s;"></div>
+                <div id="followAlertThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--text-dim);transition:all 0.2s;"></div>
+              </div>
+              <div>
+                <div style="font-size:13px;font-weight:700;color:var(--bright);">Thank new followers in chat</div>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Posts a message the first time someone follows. Off by default.</div>
+              </div>
+            </div>
+            <div id="followAlertBody" style="display:none;margin-top:12px;">
+              <input type="text" id="followAlertMessage" class="form-input" maxlength="200"
+                     placeholder="Thanks for the follow {user}!" onchange="saveFollowAlert()">
+              <div style="font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.6;">
+                <strong>{user}</strong> becomes their name with the @ already attached. Each viewer is thanked once, ever, so a refollow will not trigger it again, and bursts are capped at 5 a minute so a follow raid cannot flood your chat.
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -3054,9 +3161,22 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.22.3</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.23.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.23.0 &middot; Bounties</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 11, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>🎯 <strong>Set challenges with a prize.</strong> New <strong>Bounties</strong> page under Manage. Give it a game, an objective and a prize, add a deadline and your own rules if you want, and WenBot announces it in your Discord.</li>
+            <li>🔄 <strong>One post, always current.</strong> Editing a bounty, marking it complete or closing it updates the original Discord message instead of posting again, so your channel never fills up with old challenges nobody can still enter.</li>
+            <li>🌐 <strong>Live on your portal.</strong> Active bounties appear in the Bounties section of your site automatically. Completed and closed ones drop off.</li>
+            <li>💎 Bounties are an <strong>Elite</strong> feature.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -6546,7 +6666,7 @@ function showPage(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', moderation:'Moderation', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotpicker:'Slot Picker', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', settings:'Settings', activity:'Activity Log', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade', referrals:'Invite & Earn', extension:'Companion Extension', whatsnew:"What's New", creators:'Creators' };
+  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', moderation:'Moderation', bounties:'Bounties', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotpicker:'Slot Picker', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', settings:'Settings', activity:'Activity Log', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade', referrals:'Invite & Earn', extension:'Companion Extension', whatsnew:"What's New", creators:'Creators' };
   document.getElementById('topbarTitle').textContent = titles[id] || id;
   // Re-evaluate the top billing banners for this page (hidden on stream-shown pages).
   _activePage = id;
@@ -6572,6 +6692,7 @@ function showPage(id, el) {
   if (id === 'store') { loadStoreItems(); loadRedemptions(); }
   if (id === 'commands') { loadCommands(); loadCommandAliases(); loadTimers(); }
   if (id === 'moderation') { loadModeration(); loadModActions(); }
+  if (id === 'bounties')   { loadBountiesPage(); }
   if (id === 'games') loadGamesSettings();
   if (id === 'bonushunt')   { loadBonusHunt(); loadBhHistory(); }
   if (id === 'slotpicker')   initSlotPicker();
@@ -6639,6 +6760,7 @@ const PAGE_PLAN = {
   store:       'pro',
   raffle:      'pro',
   commands:    'pro',
+  bounties:    'elite',
   leaderboard: 'elite',
   bonusbattle: 'pro',
   tournament:  'pro',
@@ -7124,6 +7246,12 @@ function onAuthReady(user) {
   if (profile?.dailyBonus        != null) document.getElementById('earnDailyBonus').value       = profile.dailyBonus;
   if (profile?.subMultiplier     != null) document.getElementById('earnSubMultiplier').value    = profile.subMultiplier;
   if (profile?.followBonus       != null) document.getElementById('earnFollowBonus').value      = profile.followBonus;
+  // Follow alert (Settings). Defaults to off, and the message box stays
+  // hidden until it is on, so the card reads as one line when unused.
+  if (document.getElementById('followAlertMessage')) {
+    document.getElementById('followAlertMessage').value = profile?.followAlertMessage || '';
+    followAlertSetUI(!!profile?.followAlertEnabled);
+  }
   { const _pg = document.getElementById('allowPointGiving'); if (_pg) _pg.checked = !profile?.pointGivingDisabled; }
   if (profile?.minMessageLength  != null) document.getElementById('earnMinMessageLength').value = profile.minMessageLength;
   if (profile?.activityWindowSec != null) document.getElementById('earnActivityWindow').value   = Math.round(profile.activityWindowSec / 60);
@@ -9997,6 +10125,192 @@ async function deleteCommand(id) {
   await fb.db.collection('streamers').doc(fb.activeUid).update({ commandsUpdatedAt: Date.now() }).catch(() => {});
   flash('Command deleted.');
   loadCommands();
+}
+
+// ── BOUNTIES ────────────────────────────────────────────────────────────────
+// streamers/{uid}/bounties/{id} — { game, objective, prize, deadline, extraRule,
+// howTo, imageUrl, status, discordMessageId, createdAt }. The dashboard owns
+// the docs; /api/bounty-post owns the Discord side, because the bot token must
+// never reach the browser.
+let _bnEditingId = null;
+
+const BN_STATUS = {
+  active:   { label: 'Active',    cls: 'badge-green'  },
+  complete: { label: 'Completed', cls: 'badge-accent' },
+  closed:   { label: 'Closed',    cls: 'badge-orange' },
+};
+
+async function loadBountiesPage() {
+  loadBountyChannels();
+  loadBounties();
+}
+
+// Reuses the same channel endpoint the Settings page uses, so the list reflects
+// the MANAGED account's guild when a mod is operating on someone's behalf.
+async function loadBountyChannels() {
+  const sel = document.getElementById('bnChannel');
+  if (!sel) return;
+  try {
+    const idToken = await fb.currentUser.getIdToken();
+    const resp = await fetch('/api/discord-channels?uid=' + encodeURIComponent(fb.activeUid || ''), {
+      headers: { 'Authorization': 'Bearer ' + idToken },
+    });
+    const { channels, error } = await resp.json();
+    if (error) throw new Error(error);
+    const current = profile?.discordConfig?.bountyChannelId || '';
+    sel.innerHTML = '<option value="">— select a channel —</option>' +
+      (channels || []).map(c =>
+        `<option value="${c.id}"${c.id === current ? ' selected' : ''}>${c.type === 5 ? '📣' : '#'} ${escHtml(c.name)}</option>`
+      ).join('');
+  } catch (e) {
+    sel.innerHTML = '<option value="">Connect Discord on the Settings page first</option>';
+  }
+}
+
+async function saveBountyChannel(channelId) {
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid)
+      .set({ discordConfig: { bountyChannelId: channelId || null } }, { merge: true });
+    if (!profile.discordConfig) profile.discordConfig = {};
+    profile.discordConfig.bountyChannelId = channelId || null;
+    flash(channelId ? 'Bounty channel saved.' : 'Bounty channel cleared.');
+  } catch (e) { flash('Could not save the channel.', 'error'); }
+}
+
+async function loadBounties() {
+  const el = document.getElementById('bountyList');
+  try {
+    const snap = await fb.db.collection('streamers').doc(fb.activeUid)
+      .collection('bounties').orderBy('createdAt', 'desc').limit(50).get();
+    if (snap.empty) {
+      el.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">No bounties yet</div>';
+      return;
+    }
+    el.innerHTML = snap.docs.map(d => {
+      const b = d.data();
+      const st = BN_STATUS[b.status] || BN_STATUS.active;
+      const posted = b.discordMessageId
+        ? '<span style="font-size:11px;color:var(--green);">✓ in Discord</span>'
+        : '<span style="font-size:11px;color:var(--text-dim);">not posted</span>';
+      return `<div style="padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:9px;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-weight:800;color:var(--bright);">${escHtml(b.game || '')}</span>
+          <span class="badge ${st.cls}">${st.label}</span>
+          <span style="color:var(--gold);font-weight:800;">${escHtml(b.prize || '')}</span>
+          ${b.deadline ? `<span style="font-size:11px;color:var(--text-dim);">by ${escHtml(b.deadline)}</span>` : ''}
+          ${posted}
+          <span style="flex:1;"></span>
+          <button class="btn btn-ghost btn-sm" onclick="editBounty('${d.id}')">Edit</button>
+          ${b.status === 'active' ? `<button class="btn btn-ghost btn-sm" onclick="setBountyStatus('${d.id}','complete')">Mark complete</button>` : ''}
+          ${b.status !== 'closed' ? `<button class="btn btn-ghost btn-sm" onclick="setBountyStatus('${d.id}','closed')">Close out</button>` : ''}
+          <button class="btn btn-danger btn-sm" onclick="deleteBounty('${d.id}')">Delete</button>
+        </div>
+        <div style="font-size:12.5px;color:var(--text-dim);margin-top:6px;line-height:1.5;">${escHtml(b.objective || '')}</div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    el.innerHTML = '<div style="color:var(--red);font-size:12px;text-align:center;padding:20px;">Could not load bounties</div>';
+  }
+}
+
+function _bnForm() {
+  return {
+    game:      document.getElementById('bnGame').value.trim(),
+    prize:     document.getElementById('bnPrize').value.trim(),
+    objective: document.getElementById('bnObjective').value.trim(),
+    deadline:  document.getElementById('bnDeadline').value.trim(),
+    imageUrl:  document.getElementById('bnImage').value.trim(),
+    extraRule: document.getElementById('bnExtra').value.trim(),
+    howTo:     document.getElementById('bnHowTo').value.trim(),
+  };
+}
+
+async function saveBounty(skipPost) {
+  const f = _bnForm();
+  if (!f.game || !f.prize || !f.objective) {
+    flash('Game, prize and objective are required.', 'error');
+    return;
+  }
+  const btn = document.getElementById('bnSaveBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const col = fb.db.collection('streamers').doc(fb.activeUid).collection('bounties');
+    let id = _bnEditingId;
+    if (id) {
+      await col.doc(id).set({ ...f, updatedAt: Date.now() }, { merge: true });
+    } else {
+      const ref = await col.add({ ...f, status: 'active', createdAt: Date.now(), updatedAt: Date.now() });
+      id = ref.id;
+    }
+    if (!skipPost) await postBounty(id, _bnEditingId ? 'update' : 'post');
+    cancelBountyEdit();
+    loadBounties();
+    logAction('bounty_save', { game: f.game, edited: !!_bnEditingId });
+  } catch (e) {
+    flash(e.message || 'Could not save the bounty.', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// Discord side. Errors surface verbatim — "no channel set" and "Elite feature"
+// are both actionable, and swallowing them would leave the streamer guessing
+// why nothing appeared in their server.
+async function postBounty(bountyId, action) {
+  const idToken = await fb.currentUser.getIdToken();
+  const resp = await fetch('/api/bounty-post', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid: fb.activeUid, bountyId, action: action || 'post' }),
+  });
+  const out = await resp.json().catch(() => ({}));
+  if (!resp.ok) { flash(out.error || 'Discord post failed.', 'error'); return false; }
+  flash(out.edited ? 'Bounty updated in Discord.' : 'Bounty posted to Discord.');
+  return true;
+}
+
+async function editBounty(id) {
+  const doc = await fb.db.collection('streamers').doc(fb.activeUid).collection('bounties').doc(id).get();
+  if (!doc.exists) return;
+  const b = doc.data();
+  document.getElementById('bnGame').value      = b.game || '';
+  document.getElementById('bnPrize').value     = b.prize || '';
+  document.getElementById('bnObjective').value = b.objective || '';
+  document.getElementById('bnDeadline').value  = b.deadline || '';
+  document.getElementById('bnImage').value     = b.imageUrl || '';
+  document.getElementById('bnExtra').value     = b.extraRule || '';
+  document.getElementById('bnHowTo').value     = b.howTo || '';
+  _bnEditingId = id;
+  document.getElementById('bnFormTitle').textContent = '✏️ Editing bounty';
+  document.getElementById('bnCancelBtn').style.display = '';
+  document.getElementById('bnGame').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function cancelBountyEdit() {
+  _bnEditingId = null;
+  ['bnGame','bnPrize','bnObjective','bnDeadline','bnImage','bnExtra','bnHowTo']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('bnFormTitle').textContent = '➕ New bounty';
+  document.getElementById('bnCancelBtn').style.display = 'none';
+}
+
+// Status changes edit the EXISTING Discord message, so the original
+// announcement becomes the completion notice rather than a second post.
+async function setBountyStatus(id, status) {
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid).collection('bounties').doc(id)
+      .set({ status, updatedAt: Date.now() }, { merge: true });
+    await postBounty(id, 'update');
+    loadBounties();
+    logAction('bounty_status', { bountyId: id, status });
+  } catch (e) { flash('Could not update the bounty.', 'error'); }
+}
+
+async function deleteBounty(id) {
+  if (!confirm('Delete this bounty? The Discord message stays up — close it out first if you want it marked closed.')) return;
+  await fb.db.collection('streamers').doc(fb.activeUid).collection('bounties').doc(id).delete();
+  flash('Bounty deleted.');
+  loadBounties();
 }
 
 // ── MODERATION (automod) ────────────────────────────────────────────────────
@@ -15661,6 +15975,41 @@ function srSetDuplicatesUI(on) {
   document.getElementById('srDuplicatesThumb').style.left = on ? '23px' : '3px';
   document.getElementById('srDuplicatesLabel').textContent = on ? 'ON' : 'OFF';
   document.getElementById('srDuplicatesLabel').style.color = on ? 'var(--accent)' : 'var(--text-dim)';
+}
+
+// ── Follow alert (Settings → Bot in Kick Chat) ───────────────────────────────
+// Writes straight to the streamer profile, which the bot hot-reloads from its
+// own snapshot listener, so a toggle takes effect without a restart.
+function followAlertSetUI(on) {
+  const box = document.getElementById('followAlertEnabled');
+  if (!box) return;
+  box.checked = !!on;
+  const track = document.getElementById('followAlertTrack');
+  const thumb = document.getElementById('followAlertThumb');
+  const body  = document.getElementById('followAlertBody');
+  if (track) { track.style.background = on ? 'var(--accent)' : 'var(--bg-card)'; track.style.borderColor = on ? 'var(--accent)' : 'var(--border)'; }
+  if (thumb) { thumb.style.left = on ? '23px' : '3px'; thumb.style.background = on ? '#0d1117' : 'var(--text-dim)'; }
+  // The message box only matters once it's on, so it isn't shown until then.
+  if (body)  body.style.display = on ? 'block' : 'none';
+}
+
+async function toggleFollowAlert() {
+  const next = !document.getElementById('followAlertEnabled').checked;
+  followAlertSetUI(next);
+  await saveFollowAlert();
+}
+
+async function saveFollowAlert() {
+  if (!fb.currentUser) return;
+  const enabled = document.getElementById('followAlertEnabled').checked;
+  const message = (document.getElementById('followAlertMessage').value || '').trim();
+  try {
+    await saveStreamerProfile({ followAlertEnabled: enabled, followAlertMessage: message });
+    if (profile) { profile.followAlertEnabled = enabled; profile.followAlertMessage = message; }
+    flash(enabled ? 'Follow alert on.' : 'Follow alert off.', 'success');
+  } catch (e) {
+    flash('Could not save: ' + e.message, 'error');
+  }
 }
 
 async function srToggleDuplicates() {
