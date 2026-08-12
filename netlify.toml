@@ -11,6 +11,10 @@
 [functions."expire-trials"]
   schedule = "@daily"
 
+# Hourly tick; each streamer's own cadence (1-24h) is checked inside.
+[functions."leaderboard-discord-cron"]
+  schedule = "@hourly"
+
 [[headers]]
   for = "/*"
   [headers.values]
@@ -432,6 +436,11 @@
 [[redirects]]
   from   = "/api/admin-manage-user"
   to     = "/.netlify/functions/admin-manage-user"
+  status = 200
+
+[[redirects]]
+  from   = "/api/leaderboard-discord-post"
+  to     = "/.netlify/functions/leaderboard-discord-cron"
   status = 200
 
 [[redirects]]

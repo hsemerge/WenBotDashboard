@@ -606,7 +606,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         🎨 <span id="themeToggleLabel">Themes</span>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.23.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.24.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -2211,6 +2211,49 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
     <!-- ── LEADERBOARD ── -->
     <div class="page" id="page-leaderboard">
 
+      <!-- Recurring standings post to Discord. A scheduled function ticks
+           hourly and honours each streamer's own cadence. -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">📣 Post standings to Discord</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.5;">
+          WenBot posts your live wager standings to a Discord channel on a schedule. Connect Discord on the Settings page first.
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info"><div class="toggle-label">Auto-post standings</div></div>
+          <div class="toggle" id="lbdEnabled" onclick="toggleOption(this);saveLbDiscord();"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 200px;gap:12px;margin-top:12px;">
+          <div class="field">
+            <label>Channel</label>
+            <select id="lbdChannel" onchange="saveLbDiscord()"
+              style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+              <option value="">Loading channels…</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Post every</label>
+            <select id="lbdEvery" onchange="saveLbDiscord()"
+              style="width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+              <option value="1">1 hour</option>
+              <option value="3">3 hours</option>
+              <option value="5" selected>5 hours</option>
+              <option value="6">6 hours</option>
+              <option value="12">12 hours</option>
+              <option value="24">24 hours</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Title <span style="color:var(--text-dim);font-weight:400;">(optional)</span></label>
+          <input type="text" id="lbdTitle" maxlength="90" placeholder="e.g. TiltBros Weighted Wager Race — Live Standings"
+            style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" onclick="testLbDiscordPost()">Post one now</button>
+          <span id="lbdStatus" style="font-size:11.5px;color:var(--text-dim);"></span>
+        </div>
+      </div>
+
       <!-- Public Leaderboard (Pro feature) -->
       <div class="card" style="margin-bottom:16px;" id="publicLbCard">
         <div class="card-title" style="justify-content:space-between;">
@@ -3161,9 +3204,21 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.23.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.24.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.24.0 &middot; Standings straight to Discord</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 11, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>📣 <strong>Auto-post your wager race.</strong> Leaderboard page → <strong>Post standings to Discord</strong>. Pick a channel and how often, and WenBot posts the live top 10 with player count and total wagered.</li>
+            <li>⏱ <strong>Your schedule.</strong> Every 1, 3, 5, 6, 12 or 24 hours. Give it your own title if you want, and hit <strong>Post one now</strong> to fire one off immediately.</li>
+            <li>🎰 Works with every casino your board runs on.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -10127,6 +10182,72 @@ async function deleteCommand(id) {
   loadCommands();
 }
 
+// ── LEADERBOARD → DISCORD ───────────────────────────────────────────────────
+// Config lives on the streamer doc (lbDiscordPost + discordConfig.lbChannelId).
+// An hourly scheduled function honours each streamer's cadence.
+async function loadLbDiscord() {
+  const cfg = profile?.lbDiscordPost || {};
+  document.getElementById('lbdEnabled').classList.toggle('on', cfg.enabled === true);
+  document.getElementById('lbdEvery').value = String(cfg.everyHours || 5);
+  document.getElementById('lbdTitle').value = cfg.title || '';
+  const st = document.getElementById('lbdStatus');
+  if (st) {
+    st.textContent = cfg.lastError
+      ? 'Last attempt failed: ' + cfg.lastError
+      : (cfg.lastPostAt ? 'Last posted ' + new Date(cfg.lastPostAt).toLocaleString() : '');
+    st.style.color = cfg.lastError ? 'var(--red)' : 'var(--text-dim)';
+  }
+
+  const sel = document.getElementById('lbdChannel');
+  try {
+    const idToken = await fb.currentUser.getIdToken();
+    const resp = await fetch('/api/discord-channels?uid=' + encodeURIComponent(fb.activeUid || ''), {
+      headers: { 'Authorization': 'Bearer ' + idToken },
+    });
+    const { channels, error } = await resp.json();
+    if (error) throw new Error(error);
+    const cur = profile?.discordConfig?.lbChannelId || '';
+    sel.innerHTML = '<option value="">— select a channel —</option>' +
+      (channels || []).map(c =>
+        `<option value="${c.id}"${c.id === cur ? ' selected' : ''}>${c.type === 5 ? '📣' : '#'} ${escHtml(c.name)}</option>`
+      ).join('');
+  } catch (e) {
+    sel.innerHTML = '<option value="">Connect Discord on the Settings page first</option>';
+  }
+}
+
+async function saveLbDiscord() {
+  const enabled    = document.getElementById('lbdEnabled').classList.contains('on');
+  const channelId  = document.getElementById('lbdChannel').value || null;
+  const everyHours = parseInt(document.getElementById('lbdEvery').value, 10) || 5;
+  const title      = document.getElementById('lbdTitle').value.trim() || null;
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid).set({
+      lbDiscordPost: { enabled, everyHours, title },
+      discordConfig: { lbChannelId: channelId },
+    }, { merge: true });
+    profile.lbDiscordPost = { ...(profile.lbDiscordPost || {}), enabled, everyHours, title };
+    if (!profile.discordConfig) profile.discordConfig = {};
+    profile.discordConfig.lbChannelId = channelId;
+    flash('Saved.');
+  } catch (e) { flash('Could not save.', 'error'); }
+}
+
+async function testLbDiscordPost() {
+  try {
+    const idToken = await fb.currentUser.getIdToken();
+    const resp = await fetch('/api/leaderboard-discord-post', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid: fb.activeUid }),
+    });
+    const out = await resp.json().catch(() => ({}));
+    if (!resp.ok) { flash(out.error || 'Post failed.', 'error'); return; }
+    flash('Posted to Discord.');
+    loadLbDiscord();
+  } catch (e) { flash('Post failed.', 'error'); }
+}
+
 // ── BOUNTIES ────────────────────────────────────────────────────────────────
 // streamers/{uid}/bounties/{id} — { game, objective, prize, deadline, extraRule,
 // howTo, imageUrl, status, discordMessageId, createdAt }. The dashboard owns
@@ -11367,6 +11488,7 @@ async function exportMyData() {
 
 // ── LEADERBOARDS ──
 async function loadLeaderboards() {
+  loadLbDiscord();
   // Points leaderboard
   const pSnap = await fb.db.collection('streamers').doc(fb.activeUid)
     .collection('viewers').orderBy('points','desc').limit(10).get();
