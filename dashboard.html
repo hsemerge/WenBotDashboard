@@ -2245,7 +2245,10 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         </div>
         <div class="field">
           <label>Title <span style="color:var(--text-dim);font-weight:400;">(optional)</span></label>
-          <input type="text" id="lbdTitle" maxlength="90" placeholder="e.g. TiltBros Weighted Wager Race — Live Standings"
+          <!-- onchange (blur/enter), not oninput — saving per keystroke would
+               write to Firestore on every letter typed. -->
+          <input type="text" id="lbdTitle" maxlength="90" onchange="saveLbDiscord()"
+            placeholder="e.g. TiltBros Weighted Wager Race — Live Standings"
             style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
