@@ -15,6 +15,7 @@ const { lookupDegen }          = require("./_lib/degen");
 const { normalizeBoard, boardWindow } = require("./_lib/leaderboards");
 const { getKickUser }          = require("./_lib/kick");
 const { saveDiscordLink, stampDiscordVerified, findExistingDiscordLink } = require("./_lib/discord-link");
+const { postVerifyLog }        = require("./_lib/verify-log");
 const crypto                   = require("crypto");
 
 exports.handler = async (event) => {
@@ -122,6 +123,18 @@ exports.handler = async (event) => {
       if (discordUserId) {
         await saveDiscordLink(db, streamerUid, discordUserId, { kickUsername, discordUsername });
       }
+
+      // Kick-only verifications go to the mod feed too. They are the ones most
+      // worth seeing, in fact: no casino account means none of the casino-side
+      // checks can run, so a human is the only thing looking.
+      postVerifyLog(db, streamerUid, streamerData, {
+        kickUsername, kickUserId: kickLookup.user?.user_id || kickLookup.user?.id || null,
+        provider: "none", providerUsername: null, providerUid: null,
+        underAffiliate: false, wagerAmount: 0,
+        discordUserId, discordUsername,
+        casinoSkipped: true,
+        source: dtoken ? "Discord" : "Kick or web link",
+      });
 
       // First-verify bonus applies to Kick-only verifies too (idempotent flag).
       let verifyBonusAwarded = 0;
@@ -317,6 +330,14 @@ exports.handler = async (event) => {
     const batch = db.batch();
     const newDocRef = db.collection("streamers").doc(streamerUid)
       .collection("verified_users").doc(`${kickKey}_${provider}`);
+    // Captured BEFORE the write, because the write overwrites it. The mod log
+    // uses it to report "changed their casino name from X to Y", which is
+    // invisible afterwards.
+    let previousProviderUsername = null;
+    try {
+      const prevSnap = await newDocRef.get();
+      if (prevSnap.exists) previousProviderUsername = prevSnap.data().providerUsername || null;
+    } catch { /* non-fatal */ }
     batch.set(newDocRef, {
       kickName:               kickUsername,
       // Denormalized lowercase copy so case-insensitive lookups (tournament,
@@ -344,6 +365,18 @@ exports.handler = async (event) => {
       .collection("verified_users").doc(`${kickKey}_none`));
     await batch.commit();
     await burnDtoken();
+
+    // Moderator feed. After the commit so it can never announce a verification
+    // that failed to save, and awaited only so errors are logged, never thrown:
+    // the viewer's verification is already done and must not depend on Discord.
+    postVerifyLog(db, streamerUid, streamerData, {
+      kickUsername, kickUserId: kickLookup.user?.user_id || kickLookup.user?.id || null,
+      provider, providerUsername: resultUsername, providerUid,
+      underAffiliate, wagerAmount,
+      discordUserId, discordUsername,
+      previousProviderUsername,
+      source: dtoken ? "Discord" : "Kick or web link",
+    });
 
     // Discord-initiated flow: also save the discord_link
     if (discordUserId) {

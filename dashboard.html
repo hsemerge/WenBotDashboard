@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <link rel="icon" type="image/png" href="/img/favicon.png" sizes="32x32">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WenBot — Dashboard</title>
+  <title>WenBot Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -606,7 +606,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         🎨 <span id="themeToggleLabel">Themes</span>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.24.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.24.1</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -2923,6 +2923,15 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <select id="dvGateChannelId"><option value="">— select a channel —</option></select>
             <div class="hint">WenBot posts a clickable <strong>Verify</strong> button here. Works even if another bot (e.g. Double Counter) is your anti-bot gate — this just gives users a link to link Kick + casino.</div>
           </div>
+
+          <!-- Moderator feed. A private channel: it carries Kick IDs, casino
+               usernames and duplicate-account flags, which is mod information
+               rather than something to post where viewers can read it. -->
+          <div class="field" style="margin-top:6px;">
+            <label>Verification log channel <span style="color:var(--text-dim);font-weight:400;">(optional, mods only)</span></label>
+            <select id="dvLogChannelId"><option value="">— off —</option></select>
+            <div class="hint">Posts every verification here for your mods: who verified, whether they're under your code, how much they've wagered, and where they came from. It also flags things worth checking, like <strong>the same casino account being verified by two different Kick users</strong> or a Discord that's been attached to another name. Pick a channel your viewers can't see.</div>
+          </div>
           <!-- Toggle 2: full anti-bot gate -->
           <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin:16px 0 12px;">
             <input type="checkbox" id="dvGatekeeper" onchange="dvToggleChanged()" style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;">
@@ -3207,9 +3216,22 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.24.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.24.1</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.24.1 &middot; Follower thanks, and a verification log for your mods</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 12, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#128153; <strong>WenBot can thank new followers in chat.</strong> Off by default, switch it on under <strong>Settings &rarr; Bot in Kick Chat</strong> and write your own message. Each viewer is thanked once ever, so a refollow won't trigger it again, and bursts are capped so a follow raid can't flood your chat.</li>
+            <li>&#128737;&#65039; <strong>New: a verification log for your moderators.</strong> Pick a channel under <strong>Settings &rarr; Discord &amp; Verification</strong> and every verification gets posted there: who verified, whether they're under your code, how much they've wagered, and whether they came from Discord or from Kick.</li>
+            <li>&#9888;&#65039; <strong>It flags possible multi-accounting.</strong> If the same casino account gets verified by two different Kick users, or a Discord turns up attached to a second Kick name, the post turns amber and says so. Your mods scan for amber and skip the rest.</li>
+            <li>&#128274; Point it at a private channel. It carries Kick IDs and casino usernames, which is mod information rather than something viewers should be reading.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -15543,6 +15565,8 @@ async function populateDiscordChannels(selectedGiveaway, selectedAnnouncement) {
     gSel.innerHTML = blankC + chanOpts;
     aSel.innerHTML = blankC + chanOpts;
     if (cSel) cSel.innerHTML = blankC + chanOpts;
+    const lSel = document.getElementById('dvLogChannelId');
+    if (lSel) lSel.innerHTML = '<option value="">— off —</option>' + chanOpts;
     if (rSel) rSel.innerHTML = '<option value="">— select a role —</option>' +
       (roles || []).map(r => `<option value="${r.id}">@${escHtml(r.name)}</option>`).join('');
     // Go-live announcement selects share the same channel/role lists.
@@ -15609,6 +15633,7 @@ function loadVerifySettings() {
   setChk('dvCaptcha',    v.requireCaptcha);
   const role = document.getElementById('dvRoleId');        if (role && v.roleId)        role.value = v.roleId;
   const gch  = document.getElementById('dvGateChannelId'); if (gch && v.gateChannelId)  gch.value  = v.gateChannelId;
+  const lch  = document.getElementById('dvLogChannelId');  if (lch && v.logChannelId)   lch.value  = v.logChannelId;
   const age  = document.getElementById('dvMinAge');        if (age)                     age.value  = v.minAccountAgeDays || 0;
   dvToggleChanged();
 }
@@ -15620,6 +15645,8 @@ async function saveVerifySettings() {
     roleId:            document.getElementById('dvRoleId')?.value || '',
     gatekeeper:        document.getElementById('dvGatekeeper')?.checked || false,
     gateChannelId:     document.getElementById('dvGateChannelId')?.value || '',
+    // Empty string means off, which is what verify-log checks for.
+    logChannelId:      document.getElementById('dvLogChannelId')?.value || '',
     requireCaptcha:    document.getElementById('dvCaptcha')?.checked || false,
     minAccountAgeDays: Math.max(0, parseInt(document.getElementById('dvMinAge')?.value, 10) || 0),
   };
