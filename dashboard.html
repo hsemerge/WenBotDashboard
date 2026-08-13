@@ -2435,6 +2435,9 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card-title" style="justify-content:space-between;">
           <span>✅ Verified Users (<span id="verifiedCountLabel">0</span>)</span>
           <div style="display:flex;gap:10px;align-items:center;">
+            <input type="search" id="verifiedSearch" oninput="renderVerifiedFromCache()" placeholder="Find a user…"
+                   title="Search by Kick name, casino name or Discord"
+                   style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:12.5px;padding:6px 10px;width:190px;font-family:'Inter',sans-serif;">
             <button id="recheckAllBtn" onclick="recheckAllVerified(this)" class="btn btn-ghost btn-sm" title="Re-check every verified user against the current leaderboard and repair anyone whose casino ID changed.">↻ Re-check all</button>
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);cursor:pointer;" title="Show only users registered under your affiliate code">
               <input type="checkbox" id="verifiedUnderCodeOnly" onchange="renderVerifiedFromCache()" style="accent-color:var(--green);width:14px;height:14px;">
@@ -10785,15 +10788,34 @@ function renderVerifiedFromCache() {
   const tbody          = document.getElementById('verifiedTable');
   const countLabel     = document.getElementById('verifiedCountLabel');
   const underCodeOnly  = document.getElementById('verifiedUnderCodeOnly')?.checked || false;
-  const rows = underCodeOnly
+  // Search across the three names a streamer might know someone by: their Kick
+  // name, their casino name, and their Discord. A mod chasing a report usually
+  // only has one of the three, and which one varies by where the report came
+  // from, so matching any of them is the point.
+  const q = (document.getElementById('verifiedSearch')?.value || '').trim().toLowerCase();
+  let rows = underCodeOnly
     ? verifiedCache.filter(r => r.data.underAffiliate)
     : verifiedCache;
+  if (q) {
+    rows = rows.filter(r => {
+      const d = r.data || {};
+      const discord = verifiedDiscordMap[(d.kickName || '').toLowerCase()] || '';
+      return [d.kickName, d.providerUsername, discord, d.providerUid]
+        .some(f => String(f || '').toLowerCase().includes(q));
+    });
+  }
 
-  if (countLabel) countLabel.textContent = rows.length + (underCodeOnly ? ` of ${verifiedCache.length}` : '');
+  // Always show the total alongside, so a filtered view never reads as the
+  // whole list.
+  if (countLabel) {
+    countLabel.textContent = (underCodeOnly || q)
+      ? `${rows.length} of ${verifiedCache.length}`
+      : String(rows.length);
+  }
 
   if (!rows.length) {
     tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:16px;">${
-      underCodeOnly ? 'No users under your affiliate code yet' : 'No verified users yet'
+      q ? `No one matching “${escHtml(q)}”` : (underCodeOnly ? 'No users under your affiliate code yet' : 'No verified users yet')
     }</td></tr>`;
     return;
   }
