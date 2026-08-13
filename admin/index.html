@@ -111,11 +111,22 @@
       </div>
       <div class="stats" id="statCards"></div>
       <div class="toolbar">
-        <input id="search" type="text" placeholder="Search channel / email / plan…" oninput="renderTable()">
+        <input id="search" type="text" placeholder="Search channel / name / email / plan / uid…" oninput="renderTable()">
+        <select id="userFilter" onchange="renderTable()" style="background:#0c0c14;border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:13px;padding:8px 10px;">
+          <option value="">Everyone</option>
+          <option value="trial">🎁 On a trial</option>
+          <option value="trial3">⏳ Trial ends ≤ 3 days</option>
+          <option value="trial7">⏳ Trial ends ≤ 7 days</option>
+          <option value="trialended">⌛ Trial ended</option>
+          <option value="paid">💳 Paying</option>
+          <option value="failed">⚠️ Payment failed</option>
+          <option value="free">🆓 Starter / no sub</option>
+        </select>
         <button class="btn-ghost" onclick="loadUsers()">↻ Refresh</button>
         <label class="sub" style="display:flex;align-items:center;gap:6px;cursor:pointer;align-self:center;">
           <input type="checkbox" id="showArchived" onchange="renderTable()"> Show archived
         </label>
+        <span id="matchCount" class="sub" style="align-self:center;color:var(--muted);"></span>
         <button class="btn-ghost" onclick="backfillNotes()" title="One-time: import each user's most recent comp reason from the audit log into their Notes field (skips users who already have a note)">🔄 Import old comp notes</button>
       </div>
       <div class="tablecard">
@@ -297,10 +308,46 @@
   window.renderTable = function () {
     const q = ($('search').value || '').toLowerCase().trim();
     const showArch = $('showArchived').checked;
-    const rows = _users.filter(u => (showArch || !u.archived) && (!q ||
+    const filter = ($('userFilter') && $('userFilter').value) || '';
+    const now = Date.now();
+    const DAY = 86400000;
+
+    const matchesFilter = (u) => {
+      const onTrial    = u.planTrial && u.trialEndsAt && u.trialEndsAt > now;
+      const daysLeft   = onTrial ? (u.trialEndsAt - now) / DAY : null;
+      switch (filter) {
+        case 'trial':      return onTrial;
+        case 'trial3':     return onTrial && daysLeft <= 3;
+        case 'trial7':     return onTrial && daysLeft <= 7;
+        // Either still flagged and past its end date (awaiting the daily
+        // sweep), or already swept and stamped with trialExpiredAt.
+        case 'trialended': return (u.planTrial && u.trialEndsAt && u.trialEndsAt <= now) || !!u.trialExpiredAt;
+        case 'paid':       return !!u.subscriptionActive;
+        case 'failed':     return !!u.paymentFailed;
+        case 'free':       return !u.subscriptionActive && !u.planTrial;
+        default:           return true;
+      }
+    };
+
+    let rows = _users.filter(u => (showArch || !u.archived) && matchesFilter(u) && (!q ||
       String(u.kickChannel||'').toLowerCase().includes(q) ||
+      String(u.displayName||'').toLowerCase().includes(q) ||
       String(u.email||'').toLowerCase().includes(q) ||
-      String(u.plan||'').toLowerCase().includes(q)));
+      String(u.plan||'').toLowerCase().includes(q) ||
+      String(u.uid||'').toLowerCase().includes(q)));
+
+    // Soonest-to-lapse first on any trial view — that's the whole point of
+    // looking at it.
+    if (filter.startsWith('trial') && filter !== 'trialended') {
+      rows = rows.slice().sort((a, b) => (a.trialEndsAt || Infinity) - (b.trialEndsAt || Infinity));
+    }
+
+    const countEl = $('matchCount');
+    if (countEl) {
+      countEl.textContent = (q || filter)
+        ? `${rows.length} of ${_users.length}`
+        : `${_users.length} streamer${_users.length === 1 ? '' : 's'}`;
+    }
     if (!rows.length) { $('usersTable').innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center;padding:24px;">No matches.</td></tr>'; return; }
     $('usersTable').innerHTML = rows.map(u => {
       const sub = u.subscriptionActive
