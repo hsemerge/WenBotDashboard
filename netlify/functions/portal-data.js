@@ -442,12 +442,31 @@ const PORTAL_PRESETS = {
   },
 };
 
+// Resolve a preset across a streamer's current slug and every slug they have
+// previously used. Keyed lookups break silently on a rename: the branding just
+// disappears and nobody connects it to the name change weeks earlier.
+function presetFor(channel, profile) {
+  const tried = [
+    channel,
+    profile && profile.kickChannel,
+    ...((profile && Array.isArray(profile.previousChannels)) ? profile.previousChannels : []),
+  ];
+  for (const key of tried) {
+    if (!key) continue;
+    const hit = PORTAL_PRESETS[String(key).toLowerCase()];
+    if (hit) return hit;
+  }
+  return null;
+}
+
 // Themed-portal branding (palette/logo/hero/bg). Emitted for Elite+ (the full
 // theme is an Elite perk) OR any white-label override (owner/preset/flag). Null
 // otherwise, so Starter/Pro portals keep the default look.
 function buildPortalConfig(channel, profile, canBrand) {
   if (!canBrand) return null;
-  const preset = PORTAL_PRESETS[channel] || {};
+  // Presets are keyed by slug, so a rename would otherwise silently strip a
+  // white-label client's branding. Try the current slug and every former one.
+  const preset = presetFor(channel, profile) || {};
   const p      = profile.portal || {};
   // Prizes are set once in the dashboard (numeric per rank). When present they
   // drive the custom board too — formatted as "$N" strings the board renders
@@ -560,8 +579,21 @@ exports.handler = async (event) => {
       if (c.exists && c.data().data && (Date.now() - c.data().cachedAt) < PORTAL_CACHE_TTL_MS) return res(200, c.data().data);
     } catch { /* cache miss → compute fresh */ }
 
-    const snap = await db.collection("streamers")
+    let snap = await db.collection("streamers")
       .where("kickChannel", "==", channel).limit(1).get();
+
+    // A streamer who renames on Kick keeps every old link, bookmark, custom
+    // domain and hardcoded preset key pointing at their PREVIOUS slug. Those
+    // would all 404 the moment they changed their name, which is exactly what
+    // happened when irishqueenoftheslots became meggambles: the doc corrected
+    // itself, and the portal kept asking for a channel that no longer existed.
+    //
+    // Every slug they have ever had is recorded, so an old address still
+    // resolves to the same account instead of dying.
+    if (snap.empty) {
+      snap = await db.collection("streamers")
+        .where("previousChannels", "array-contains", channel).limit(1).get();
+    }
     if (snap.empty) return res(404, { error: "Channel not found on WenBot" });
 
     const streamer = snap.docs[0];
@@ -619,12 +651,12 @@ exports.handler = async (event) => {
     };
 
     const isOwner    = OWNER_CHANNELS.has(channel);
-    const presetMain = PORTAL_PRESETS[channel] || {};
+    const presetMain = presetFor(channel, profile) || {};
     // White-label override = owner, a seeded preset, a manual Firestore flag, or
     // the agency plan. These get full agency-tier FEATURES (every section) +
     // branding, regardless of what they pay — used for comps like SKSlots.
     const whiteLabel = isOwner
-      || PORTAL_PRESETS[channel] != null
+      || presetFor(channel, profile) != null
       || profile.whiteLabel === true
       || tierOf(profile.plan) >= TIER_RANK.agency;
     // An expired Elite trial reverts to starter for entitlements. The daily
