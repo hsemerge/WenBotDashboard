@@ -3,6 +3,7 @@
 
 const { getDb }     = require("./_lib/firebase");
 const { res: _res } = require("./_lib/http");
+const { findStreamerByChannel } = require("./_lib/streamer");
 const res = (s, b) => _res(s, b, "*");
 
 exports.handler = async (event) => {
@@ -13,13 +14,13 @@ exports.handler = async (event) => {
 
   try {
     const db = getDb();
-    const snap = await db.collection("streamers").where("kickChannel", "==", channel.toLowerCase()).limit(1).get();
-    if (snap.empty) return res(404, { error: "Channel not found" });
+    const snapDoc = await findStreamerByChannel(db, channel);
+    if (!snapDoc) return res(404, { error: "Channel not found" });
 
-    const uid = snap.docs[0].id;
+    const uid = snapDoc.id;
     // Never assume Gambulls — param first, else the streamer's actual casino.
     // An unset casino means an empty query (no past winners), not Gambulls data.
-    const provider = (casino || snap.docs[0].data().activeProvider || "").toLowerCase();
+    const provider = (casino || snapDoc.data().activeProvider || "").toLowerCase();
 
     // Past winners change only when a period finalizes (rare), but every open
     // leaderboard polls this every 5 min — so cache per channel+casino to avoid

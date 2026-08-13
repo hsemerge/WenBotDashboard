@@ -14,6 +14,7 @@
 
 const { getDb }     = require("./_lib/firebase");
 const { res: _res } = require("./_lib/http");
+const { findStreamerByChannel } = require("./_lib/streamer");
 const res = (s, b) => _res(s, b, "*");
 
 const MAX_GUESSES = 500;
@@ -26,11 +27,10 @@ exports.handler = async (event) => {
 
   try {
     const db = getDb();
-    const snap = await db.collection("streamers")
-      .where("kickChannel", "==", channel).limit(1).get();
-    if (snap.empty) return res(404, { error: "Channel not found on WenBot" });
+    const snapDoc = await findStreamerByChannel(db, channel);
+    if (!snapDoc) return res(404, { error: "Channel not found on WenBot" });
 
-    const doc     = snap.docs[0];
+    const doc     = snapDoc;
     const profile = doc.data();
     const sessionId = profile.gtbSessionId || null;
 

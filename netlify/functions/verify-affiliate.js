@@ -9,6 +9,7 @@
 const { getDb, admin }         = require("./_lib/firebase");
 const { res, checkRateLimit }  = require("./_lib/http");
 const { CASINO_NAMES, API_CASINOS } = require("./_lib/casinos");
+const { findStreamerByChannel } = require("./_lib/streamer");
 const { logAudit }             = require("./_lib/audit");
 const { lookupAffiliate }      = require("./_lib/affiliate");
 const { lookupDegen }          = require("./_lib/degen");
@@ -45,10 +46,10 @@ exports.handler = async (event) => {
   }
 
   try {
-    const snap = await db.collection("streamers").where("kickChannel", "==", channel.toLowerCase()).limit(1).get();
-    if (snap.empty) return res(404, { error: "Channel not found" });
+    const snapDoc = await findStreamerByChannel(db, channel);
+    if (!snapDoc) return res(404, { error: "Channel not found" });
 
-    const streamerDoc  = snap.docs[0];
+    const streamerDoc  = snapDoc;
     const streamerUid  = streamerDoc.id;
     const streamerData = streamerDoc.data();
 

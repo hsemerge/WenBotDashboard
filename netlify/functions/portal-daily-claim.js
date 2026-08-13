@@ -17,6 +17,7 @@
 
 const { getDb, admin }        = require("./_lib/firebase");
 const { res, checkRateLimit } = require("./_lib/http");
+const { findStreamerByChannel } = require("./_lib/streamer");
 const { getKickUser }         = require("./_lib/kick");
 
 const MIN_AWARD = 10;
@@ -83,10 +84,10 @@ exports.handler = async (event) => {
       return res(429, { error: "Too many requests — slow down a moment." });
     }
 
-    const streamerSnap = await db.collection("streamers").where("kickChannel", "==", channelKey).limit(1).get();
-    if (streamerSnap.empty) return res(404, { error: "Channel not found" });
-    const uid      = streamerSnap.docs[0].id;
-    const profile  = streamerSnap.docs[0].data();
+    const streamerSnapDoc = await findStreamerByChannel(db, channelKey);
+    if (!streamerSnapDoc) return res(404, { error: "Channel not found" });
+    const uid      = streamerSnapDoc.id;
+    const profile  = streamerSnapDoc.data();
     const currency = profile.currencyName || "points";
 
     // Streamer can turn this off, or narrow the range, from their config.

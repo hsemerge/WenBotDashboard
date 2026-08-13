@@ -5,6 +5,7 @@
 // Firestore rules that (correctly) block unauthenticated client reads.
 
 const { getDb } = require("./_lib/firebase");
+const { findStreamerByChannel } = require("./_lib/streamer");
 
 function res(statusCode, body) {
   return {
@@ -27,11 +28,10 @@ exports.handler = async (event) => {
   try {
     const db = getDb();
 
-    const snap = await db.collection("streamers")
-      .where("kickChannel", "==", channel).limit(1).get();
-    if (snap.empty) return res(404, { error: "Channel not found" });
+    const snapDoc = await findStreamerByChannel(db, channel);
+    if (!snapDoc) return res(404, { error: "Channel not found" });
 
-    const uid = snap.docs[0].id;
+    const uid = snapDoc.id;
     const doc = await db.collection("streamers").doc(uid)
       .collection("tools").doc("slot_picker").get();
 

@@ -17,6 +17,7 @@
 
 const { getDb }     = require("./_lib/firebase");
 const { res: _res } = require("./_lib/http");
+const { findStreamerByChannel } = require("./_lib/streamer");
 const res = (s, b) => _res(s, b, "*");
 
 const TOTALS_TTL_MS = 3 * 60 * 1000;
@@ -30,9 +31,9 @@ exports.handler = async (event) => {
 
   try {
     const db = getDb();
-    const snap = await db.collection("streamers").where("kickChannel", "==", channel).limit(1).get();
-    if (snap.empty) return res(404, { error: "Channel not found" });
-    const uid = snap.docs[0].id;
+    const snapDoc = await findStreamerByChannel(db, channel);
+    if (!snapDoc) return res(404, { error: "Channel not found" });
+    const uid = snapDoc.id;
     const redemptions = db.collection("streamers").doc(uid).collection("store_redemptions");
 
     // ── PRIMARY: raffleTickets counter on the item doc (free — it rides the

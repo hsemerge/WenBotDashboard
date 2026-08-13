@@ -14,6 +14,7 @@
 // commands are added there.
 
 const { getDb } = require("./_lib/firebase");
+const { findStreamerByChannel } = require("./_lib/streamer");
 const { res: _res } = require("./_lib/http");
 const res = (s, b) => _res(s, b, "*");
 
@@ -97,9 +98,8 @@ exports.handler = async (event) => {
   let profile = null;
   if (channel) {
     try {
-      const snap = await getDb().collection("streamers")
-        .where("kickChannel", "==", channel).limit(1).get();
-      if (!snap.empty) profile = snap.docs[0].data();
+      const doc = await findStreamerByChannel(getDb(), channel);
+      if (doc) profile = doc.data();
     } catch (e) {
       console.warn("[commands-data] lookup failed:", e.message);
     }

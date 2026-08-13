@@ -2,6 +2,7 @@
 // Returns current tournament state + viewer entry/verification status.
 
 const { getDb, admin } = require("./_lib/firebase");
+const { findStreamerByChannel } = require("./_lib/streamer");
 const { res: _res }    = require("./_lib/http");
 const res = (s, b) => _res(s, b, "*");
 
@@ -18,9 +19,9 @@ exports.handler = async (event) => {
   try {
     const db = getDb();
 
-    const streamerSnap = await db.collection("streamers").where("kickChannel", "==", channelKey).limit(1).get();
-    if (streamerSnap.empty) return res(404, { error: "Channel not found" });
-    const uid = streamerSnap.docs[0].id;
+    const streamerSnapDoc = await findStreamerByChannel(db, channelKey);
+    if (!streamerSnapDoc) return res(404, { error: "Channel not found" });
+    const uid = streamerSnapDoc.id;
 
     const tRef = db.collection("streamers").doc(uid).collection("tournaments").doc("current");
     const tDoc = await tRef.get();

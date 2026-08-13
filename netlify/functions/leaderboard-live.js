@@ -5,6 +5,7 @@ const { getDb }            = require("./_lib/firebase");
 const { res: _res }        = require("./_lib/http");
 const { CASINO_NAMES }     = require("./_lib/casinos");
 const { normalizeGambulls, applyPeriod } = require("./_lib/leaderboard");
+const { findStreamerByChannel } = require("./_lib/streamer");
 const { fetchDegenRace }   = require("./_lib/degen");
 const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards");
 const { fetchRainbetRange, fetchRainbetForPeriod, applyRainbetExclusions } = require("./_lib/rainbet");
@@ -97,10 +98,10 @@ exports.handler = async (event) => {
 
   try {
     const db = getDb();
-    const snap = await db.collection("streamers").where("kickChannel", "==", channel.toLowerCase()).limit(1).get();
-    if (snap.empty) return res(404, { error: "Channel not found" });
+    const snapDoc = await findStreamerByChannel(db, channel);
+    if (!snapDoc) return res(404, { error: "Channel not found" });
 
-    const streamerDoc = snap.docs[0];
+    const streamerDoc = snapDoc;
     const streamerData = streamerDoc.data();
 
     // Casino from the query param, else the streamer's actual choice. Never

@@ -4,6 +4,7 @@
 
 const { getDb }     = require("./_lib/firebase");
 const { res: _res } = require("./_lib/http");
+const { findStreamerByChannel } = require("./_lib/streamer");
 const res = (s, b) => _res(s, b, "*");
 
 exports.handler = async (event) => {
@@ -14,10 +15,10 @@ exports.handler = async (event) => {
 
   try {
     const db   = getDb();
-    const snap = await db.collection("streamers").where("kickChannel", "==", channel).limit(1).get();
-    if (snap.empty) return res(200, { guildId: null });
+    const snapDoc = await findStreamerByChannel(db, channel);
+    if (!snapDoc) return res(200, { guildId: null });
 
-    const guildId = snap.docs[0].data()?.discordConfig?.guildId || null;
+    const guildId = snapDoc.data()?.discordConfig?.guildId || null;
     if (!guildId) return res(200, { guildId: null });
 
     const r = await fetch(`https://discord.com/api/v10/guilds/${guildId}`, {

@@ -6,6 +6,7 @@
 
 const { getDb, admin }        = require("./_lib/firebase");
 const { res, checkRateLimit } = require("./_lib/http");
+const { findStreamerByChannel } = require("./_lib/streamer");
 const { logAudit }            = require("./_lib/audit");
 const { getKickUser }         = require("./_lib/kick");
 
@@ -42,9 +43,9 @@ exports.handler = async (event) => {
     }
 
     // 2. Find streamer
-    const streamerSnap = await db.collection("streamers").where("kickChannel", "==", channelKey).limit(1).get();
-    if (streamerSnap.empty) return res(404, { error: "Channel not found" });
-    const uid = streamerSnap.docs[0].id;
+    const streamerSnapDoc = await findStreamerByChannel(db, channelKey);
+    if (!streamerSnapDoc) return res(404, { error: "Channel not found" });
+    const uid = streamerSnapDoc.id;
 
     // 3. Check tournament
     const tRef  = db.collection("streamers").doc(uid).collection("tournaments").doc("current");

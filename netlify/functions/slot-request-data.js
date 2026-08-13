@@ -2,6 +2,7 @@
 // Returns active slot request queue for OBS overlay — no auth required
 
 const { getDb } = require("./_lib/firebase");
+const { findStreamerByChannel } = require("./_lib/streamer");
 
 // Local res() — includes Cache-Control: no-store for overlay freshness
 function res(statusCode, body) {
@@ -24,10 +25,10 @@ exports.handler = async (event) => {
 
   try {
     const db   = getDb();
-    const snap = await db.collection("streamers").where("kickChannel", "==", channel).limit(1).get();
-    if (snap.empty) return res(404, { error: "Channel not found" });
+    const snapDoc = await findStreamerByChannel(db, channel);
+    if (!snapDoc) return res(404, { error: "Channel not found" });
 
-    const uid = snap.docs[0].id;
+    const uid = snapDoc.id;
 
     // Filter by status only (single-field, auto-indexed) and sort in JS — same
     // pattern the dashboard uses. Adding `.orderBy("requestedAt")` on top of the

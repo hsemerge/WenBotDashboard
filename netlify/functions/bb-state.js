@@ -2,6 +2,7 @@
 // Returns current battle state, viewer's point balance, votes, and verification status.
 
 const { getDb, admin } = require("./_lib/firebase");
+const { findStreamerByChannel } = require("./_lib/streamer");
 const { res: _res }    = require("./_lib/http");
 const res = (s, b) => _res(s, b, "*");
 
@@ -20,9 +21,9 @@ exports.handler = async (event) => {
     const db = getDb();
 
     // Find streamer
-    const streamerSnap = await db.collection("streamers").where("kickChannel", "==", channelKey).limit(1).get();
-    if (streamerSnap.empty) return res(404, { error: "Channel not found" });
-    const uid = streamerSnap.docs[0].id;
+    const streamerSnapDoc = await findStreamerByChannel(db, channelKey);
+    if (!streamerSnapDoc) return res(404, { error: "Channel not found" });
+    const uid = streamerSnapDoc.id;
 
     // Get battle
     const battleDoc = await db.collection("streamers").doc(uid).collection("bonus_battles").doc("current").get();

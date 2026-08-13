@@ -2,6 +2,7 @@
 // GET /api/store-public?channel=channelname
 
 const { getDb } = require("./_lib/firebase");
+const { findStreamerByChannel } = require("./_lib/streamer");
 
 // Local res() — supports optional `extra` headers param used by callers
 function res(statusCode, body, extra = {}) {
@@ -22,12 +23,11 @@ exports.handler = async (event) => {
     const db = getDb();
 
     // Find streamer by kickChannel
-    const streamersSnap = await db.collection("streamers")
-      .where("kickChannel", "==", channel).limit(1).get();
+    const streamersSnapDoc = await findStreamerByChannel(db, channel);
 
-    if (streamersSnap.empty) return res(404, { error: "Channel not found" });
+    if (!streamersSnapDoc) return res(404, { error: "Channel not found" });
 
-    const streamerDoc  = streamersSnap.docs[0];
+    const streamerDoc  = streamersSnapDoc;
     const streamerUid  = streamerDoc.id;
     const streamerData = streamerDoc.data();
 

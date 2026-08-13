@@ -4,6 +4,7 @@
 // Body: { code, state }  — state is base64 JSON { k: kickUsername, c: channel }
 
 const { getDb, admin } = require("./_lib/firebase");
+const { findStreamerByChannel } = require("./_lib/streamer");
 const { res }          = require("./_lib/http");
 const { getKickUser }  = require("./_lib/kick");
 const { saveDiscordLink } = require("./_lib/discord-link");
@@ -55,11 +56,11 @@ exports.handler = async (event) => {
 
   // Look up streamer by channel name first — we need their Discord guild ID
   // to verify membership.
-  const snap = await db.collection("streamers").where("kickChannel", "==", channel.toLowerCase()).limit(1).get();
-  if (snap.empty) return res(404, { error: "Streamer channel not found" });
+  const snapDoc = await findStreamerByChannel(db, channel);
+    if (!snapDoc) return res(404, { error: "Streamer channel not found" });
 
-  const streamerUid  = snap.docs[0].id;
-  const streamerData = snap.docs[0].data() || {};
+  const streamerUid  = snapDoc.id;
+  const streamerData = snapDoc.data() || {};
   const guildId      = streamerData.discordConfig?.guildId || null;
   const verifyCfg    = streamerData.discordConfig?.verify || {};
   if (!guildId) {

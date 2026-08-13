@@ -8,6 +8,7 @@
 // status check, so this is its own minimal endpoint.
 
 const { getDb, admin } = require("./_lib/firebase");
+const { findStreamerByChannel } = require("./_lib/streamer");
 const { res }          = require("./_lib/http");
 const { getKickUser }  = require("./_lib/kick");
 
@@ -30,11 +31,10 @@ exports.handler = async (event) => {
     const kickKey      = kickUsername.toLowerCase();
 
     const db = getDb();
-    const streamerSnap = await db.collection("streamers")
-      .where("kickChannel", "==", channel.toLowerCase()).limit(1).get();
-    if (streamerSnap.empty) return res(404, { error: "Channel not found" });
-    const uid          = streamerSnap.docs[0].id;
-    const streamerData = streamerSnap.docs[0].data();
+    const streamerSnapDoc = await findStreamerByChannel(db, channel);
+    if (!streamerSnapDoc) return res(404, { error: "Channel not found" });
+    const uid          = streamerSnapDoc.id;
+    const streamerData = streamerSnapDoc.data();
     // Streamer policy: when false, the verify page offers "skip the casino step"
     // (Kick-only verification). Default true — leaderboard/code streamers.
     const casinoRequired = streamerData.casinoRequired !== false;
