@@ -858,7 +858,7 @@
     let s;
     try { s = await (await fetch(`/api/portal-data?channel=${CHANNEL}`)).json(); }
     catch { document.getElementById('lbTable').innerHTML = '<div class="empty">Couldn’t load data.</div>'; return; }
-    if (!s || s.error) { document.getElementById('lbTable').innerHTML = '<div class="empty">Portal unavailable.</div>'; return; }
+    if (!s || s.error) { document.getElementById('lbTable').innerHTML = '<div class="empty" style="line-height:1.7;"><div style="font-weight:700;margin-bottom:4px;">' + ((s && s.message) || 'This page is currently unavailable.') + '</div>' + ((s && s.contactHint) ? '<div style="opacity:.75;font-size:.92em;">' + s.contactHint + '</div>' : '') + '</div>'; return; }
     window.__S = s;
 
     const portal = s.portal || {};

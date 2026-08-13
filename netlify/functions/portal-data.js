@@ -679,7 +679,24 @@ exports.handler = async (event) => {
     // (Pro = basic portal: store + raffle winners + giveaway.
     //  Elite = full portal: + live leaderboard + bonus battle/tournament + theme.)
     if (tier < TIER_RANK.pro) {
-      return res(404, { error: "Portal not available on this plan" });
+      // Portal access ends with the plan, bespoke ones included. What the VIEWER
+      // sees should not be a broken page though: they did nothing wrong, they
+      // followed a link their streamer gave them, and a dead page reads as the
+      // streamer being unreliable rather than as a lapsed subscription.
+      //
+      // The Kick handle is included so the message can point somewhere useful.
+      // Nothing about the plan, the billing or the reason is exposed: that is
+      // between the streamer and us, not something to publish to their chat.
+      return res(404, {
+        error:       "Portal not available on this plan",
+        unavailable: true,
+        displayName: profile.displayName || profile.kickChannel || null,
+        kickChannel: profile.kickChannel || null,
+        message:     "This page is currently disabled.",
+        contactHint: profile.kickChannel
+          ? `Reach out to @${profile.kickChannel} on Kick for details.`
+          : "Reach out to the streamer for details.",
+      });
     }
 
     // A white-label preset's provider wins (these are comped, code-configured

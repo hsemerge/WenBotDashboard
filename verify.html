@@ -189,7 +189,7 @@
     </div>
 
     <div id="formSection">
-      <div class="form-group">
+      <div class="form-group" id="casinoFieldGroup">
         <label id="affiliateLabel">Casino Username</label>
         <input type="text" class="form-input" id="affiliateInput" placeholder="Enter your exact casino username..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         <div class="provider-hint" id="providerHint">Enter the username you use at the casino. It must be registered under this streamer's affiliate link.</div>
@@ -341,11 +341,32 @@
         }
       } catch {}
     }
-    if (!casino) {
-      document.getElementById('verifyTitle').textContent = 'Casino not set up yet';
+    // No real casino: either none was ever chosen, or the streamer is on
+    // "notlisted" because they have left theirs. Previously this dead-ended with
+    // "Casino not set up yet", which meant nobody on those channels could verify
+    // AT ALL, even though linking Kick to Discord is most of what verification is
+    // for: the Discord role, giveaway eligibility, points and the store all work
+    // without a casino.
+    //
+    // So run the Kick-only flow instead of refusing. Adding a casino later
+    // overwrites these records, so nothing is lost by verifying now.
+    if (!casino || !CASINO_NAMES[casino]) {
+      casino = '';
+      applyCasinoRequired(false);        // reveals the Kick-only path
+      document.getElementById('verifyTitle').textContent = 'Verify your account';
       document.getElementById('verifyDesc').textContent  =
-        `${channel || 'This streamer'} hasn't chosen a casino yet, so there's nothing to verify against. Please check back once they've set it up.`;
-      return; // leave the form unconfigured rather than defaulting to the wrong casino
+        `Link your Kick account${discordMode ? ' and Discord' : ''} for ${channel || 'this streamer'}. No casino account needed.`;
+      // Hide the casino field and its submit button only. The Kick-only button
+      // lives inside formSection, so hiding the whole section would leave the
+      // page with no way forward at all.
+      const grp = document.getElementById('casinoFieldGroup');
+      if (grp) grp.style.display = 'none';
+      const vbtn = document.getElementById('verifyBtn');
+      if (vbtn) vbtn.style.display = 'none';
+      const skipBtn = document.getElementById('skipCasinoBtn');
+      if (skipBtn) skipBtn.textContent = 'Verify with Kick';
+      renderVfProgress();
+      return;
     }
     casinoName = CASINO_NAMES[casino] || casino;
     primaryCasinoName = casinoName;

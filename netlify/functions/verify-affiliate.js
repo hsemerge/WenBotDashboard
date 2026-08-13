@@ -101,7 +101,17 @@ exports.handler = async (event) => {
     // code-based (provider-filtered) eligibility. Discord dtoken (consumed
     // above) still attaches. Adding a real casino later overwrites this.
     if (skipMode) {
-      if (streamerData.casinoRequired !== false) {
+      // Kick-only verification is allowed when the streamer turned the casino
+      // step off, AND whenever they have no real casino to verify against.
+      //
+      // That second case was the gap: a streamer on "notlisted" (or who never
+      // picked one) still had casinoRequired defaulting to TRUE, so the bot
+      // demanded a casino account that does not exist and nobody on those
+      // channels could verify at all. Eight channels were in exactly that state.
+      // A streamer who has left their casino should still be able to tie Kick and
+      // Discord together, which is most of what verification is for.
+      const realCasino = !!(streamerData.activeProvider && CASINO_NAMES[String(streamerData.activeProvider).toLowerCase()]);
+      if (realCasino && streamerData.casinoRequired !== false) {
         return res(400, { error: "This streamer requires a casino account to verify." });
       }
       const skipRef = db.collection("streamers").doc(streamerUid)

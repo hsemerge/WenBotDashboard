@@ -57,6 +57,16 @@ exports.handler = async (event) => {
     if (!streamerSnapDoc) return res(404, { error: "Channel not found" });
     const uid     = streamerSnapDoc.id;
     const profile = streamerSnapDoc.data();
+
+    // The store is a Pro feature. The portal already 404s below Pro so the page
+    // will not load, but this endpoint answered a direct call regardless: the UI
+    // hiding something is not the same as it being closed. A lapsed streamer's
+    // viewers should not be able to keep spending against a store that is no
+    // longer part of their plan.
+    const PLAN_RANK = { starter: 0, pro: 1, elite: 2, agency: 3 };
+    if ((PLAN_RANK[profile.plan] ?? 0) < PLAN_RANK.pro) {
+      return res(403, { error: "The store is currently unavailable on this channel." });
+    }
     const currency = profile.currencyName || "points";
 
     // Requested quantity (raffle multi-ticket). Clamped 1..1000; non-raffle items

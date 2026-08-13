@@ -47,6 +47,14 @@ exports.handler = async (event) => {
     if (!streamerSnapDoc) return res(404, { error: "Channel not found" });
     const uid = streamerSnapDoc.id;
 
+    // Tournaments are a Pro feature, and this endpoint answered direct calls
+    // regardless of plan. Same reasoning as the store: a hidden button is not a
+    // closed door.
+    const PLAN_RANK = { starter: 0, pro: 1, elite: 2, agency: 3 };
+    if ((PLAN_RANK[streamerSnapDoc.data().plan] ?? 0) < PLAN_RANK.pro) {
+      return res(403, { error: "Tournaments are currently unavailable on this channel." });
+    }
+
     // 3. Check tournament
     const tRef  = db.collection("streamers").doc(uid).collection("tournaments").doc("current");
     const tDoc  = await tRef.get();

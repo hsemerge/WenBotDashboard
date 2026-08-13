@@ -18,6 +18,36 @@ service cloud.firestore {
       return isOwner(uid) || isMod(uid);
     }
 
+    // ── Plan gating ──────────────────────────────────────────────────────────
+    // When a subscription lapses or a trial ends, paid features stay READABLE:
+    // the streamer's viewers did not lapse, and a leaderboard vanishing makes
+    // the streamer look broken to their own community rather than making them
+    // resubscribe. What stops is the streamer's ability to CHANGE those
+    // features. No new periods, no prize edits, no re-enabling a board.
+    //
+    // The tier is read from the STORED document, never from the incoming write,
+    // and `plan` is already server-only in the denylists below, so a client
+    // cannot promote itself into passing this.
+    //
+    // A MISSING plan counts as starter, matching what every read already does
+    // (`TIER_RANK[plan] ?? 0`, `profile?.plan || 'starter'`). Those docs exist
+    // because signup tries to write plan:'starter' and the create denylist below
+    // rejected the key, so the field simply never landed. The create rule now
+    // permits exactly 'starter', and the existing docs are backfilled, so this
+    // default is a safety net rather than the normal path.
+    function storedPlan() {
+      return ('plan' in resource.data) ? resource.data.plan : 'starter';
+    }
+    function isFreeTier() {
+      return storedPlan() == 'starter' || storedPlan() == 'pro';
+    }
+    // Elite-and-above settings living on the streamer document. Reading them is
+    // untouched; this only governs writes.
+    function touchesEliteSettings() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['leaderboardPeriod', 'leaderboardEnabled', 'leaderboardPrizes']);
+    }
+
     match /streamers/{uid} {
       allow read: if isOwnerOrMod(uid);
 
@@ -26,9 +56,13 @@ service cloud.firestore {
       // they moderate; the streamer signed up themselves.)
       // Also block modUids on create — owner can add mods later via the
       // server endpoint, not by hand.
+      // `plan` may be written on CREATE only when it is exactly 'starter', so a
+      // new signup lands with an honest tier instead of no field at all. Any
+      // paid tier still has to come from the Stripe webhook.
       allow create: if isOwner(uid)
+        && (!('plan' in request.resource.data) || request.resource.data.plan == 'starter')
         && !request.resource.data.keys().hasAny([
-          'plan',
+          'stripeSubscriptionActive',
           'stripeSubscriptionActive',
           'stripeCustomerId',
           'stripeSubscriptionId',
@@ -111,7 +145,10 @@ service cloud.firestore {
           'archived',
           'archivedAt',
           'archivedPrevOnboarded'
-        ]);
+        ])
+        // Elite settings lock when the plan lapses. READS are untouched: the
+        // public leaderboard keeps rendering for viewers, who did not lapse.
+        && (!touchesEliteSettings() || !isFreeTier());
 
       // referrals — who this streamer invited. Server-only writes (set by
       // /api/referral-attribute); owner + mods can read for the invite list.

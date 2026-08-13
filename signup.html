@@ -401,9 +401,19 @@
           body: JSON.stringify({ continueUrl: `${window.location.origin}/setup.html?plan=${selectedPlan}` }),
         });
       } catch (e) { console.warn("Failed to send verification email:", e); }
-      // Always write plan:'starter' from client — paid plan is set server-side by Stripe webhook.
-      // pendingPlan carries the user's selection into setup so the right Stripe price is loaded.
+      // plan:'starter' is written explicitly, and the rules permit exactly that
+      // value on create. A paid tier only ever comes from the Stripe webhook
+      // after money has actually moved, so choosing Elite here grants nothing.
+      //
+      // Without this the field was simply absent, and every read fell back to
+      // 'starter' anyway — which worked, but left 22 accounts with no plan at
+      // all and no way for a rule to tell "free" from "not set". Writing it
+      // makes the record say what the app already believes.
+      //
+      // pendingPlan carries the user's selection into setup so the right Stripe
+      // price is loaded. It is a breadcrumb, not an entitlement.
       await firebase.firestore().collection('streamers').doc(cred.user.uid).set({
+        plan:        'starter',
         pendingPlan: selectedPlan,
         createdAt:   Date.now(),
       }, { merge: true });
