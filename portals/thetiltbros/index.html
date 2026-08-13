@@ -30,10 +30,21 @@
 <style>
   *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
   :root {
-    --accent:#00e676; --accent2:#34d399; --gold:#ffd24a; --red:#ff3b47;
-    --bg:#060a07; --bg-card:#0e150f; --border:#1d2a20;
-    --text:#c3ccc6; --dim:#79877e; --bright:#ffffff;
-    --accentGlow:rgba(0,230,118,.26);
+    /* Palette pulled from the brand art: the night skyline, the red LED mask,
+       and the lizard. RED leads because it is the one saturated colour in the
+       artwork and it belongs to the masked half of the duo. GREEN is demoted to
+       a single job, money, which keeps the lizard present without the site
+       reading as a green site. There is no gold or yellow anywhere: it was the
+       loudest thing on the page and it is in none of the brand art. */
+    --accent:#ff2e3c;   /* the mask red */
+    --accent2:#ff6b52;  /* warm ember, for gradients only */
+    --money:#3fd06a;    /* the lizard: prizes, payouts, and the second
+                           half of every duo gradient. Red still leads, but
+                           green is a brand colour here, not just a status. */
+    --red:#ff2e3c;
+    --bg:#05070d; --bg-card:#0d1119; --border:#1e2532;
+    --text:#c2c8d4; --dim:#7b8496; --bright:#ffffff;
+    --accentGlow:rgba(255,46,60,.26);
     /* Accent tints derived from --accent so a theme swap carries everywhere.
        Previously these were hardcoded rgba() values, which meant recolouring
        the portal left orange smudges behind. */
@@ -45,27 +56,45 @@
     --red-30:color-mix(in srgb, var(--red) 30%, var(--border));
     /* The duotone: every rule, heading and mark runs green into red. Defined
        once so the pairing stays consistent instead of being re-typed per rule. */
-    --duo:linear-gradient(90deg, var(--accent), var(--red));
+    --duo:linear-gradient(90deg, var(--accent), var(--money));
   }
   html,body { height:100%; }
   body {
     font-family:'Inter',sans-serif; background:var(--bg); color:var(--text);
     min-height:100vh; overflow-x:hidden; position:relative;
   }
-  /* Background: layered contour rings echoing the topographic texture on
-     tiltbros.com, plus two drifting brand glows. Pure CSS repeating gradients —
-     no image request, and it recolours with the theme. */
-  .bg-grid {
-    position:fixed; inset:-20%; z-index:0; pointer-events:none; opacity:.5;
-    background-image:
-      repeating-radial-gradient(circle at 18% 22%, transparent 0 26px, var(--border) 26px 27px, transparent 27px 54px),
-      repeating-radial-gradient(circle at 82% 78%, transparent 0 30px, var(--border) 30px 31px, transparent 31px 62px);
-    -webkit-mask-image:radial-gradient(ellipse at 50% 30%,#000 0%,transparent 78%);
-    mask-image:radial-gradient(ellipse at 50% 30%,#000 0%,transparent 78%);
+  /* The brand art, sitting behind everything as atmosphere rather than as a
+     picture you look at. Fixed so it does not scroll, heavily darkened, and
+     masked to fade out before the content starts: the skyline and the lizard
+     read at the top of the page, then dissolve into flat dark so the board and
+     tables never fight the image for attention.
+     2400px wide so it stays sharp on large monitors, JPEG because it is a dark
+     photographic scene under an overlay where PNG precision buys only weight. */
+  .bg-art {
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:url('hero.jpg') center top / cover no-repeat;
+    /* Blurred on purpose. The artwork carries its own THE TILT BROS wordmark
+       dead centre, which landed directly behind the page's own headline and
+       read as two logos stacked. Blurring turns it into texture: the skyline,
+       the hooded silhouette and the lizard still register as shapes and colour,
+       but nothing in it competes with type any more. */
+    filter:blur(3px) saturate(1.15);
+    transform:scale(1.06);            /* hides the soft edge blur leaves */
+    opacity:.38;
+    -webkit-mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.55) 42%,transparent 78%);
+    mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.55) 42%,transparent 78%);
   }
+  /* A dark wash over the art so white text keeps its contrast no matter which
+     part of the skyline sits behind it. */
+  .bg-art::after {
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(180deg, rgba(5,7,13,.42) 0%, rgba(5,7,13,.72) 55%, var(--bg) 100%);
+  }
+  @media (max-width:700px) { .bg-art { opacity:.3; background-position:62% top; } }
+
   .glow { position:fixed; border-radius:50%; filter:blur(130px); opacity:.2; z-index:0; pointer-events:none; }
   .glow-1 { width:540px; height:540px; background:var(--accent);  top:-140px; left:-120px; animation:drift1 20s ease-in-out infinite; }
-  .glow-2 { width:480px; height:480px; background:var(--accent2); bottom:-160px; right:-110px; animation:drift2 24s ease-in-out infinite; }
+  .glow-2 { width:480px; height:480px; background:var(--money); bottom:-160px; right:-110px; animation:drift2 24s ease-in-out infinite; }
   /* A low red wash along the bottom edge — the same warm bleed the current
      tiltbros.com has under its contour texture. Deliberately faint: it should
      read as depth, not as a second brand colour. */
@@ -118,21 +147,24 @@
      "money" and nothing else, so the prize figure below is the one thing on the
      page wearing it. */
   .hero h1 { font-family:'Exo 2',sans-serif; font-weight:900; font-size:clamp(30px,5.4vw,60px); line-height:1.04; margin-top:14px;
-    background:var(--duo); -webkit-background-clip:text; background-clip:text;
-    -webkit-text-fill-color:transparent; letter-spacing:.02em; }
+    color:var(--bright); letter-spacing:.02em; }
   .hero .prize { font-family:'Exo 2',sans-serif; font-weight:900; font-size:clamp(40px,7vw,74px);
-    color:var(--gold); text-shadow:0 0 34px rgba(255,201,60,.4); margin:4px 0 2px; }
+    color:var(--bright); text-shadow:0 0 34px rgba(255,46,60,.22); margin:4px 0 2px; }
   .hero .prize-sub { font-size:12.5px; color:var(--dim); letter-spacing:.04em; }
   .hero .tagline { color:var(--dim); font-size:14px; margin-top:12px; }
   .cta { display:inline-block; margin-top:16px; padding:13px 30px; border-radius:12px; font-weight:800; font-size:14.5px;
-    color:#120800; text-decoration:none; background:linear-gradient(90deg,var(--accent),var(--gold));
+    color:#ffffff; text-decoration:none; background:linear-gradient(90deg,var(--accent),var(--money));
     box-shadow:0 0 30px var(--accentGlow); transition:.15s; }
   .cta:hover { transform:translateY(-2px); box-shadow:0 0 40px var(--accentGlow); }
 
   /* COUNTDOWN */
   .countdown { display:flex; gap:12px; justify-content:center; margin:28px 0 6px; flex-wrap:wrap; }
   .cd-cell { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:13px 19px; min-width:82px; text-align:center; }
-  .cd-num { font-family:'Exo 2',sans-serif; font-weight:900; font-size:36px; color:var(--accent2); transition:color .3s; }
+  /* Green while the race is running, red in the final 48h. The flip has to be a
+     real colour change or the urgency state says nothing: --accent2 is now an
+     ember orange, so switching that to red was a shift nobody would notice.
+     Green here also puts the lizard somewhere prominent and permanent. */
+  .cd-num { font-family:'Exo 2',sans-serif; font-weight:900; font-size:36px; color:var(--money); transition:color .3s; }
   .cd-lab { font-size:9.5px; color:var(--dim); text-transform:uppercase; letter-spacing:.13em; margin-top:3px; }
   /* Final 48 hours: the whole countdown flips red and breathes. Functional
      urgency — it tells a player the race is closing, rather than decorating. */
@@ -153,36 +185,36 @@
      travels out. It's the repeated element that makes the pairing read as a
      system rather than two colours that happen to be present. */
   .sec-head .rule { flex:1; height:2px; transform:skewX(-24deg);
-    background:linear-gradient(90deg,var(--accent) 0%,var(--red) 62%,transparent 100%); }
+    background:linear-gradient(90deg,var(--accent) 0%,var(--money) 62%,transparent 100%); }
   .sec-sub { color:var(--dim); font-size:13.5px; margin:-8px 0 20px; line-height:1.65; max-width:760px; }
 
   /* PODIUM */
   .podium { display:flex; justify-content:center; align-items:flex-end; gap:16px; margin:8px 0 18px; flex-wrap:wrap; }
   .pod { width:206px; background:linear-gradient(180deg,rgba(255,255,255,.045),var(--bg-card)); border:1px solid var(--border);
     border-radius:18px; padding:26px 16px 18px; text-align:center; position:relative; }
-  .pod.rank-1 { border-color:var(--gold); box-shadow:0 0 40px rgba(255,201,60,.24); transform:translateY(-24px); width:230px; padding-top:32px; }
+  .pod.rank-1 { border-color:var(--accent); box-shadow:0 0 40px rgba(255,46,60,.26); transform:translateY(-24px); width:230px; padding-top:32px; }
   .pod.rank-2 { border-color:#c9d3e6; box-shadow:0 0 20px rgba(201,211,230,.1); }
   .pod.rank-3 { border-color:#d8995a; box-shadow:0 0 20px rgba(216,153,90,.1); }
   .pod .crown { font-size:28px; line-height:1; }
-  .pod.rank-1 .crown { font-size:36px; filter:drop-shadow(0 0 10px rgba(255,201,60,.6)); }
+  .pod.rank-1 .crown { font-size:36px; filter:drop-shadow(0 0 10px rgba(255,46,60,.55)); }
   .pod .av-wrap { position:relative; width:74px; height:74px; margin:8px auto 12px; }
   .pod.rank-1 .av-wrap { width:92px; height:92px; }
   .pod .av { width:100%; height:100%; border-radius:50%; background:var(--accent-10); border:3px solid var(--accent2);
     display:flex; align-items:center; justify-content:center; font-weight:800; font-size:21px; color:var(--accent2); overflow:hidden; }
   .pod .av img { width:100%; height:100%; object-fit:cover; }
-  .pod.rank-1 .av { border-color:var(--gold); }
+  .pod.rank-1 .av { border-color:var(--accent); }
   .pod.rank-2 .av { border-color:#c9d3e6; }
   .pod.rank-3 .av { border-color:#d8995a; }
   .pod .badge { position:absolute; bottom:-4px; left:50%; transform:translateX(-50%); min-width:24px; height:24px; padding:0 6px;
     border-radius:12px; font-family:'Exo 2',sans-serif; font-weight:900; font-size:13px; color:#0b0b12;
     display:flex; align-items:center; justify-content:center; border:2px solid var(--bg); }
-  .pod.rank-1 .badge { background:var(--gold); } .pod.rank-2 .badge { background:#c9d3e6; } .pod.rank-3 .badge { background:#d8995a; }
+  .pod.rank-1 .badge { background:var(--accent); } .pod.rank-2 .badge { background:#c9d3e6; } .pod.rank-3 .badge { background:#d8995a; }
   .pod .nm { font-family:'Exo 2',sans-serif; font-weight:800; color:var(--bright); font-size:16.5px;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:11px; }
   .pod .wg-box { background:rgba(0,0,0,.3); border:1px solid var(--border); border-radius:10px; padding:9px 8px; margin-bottom:8px; }
   .pod .wg-lab { font-size:9px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); font-weight:700; }
   .pod .wg { font-family:'Exo 2',sans-serif; font-weight:900; color:var(--accent2); font-size:17px; margin-top:2px; }
-  .pod .pz { font-family:'Exo 2',sans-serif; font-weight:900; color:var(--gold); font-size:17px; }
+  .pod .pz { font-family:'Exo 2',sans-serif; font-weight:900; color:var(--money); font-size:17px; }
 
   /* TABLE */
   .tbl-wrap { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
@@ -197,7 +229,7 @@
   .rk { font-family:'Exo 2',sans-serif; font-weight:900; color:var(--dim); width:56px; }
   .nm-cell { color:var(--bright); font-weight:600; }
   .wg-cell { color:var(--accent2); font-weight:700; font-variant-numeric:tabular-nums; text-align:right; }
-  .pz-cell { color:var(--gold); font-weight:800; text-align:right; width:110px; }
+  .pz-cell { color:var(--money); font-weight:800; text-align:right; width:110px; }
   .empty { text-align:center; color:var(--dim); padding:34px 16px; font-size:13.5px; }
 
   /* PAST RACES — finished periods. Deliberately quieter than the live board:
@@ -217,7 +249,7 @@
   .pr-tbl .rk { color:var(--dim); width:62px; font-weight:700; }
   .pr-tbl .nm { font-weight:700; }
   .pr-tbl .wg { text-align:right; color:var(--dim); font-variant-numeric:tabular-nums; }
-  .pr-tbl .pz { text-align:right; font-weight:800; color:var(--gold,#ffd166); font-variant-numeric:tabular-nums; width:110px; }
+  .pr-tbl .pz { text-align:right; font-weight:800; color:var(--money); font-variant-numeric:tabular-nums; width:110px; }
   @media (max-width:560px) { .pr-tbl .wg { display:none; } .pr-tbl th:nth-child(3) { display:none; } }
 
   /* CARDS / GRIDS */
@@ -239,7 +271,7 @@
   .stat::before { content:''; position:absolute; inset:0 0 auto 0; height:2px; background:var(--accent); opacity:.55; }
   .stat:nth-child(even) { background:linear-gradient(180deg,var(--red-05),var(--bg-card)); }
   .stat:nth-child(even)::before { background:var(--red); }
-  .stat .v { font-family:'Exo 2',sans-serif; font-weight:900; font-size:30px; color:var(--gold); line-height:1.1; }
+  .stat .v { font-family:'Exo 2',sans-serif; font-weight:900; font-size:30px; color:var(--money); line-height:1.1; }
   .stat .l { font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--dim); margin-top:6px; font-weight:700; }
 
   /* WINNER ROWS */
@@ -257,7 +289,7 @@
     border-bottom:1px solid rgba(36,42,61,.55); }
   .tier-row:last-child { border-bottom:none; }
   .tier-row .tw { font-family:'Exo 2',sans-serif; font-weight:800; color:var(--bright); font-size:14.5px; }
-  .tier-row .tr { color:var(--gold); font-weight:800; font-size:14px; text-align:right; }
+  .tier-row .tr { color:var(--money); font-weight:800; font-size:14px; text-align:right; }
 
   /* STEPS */
   /* BOUNTY CARDS — the one section that owns red. A hairline top edge and a
@@ -290,7 +322,7 @@
   .page-kicker { font-size:11px; font-weight:800; letter-spacing:.24em; text-transform:uppercase; color:var(--accent); }
   .page-head h2 { font-family:'Exo 2',sans-serif; font-weight:900; font-style:italic; text-transform:uppercase;
     font-size:clamp(28px,5vw,52px); letter-spacing:.01em; margin:8px 0 10px;
-    background:var(--duo); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+    color:var(--bright); }
   .page-head p { color:var(--dim); font-size:14px; max-width:640px; margin:0 auto; line-height:1.7; }
   .page-head p b { color:var(--bright); font-weight:700; }
   .page-head p .hl { color:var(--accent); font-weight:800; }
@@ -321,17 +353,18 @@
   .promo h3 { font-family:'Exo 2',sans-serif; font-weight:900; font-style:italic; font-size:clamp(22px,3.2vw,34px);
     color:var(--bright); margin:14px 0 10px; }
   .promo .p-text { color:var(--dim); font-size:13.5px; line-height:1.7; max-width:420px; }
-  .promo .offer { margin-top:20px; border:1px solid var(--accent); border-radius:12px; padding:13px 18px; background:var(--accent-05); }
+  .promo .offer { margin-top:20px; border:1px solid color-mix(in srgb, var(--money) 55%, var(--border)); border-radius:12px; padding:13px 18px;
+    background:color-mix(in srgb, var(--money) 7%, transparent); }
   .promo .offer .o-lab { font-size:9.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--dim); }
   .promo .offer .o-val { font-family:'Exo 2',sans-serif; font-weight:900; font-style:italic; text-transform:uppercase;
-    color:var(--accent); font-size:18px; margin-top:3px; }
+    color:var(--money); font-size:18px; margin-top:3px; }
   .promo .code-chip { display:inline-flex; align-items:center; gap:9px; margin-top:14px; padding:10px 16px;
     background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:10px; font-size:12px;
     letter-spacing:.1em; text-transform:uppercase; color:var(--dim); font-weight:700; }
   .promo .code-chip b { font-family:'Exo 2',sans-serif; font-style:italic; color:var(--accent); letter-spacing:.06em; font-size:14px; }
   .promo .p-cta { display:inline-block; margin-top:18px; padding:14px 30px; border-radius:10px; font-weight:800;
     font-size:14px; text-transform:uppercase; letter-spacing:.04em; color:#04150b; text-decoration:none;
-    background:var(--accent); box-shadow:0 0 28px var(--accentGlow); transition:.15s; }
+    background:var(--money); box-shadow:0 0 28px rgba(63,208,106,.28); transition:.15s; }
   .promo .p-cta:hover { transform:translateY(-2px); filter:brightness(1.08); }
   .promo .p-how { display:block; margin-top:14px; font-size:12.5px; color:var(--dim); text-decoration:underline; }
   .promo .p-how:hover { color:var(--bright); }
@@ -474,7 +507,7 @@
 </style>
 </head>
 <body>
-<div class="bg-grid"></div>
+<div class="bg-art"></div>
 <div class="glow glow-1"></div>
 <div class="glow glow-2"></div>
 <div class="glow glow-3"></div>
@@ -665,7 +698,7 @@
   function applyTheme(t) {
     if (!t) return;
     var map = {
-      accent: '--accent', accent2: '--accent2', accentGlow: '--accentGlow', gold: '--gold',
+      accent: '--accent', accent2: '--accent2', accentGlow: '--accentGlow', gold: '--money', money: '--money',
       bg: '--bg', bgCard: '--bg-card', border: '--border', text: '--text', dim: '--dim', bright: '--bright',
     };
     Object.keys(map).forEach(function (k) {
@@ -764,7 +797,7 @@
         + '<div class="grid g3">' + items.map(function (i) {
             return '<div class="card"><h3>' + esc(i.name) + '</h3>'
               + (i.description ? '<p>' + esc(i.description) + '</p>' : '')
-              + '<p style="margin-top:10px;color:var(--gold);font-weight:800;">'
+              + '<p style="margin-top:10px;color:var(--money);font-weight:800;">'
               + Number(i.price || 0).toLocaleString() + ' pts per ticket</p></div>';
           }).join('') + '</div>' + draw + '</div>'
       : draw;
@@ -959,7 +992,7 @@
         }).join('') + '</div>';
       }
       if (sec.type === 'bonus') {
-        return head + '<div class="card"><h3 style="color:var(--gold);font-size:24px;">' + esc(sec.reward || '') + '</h3><ul>'
+        return head + '<div class="card"><h3 style="color:var(--money);font-size:24px;">' + esc(sec.reward || '') + '</h3><ul>'
           + (sec.bullets || []).map(function (b) { return '<li>' + esc(b) + '</li>'; }).join('') + '</ul></div>';
       }
       // "list" and anything unrecognised render as a simple bulleted card.
@@ -988,7 +1021,7 @@
                 + ' style="width:100%;height:120px;object-fit:cover;border-radius:10px;margin-bottom:12px;">'
               : '<span class="ico">🎯</span>')
           + '<h3>' + esc(b.game) + '</h3>'
-          + '<div style="font-family:\'Exo 2\',sans-serif;font-weight:900;font-size:24px;color:var(--gold);margin:6px 0 8px;">'
+          + '<div style="font-family:\'Exo 2\',sans-serif;font-weight:900;font-size:24px;color:var(--money);margin:6px 0 8px;">'
           +   esc(b.prize) + '</div>'
           + '<p>' + esc(b.objective) + '</p>'
           + (b.deadline

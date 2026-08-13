@@ -212,21 +212,28 @@ const PORTAL_PRESETS = {
   // leaderboard, raffle tickets, winners and giveaway history all come from the
   // shared /api/portal-data response the bespoke page already fetches.
   thetiltbros: {
-    // Green-on-near-black, matching the existing tiltbros.com aesthetic (and
-    // Duelbits' own palette) rather than inventing a new one.
+    // Pulled from the brand art: the night skyline, the red LED mask, and the
+    // lizard. RED and GREEN share the page as a genuine pair, which is the duo
+    // itself, over a neutral navy-black rather than the old green-tinted base.
+    //
+    // NOTE: this preset OVERRIDES the stylesheet at runtime, so it is the real
+    // source of truth for this portal's colours. Editing the CSS alone changes
+    // nothing once the API responds.
+    //
+    // No yellow. It was the loudest thing on the page and appears nowhere in
+    // their artwork.
     theme: {
-      accent:     "#00e676",  // signal green — CTAs, active nav, rules
-      accent2:    "#34d399",  // softer mint for secondary figures
-      accentGlow: "rgba(0,230,118,0.26)",
-      gold:       "#ffd24a",  // money only, so prize figures still read first
-      // Red is the co-lead, not a highlight: it pairs with green across
-      // headings, rules, marks and tiles, and owns bounties + the closing
-      // countdown outright. Gold is reserved for money so prize figures stay
-      // the one thing neither colour competes with.
-      red:        "#ff3b47",
-      bg:         "#060a07",
-      bgCard:     "#0e150f",
-      border:     "#1d2a20",
+      accent:     "#ff2e3c",  // the mask red — CTAs, headings, active nav
+      accent2:    "#ff6b52",  // warm ember, gradients only
+      accentGlow: "rgba(255,46,60,0.26)",
+      // `gold` is the legacy key name for the money slot; the value is the
+      // lizard green so prize figures read as money, not as a warning.
+      gold:       "#3fd06a",
+      money:      "#3fd06a",
+      red:        "#ff2e3c",
+      bg:         "#05070d",
+      bgCard:     "#0d1119",
+      border:     "#1e2532",
     },
     logoUrl: null,            // set once a logo file is added to /img/
     hero: {
