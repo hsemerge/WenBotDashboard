@@ -22,7 +22,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Exo+2:wght@600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!--
-  BESPOKE white-label portal for Irish Queen of the Slots (Agency tier).
+  BESPOKE white-label portal for MegRewards (Agency tier).
+  Formerly irishqueenoftheslots; the Kick channel is now meggambles. The
+  directory name is kept so existing asset paths and the preset key stay valid.
   Self-contained page that pulls the SAME live data as the standard portal via
   /api/portal-data?channel=irishqueenoftheslots — only the presentation is custom. Reached by
   irishqueenoftheslots.com through the SLUG_TO_PAGE map in netlify/edge-functions/custom-domain.js.
@@ -399,7 +401,7 @@
   <nav>
     <a class="brand" href="/" id="brandLink">
       <img id="brandLogo" src="/portals/irishqueenoftheslots/assets/logo.jpg" alt="MegRewards">
-      <div><div class="brand-name" id="brandName">MegRewards</div><div class="brand-sub" id="brandSub">kick.com/irishqueenoftheslots</div></div>
+      <div><div class="brand-name" id="brandName">MegRewards</div><div class="brand-sub" id="brandSub">kick.com/meggambles</div></div>
     </a>
     <div class="nav-links" id="navLinks"></div>
     <div class="viewer-bar" id="viewerBar">
@@ -447,7 +449,7 @@
   <div id="mainView">
   <div class="hero">
     <div class="hero-banner-wrap">
-      <!-- MegRewards purple hero video (rebrand — replaced the old Irish Queen banner) -->
+      <!-- MegRewards purple hero video -->
       <video class="hero-banner" id="heroBannerVideo" autoplay loop muted playsinline poster="/portals/irishqueenoftheslots/assets/megrewards-poster.jpg">
         <source src="/portals/irishqueenoftheslots/assets/megrewards-banner.mp4" type="video/mp4">
       </video>
@@ -516,7 +518,7 @@
         <p style="margin:0 0 14px;">Watch the stream, chat, and you earn <strong style="color:var(--accent)">points</strong>. Spend them in the store on real prizes, or on raffle tickets for the big-ticket items.</p>
 
         <h3 style="font-family:'Exo 2',sans-serif;font-size:15px;color:var(--bright);margin:18px 0 8px;">1. Get set up</h3>
-        <p style="margin:0 0 6px;">Just chat in <a href="https://kick.com/irishqueenoftheslots" target="_blank" rel="noopener" style="color:var(--accent2)">the Kick channel</a>. There's no sign-up form, and you start earning straight away.</p>
+        <p style="margin:0 0 6px;">Just chat in <a href="https://kick.com/meggambles" target="_blank" rel="noopener" style="color:var(--accent2)">the Kick channel</a>. There's no sign-up form, and you start earning straight away.</p>
         <p style="margin:0;color:var(--dim);">To spend points here on the website, hit <strong>Sign in with Kick</strong> at the top of the page. That links this site to the same account you chat with.</p>
 
         <h3 style="font-family:'Exo 2',sans-serif;font-size:15px;color:var(--bright);margin:18px 0 8px;">2. Earn points</h3>
@@ -1418,7 +1420,7 @@
     if (!grid) return;
     const fmtDur = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
     grid.innerHTML = BIG_WINS.map(c => `
-      <a href="https://kick.com/irishqueenoftheslots/clips/${c.id}" target="_blank" rel="noopener"
+      <a href="https://kick.com/meggambles/clips/${c.id}" target="_blank" rel="noopener"
          style="display:block;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;text-decoration:none;transition:transform .12s,border-color .12s;"
          onmouseover="this.style.transform='translateY(-3px)';this.style.borderColor='var(--accent)';"
          onmouseout="this.style.transform='';this.style.borderColor='var(--border)';">
@@ -1436,7 +1438,7 @@
   const YT_CHANNEL = 'UCGmo_HIu2_gjViIxTF393Rg';
   function _ytEmbed(id, auto) {
     return '<iframe src="https://www.youtube.com/embed/' + id + '?rel=0' + (auto ? '&autoplay=1' : '') +
-      '" title="Irish Queen of the Slots" loading="lazy" frameborder="0" allowfullscreen ' +
+      '" title="MegRewards" loading="lazy" frameborder="0" allowfullscreen ' +
       'allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" ' +
       'style="position:absolute;inset:0;width:100%;height:100%;"></iframe>';
   }

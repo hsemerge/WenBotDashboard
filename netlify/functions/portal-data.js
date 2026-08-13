@@ -163,7 +163,9 @@ const PORTAL_PRESETS = {
     brandCredit: true,
   },
 
-  // Irish Queen of the Slots — Degen race (keyless, referral code in the URL).
+  // MegRewards (formerly Irish Queen of the Slots) — Degen race, keyless with
+  // the referral code in the URL. Preset key stays on the old slug: it resolves
+  // through previousChannels, and renaming the key would break her asset paths.
   // provider + degenReferralCode here mean she needs NO Firestore provider doc.
   irishqueenoftheslots: {
     provider:          "degen",
@@ -190,7 +192,7 @@ const PORTAL_PRESETS = {
     },
     logoUrl: "/portals/irishqueenoftheslots/assets/logo.jpg",
     hero: {
-      tagline:   "Slots. Wins. Vibes. Queen Energy. 💜",
+      tagline:   "Slots. Wins. Vibes. Big Energy. 💜",
       // title omitted — the page markup renders it with a visible crown emoji
       // (a gradient-clipped emoji in JS-set text would go invisible).
       cadence:   "Monthly",
@@ -200,9 +202,8 @@ const PORTAL_PRESETS = {
     },
     links: [
       { label: "Degen",   href: "https://degen.com/?ref=Meg", icon: "🎰" },
-      { label: "YouTube", href: "https://youtube.com/@irishqueenoftheslots", icon: "▶️" },
       { label: "VIP",     href: "https://vipfoundme.com/", icon: "👑" },
-      { label: "Kick",    href: "https://kick.com/irishqueenoftheslots", icon: "💜" },
+      { label: "Kick",    href: "https://kick.com/meggambles", icon: "💜" },
     ],
     brandCredit: true,
   },
