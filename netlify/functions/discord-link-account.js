@@ -4,6 +4,7 @@
 // Body: { code, state }  — state is base64 JSON { k: kickUsername, c: channel }
 
 const { getDb, admin } = require("./_lib/firebase");
+const { grantVerifiedRole } = require("./_lib/discord-role");
 const { findStreamerByChannel } = require("./_lib/streamer");
 const { res }          = require("./_lib/http");
 const { getKickUser }  = require("./_lib/kick");
@@ -175,20 +176,9 @@ exports.handler = async (event) => {
   // skip the role for people who ARE in the server. The role PUT itself is the
   // source of truth — it succeeds if they're a member and harmlessly 404s if not.
   // Needs the bot to have Manage Roles + a higher role than the target.
-  let roleAssigned = false;
-  const roleExpected = !!(verifyCfg.assignRole && verifyCfg.roleId);
-  if (roleExpected) {
-    try {
-      const roleResp = await fetch(
-        `https://discord.com/api/v10/guilds/${guildId}/members/${discordUserId}/roles/${verifyCfg.roleId}`,
-        { method: "PUT", headers: { "Authorization": `Bot ${process.env.DISCORD_BOT_TOKEN}` } }
-      );
-      roleAssigned = roleResp.ok;
-      if (!roleResp.ok) console.warn("[discord-link-account] role assign failed:", roleResp.status, (await roleResp.text().catch(() => "")).slice(0, 200));
-    } catch (err) {
-      console.warn("[discord-link-account] role assign error:", err.message);
-    }
-  }
+  const roleResult   = await grantVerifiedRole(streamerData, discordUserId);
+  const roleExpected = roleResult.expected;
+  const roleAssigned = roleResult.ok;
 
   // alreadyMember (= now a member) drives the "Open Discord" button; inviteUrl is
   // only set on the rare failure path. roleExpected lets the callback page tell

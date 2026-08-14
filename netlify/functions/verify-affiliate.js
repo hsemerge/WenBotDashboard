@@ -16,6 +16,7 @@ const { lookupDegen }          = require("./_lib/degen");
 const { normalizeBoard, boardWindow } = require("./_lib/leaderboards");
 const { getKickUser }          = require("./_lib/kick");
 const { saveDiscordLink, stampDiscordVerified, findExistingDiscordLink } = require("./_lib/discord-link");
+const { grantVerifiedRole } = require("./_lib/discord-role");
 const { postVerifyLog }        = require("./_lib/verify-log");
 const crypto                   = require("crypto");
 
@@ -133,6 +134,10 @@ exports.handler = async (event) => {
 
       if (discordUserId) {
         await saveDiscordLink(db, streamerUid, discordUserId, { kickUsername, discordUsername });
+        // Linking without granting is what left Discord-initiated verifiers
+        // role-less: the grant used to live only behind the OAuth button they
+        // no longer press.
+        await grantVerifiedRole(streamerData, discordUserId);
       }
 
       // Kick-only verifications go to the mod feed too. They are the ones most
@@ -389,9 +394,10 @@ exports.handler = async (event) => {
       source: dtoken ? "Discord" : "Kick or web link",
     });
 
-    // Discord-initiated flow: also save the discord_link
+    // Discord-initiated flow: also save the discord_link, and grant the role.
     if (discordUserId) {
       await saveDiscordLink(db, streamerUid, discordUserId, { kickUsername, discordUsername });
+      await grantVerifiedRole(streamerData, discordUserId);
     }
 
     // First-time verify bonus — idempotent via firstVerifyBonusAt on the viewer doc.
