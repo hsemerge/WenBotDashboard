@@ -304,8 +304,18 @@ html.nebula #railPop::before { border-color: rgba(0, 229, 255, 0.22); }
   border: 1px solid rgba(255,215,0,0.5); box-shadow: none;
 }
 
-/* Rail replaces the sidebar entirely on small screens too — the hamburger
-   still hides it via the existing .sidebar-collapsed rule on .app. */
+/* The hamburger collapses the rail the same way it collapses the classic
+   sidebar. It used to do nothing here: the collapse rule targets .sidebar, and
+   in rail mode .sidebar is already display:none, so the button quietly folded
+   an invisible element while the rail stayed put. The rail is a sibling of
+   .sidebar inside .app, so it collapses on the same class. */
+body.nav-rail #navRail { transition: width .2s ease, opacity .2s ease; }
+body.nav-rail .app.sidebar-collapsed #navRail {
+  width: 0; min-width: 0; padding: 0; opacity: 0;
+  border-right: none; overflow: hidden; pointer-events: none;
+}
+
+/* Rail replaces the sidebar entirely on small screens too. */
 @media (max-width: 900px) {
   body.nav-rail #navRail { width: 164px; }
   .rail-tile, #railPop .pop-item { width: 136px; height: 78px; }
