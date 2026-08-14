@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <link rel="icon" type="image/png" href="/img/favicon.png" sizes="32x32">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WenBot — Streamer Tools for Kick</title>
+  <title>WenBot | Streamer Tools for Kick</title>
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -780,7 +780,7 @@
         <div class="hero-badge">🎰 Built for Kick Gambling Streamers</div>
         <h1 class="hero-title">The All-In-One<br><span>Streamer Bot</span><br>for Kick</h1>
         <p class="hero-sub">
-          Giveaways, raffles, points, wager leaderboards, store redemptions, casino verification, bonus hunts, bonus battles, tournaments, and Discord integration — all running automatically from a single dashboard while you stream.
+          Giveaways, raffles, points, wager leaderboards, store redemptions, casino verification, bonus hunts, bonus battles, tournaments, bounties, chat games and Discord integration, all running automatically from a single dashboard while you stream.
         </p>
         <div class="hero-actions">
           <a href="signup.html" class="btn btn-accent btn-lg">Start Free Today</a>
@@ -808,7 +808,7 @@
             <div class="chat-dot" style="background:#ff4757;"></div>
             <div class="chat-dot" style="background:#ffd700;"></div>
             <div class="chat-dot" style="background:#00ff88;"></div>
-            <span style="margin-left:6px;font-size:12px;color:#8b949e;">Kick Chat — yourstream</span>
+            <span style="margin-left:6px;font-size:12px;color:#8b949e;">Kick Chat · yourstream</span>
           </div>
           <div class="chat-mock-body">
             <div class="chat-msg mod">
@@ -851,15 +851,19 @@
 
   <!-- LIVE CREATORS STRIP — only renders when at least one WenBot creator is
        live (data via /api/community-creators; opt-outs already excluded). -->
-  <section id="liveStrip" style="display:none;padding:34px 0 10px;">
+  <section id="liveStrip" style="display:none;padding:6px 0 30px;">
     <div class="container">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+      <!-- Panelled rather than bare: floating on the page background it read
+           as stray content left between two sections. -->
+      <div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,71,87,0.18);border-radius:16px;padding:16px 20px 18px;">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
         <span style="width:9px;height:9px;border-radius:50%;background:#ff4757;animation:lsPulse 1.4s infinite;"></span>
         <span style="font-family:'Exo 2',sans-serif;font-weight:900;font-size:17px;color:#fff;">WenBot creators are LIVE right now</span>
         <span id="liveStripCount" style="font-size:12px;color:#8b949e;"></span>
         <a href="/community" style="margin-left:auto;font-size:12.5px;color:#00e5ff;text-decoration:none;font-weight:700;">Visit the community →</a>
       </div>
-      <div id="liveStripRow" style="display:flex;gap:12px;flex-wrap:wrap;"></div>
+  <div id="liveStripRow" style="display:flex;gap:12px;flex-wrap:wrap;"></div>
+      </div>
     </div>
     <style>
       @keyframes lsPulse { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
@@ -936,7 +940,7 @@
     <div class="container">
       <div class="section-label">Everything you need</div>
       <h2 class="section-title">One bot. Every feature<br>your stream needs.</h2>
-      <p class="section-sub">WenBot replaces multiple tools with one unified platform built specifically for Kick gambling streamers — running automatically while you focus on the game.</p>
+      <p class="section-sub">WenBot replaces multiple tools with one unified platform built specifically for Kick gambling streamers, running automatically while you focus on the game.</p>
 
       <div class="features-grid">
         <div class="feature-card">
@@ -948,61 +952,61 @@
         <div class="feature-card">
           <div class="feature-icon">✅</div>
           <div class="feature-title">Casino Verification</div>
-          <div class="feature-desc">Viewers type <strong>!verify</strong> in chat — or use <strong>/register</strong> in Discord — to link their casino username to their Kick account, with live API verification.</div>
+          <div class="feature-desc">Viewers type <strong>!verify</strong> in chat, or <strong>/register</strong> in Discord, to link their casino username to their Kick account, with live API verification.</div>
           <span class="feature-tag tag-free">Free</span>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🏆</div>
           <div class="feature-title">Wager Leaderboard</div>
-          <div class="feature-desc">Live wager rankings pulled straight from your casino affiliate API — <strong>Gambulls, Degen, and CSGOBig</strong> supported, with switchable boards if you run more than one. Public shareable page with a podium, full rankings, and an archive of past winners.</div>
+          <div class="feature-desc">Live wager rankings pulled straight from your casino affiliate API. <strong>Gambulls, Rainbet, Duelbits, Degen and CSGOBig</strong> are supported, and you can run more than one race at once, each with its own dates and prizes. Public shareable page with a podium, full rankings, and an archive of past winners. Standings auto-post to your Discord on a schedule you set.</div>
           <span class="feature-tag tag-elite">Elite</span>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🌐</div>
           <div class="feature-title">Streamer Portal</div>
-          <div class="feature-desc">Your own public hub at <strong>wenbot.gg/yourchannel</strong> — bio, socials, active giveaway, store, and past raffle winners on one shareable page. <strong>Elite</strong> adds your live wager leaderboard plus custom theme &amp; branding.</div>
+          <div class="feature-desc">Your own public hub at <strong>wenbot.gg/yourchannel</strong>: bio, socials, active giveaway, store, and past raffle winners on one shareable page. <strong>Elite</strong> adds your live wager leaderboard plus custom theme &amp; branding.</div>
           <span class="feature-tag tag-pro">Pro</span>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🛡️</div>
           <div class="feature-title">Team Moderators</div>
-          <div class="feature-desc">Delegate full dashboard access to up to 2 trusted moderators. They use their own login and act on your behalf — every action is logged with their name. Billing, Kick reconnect, and team management stay owner-only.</div>
+          <div class="feature-desc">Delegate full dashboard access to up to 2 trusted moderators. They use their own login and act on your behalf, and every action is logged with their name. Billing, Kick reconnect, and team management stay owner-only.</div>
           <span class="feature-tag tag-elite">Elite</span>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🪙</div>
           <div class="feature-title">Points System</div>
-          <div class="feature-desc">Custom channel currency — name it whatever you want. Viewers earn by watching, check their balance with <strong>!points</strong>, and spend in your store. Works in both Kick chat and Discord.</div>
+          <div class="feature-desc">Custom channel currency, named whatever you want. Viewers earn by watching, check their balance with <strong>!points</strong>, and spend in your store. Works in both Kick chat and Discord.</div>
           <span class="feature-tag tag-pro">Pro</span>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🛒</div>
           <div class="feature-title">Viewer Store</div>
-          <div class="feature-desc">Create custom reward items — Free Spins, Shoutouts, VIP access, anything. Viewers buy with <strong>!buy</strong> in Kick chat or <strong>/buy</strong> in Discord. Dashboard queue lets you fulfill with one click.</div>
+          <div class="feature-desc">Create custom reward items: Free Spins, Shoutouts, VIP access, anything. Viewers buy with <strong>!buy</strong> in Kick chat or <strong>/buy</strong> in Discord. Dashboard queue lets you fulfill with one click.</div>
           <span class="feature-tag tag-pro">Pro</span>
         </div>
         <div class="feature-card">
           <div class="feature-icon">💣</div>
           <div class="feature-title">Bonus Hunt Tracker</div>
-          <div class="feature-desc">Track every bonus slot during a hunt — open count, total cost, results, and running break-even. A live OBS overlay shows your hunt in real time, and finished hunts are saved to your history.</div>
+          <div class="feature-desc">Track every bonus slot during a hunt: open count, total cost, results, and running break-even. A live OBS overlay shows your hunt in real time, and finished hunts are saved to your history.</div>
           <span class="feature-tag tag-free">Free</span>
         </div>
         <div class="feature-card">
           <div class="feature-icon">📋</div>
           <div class="feature-title">Slot Requests</div>
-          <div class="feature-desc">Viewers request slots with <strong>!sr</strong> — you manage the queue from the dashboard, add them straight into a bonus hunt, and show it live in OBS. Set eligibility, cooldowns, and per-viewer limits. <strong>Now free on every plan.</strong></div>
+          <div class="feature-desc">Viewers request slots with <strong>!sr</strong>, and you manage the queue from the dashboard, add them straight into a bonus hunt, and show it live in OBS. Set eligibility, cooldowns, and per-viewer limits. <strong>Now free on every plan.</strong></div>
           <span class="feature-tag tag-free">Free</span>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🖥️</div>
           <div class="feature-title">OBS Overlays</div>
-          <div class="feature-desc">Browser-source widgets for your stream — giveaway entry counter, winner spin animation, live bonus hunt tracker, and slot request queue. No plugins required, just paste the URL into OBS.</div>
+          <div class="feature-desc">Browser-source widgets for your stream: giveaway entry counter, winner spin animation, live bonus hunt tracker, and slot request queue. No plugins required, just paste the URL into OBS.</div>
           <span class="feature-tag tag-free">Free</span>
         </div>
         <div class="feature-card">
           <div class="feature-icon">🧩</div>
           <div class="feature-title">WenBot Companion</div>
-          <div class="feature-desc">A browser extension that adds bonus-hunt slots straight from the casino page — no alt-tabbing. Live hunt HUD, break-even radar, and smart slot autocomplete. Tracking only; never touches your casino account.</div>
+          <div class="feature-desc">A browser extension that adds bonus-hunt slots straight from the casino page, with no alt-tabbing. Live hunt HUD, break-even radar, and smart slot autocomplete. Tracking only; never touches your casino account.</div>
           <span class="feature-tag tag-free">Free</span>
         </div>
         <div class="feature-card">
@@ -1032,7 +1036,31 @@
         <div class="feature-card">
           <div class="feature-icon">🏅</div>
           <div class="feature-title">Tournaments</div>
-          <div class="feature-desc">Run bracket-style viewer tournaments with up to 32 players. Configure payout splits, advance players round by round, and announce the final winner — all managed from the dashboard without leaving your stream.</div>
+          <div class="feature-desc">Run bracket-style viewer tournaments with up to 32 players. Configure payout splits, advance players round by round, and announce the final winner, all managed from the dashboard without leaving your stream.</div>
+          <span class="feature-tag tag-pro">Pro</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎯</div>
+          <div class="feature-title">Bounties</div>
+          <div class="feature-desc">Set a challenge with a prize and a deadline: hit a multiplier, land a specific slot, whatever you want. It announces in your Discord with an image and shows on your portal. Editing or closing one updates the original Discord message, so your channel stays clean.</div>
+          <span class="feature-tag tag-elite">Elite</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎲</div>
+          <div class="feature-title">Chat Games</div>
+          <div class="feature-desc">Casino style mini games your viewers play with channel points. <strong>!coinflip</strong> at 2x, <strong>!roulette</strong> with colours, sections and exact numbers up to 36x, <strong>!limbo</strong> with pick your own target, and <strong>!double</strong> to ride winnings until you <strong>!take</strong>. Per game toggles, min and max bets, a cooldown and a house edge you control.</div>
+          <span class="feature-tag tag-elite">Elite</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🛡️</div>
+          <div class="feature-title">Chat Moderation</div>
+          <div class="feature-desc">Turn on the filters you want and WenBot enforces them in your Kick chat, with every action logged so you can see what it caught and why. Works alongside your human mods rather than replacing them.</div>
+          <span class="feature-tag tag-free">Free</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎰</div>
+          <div class="feature-title">Random Slot Picker</div>
+          <div class="feature-desc">Pick a provider and spin. The reel scrolls and lands on a random slot, and the result broadcasts to your OBS overlay so your chat watches it happen. Filter by provider or bonus buy when you want a particular kind of session.</div>
           <span class="feature-tag tag-pro">Pro</span>
         </div>
       </div>
@@ -1048,16 +1076,16 @@
         <div class="section-label">Discord + Kick</div>
         <h2 class="section-title">Your community,<br>fully connected.</h2>
         <p style="color:var(--text-dim);font-size:15px;line-height:1.7;margin-bottom:8px;">
-          WenBot bridges your Kick stream and Discord server with a full bot — not just notifications. Viewers can check points, buy from your store, and join giveaways without ever leaving Discord.
+          WenBot bridges your Kick stream and Discord server with a full bot, not just notifications. Viewers can check points, buy from your store, and join giveaways without ever leaving Discord.
         </p>
         <ul class="discord-feature-list">
-          <li><strong>/points</strong> — viewers check their balance directly in Discord</li>
-          <li><strong>/buy</strong> — spend points on store items from Discord</li>
-          <li><strong>/join</strong> — enter active giveaways via Discord button or slash command</li>
-          <li><strong>/register</strong> — link Kick + casino account in one step, no chat needed</li>
+          <li><strong>/points</strong>: viewers check their balance directly in Discord</li>
+          <li><strong>/buy</strong>: spend points on store items from Discord</li>
+          <li><strong>/join</strong>: enter active giveaways via Discord button or slash command</li>
+          <li><strong>/register</strong>: link Kick + casino account in one step, no chat needed</li>
           <li>Giveaway announcements with a live Join button posted to your Discord</li>
           <li>Store redemption notifications auto-posted to your announcements channel</li>
-          <li>Add WenBot to your server in one click — Server ID saved automatically</li>
+          <li>Add WenBot to your server in one click, and the Server ID is saved automatically</li>
         </ul>
       </div>
 
@@ -1113,12 +1141,12 @@
         <div class="step">
           <div class="step-num">1</div>
           <div class="step-title">Sign Up & Connect</div>
-          <div class="step-desc">Create your account, pick your plan, and connect your Kick channel. Takes under two minutes — no technical setup required.</div>
+          <div class="step-desc">Create your account, pick your plan, and connect your Kick channel. Takes under two minutes, with no technical setup required.</div>
         </div>
         <div class="step">
           <div class="step-num">2</div>
           <div class="step-title">WenBot Joins Your Chat</div>
-          <div class="step-desc">Mod WenBot in your channel. It connects instantly — no browser tab needed. Runs 24/7 on our servers even when you're offline.</div>
+          <div class="step-desc">Mod WenBot in your channel. It connects instantly, with no browser tab needed. Runs 24/7 on our servers even when you're offline.</div>
         </div>
         <div class="step">
           <div class="step-num">3</div>
@@ -1136,7 +1164,7 @@
     <div class="container">
       <div class="section-label">Why WenBot</div>
       <h2 class="section-title">Different by design.</h2>
-      <p class="section-sub">Every feature is built specifically for gambling streamers on Kick — not adapted from Twitch tools.</p>
+      <p class="section-sub">Every feature is built specifically for gambling streamers on Kick, not adapted from Twitch tools.</p>
       <div class="diff-grid">
         <div class="diff-card">
           <h3>🔗 Casino Verification System</h3>
@@ -1148,11 +1176,11 @@
         </div>
         <div class="diff-card">
           <h3>🎯 Live Spin Picker</h3>
-          <p>When you're ready to pick a winner, hit Spin on your dashboard — an animated slot-machine overlay plays live on your stream for a fair, transparent draw.</p>
+          <p>When you're ready to pick a winner, hit Spin on your dashboard, and an animated slot-machine overlay plays live on your stream for a fair, transparent draw.</p>
         </div>
         <div class="diff-card">
-          <h3>🎮 Real Discord Bot — Not Just Notifications</h3>
-          <p>Most bots just post to Discord. WenBot's Discord bot lets viewers check points, buy from your store, join giveaways, and link their Kick account — all without leaving Discord. One verify flow covers both platforms.</p>
+          <h3>🎮 Real Discord Bot, Not Just Notifications</h3>
+          <p>Most bots just post to Discord. WenBot's Discord bot lets viewers check points, buy from your store, join giveaways, and link their Kick account, all without leaving Discord. One verify flow covers both platforms.</p>
         </div>
       </div>
     </div>
@@ -1182,6 +1210,7 @@
             <li><span class="check">✓</span> Bonus hunt tracker + OBS overlay</li>
             <li><span class="check">✓</span> <strong>Slot request queue + overlay</strong></li>
             <li><span class="check">✓</span> WenBot Companion browser extension</li>
+            <li><span class="check">✓</span> Chat moderation (automod filters)</li>
             <li><span class="check">✓</span> WenBot added in your Kick channel</li>
           </ul>
           <a href="signup.html?plan=starter" class="btn btn-ghost pricing-cta">Get Started</a>
@@ -1197,12 +1226,12 @@
             <li><span class="check">✓</span> Everything in Starter</li>
             <li><span class="check">✓</span> Points system + custom currency</li>
             <li><span class="check">✓</span> Viewer store & redemptions</li>
-            <li><span class="check">✓</span> Raffles — wager & point based</li>
-            <li><span class="check">✓</span> Bonus Battles — viewer betting</li>
-            <li><span class="check">✓</span> Tournaments — bracket system</li>
+            <li><span class="check">✓</span> Raffles (wager and point based)</li>
+            <li><span class="check">✓</span> Bonus Battles (viewer betting)</li>
+            <li><span class="check">✓</span> Tournaments (bracket system)</li>
             <li><span class="check">✓</span> Guess the Balance (GTB)</li>
             <li><span class="check">✓</span> Slot picker</li>
-            <li><span class="check">✓</span> Streamer Portal — your public hub (store + winners)</li>
+            <li><span class="check">✓</span> Streamer Portal, your public hub (store + winners)</li>
             <li><span class="check">✓</span> Custom commands</li>
           </ul>
           <a href="signup.html?plan=pro" class="btn btn-accent pricing-cta">Start Pro</a>
@@ -1217,10 +1246,11 @@
             <li><span class="check">✓</span> Everything in Pro</li>
             <li><span class="check">✓</span> Wager leaderboard</li>
             <li><span class="check">✓</span> Chat Games (coinflip, roulette, limbo)</li>
+            <li><span class="check">✓</span> Bounties (challenges posted to Discord)</li>
             <li><span class="check">✓</span> Custom portal theme &amp; branding</li>
             <li><span class="check">✓</span> Discord integration + bot commands</li>
             <li><span class="check">✓</span> Past winners archive</li>
-            <li><span class="check">✓</span> Team — up to 2 dashboard moderators</li>
+            <li><span class="check">✓</span> Team (up to 2 dashboard moderators)</li>
             <li><span class="check">✓</span> Unlimited verified viewers</li>
             <li><span class="check">✓</span> Priority support</li>
           </ul>
@@ -1230,13 +1260,13 @@
         <div class="pricing-card">
           <div class="pricing-tier">Agency</div>
           <div class="pricing-price">$80<span>/mo</span></div>
-          <div class="pricing-sub">Ongoing — after your custom build</div>
+          <div class="pricing-sub">Ongoing, after your custom build</div>
           <div class="pricing-divider"></div>
           <ul class="pricing-features">
             <li><span class="check">✓</span> Everything in Elite</li>
             <li><span class="check">✓</span> <strong>Bespoke website on your own domain</strong></li>
             <li><span class="check">✓</span> Multi-channel dashboard</li>
-            <li><span class="check">✓</span> White-label — no WenBot branding</li>
+            <li><span class="check">✓</span> White-label (no WenBot branding)</li>
             <li><span class="check">✓</span> Custom feature development</li>
             <li><span class="check">✓</span> Dedicated account manager</li>
             <li><span class="check">✓</span> Direct priority support line</li>
