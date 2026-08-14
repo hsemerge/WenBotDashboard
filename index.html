@@ -2,6 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!-- Decide about the opening film before anything paints. Doing this in the
+       body script meant the homepage rendered, sat there for as long as the
+       video took to buffer, and was then covered: a flash of content, an
+       interruption, and the page again. The class is set synchronously here so
+       the overlay is simply what you see first, or is never shown at all. -->
+  <script>
+  (function () {
+    // ── Opening film: on/off ────────────────────────────────────────────────
+    // Set to false to retire it. That is the whole switch: the overlay stops
+    // being shown, nothing downloads, and the markup below becomes inert. No
+    // need to unpick anything, and no need to remember what to put back.
+    var INTRO_ENABLED = true;
+
+    var play = false;
+    try {
+      if (!INTRO_ENABLED) throw 0;
+      var seen    = sessionStorage.getItem('wb_intro_seen') === '1';
+      var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var c       = navigator.connection || {};
+      var thrifty = c.saveData === true || /(^|-)2g$/.test(c.effectiveType || '');
+      play = !(seen || reduced || thrifty);
+    } catch (e) { play = false; }
+    window.__wbIntro = play;
+    if (play) document.documentElement.className += ' intro-pending';
+  })();
+  </script>
   <link rel="icon" type="image/png" href="/img/favicon.png" sizes="32x32">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WenBot | Streamer Tools for Kick</title>
@@ -757,6 +783,57 @@
     .testi-name:hover { color: var(--accent); }
     .testi-handle { font-size: 12px; color: var(--text-dim); }
     /* No motion: let it be scrolled by hand instead of animating. */
+    /* ── Opening film ──────────────────────────────────────────────────────
+       Sits OVER a page that has already rendered, never in front of it. The
+       clip is 8.7MB, so anything that gates first paint on it would cost a
+       phone several seconds of blank screen for a flourish. It shows once per
+       session, only if it is ready quickly, and dismisses on any input. */
+    #introOverlay {
+      position: fixed; inset: 0; z-index: 9999;
+      display: none; align-items: center; justify-content: center;
+      background: #05070d;
+      opacity: 1; transition: opacity .7s ease;
+    }
+    html.intro-pending #introOverlay { display: flex; }
+    html.intro-pending body { overflow: hidden; }
+    #introOverlay.playing { display: flex; }
+    /* Buffering state. The mark is the page's own logo, so the wait reads as
+       part of the film rather than a stall. */
+    #introLoading {
+      position: absolute; display: flex; flex-direction: column;
+      align-items: center; gap: 16px; opacity: .85;
+    }
+    #introLoading img { height: 74px; opacity: .9; }
+    #introLoading i {
+      display: block; width: 26px; height: 26px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.15); border-top-color: #00e5ff;
+      animation: introSpin .8s linear infinite;
+    }
+    @keyframes introSpin { to { transform: rotate(360deg); } }
+    #introOverlay.playing #introLoading { display: none; }
+    #introOverlay.fading  { opacity: 0; pointer-events: none; }
+    /* contain, not cover: the clip is roughly 4:3 and cropping it to a wide
+       viewport would cut the top and bottom off the animation. */
+    #introVideo { max-width: min(92vw, 900px); max-height: 78vh; object-fit: contain; }
+    #introSkip {
+      position: absolute; bottom: 34px; right: 34px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.18);
+      color: #c9d1d9; border-radius: 999px; padding: 8px 18px;
+      font-family: 'Exo 2', sans-serif; font-size: 12.5px; font-weight: 700;
+      letter-spacing: .04em; cursor: pointer; transition: all .15s;
+    }
+    #introSkip:hover, #introSound:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+    #introSound {
+      position: absolute; bottom: 34px; left: 34px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.18);
+      color: #c9d1d9; border-radius: 999px; padding: 8px 18px;
+      font-family: 'Exo 2', sans-serif; font-size: 12.5px; font-weight: 700;
+      letter-spacing: .04em; cursor: pointer; transition: all .15s;
+    }
+    @media (max-width: 600px) {
+      #introSkip  { bottom: 20px; right: 20px; }
+      #introSound { bottom: 20px; left: 20px; }
+    }
     @media (prefers-reduced-motion: reduce) {
       .testi-track { animation: none; }
       .testi-marquee { overflow-x: auto; }
@@ -795,6 +872,15 @@
   </style>
 </head>
 <body>
+
+  <!-- Opening film. Hidden by default and only revealed by script, so a viewer
+       with JS off, or a slow connection, simply never sees it and loses nothing. -->
+  <div id="introOverlay" aria-hidden="true">
+    <div id="introLoading"><img src="/img/logo.png" alt=""><i></i></div>
+    <video id="introVideo" muted playsinline preload="none" src="/video/wenbot-opening.mp4"></video>
+    <button id="introSound" type="button">🔊 Sound on</button>
+    <button id="introSkip" type="button">Skip intro</button>
+  </div>
 
   <!-- NAV -->
   <nav>
@@ -1435,5 +1521,84 @@
     </div>
   </footer>
 
+  <script>
+  // Opening film. Deliberately unable to hurt anyone:
+  //   once a session, never on a repeat page view
+  //   never on reduced-motion, Save-Data, or a 2g connection
+  //   nothing downloads until those checks pass (preload="none" until then)
+  //   two seconds to be ready, or we abandon it rather than make anyone wait
+  //   any click, key, scroll or touch dismisses it
+  //   a hard timer dismisses it even if "ended" never fires
+  (function () {
+    var overlay = document.getElementById('introOverlay');
+    var video   = document.getElementById('introVideo');
+    var skip    = document.getElementById('introSkip');
+    var sound   = document.getElementById('introSound');
+    if (!overlay || !video) return;
+
+    function cleanup() {
+      document.documentElement.classList.remove('intro-pending');
+      try { sessionStorage.setItem('wb_intro_seen', '1'); } catch (e) {}
+      try { video.removeAttribute('src'); video.load(); } catch (e) {}   // stop any in-flight download
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }
+
+    // The head script already decided, synchronously, before first paint.
+    if (!window.__wbIntro) { cleanup(); return; }
+
+    var started = false, done = false;
+    function dismiss() {
+      if (done) return; done = true;
+      overlay.classList.add('fading');
+      setTimeout(cleanup, 750);
+    }
+
+    // Longer than before because the viewer can now see it working rather than
+    // staring at a stalled homepage. Still a hard ceiling: miss it and the film
+    // is skipped entirely rather than holding anyone hostage.
+    var giveUp = setTimeout(function () { if (!started) cleanup(); }, 3500);
+    video.addEventListener('canplaythrough', function () {
+      if (started) return;
+      started = true; clearTimeout(giveUp);
+      overlay.classList.add('playing');
+      // Ask for sound first. Every browser blocks autoplay WITH audio unless the
+      // viewer has already interacted with the site, so this succeeds only for
+      // people the browser already trusts. Everyone else falls back to the muted
+      // version rather than getting no intro at all.
+      video.muted = false;
+      var p = video.play();
+      if (p && p.catch) p.catch(function () {
+        video.muted = true;
+        setSoundLabel();
+        var p2 = video.play();
+        if (p2 && p2.catch) p2.catch(dismiss);   // still refused: get out of the way
+      });
+      setTimeout(setSoundLabel, 300);
+      setTimeout(dismiss, 14000);           // backstop if "ended" never arrives
+    }, { once: true });
+    video.addEventListener('ended', dismiss);
+    video.addEventListener('error', cleanup);
+
+    function setSoundLabel() {
+      if (sound) sound.textContent = video.muted ? '🔇 Sound off' : '🔊 Sound on';
+    }
+    if (sound) sound.addEventListener('click', function (e) {
+      // Must not bubble: a click anywhere on the overlay dismisses it, and
+      // turning sound on is the one click that should not end the intro.
+      e.stopPropagation();
+      video.muted = !video.muted;
+      if (!video.muted) video.volume = 1;
+      setSoundLabel();
+    });
+    if (skip) skip.addEventListener('click', dismiss);
+    overlay.addEventListener('click', dismiss);
+    ['keydown', 'wheel', 'touchmove'].forEach(function (ev) {
+      window.addEventListener(ev, function () { if (started) dismiss(); }, { once: true, passive: true });
+    });
+
+    video.preload = 'auto';
+    video.load();
+  })();
+  </script>
 </body>
 </html>
