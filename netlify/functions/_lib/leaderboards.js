@@ -66,6 +66,11 @@ function normalizeBoard(raw, id) {
     },
     prizes:       Array.isArray(b.prizes) ? b.prizes : [],
     baselines:    b.baselines    || {},
+    // Start-of-day baseline for providers whose API only speaks in whole
+    // dates (Rainbet, Duelbits). Separate from `baselines`, and it was
+    // missing here, so a migrated board silently stopped subtracting it and
+    // every affected viewer read high.
+    dayBaselines: b.dayBaselines || {},
     carryover:    b.carryover    || {},
     liveSnapshot: b.liveSnapshot || {},
     excluded:     Array.isArray(b.excluded) ? b.excluded : [],

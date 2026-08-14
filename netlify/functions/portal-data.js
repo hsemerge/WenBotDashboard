@@ -634,7 +634,8 @@ exports.handler = async (event) => {
       // from null to a truthy object and the portal renders an empty countdown
       // for the streamers who simply follow the casino's own window.
       const bare = !win && !board.period.startAt && !board.period.endAt &&
-        !some(board.baselines) && !some(board.carryover) && !board.excluded.length;
+        !some(board.baselines) && !some(board.dayBaselines) &&
+        !some(board.carryover) && !board.excluded.length;
       if (bare) return null;
       return {
         active:    board.period.active,         // a finished race stops applying its baselines
@@ -643,6 +644,7 @@ exports.handler = async (event) => {
         startAt:   win ? win.from : board.period.startAt,
         endAt:     win ? win.to   : board.period.endAt,
         baselines:    some(board.baselines),
+        dayBaselines: some(board.dayBaselines),
         carryover:    some(board.carryover),
         liveSnapshot: some(board.liveSnapshot),
         excluded:     board.excluded,

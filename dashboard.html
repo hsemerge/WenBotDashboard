@@ -12440,7 +12440,7 @@ async function saveLeaderboardPeriod(lp) {
     ['startAt', 'endAt', 'active', 'duration', 'autoRenew'].forEach(k => {
       if (lp[k] !== undefined) fields['period.' + k] = lp[k];
     });
-    ['baselines', 'carryover', 'liveSnapshot', 'excluded', 'anchorMonth', 'carryMonth'].forEach(k => {
+    ['baselines', 'dayBaselines', 'carryover', 'liveSnapshot', 'excluded', 'anchorMonth', 'carryMonth'].forEach(k => {
       if (lp[k] !== undefined) fields[k] = lp[k];
     });
     if (Object.keys(fields).length) await target.ref.update(fields);
