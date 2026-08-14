@@ -576,7 +576,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="nav-item" onclick="showPage('games',this)"><span class="icon">🎮</span> Games</div>
         <div class="nav-item" onclick="showPage('commands',this)"><span class="icon">💬</span> Commands</div>
         <div class="nav-item" onclick="showPage('bounties',this)"><span class="icon">🎯</span> Bounties</div>
-        <div class="nav-item" onclick="showPage('extension',this)"><span class="icon">🧩</span> Bonushunt Extension</div>
+        <div class="nav-item" onclick="showPage('extension',this)"><span class="icon">🧩</span> WenBot Companion</div>
       </div>
       <!-- Portal: the public page, and the settings for it, side by side. Viewing
            and editing are the two things you do with it, so neither is buried. -->
@@ -622,7 +622,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.25.1</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.25.2</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3264,19 +3264,19 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.25.1</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.25.2</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
         </div>
 
         <div class="card">
           <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
-            <h3 style="margin:0;">v1.25.1 &middot; Rainbet and Duelbits standings corrected</h3>
+            <h3 style="margin:0;">v1.25.2 &middot; Rainbet and Duelbits standings corrected</h3>
             <span style="font-size:12px;color:var(--text-dim);">August 14, 2026</span>
           </div>
           <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
             <li>&#128202; <strong>If your race started partway through a day, some viewers were reading high.</strong> Rainbet and Duelbits only report whole days, so WenBot records what each viewer had already wagered that day and subtracts it. That record stopped being applied when a race moved onto the newer board format, which meant part of the day <em>before</em> your race began was being counted. It is applied again now, so affected totals will drop to the correct figure and the order of your board may change. Only races on Rainbet or Duelbits that began partway through a day were affected.</li>
-            <li>&#129517; <strong>The menu button collapses the icon rail.</strong> It only ever folded the old list menu, so on the icon rail the button appeared to do nothing. Your choice is remembered, and the menu button brings it back.</li>
+            <li>&#129517; <strong>The menu button collapses the icon rail.</strong> It only ever folded the old list menu, so on the icon rail the button appeared to do nothing. Your menu still opens expanded by default; press the button to fold it away and again to bring it back.</li>
           </ul>
         </div>
 
@@ -3292,7 +3292,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <li>&#127991;&#65039; <strong>Pro and Elite tags were missing from Store, Bonus Battles and Tournaments.</strong> All three are paid features and the menu showed nothing at all, so they looked included until you clicked. Fixed, and every tag now sits in the corner of its tile in Pro purple or Elite gold.</li>
             <li>&#127922; <strong>Chat Games is now an Elite feature</strong>, and <strong>Moderation</strong> is part of the Kick Chat Bot page rather than its own entry.</li>
             <li>&#127920; <strong>Gamba is in the casino list.</strong> Viewers verify with their Gamba username. Gamba has no affiliate API, so names are saved as claimed rather than matched against a race, the same as Stake, Roobet and Gamdom. And <strong>/lb</strong> no longer offers a casino you've left: set to &ldquo;not listed&rdquo;, it now says you have no wager race instead of trying to load one.</li>
-            <li>&#128736;&#65039; <strong>Smaller things.</strong> Manage leads with Overlays, Verified Users and Leaderboard. Companion Extension is now <strong>Bonushunt Extension</strong>. The board switch reads <strong>Board is live</strong>, because it always covered your portal <em>and</em> /lb. And the Getting Started buttons open the right page again.</li>
+            <li>&#128736;&#65039; <strong>Smaller things.</strong> Manage leads with Overlays, Verified Users and Leaderboard. The board switch reads <strong>Board is live</strong>, because it always covered your portal <em>and</em> /lb. And the Getting Started buttons open the right page again.</li>
           </ul>
         </div>
 
@@ -6823,7 +6823,7 @@ function showPage(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', bounties:'Bounties', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotpicker:'Slot Picker', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', games:'Games', channel:'Channel & Casino Setup', kickbot:'Kick Chat Bot', discordsetup:'Discord & Verification', team:'Team Moderation', yourdata:'Your Data', portalsettings:'Portal Settings', communitysettings:'Community Settings', activity:'Activity Log', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade', referrals:'Invite & Earn', extension:'Bonushunt Extension', whatsnew:"What's New", creators:'Creators' };
+  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', bounties:'Bounties', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotpicker:'Slot Picker', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', games:'Games', channel:'Channel & Casino Setup', kickbot:'Kick Chat Bot', discordsetup:'Discord & Verification', team:'Team Moderation', yourdata:'Your Data', portalsettings:'Portal Settings', communitysettings:'Community Settings', activity:'Activity Log', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade', referrals:'Invite & Earn', extension:'WenBot Companion', whatsnew:"What's New", creators:'Creators' };
   document.getElementById('topbarTitle').textContent = titles[id] || id;
   // Re-evaluate the top billing banners for this page (hidden on stream-shown pages).
   _activePage = id;
@@ -7562,13 +7562,19 @@ function toggleSidebar() {
     // Collapsing while a rail pop-out is open would leave the pop-out floating
     // beside nothing, still anchored to a tile that is no longer on screen.
     if (collapsed && typeof closeRail === 'function') closeRail();
-    try { localStorage.setItem('wenbot_sidebar_collapsed', collapsed ? '1' : '0'); } catch {}
+    try { localStorage.setItem('wenbot_sidebar_collapsed_v2', collapsed ? '1' : '0'); } catch {}
   }
 }
 // Restore the collapsed preference on load (desktop only).
+//
+// Reads a _v2 key on purpose. Before v1.25.1 the hamburger toggled and saved
+// this in icon-rail mode while nothing on screen moved, because the collapse
+// rule only ever matched the classic sidebar. Anyone who pressed it once was
+// left with a saved "collapsed" they never chose, and honouring it would open
+// their dashboard with no menu. The old key is abandoned rather than migrated.
 (function restoreSidebarState() {
   try {
-    if (localStorage.getItem('wenbot_sidebar_collapsed') === '1' &&
+    if (localStorage.getItem('wenbot_sidebar_collapsed_v2') === '1' &&
         !window.matchMedia('(max-width: 768px)').matches) {
       document.querySelector('.app')?.classList.add('sidebar-collapsed');
     }
