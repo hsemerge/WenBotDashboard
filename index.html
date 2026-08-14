@@ -726,6 +726,45 @@
     footer p { font-size: 12px; color: var(--text-dim); }
 
     /* ── GLOW DIVIDER ── */
+    /* ── Testimonials ──────────────────────────────────────────────────────
+       The track holds the set twice and slides exactly half its width, so the
+       second copy is in the first one's place when the loop restarts and the
+       seam is invisible. Hover pauses it, because these are long enough that
+       nobody can finish one while it moves. */
+    .testi-marquee {
+      overflow: hidden; padding: 6px 0 4px;
+      -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+              mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+    }
+    .testi-track { display: flex; gap: 22px; width: max-content; animation: testiScroll 70s linear infinite; }
+    .testi-marquee:hover .testi-track,
+    .testi-marquee:focus-within .testi-track { animation-play-state: paused; }
+    @keyframes testiScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    .testi-card {
+      flex: 0 0 560px; width: 560px; margin: 0;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 26px 28px; display: flex; flex-direction: column;
+    }
+    .testi-stars { color: var(--gold); font-size: 13px; letter-spacing: 3px; margin-bottom: 14px; }
+    .testi-quote { margin: 0; font-size: 14px; line-height: 1.7; color: var(--text); }
+    .testi-quote p { margin: 0 0 12px; }
+    .testi-quote p:last-child { margin-bottom: 0; }
+    .testi-foot { display: flex; align-items: center; gap: 12px; margin-top: auto; padding-top: 18px; border-top: 1px solid var(--border); }
+    .testi-foot > span:last-child { display: flex; flex-direction: column; }
+    .testi-av { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center;
+                justify-content: center; font-weight: 900; font-size: 17px; flex: 0 0 auto; }
+    .testi-name { font-weight: 800; font-size: 14px; color: var(--bright); text-decoration: none; }
+    .testi-name:hover { color: var(--accent); }
+    .testi-handle { font-size: 12px; color: var(--text-dim); }
+    /* No motion: let it be scrolled by hand instead of animating. */
+    @media (prefers-reduced-motion: reduce) {
+      .testi-track { animation: none; }
+      .testi-marquee { overflow-x: auto; }
+    }
+    @media (max-width: 768px) {
+      .testi-card { flex-basis: 86vw; width: 86vw; padding: 22px 20px; }
+      .testi-track { animation-duration: 46s; }
+    }
     .glow-line {
       height: 1px;
       background: linear-gradient(90deg, transparent, var(--accent), transparent);
@@ -764,6 +803,7 @@
       <li><a href="#features">Features</a></li>
       <li><a href="#discord">Discord</a></li>
       <li><a href="#how">How it works</a></li>
+      <li><a href="#testimonials">Testimonials</a></li>
       <li><a href="#pricing">Pricing</a></li>
       <li><a href="/community" style="color:var(--accent, #00e5ff);font-weight:700;">🌐 Community</a></li>
     </ul>
@@ -1189,6 +1229,89 @@
   <div class="glow-line"></div>
 
   <!-- PRICING -->
+  <div class="glow-line"></div>
+
+  <!-- TESTIMONIALS
+       Marquee rather than a static grid: with two quotes a grid leaves an
+       obvious hole, and the set is duplicated so the loop has no seam. The
+       copy is aria-hidden so a screen reader hears each quote once. -->
+  <section id="testimonials">
+    <div class="container">
+      <div class="section-label" style="text-align:center;">In their words</div>
+      <h2 class="section-title" style="text-align:center;">Streamers who made the switch.</h2>
+    </div>
+    <div class="testi-marquee">
+      <div class="testi-track">
+        <figure class="testi-card">
+          <div class="testi-stars">★★★★★</div>
+          <blockquote class="testi-quote">
+            <p>Where do I even begin with this streamer masterpiece? WenBot.gg literally has everything a streamer needs to start, build, and improve their career.</p>
+            <p>It has an incredible range of features, including built in giveaways, overlays, trackers, leaderboards, a points system, a slot picker, a bonus hunt tracker, a gift shop, slot requests, and so much more. Literally everything you need is right at your fingertips.</p>
+            <p>I one million percent recommend this to gambling streamers, especially new gambling streamers who are just starting out and don't know where to begin. WenBot.gg is where you begin.</p>
+            <p>It has helped me keep track of my players, look more organised, and stay organised. It connects directly to my Kick channel and keeps track of everything for both me and my community.</p>
+            <p>10/10. I literally couldn't recommend it more!</p>
+          </blockquote>
+          <figcaption class="testi-foot">
+            <span class="testi-av" style="background:#ff47571f;border:1px solid #ff475759;color:#ff4757;">M</span>
+            <span>
+              <a class="testi-name" href="https://kick.com/meggambles" target="_blank" rel="noopener">MegGambles</a>
+              <span class="testi-handle">kick.com/meggambles</span>
+            </span>
+          </figcaption>
+        </figure>
+        <figure class="testi-card">
+          <div class="testi-stars">★★★★★</div>
+          <blockquote class="testi-quote">
+            <p>We recently made the move to WenBot from one of the biggest names in the streaming tools industry, and it was one of the best decisions we've made. Not only did the team build us a completely custom website tailored to our needs, but the functionality and overall user experience have been exceptional from day one.</p>
+            <p>The level of support has been outstanding. The team is responsive, knowledgeable, and genuinely invested in helping us succeed. As with any platform that is constantly evolving and introducing new features, we've encountered a couple of minor bugs along the way. However, every issue was acknowledged and resolved almost instantly, which speaks volumes about their commitment to both their product and their customers.</p>
+            <p>What really sets WenBot apart is that they don't just focus on streamers and operators. They also take the player experience into account, resulting in a platform that works brilliantly for everyone involved.</p>
+            <p>In terms of value for money, customisation, and functionality, nothing else we've seen comes close. WenBot delivers premium level features without the premium level price tag. If you're looking for the best streaming bot and platform solution on the market right now, we couldn't recommend WenBot highly enough.</p>
+          </blockquote>
+          <figcaption class="testi-foot">
+            <span class="testi-av" style="background:#00e5ff1f;border:1px solid #00e5ff59;color:#00e5ff;">S</span>
+            <span>
+              <a class="testi-name" href="https://kick.com/skslots" target="_blank" rel="noopener">SKSlots</a>
+              <span class="testi-handle">kick.com/skslots</span>
+            </span>
+          </figcaption>
+        </figure>
+        <figure class="testi-card" aria-hidden="true">
+          <div class="testi-stars">★★★★★</div>
+          <blockquote class="testi-quote">
+            <p>Where do I even begin with this streamer masterpiece? WenBot.gg literally has everything a streamer needs to start, build, and improve their career.</p>
+            <p>It has an incredible range of features, including built in giveaways, overlays, trackers, leaderboards, a points system, a slot picker, a bonus hunt tracker, a gift shop, slot requests, and so much more. Literally everything you need is right at your fingertips.</p>
+            <p>I one million percent recommend this to gambling streamers, especially new gambling streamers who are just starting out and don't know where to begin. WenBot.gg is where you begin.</p>
+            <p>It has helped me keep track of my players, look more organised, and stay organised. It connects directly to my Kick channel and keeps track of everything for both me and my community.</p>
+            <p>10/10. I literally couldn't recommend it more!</p>
+          </blockquote>
+          <figcaption class="testi-foot">
+            <span class="testi-av" style="background:#ff47571f;border:1px solid #ff475759;color:#ff4757;">M</span>
+            <span>
+              <a class="testi-name" href="https://kick.com/meggambles" target="_blank" rel="noopener">MegGambles</a>
+              <span class="testi-handle">kick.com/meggambles</span>
+            </span>
+          </figcaption>
+        </figure>
+        <figure class="testi-card" aria-hidden="true">
+          <div class="testi-stars">★★★★★</div>
+          <blockquote class="testi-quote">
+            <p>We recently made the move to WenBot from one of the biggest names in the streaming tools industry, and it was one of the best decisions we've made. Not only did the team build us a completely custom website tailored to our needs, but the functionality and overall user experience have been exceptional from day one.</p>
+            <p>The level of support has been outstanding. The team is responsive, knowledgeable, and genuinely invested in helping us succeed. As with any platform that is constantly evolving and introducing new features, we've encountered a couple of minor bugs along the way. However, every issue was acknowledged and resolved almost instantly, which speaks volumes about their commitment to both their product and their customers.</p>
+            <p>What really sets WenBot apart is that they don't just focus on streamers and operators. They also take the player experience into account, resulting in a platform that works brilliantly for everyone involved.</p>
+            <p>In terms of value for money, customisation, and functionality, nothing else we've seen comes close. WenBot delivers premium level features without the premium level price tag. If you're looking for the best streaming bot and platform solution on the market right now, we couldn't recommend WenBot highly enough.</p>
+          </blockquote>
+          <figcaption class="testi-foot">
+            <span class="testi-av" style="background:#00e5ff1f;border:1px solid #00e5ff59;color:#00e5ff;">S</span>
+            <span>
+              <a class="testi-name" href="https://kick.com/skslots" target="_blank" rel="noopener">SKSlots</a>
+              <span class="testi-handle">kick.com/skslots</span>
+            </span>
+          </figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
   <section id="pricing">
     <div class="container">
       <div class="section-label" style="text-align:center;">Simple pricing</div>
