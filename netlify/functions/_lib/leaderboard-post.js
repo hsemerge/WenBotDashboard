@@ -24,23 +24,33 @@ async function discordPost(channelId, body) {
   return { ok: false, status: r.status, error: msg };
 }
 
+// The two standings sources name their columns differently: portal-data returns
+// name/wagerAmount, /api/leaderboard-live returns username/wagered. Read both, or
+// an extra board posts a table of blank names.
+const rowName = (r) => String(r.name || r.username || "");
+const rowAmt  = (r) => Number(r.wagerAmount != null ? r.wagerAmount : r.wagered) || 0;
+
 // Monospace block so columns line up in any Discord client.
-function buildEmbed(cfg, streamer, board) {
+// `label` names the board when this is an extra board rather than the main one.
+function buildEmbed(cfg, streamer, board, label) {
   const rows  = (board.rankings || []).slice(0, MAX_ROWS);
-  const nameW = Math.max(...rows.map((r) => String(r.name || "").length), 4);
+  const nameW = Math.max(...rows.map((r) => rowName(r).length), 4);
   const lines = rows.map((r, i) => {
     const rank = String(i + 1).padStart(2, " ");
-    const name = String(r.name || "").padEnd(nameW, " ");
-    const amt  = money(r.wagerAmount != null ? r.wagerAmount : r.wagered);
+    const name = rowName(r).padEnd(nameW, " ");
+    const amt  = money(rowAmt(r));
     return `${rank}. ${name}  ${amt.padStart(10, " ")}`;
   });
 
-  const total = (board.rankings || []).reduce(
-    (s, r) => s + (Number(r.wagerAmount != null ? r.wagerAmount : r.wagered) || 0), 0);
+  const total = (board.rankings || []).reduce((s, r) => s + rowAmt(r), 0);
 
-  const title = cfg.title || `${streamer.displayName || streamer.kickChannel} Wager Race — Live Standings`;
+  const who   = streamer.displayName || streamer.kickChannel;
+  const title = cfg.title || (label
+    ? `${who} ${label} Race — Live Standings`
+    : `${who} Wager Race — Live Standings`);
   const bits  = [];
-  if (streamer.activeProvider) bits.push(`on ${streamer.activeProvider}`);
+  const on = board.casinoName || label || streamer.activeProvider;
+  if (on) bits.push(`on ${on}`);
   bits.push(`every ${cfg.everyHours || 5}h`);
 
   return {
@@ -56,21 +66,39 @@ function buildEmbed(cfg, streamer, board) {
   };
 }
 
-// Builds and posts for one streamer doc. Returns { ok } or { ok:false, error }.
-async function postStandings(doc) {
-  const s   = doc.data();
-  const cfg = s.lbDiscordPost || {};
-  const channelId = (s.discordConfig || {}).lbChannelId;
+// Builds and posts standings for one board.
+//
+// `boardDoc` is a leaderboards/{id} snapshot for an EXTRA board, or null for the
+// streamer's main board. The two keep their config in different places on
+// purpose: the main board's lives on the streamer doc, where it always has, and
+// not every streamer running auto-post even has a board doc (thetiltbros has
+// none). Inventing one just to hold a Discord setting would change what his
+// portal and /lb serve, which is too much blast radius for a posting feature.
+//
+// Returns { ok } or { ok:false, error }.
+async function postStandings(doc, boardDoc = null) {
+  const s = doc.data();
+  const b = boardDoc ? (boardDoc.data() || {}) : null;
+  const cfg = b ? (b.discordPost || {}) : (s.lbDiscordPost || {});
+
+  // Extra boards carry their own channel; falling back to the main one means a
+  // half-filled form posts somewhere sensible instead of failing silently.
+  const channelId = (b ? cfg.channelId : null) || (s.discordConfig || {}).lbChannelId;
   if (!channelId) return { ok: false, error: "No Discord channel picked for standings." };
 
   const channel = String(s.kickChannel || "").toLowerCase();
   if (!channel) return { ok: false, error: "No Kick channel on this account." };
 
+  const label = b ? (b.label || b.provider || "") : "";
   let board = null;
   try {
-    const r = await fetch(`${ORIGIN}/api/portal-data?channel=${encodeURIComponent(channel)}`);
-    const d = await r.json();
-    board = d && d.leaderboard;
+    // Main board reads the portal payload it always has. An extra board asks
+    // leaderboard-live for its own casino, which applies that board's period.
+    const url = b
+      ? `${ORIGIN}/api/leaderboard-live?channel=${encodeURIComponent(channel)}&casino=${encodeURIComponent(b.provider || "")}&internal=1`
+      : `${ORIGIN}/api/portal-data?channel=${encodeURIComponent(channel)}`;
+    const d = await (await fetch(url)).json();
+    board = b ? d : (d && d.leaderboard);
   } catch {
     return { ok: false, error: "Couldn't load the leaderboard right now." };
   }
@@ -78,7 +106,7 @@ async function postStandings(doc) {
     return { ok: false, error: "No leaderboard is running for this channel yet." };
   }
 
-  const out = await discordPost(channelId, { embeds: [buildEmbed(cfg, s, board)] });
+  const out = await discordPost(channelId, { embeds: [buildEmbed(cfg, s, board, label)] });
   if (!out.ok) {
     return {
       ok: false,

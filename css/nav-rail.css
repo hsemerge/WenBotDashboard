@@ -246,6 +246,17 @@ html.nebula #railPop::before { border-color: rgba(0, 229, 255, 0.22); }
    is already a frame, so framing every item inside it doubles the weight for
    no extra meaning. */
 #railPop .pop-row { display: flex; flex-wrap: wrap; gap: 2px; max-width: 486px; }
+/* Groups one pop-out into two halves (your channel's setup, then your account).
+   flex-basis 100% is what forces the break in a wrapping row. */
+#railPop .pop-sep {
+  flex: 0 0 100%;
+  display: flex; align-items: center; gap: 10px;
+  margin: 12px 2px 2px;
+  font-family: 'Exo 2', sans-serif;
+  font-size: 10.5px; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase;
+  color: var(--text-dim);
+}
+#railPop .pop-sep::after { content: ""; flex: 1; height: 1px; background: var(--border); }
 #railPop .pop-item {
   position: relative;
   width: 156px; height: 84px;
@@ -268,15 +279,29 @@ html.nebula #railPop::before { border-color: rgba(0, 229, 255, 0.22); }
   background: rgba(0,229,255,0.08);
 }
 #railPop .pop-item .icon { font-size: 26px; line-height: 1; }
-/* Badge floats in the corner rather than sitting in the flow — a square tile
-   has no spare row for it. */
-/* Under the label rather than in a corner: on a tile you read icon then label,
-   so the flag belongs at the end of that path, not off to one side. */
+/* Image icons match the emoji's optical size on a tile. */
+#railPop .pop-item .icon img { width: 28px; height: 28px; border-radius: 7px; display: block; }
+/* Corner badge rather than a row under the label. In the flow it stretched the
+   tile and pushed the icon off centre, so a menu of eleven items rippled
+   wherever a plan lock happened to fall. Pinned to the corner, every tile keeps
+   the same geometry whether it carries a badge or not. */
 #railPop .pop-badge {
-  font-size: 8px; font-weight: 900; letter-spacing: .06em;
-  padding: 1px 6px; border-radius: 8px;
+  position: absolute; top: 6px; right: 6px;
+  font-size: 10px; font-weight: 900; letter-spacing: .05em;
+  padding: 2px 7px; border-radius: 8px;
   background: var(--red); color: #fff;
   box-shadow: 0 0 8px rgba(255,71,87,0.55);
+}
+/* Plan locks keep the sidebar's own palette instead of borrowing LIVE's red.
+   Red should mean "happening now"; a locked feature is information, not an
+   alarm, and Pro vs Elite has to be tellable apart at a glance. */
+#railPop .pop-badge.pro-pill {
+  background: rgba(167,139,250,0.22); color: #c4b5fd;
+  border: 1px solid rgba(167,139,250,0.5); box-shadow: none;
+}
+#railPop .pop-badge.elite-pill {
+  background: rgba(255,215,0,0.18); color: #ffd700;
+  border: 1px solid rgba(255,215,0,0.5); box-shadow: none;
 }
 
 /* Rail replaces the sidebar entirely on small screens too — the hamburger

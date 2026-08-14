@@ -15,6 +15,9 @@ const CASINO_NAMES = {
   bcgame:     "BC.Game",
   "500casino":"500 Casino",
   gamdom:     "Gamdom",
+  // No affiliate API, so verification is honour-system: the viewer's name is
+  // stored but never matched against a race. Deliberately NOT in API_CASINOS.
+  gamba:      "Gamba",
   duelbits:   "Duelbits",
   rollbit:    "Rollbit",
   chipsgg:    "Chips.gg",

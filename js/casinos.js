@@ -15,6 +15,7 @@ const CASINO_NAMES = {
   bcgame:     "BC.Game",
   "500casino":"500 Casino",
   gamdom:     "Gamdom",
+  gamba:      "Gamba",
   duelbits:   "Duelbits",
   rollbit:    "Rollbit",
   chipsgg:    "Chips.gg",

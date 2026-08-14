@@ -48,6 +48,53 @@ exports.handler = async () => {
       posted++;
     }
 
+    // ── Extra boards ──────────────────────────────────────────────────────────
+    // Their config lives on the board doc, so it can't come from the query
+    // above. A collectionGroup query would be cheaper but needs a
+    // COLLECTION_GROUP index, and indexes deploy through a different Google
+    // account than this repo does — not worth the dependency for one sweep.
+    // ~40 small subcollection queries an hour today; revisit past a few hundred
+    // streamers.
+    const all = await db.collection("streamers").get();
+    for (const sdoc of all.docs) {
+      const sdata = sdoc.data();
+      const boards = await sdoc.ref.collection("leaderboards")
+        .where("discordPost.enabled", "==", true).get();
+
+      for (const bdoc of boards.docs) {
+        const bd  = bdoc.data() || {};
+        const cfg = bd.discordPost || {};
+
+        // The main board is driven by the streamer-level config above. If both
+        // were set, the same race would post twice into the same channel.
+        const isMain = String(bd.provider || "").toLowerCase()
+                    === String(sdata.activeProvider || "").toLowerCase();
+        if (isMain && (sdata.lbDiscordPost || {}).enabled === true) { skipped++; continue; }
+
+        const everyHours = Math.max(1, Math.min(Number(cfg.everyHours) || 5, 24));
+        const dueAt = (cfg.lastPostAt || 0) + everyHours * 3600000;
+        if (Date.now() < dueAt - 5 * 60000) { skipped++; continue; }
+
+        const out = await postStandings(sdoc, bdoc);
+        if (!out.ok) {
+          console.warn(`[lb-cron] ${sdoc.id}/${bdoc.id}: ${out.error}`);
+          failed++;
+          if (out.status === 403 || out.status === 404) {
+            await bdoc.ref.set(
+              { discordPost: { lastPostAt: Date.now(), lastError: out.error || null } },
+              { merge: true }
+            );
+          }
+          continue;
+        }
+        await bdoc.ref.set(
+          { discordPost: { lastPostAt: Date.now(), lastError: null } },
+          { merge: true }
+        );
+        posted++;
+      }
+    }
+
     console.log(`[lb-cron] posted ${posted}, skipped ${skipped}, failed ${failed}`);
     return { statusCode: 200, body: JSON.stringify({ posted, skipped, failed }) };
   } catch (err) {

@@ -82,6 +82,9 @@
     .sp-slot-card:hover { border-color: rgba(0,229,255,0.4) !important; }
     .nav-item.active { background: rgba(0,229,255,0.08); color: var(--accent); }
     .nav-item .icon { font-size: 15px; width: 18px; text-align: center; }
+    /* An icon can be an image rather than an emoji. Sized to sit on the emoji
+       baseline so a mixed list doesn't jump. */
+    .nav-item .icon img { width: 16px; height: 16px; border-radius: 4px; vertical-align: -3px; display: inline-block; }
     .nav-badge { margin-left: auto; background: var(--accent); color: #0d1117; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; }
     .nav-badge.red { background: var(--red); color: #fff; }
     .nav-item.nav-locked { opacity: 0.45; }
@@ -92,6 +95,10 @@
        was cancelling the .active background. These win on specificity. */
     .nav-item.nav-locked.active,
     .nav-item.nav-locked.active:hover { background: rgba(0,229,255,0.08); color: var(--accent); opacity: 1; }
+    .nav-sep { margin: 12px 10px 5px; padding-top: 9px; border-top: 1px solid var(--border);
+               font-family: 'Exo 2', sans-serif; font-size: 10px; font-weight: 800;
+               letter-spacing: 1.4px; text-transform: uppercase; color: var(--text-dim); }
+    .sidebar-section.sb-collapsed .nav-sep { display: none; }
     .nav-lock-pill { margin-left: auto; font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 10px; letter-spacing: .03em; }
     .nav-lock-pill.pro-pill  { background: rgba(167,139,250,0.2); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
     .nav-lock-pill.elite-pill { background: rgba(255,215,0,0.15); color: #ffd700; border: 1px solid rgba(255,215,0,0.3); }
@@ -549,7 +556,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
     <img src="/img/logo.png" alt="WenBot" title="Back to Overview" onclick="goHome()" style="height:104px;width:100%;max-width:200px;object-fit:contain;display:block;margin:0 auto;cursor:pointer;">
     <div style="flex:1;overflow-y:auto;padding-top:8px;">
       <div class="sidebar-section" data-sec="live">
-        <div class="sidebar-label sb-toggle" onclick="sbToggleSection('live')">Live <span class="sb-chev">▾</span></div>
+        <div class="sidebar-label sb-toggle" onclick="sbToggleSection('live')">Live Tools <span class="sb-chev">▾</span></div>
         <div class="nav-item" onclick="showPage('bonushunt',this)"><span class="icon">🎰</span> Bonus Hunt <span class="nav-badge" id="bhLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
         <div class="nav-item" onclick="showPage('giveaway',this)"><span class="icon">🎁</span> Giveaway <span class="nav-badge" id="gwLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
         <div class="nav-item" onclick="showPage('slotpicker',this)"><span class="icon">🎯</span> Slot Picker</div>
@@ -560,17 +567,23 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
       </div>
       <div class="sidebar-section" style="margin-top:8px;" data-sec="manage">
         <div class="sidebar-label sb-toggle" onclick="sbToggleSection('manage')">Manage <span class="sb-chev">▾</span></div>
-        <div class="nav-item" onclick="showPage('leaderboard',this)"><span class="icon">🥇</span> Leaderboard</div>
+        <div class="nav-item" onclick="showPage('overlays',this)"><span class="icon">🖥</span> Overlays</div>
         <div class="nav-item" onclick="showPage('verified',this)"><span class="icon">✅</span> Verified Users</div>
+        <div class="nav-item" onclick="showPage('leaderboard',this)"><span class="icon">🥇</span> Leaderboard</div>
         <div class="nav-item" onclick="showPage('points',this)"><span class="icon">🪙</span> Points</div>
         <div class="nav-item" id="nav-store" onclick="showPage('store',this)"><span class="icon">🛒</span> Store <span class="nav-badge red" id="storeBadge" style="display:none;">0</span></div>
         <div class="nav-item" onclick="showPage('raffle',this)"><span class="icon">🎟</span> Raffles</div>
         <div class="nav-item" onclick="showPage('games',this)"><span class="icon">🎮</span> Games</div>
         <div class="nav-item" onclick="showPage('commands',this)"><span class="icon">💬</span> Commands</div>
-        <div class="nav-item" onclick="showPage('moderation',this)"><span class="icon">🛡️</span> Moderation</div>
         <div class="nav-item" onclick="showPage('bounties',this)"><span class="icon">🎯</span> Bounties</div>
-        <div class="nav-item" onclick="showPage('overlays',this)"><span class="icon">🖥</span> Overlays</div>
-        <div class="nav-item" onclick="showPage('extension',this)"><span class="icon">🧩</span> Companion Extension</div>
+        <div class="nav-item" onclick="showPage('extension',this)"><span class="icon">🧩</span> Bonushunt Extension</div>
+      </div>
+      <!-- Portal: the public page, and the settings for it, side by side. Viewing
+           and editing are the two things you do with it, so neither is buried. -->
+      <div class="sidebar-section" style="margin-top:8px;" data-sec="portal">
+        <div class="sidebar-label sb-toggle" onclick="sbToggleSection('portal')">Portal <span class="sb-chev">▾</span></div>
+        <div class="nav-item" id="navPortalLink" style="display:none;" onclick="openMyPortal()"><span class="icon">🪟</span> View public portal</div>
+        <div class="nav-item" onclick="showPage('portalsettings',this)"><span class="icon">🎨</span> Portal settings</div>
       </div>
       <div class="sidebar-section" style="margin-top:8px;" data-sec="community">
         <div class="sidebar-label sb-toggle" onclick="sbToggleSection('community')">Community <span class="sb-chev">▾</span></div>
@@ -578,15 +591,24 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <!-- Opens the public hub in a new tab: it's a separate site, and losing
              the dashboard mid-task to view it would be the wrong trade. -->
         <div class="nav-item" onclick="window.open('https://wenbot.gg/community','_blank','noopener')"><span class="icon">🪐</span> View Community</div>
+        <div class="nav-item owner-only" onclick="showPage('communitysettings',this)"><span class="icon">⚙️</span> Community settings</div>
       </div>
-      <div class="sidebar-section" style="margin-top:8px;" data-sec="account">
-        <div class="sidebar-label sb-toggle" onclick="sbToggleSection('account')">Account <span class="sb-chev">▾</span></div>
-        <div class="nav-item" id="navPortalLink" style="display:none;" onclick="openMyPortal()"><span class="icon">🪟</span> My Portal</div>
+      <!-- Settings holds only what's account-wide. Anything that configures one
+           feature now lives with that feature (Portal, Social, Commands, Points).
+           One page per area rather than one page of ten collapsed cards. -->
+      <div class="sidebar-section" style="margin-top:8px;" data-sec="settings">
+        <div class="sidebar-label sb-toggle" onclick="sbToggleSection('settings')">Settings &amp; Account <span class="sb-chev">▾</span></div>
+        <div class="nav-item" onclick="showPage('channel',this)"><span class="icon">🎰</span> Channel &amp; Casino Setup</div>
+        <div class="nav-item owner-only" onclick="showPage('kickbot',this)"><span class="icon">🤖</span> Kick Chat Bot</div>
+        <div class="nav-item" onclick="showPage('discordsetup',this)"><span class="icon"><img src="/img/discord.png" alt=""></span> Discord &amp; Verification</div>
+        <div class="nav-item owner-only" onclick="showPage('team',this)"><span class="icon">👥</span> Team Moderation</div>
+        <div class="nav-sep">Account</div>
         <div class="nav-item owner-only" onclick="showPage('billing',this)"><span class="icon">💳</span> Plan &amp; Billing <span class="nav-badge red" id="billingBadge" style="display:none;">0</span> <span id="planBadge" class="nav-lock-pill pro-pill" style="margin-left:auto;">Starter</span></div>
         <div class="nav-item" onclick="showPage('referrals',this)"><span class="icon">🤝</span> Invite &amp; Earn</div>
-        <div class="nav-item" onclick="showPage('settings',this)"><span class="icon">⚙️</span> Settings</div>
         <div class="nav-item" onclick="showPage('activity',this)"><span class="icon">📜</span> Activity Log</div>
+        <div class="nav-item" onclick="openThemes()"><span class="icon">🎨</span> Themes</div>
         <div class="nav-item" onclick="showPage('help',this)"><span class="icon">❓</span> Help</div>
+        <div class="nav-item owner-only" onclick="showPage('yourdata',this)"><span class="icon">📦</span> Your Data</div>
       </div>
     </div>
     <div class="sidebar-bot-status">
@@ -599,14 +621,8 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-user-name" id="sidebarUser">—</div>
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
-      <!-- Themes — look and navigation live in one dialog, since they're the
-           two things a streamer changes about the shell and nothing else. -->
-      <div id="themeToggleRow" onclick="openThemes()" title="Change theme and navigation"
-           style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;font-size:11px;color:var(--text-dim);cursor:pointer;padding:5px 8px;border:1px solid var(--border);border-radius:6px;">
-        🎨 <span id="themeToggleLabel">Themes</span>
-      </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.24.1</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.25.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -679,7 +695,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             </div>
             <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
               <button class="btn btn-accent btn-sm owner-only" onclick="reconnectKick()">🟢 Reconnect Kick</button>
-              <button class="btn btn-ghost btn-sm" onclick="showPage('settings', document.querySelector('.nav-item[onclick*=settings]'))">Open Settings</button>
+              <button class="btn btn-ghost btn-sm" onclick="showPage('channel', document.querySelector('.nav-item[onclick*=channel]'))">Channel settings</button>
             </div>
           </div>
         </div>
@@ -710,7 +726,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           <div class="stat-value" id="statPlatform" style="font-size:15px;">—</div>
           <!-- Quick casino switch — only shown when 2+ casinos are configured. -->
           <select id="ovCasinoSwitch" onchange="switchCasinoFromOverview(this.value)" style="display:none;margin-top:6px;width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:12px;padding:5px 6px;cursor:pointer;font-family:'Inter',sans-serif;" title="Switch the casino you're streaming on"></select>
-          <div class="stat-sub" id="ovCasinoChangeHint" onclick="showPage('settings', document.querySelector('.nav-item[onclick*=settings]'))" style="cursor:pointer;text-decoration:underline;color:var(--accent);opacity:0.7;">Change in Settings</div>
+          <div class="stat-sub" id="ovCasinoChangeHint" onclick="showPage('channel', document.querySelector('.nav-item[onclick*=channel]'))" style="cursor:pointer;text-decoration:underline;color:var(--accent);opacity:0.7;">Change casino</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Verified Users</div>
@@ -913,7 +929,10 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         #page-leaderboard > *, #page-verified > *, #page-referrals > *,
         #page-activity > *, #page-extension > *, #page-slotpicker > *,
         #page-slotrequest > *, #page-bonusbattle > *, #page-tournament > *,
-        #page-raffle > *, #page-billing > *, #page-settings > *, #page-help > *,
+        #page-raffle > *, #page-billing > *, #page-help > *,
+        #page-channel > *, #page-kickbot > *, #page-discordsetup > *,
+        #page-team > *, #page-yourdata > *, #page-portalsettings > *,
+        #page-communitysettings > *,
         #page-games > *
         { max-width: 1720px; margin-left: auto; margin-right: auto; }
         @keyframes ovAlertPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.9); } }
@@ -1601,6 +1620,31 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         </div>
       </div>
       </div><!-- /pointsSettingsBody -->
+      <!-- Moved out of Settings: it fires !giveall and is gated on Points, so
+           it belongs with Points rather than in a settings drawer. -->
+      <!-- Stream Deck — Give All webhook -->
+      <div style="margin-top:16px;">
+        <div class="card" id="streamdeckCard">
+          <div class="card-title">🎛 Stream Deck — Give All</div>
+          <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+            Fire <strong>!giveall</strong> from a Stream Deck button — instantly drop points to every active chatter (great right after a big win). Generate your private link, then add it to a Stream Deck <em>Web Requests</em> (recommended) or <em>Website</em> button. <strong>Anyone with the link can trigger it</strong>, so keep it private — regenerate to revoke. Requires the Points system (Pro+).
+          </p>
+          <div id="sdNoToken">
+            <button class="btn btn-accent" onclick="generateStreamdeckToken()">Generate Stream Deck link</button>
+          </div>
+          <div id="sdHasToken" style="display:none;">
+            <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">Your giveall link — change <code style="color:var(--accent);">amount</code> per button</label>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+              <input type="text" id="sdUrl" readonly style="flex:1;min-width:260px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--accent);font-family:monospace;font-size:12px;padding:8px 10px;">
+              <button class="btn btn-ghost btn-sm" onclick="copyStreamdeckUrl()">Copy</button>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);margin-bottom:12px;">Make one button per amount, e.g. <span id="sdExamples"></span></div>
+            <button class="btn btn-ghost btn-sm" onclick="generateStreamdeckToken()" title="Creates a new link and disables the old one">↻ Regenerate (revokes old link)</button>
+          </div>
+        </div>
+      </div>
+
+
     </div>
 
     <!-- ── GTB ── -->
@@ -1979,152 +2023,24 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           <div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">No timed messages yet</div>
         </div>
       </div>
+      <!-- Moved out of Settings: Kick and Discord commands in one place, which
+           is where you look when thinking "what can my viewers type". -->
+      <div class="card" id="discordCommandsCard" style="margin-top:16px;">
+        <div class="card-title">🤖 Discord Commands</div>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+          Turn each viewer command on/off for your Discord — all on by default. A command also only works when its feature is live (e.g. <code style="color:var(--accent);">/hunt</code> shows nothing if no hunt is running; <code style="color:var(--accent);">/gtb</code> needs an open round). Viewers link Kick with <code style="color:var(--accent);">/verify</code> first. <code style="color:var(--accent);">/points</code>, <code style="color:var(--accent);">/store</code>, <code style="color:var(--accent);">/lb</code> &amp; <code style="color:var(--accent);">/verify</code> are always on.
+        </p>
+        <div id="discordCmdToggles" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;"></div>
+        <div class="field" style="max-width:240px;margin-top:16px;">
+          <label>Daily bonus (<code style="color:var(--accent);">/daily</code>) — points</label>
+          <input type="number" id="discordDailyPoints" min="0" placeholder="0 = off">
+          <div class="hint">Points a viewer can claim once per day. 0 disables <code style="color:var(--accent);">/daily</code>.</div>
+        </div>
+        <button class="btn btn-accent" onclick="saveDiscordCommands()" style="margin-top:12px;">Save Commands</button>
+      </div>
+
     </div>
 
-    <!-- ── MODERATION ──
-         Automod. The bot evaluates every message in memory (zero Firestore
-         reads); only a confirmed violation writes anything. Rules live in
-         streamers/{uid}/moderation/config and the bot holds a live listener,
-         so saving here takes effect in chat within seconds. -->
-    <div class="page" id="page-moderation">
-
-      <!-- WenBot can only delete/timeout in channels where it's a MODERATOR.
-           Shown when the bot has actually been refused by Kick. -->
-      <div class="card" id="modNeedsModBanner" style="display:none;border-color:var(--red);">
-        <div class="card-title" style="color:var(--red);">⚠️ WenBot isn't a moderator in your chat</div>
-        <div style="font-size:13px;color:var(--text);line-height:1.6;">
-          Kick refused a moderation action because WenBot doesn't have mod powers in your channel.
-          Automod can detect rule-breaking messages but can't remove them until you fix this.
-          <div style="margin-top:10px;">In your Kick chat, type: <code style="background:var(--bg-card);padding:3px 8px;border-radius:5px;color:var(--accent);">/mod wenbot</code></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">🛡️ Automod <span style="font-weight:400;color:var(--text-dim);font-size:12px;margin-left:6px;">(chat rules WenBot enforces for you)</span></div>
-        <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.5;">
-          Turn on the filters you want. A message that breaks a rule is deleted, and repeat offenders
-          escalate up the ladder below. Everything is off by default — nothing is enforced until you switch it on.
-        </div>
-
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <div class="toggle-label">Enable automod
-              <span class="gw-info" onclick="this.classList.toggle('open');">i<span class="gw-info-pop">The master switch. When off, WenBot ignores chat rules entirely — individual filters below stay saved.</span></span>
-            </div>
-          </div>
-          <div class="toggle" id="modEnabled" onclick="toggleOption(this)"></div>
-        </div>
-
-        <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 8px;">Who is exempt</div>
-        <div style="display:flex;gap:16px;flex-wrap:wrap;">
-          <label class="mod-chk"><input type="checkbox" id="modExemptMods" checked> Moderators</label>
-          <label class="mod-chk"><input type="checkbox" id="modExemptSubs"> Subscribers</label>
-          <label class="mod-chk"><input type="checkbox" id="modExemptVips"> VIPs</label>
-          <label class="mod-chk"><input type="checkbox" id="modExemptVerified"> Verified viewers</label>
-        </div>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">You (the broadcaster) are always exempt.</div>
-      </div>
-
-      <!-- Rule cards -->
-      <div class="card">
-        <div class="card-title">🔗 Links</div>
-        <div class="toggle-row">
-          <div class="toggle-info"><div class="toggle-label">Block links</div></div>
-          <div class="toggle" id="modLinksEnabled" onclick="toggleOption(this)"></div>
-        </div>
-        <div class="field" style="margin-top:10px;">
-          <label>Allowed domains <span style="color:var(--text-dim);font-weight:400;">(comma separated — subdomains included automatically)</span></label>
-          <input type="text" id="modLinksAllowlist" placeholder="kick.com, youtube.com, your-site.com"
-            style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
-        </div>
-        <div class="field" style="margin-top:10px;">
-          <label>!permit duration (seconds)</label>
-          <input type="number" id="modLinksPermit" min="10" max="600" value="60"
-            style="width:120px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
-          <div style="font-size:11px;color:var(--text-dim);margin-top:5px;">Mods type <code>!permit username</code> to let someone post one link.</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">🚫 Banned phrases</div>
-        <div class="toggle-row">
-          <div class="toggle-info"><div class="toggle-label">Block banned words &amp; phrases</div></div>
-          <div class="toggle" id="modPhrasesEnabled" onclick="toggleOption(this)"></div>
-        </div>
-        <div class="field" style="margin-top:10px;">
-          <label>Blocked terms <span style="color:var(--text-dim);font-weight:400;">(one per line, case-insensitive)</span></label>
-          <textarea id="modPhrasesTerms" rows="4" placeholder="cheap followers&#10;free giveaway dm me"
-            style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:13px;padding:9px 12px;resize:vertical;"></textarea>
-        </div>
-        <div class="field" style="margin-top:10px;">
-          <label>Advanced patterns <span style="color:var(--text-dim);font-weight:400;">(regex, one per line — leave empty if unsure)</span></label>
-          <textarea id="modPhrasesRegexes" rows="2" placeholder="free\s+nitro"
-            style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:13px;padding:9px 12px;resize:vertical;"></textarea>
-          <div style="font-size:11px;color:var(--text-dim);margin-top:5px;">An invalid pattern is ignored rather than breaking the filter.</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">🔠 Excessive caps</div>
-        <div class="toggle-row">
-          <div class="toggle-info"><div class="toggle-label">Block ALL-CAPS messages</div></div>
-          <div class="toggle" id="modCapsEnabled" onclick="toggleOption(this)"></div>
-        </div>
-        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;">
-          <div class="field"><label>Ignore messages shorter than</label>
-            <input type="number" id="modCapsMinLength" min="4" max="100" value="10" style="width:110px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
-          </div>
-          <div class="field"><label>Trigger at % caps</label>
-            <input type="number" id="modCapsMaxPercent" min="30" max="100" value="70" style="width:110px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">💨 Flood &amp; repetition</div>
-        <div class="toggle-row">
-          <div class="toggle-info"><div class="toggle-label">Block spam &amp; repeated messages</div></div>
-          <div class="toggle" id="modFloodEnabled" onclick="toggleOption(this)"></div>
-        </div>
-        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;">
-          <div class="field"><label>Max messages</label>
-            <input type="number" id="modFloodMax" min="2" max="30" value="5" style="width:100px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
-          </div>
-          <div class="field"><label>…per (seconds)</label>
-            <input type="number" id="modFloodWindow" min="3" max="120" value="10" style="width:100px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
-          </div>
-          <div class="field"><label>Max identical messages</label>
-            <input type="number" id="modFloodRepeats" min="2" max="10" value="3" style="width:130px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">📈 Escalation</div>
-        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.5;">
-          What happens on a viewer's 1st, 2nd, 3rd and 4th+ offence. The offending message is always deleted.
-          Strikes reset after a quiet period.
-        </div>
-        <div id="modLadder"></div>
-        <div class="field" style="margin-top:12px;">
-          <label>Forget strikes after (minutes)</label>
-          <input type="number" id="modStrikeExpiry" min="5" max="10080" value="60" style="width:120px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
-        </div>
-      </div>
-
-      <div style="display:flex;gap:10px;margin-bottom:18px;">
-        <button class="btn btn-accent" onclick="saveModeration()">Save moderation settings</button>
-      </div>
-
-      <div class="card">
-        <div class="card-title">📜 Recent automod actions
-          <button class="btn btn-ghost btn-sm" style="float:right;" onclick="loadModActions()">Refresh</button>
-        </div>
-        <div id="modActionsList">
-          <div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Nothing yet</div>
-        </div>
-      </div>
-    </div>
 
     <!-- ── BOUNTIES ──
          Streamer-run challenges announced in Discord and shown on the portal.
@@ -2590,7 +2506,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           <div style="font-size:13px;" id="ccEmptySub">Check back soon — you'll see a red badge in the sidebar the moment a creator goes live.</div>
         </div>
         <div style="margin-top:18px;font-size:11.5px;color:var(--text-dim);text-align:center;">
-          Don't want your channel listed here? Turn it off any time in <a href="javascript:void(0)" onclick="showPage('settings')" style="color:var(--accent);">Settings → WenBot Community</a>.
+          Don't want your channel listed here? Turn it off any time in <a href="javascript:void(0)" onclick="showPage('communitysettings')" style="color:var(--accent);">Social → Community settings</a>.
         </div>
       </div>
 
@@ -2664,7 +2580,12 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
       </div>
     </div>
 
-    <div class="page" id="page-settings">
+    <!-- ── SETTINGS, one page per area ────────────────────────────────────────
+         Was a single page of ten stacked collapsible cards, which meant hunting.
+         Each area is its own page now, reached from the Settings group in the
+         nav. Portal and Community settings left Settings entirely: a setting
+         belongs with the feature it configures, not in a drawer. -->
+    <div class="page" id="page-channel">
       <div class="grid-2">
         <div class="card">
           <div class="card-title">🎰 Active Platform</div>
@@ -2724,79 +2645,190 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <button class="btn btn-ghost owner-only" onclick="reconnectKick()" title="Re-authenticate with Kick. Use this if you changed your Kick channel name or WenBot was kicked from mod." style="flex:1;min-width:140px;">🟢 Reconnect Kick</button>
           </div>
         </div>
+      </div>
+    </div>
 
-        <div class="card owner-only">
-          <div class="card-title">🌐 WenBot Community</div>
-          <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
-            The <strong>Creators</strong> page shows every WenBot creator with live status, so streamers can find and support each other.
-            Your channel is listed automatically while you're on a paid plan or trial. Turn this off to be removed from the directory
-            (and from any future public creator showcases) — it takes effect within a couple of minutes.
-          </p>
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--bright);">
-            <input type="checkbox" id="communityListedToggle" checked onchange="toggleCommunityListed(this.checked)" style="width:18px;height:18px;accent-color:var(--accent);flex:0 0 auto;">
-            Show my channel in the Creators directory
-          </label>
+    <div class="page" id="page-kickbot">
+      <div class="card owner-only" id="botControlCard">
+        <div class="card-title">🤖 Kick Chat Bot</div>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+          Connect or disconnect WenBot from your Kick channel. When <strong>OFF</strong>, the bot leaves your chat and stops
+          responding to commands — all your settings are kept. Turn it back <strong>ON</strong> anytime (it reconnects within a minute).
+        </p>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+          <button id="botEnabledBtn" onclick="toggleBotEnabled()" class="btn">—</button>
+          <span id="botEnabledState" style="font-size:13px;font-weight:600;color:var(--text-dim);">—</span>
         </div>
 
-        <div class="card owner-only" id="botControlCard">
-          <div class="card-title">🤖 Bot in Kick Chat</div>
-          <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
-            Connect or disconnect WenBot from your Kick channel. When <strong>OFF</strong>, the bot leaves your chat and stops
-            responding to commands — all your settings are kept. Turn it back <strong>ON</strong> anytime (it reconnects within a minute).
-          </p>
-          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-            <button id="botEnabledBtn" onclick="toggleBotEnabled()" class="btn">—</button>
-            <span id="botEnabledState" style="font-size:13px;font-weight:600;color:var(--text-dim);">—</span>
-          </div>
-
-          <!-- Follow alert. Sits here rather than with the Follow Bonus on the
-               Points page: that one hands out points, this one speaks in chat,
-               and this card is where everything the bot SAYS is controlled. -->
-          <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
-            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-              <div style="position:relative;width:44px;height:24px;flex-shrink:0;" onclick="toggleFollowAlert()">
-                <input type="checkbox" id="followAlertEnabled" style="opacity:0;position:absolute;width:0;height:0;">
-                <div id="followAlertTrack" style="position:absolute;inset:0;border-radius:12px;background:var(--bg-card);border:1px solid var(--border);transition:background 0.2s;"></div>
-                <div id="followAlertThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--text-dim);transition:all 0.2s;"></div>
-              </div>
-              <div>
-                <div style="font-size:13px;font-weight:700;color:var(--bright);">Thank new followers in chat</div>
-                <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Posts a message the first time someone follows. Off by default.</div>
-              </div>
+        <!-- Follow alert. Sits here rather than with the Follow Bonus on the
+             Points page: that one hands out points, this one speaks in chat,
+             and this card is where everything the bot SAYS is controlled. -->
+        <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="position:relative;width:44px;height:24px;flex-shrink:0;" onclick="toggleFollowAlert()">
+              <input type="checkbox" id="followAlertEnabled" style="opacity:0;position:absolute;width:0;height:0;">
+              <div id="followAlertTrack" style="position:absolute;inset:0;border-radius:12px;background:var(--bg-card);border:1px solid var(--border);transition:background 0.2s;"></div>
+              <div id="followAlertThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--text-dim);transition:all 0.2s;"></div>
             </div>
-            <div id="followAlertBody" style="display:none;margin-top:12px;">
-              <input type="text" id="followAlertMessage" class="form-input" maxlength="200"
-                     placeholder="Thanks for the follow {user}!" onchange="saveFollowAlert()">
-              <div style="font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.6;">
-                <strong>{user}</strong> becomes their name with the @ already attached. Each viewer is thanked once, ever, so a refollow will not trigger it again, and bursts are capped at 5 a minute so a follow raid cannot flood your chat.
-              </div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--bright);">Thank new followers in chat</div>
+              <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Posts a message the first time someone follows. Off by default.</div>
+            </div>
+          </div>
+          <div id="followAlertBody" style="display:none;margin-top:12px;">
+            <input type="text" id="followAlertMessage" class="form-input" maxlength="200"
+                   placeholder="Thanks for the follow {user}!" onchange="saveFollowAlert()">
+            <div style="font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.6;">
+              <strong>{user}</strong> becomes their name with the @ already attached. Each viewer is thanked once, ever, so a refollow will not trigger it again, and bursts are capped at 5 a minute so a follow raid cannot flood your chat.
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Stream Deck — Give All webhook -->
-      <div style="margin-top:16px;">
-        <div class="card" id="streamdeckCard">
-          <div class="card-title">🎛 Stream Deck — Give All</div>
-          <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
-            Fire <strong>!giveall</strong> from a Stream Deck button — instantly drop points to every active chatter (great right after a big win). Generate your private link, then add it to a Stream Deck <em>Web Requests</em> (recommended) or <em>Website</em> button. <strong>Anyone with the link can trigger it</strong>, so keep it private — regenerate to revoke. Requires the Points system (Pro+).
-          </p>
-          <div id="sdNoToken">
-            <button class="btn btn-accent" onclick="generateStreamdeckToken()">Generate Stream Deck link</button>
-          </div>
-          <div id="sdHasToken" style="display:none;">
-            <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">Your giveall link — change <code style="color:var(--accent);">amount</code> per button</label>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
-              <input type="text" id="sdUrl" readonly style="flex:1;min-width:260px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--accent);font-family:monospace;font-size:12px;padding:8px 10px;">
-              <button class="btn btn-ghost btn-sm" onclick="copyStreamdeckUrl()">Copy</button>
+      <!-- Automod lives on this page rather than its own. It configures how the
+           bot behaves in chat, which is what the rest of this page is, and it
+           was one more thing to find in a menu of eleven. Rules still live in
+           streamers/{uid}/moderation/config with a live listener on the bot. -->
+
+      <!-- WenBot can only delete/timeout in channels where it's a MODERATOR.
+           Shown when the bot has actually been refused by Kick. -->
+      <div class="card" id="modNeedsModBanner" style="display:none;border-color:var(--red);">
+        <div class="card-title" style="color:var(--red);">⚠️ WenBot isn't a moderator in your chat</div>
+        <div style="font-size:13px;color:var(--text);line-height:1.6;">
+          Kick refused a moderation action because WenBot doesn't have mod powers in your channel.
+          Automod can detect rule-breaking messages but can't remove them until you fix this.
+          <div style="margin-top:10px;">In your Kick chat, type: <code style="background:var(--bg-card);padding:3px 8px;border-radius:5px;color:var(--accent);">/mod wenbot</code></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🛡️ Automod <span style="font-weight:400;color:var(--text-dim);font-size:12px;margin-left:6px;">(chat rules WenBot enforces for you)</span></div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.5;">
+          Turn on the filters you want. A message that breaks a rule is deleted, and repeat offenders
+          escalate up the ladder below. Everything is off by default — nothing is enforced until you switch it on.
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-label">Enable automod
+              <span class="gw-info" onclick="this.classList.toggle('open');">i<span class="gw-info-pop">The master switch. When off, WenBot ignores chat rules entirely — individual filters below stay saved.</span></span>
             </div>
-            <div style="font-size:11px;color:var(--text-dim);margin-bottom:12px;">Make one button per amount, e.g. <span id="sdExamples"></span></div>
-            <button class="btn btn-ghost btn-sm" onclick="generateStreamdeckToken()" title="Creates a new link and disables the old one">↻ Regenerate (revokes old link)</button>
+          </div>
+          <div class="toggle" id="modEnabled" onclick="toggleOption(this)"></div>
+        </div>
+
+        <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 8px;">Who is exempt</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;">
+          <label class="mod-chk"><input type="checkbox" id="modExemptMods" checked> Moderators</label>
+          <label class="mod-chk"><input type="checkbox" id="modExemptSubs"> Subscribers</label>
+          <label class="mod-chk"><input type="checkbox" id="modExemptVips"> VIPs</label>
+          <label class="mod-chk"><input type="checkbox" id="modExemptVerified"> Verified viewers</label>
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">You (the broadcaster) are always exempt.</div>
+      </div>
+
+      <!-- Rule cards -->
+      <div class="card">
+        <div class="card-title">🔗 Links</div>
+        <div class="toggle-row">
+          <div class="toggle-info"><div class="toggle-label">Block links</div></div>
+          <div class="toggle" id="modLinksEnabled" onclick="toggleOption(this)"></div>
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label>Allowed domains <span style="color:var(--text-dim);font-weight:400;">(comma separated — subdomains included automatically)</span></label>
+          <input type="text" id="modLinksAllowlist" placeholder="kick.com, youtube.com, your-site.com"
+            style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label>!permit duration (seconds)</label>
+          <input type="number" id="modLinksPermit" min="10" max="600" value="60"
+            style="width:120px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+          <div style="font-size:11px;color:var(--text-dim);margin-top:5px;">Mods type <code>!permit username</code> to let someone post one link.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🚫 Banned phrases</div>
+        <div class="toggle-row">
+          <div class="toggle-info"><div class="toggle-label">Block banned words &amp; phrases</div></div>
+          <div class="toggle" id="modPhrasesEnabled" onclick="toggleOption(this)"></div>
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label>Blocked terms <span style="color:var(--text-dim);font-weight:400;">(one per line, case-insensitive)</span></label>
+          <textarea id="modPhrasesTerms" rows="4" placeholder="cheap followers&#10;free giveaway dm me"
+            style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:13px;padding:9px 12px;resize:vertical;"></textarea>
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label>Advanced patterns <span style="color:var(--text-dim);font-weight:400;">(regex, one per line — leave empty if unsure)</span></label>
+          <textarea id="modPhrasesRegexes" rows="2" placeholder="free\s+nitro"
+            style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:13px;padding:9px 12px;resize:vertical;"></textarea>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:5px;">An invalid pattern is ignored rather than breaking the filter.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔠 Excessive caps</div>
+        <div class="toggle-row">
+          <div class="toggle-info"><div class="toggle-label">Block ALL-CAPS messages</div></div>
+          <div class="toggle" id="modCapsEnabled" onclick="toggleOption(this)"></div>
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;">
+          <div class="field"><label>Ignore messages shorter than</label>
+            <input type="number" id="modCapsMinLength" min="4" max="100" value="10" style="width:110px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+          </div>
+          <div class="field"><label>Trigger at % caps</label>
+            <input type="number" id="modCapsMaxPercent" min="30" max="100" value="70" style="width:110px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
           </div>
         </div>
       </div>
 
+      <div class="card">
+        <div class="card-title">💨 Flood &amp; repetition</div>
+        <div class="toggle-row">
+          <div class="toggle-info"><div class="toggle-label">Block spam &amp; repeated messages</div></div>
+          <div class="toggle" id="modFloodEnabled" onclick="toggleOption(this)"></div>
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;">
+          <div class="field"><label>Max messages</label>
+            <input type="number" id="modFloodMax" min="2" max="30" value="5" style="width:100px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+          </div>
+          <div class="field"><label>…per (seconds)</label>
+            <input type="number" id="modFloodWindow" min="3" max="120" value="10" style="width:100px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+          </div>
+          <div class="field"><label>Max identical messages</label>
+            <input type="number" id="modFloodRepeats" min="2" max="10" value="3" style="width:130px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📈 Escalation</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.5;">
+          What happens on a viewer's 1st, 2nd, 3rd and 4th+ offence. The offending message is always deleted.
+          Strikes reset after a quiet period.
+        </div>
+        <div id="modLadder"></div>
+        <div class="field" style="margin-top:12px;">
+          <label>Forget strikes after (minutes)</label>
+          <input type="number" id="modStrikeExpiry" min="5" max="10080" value="60" style="width:120px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-bottom:18px;">
+        <button class="btn btn-accent" onclick="saveModeration()">Save moderation settings</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📜 Recent automod actions
+          <button class="btn btn-ghost btn-sm" style="float:right;" onclick="loadModActions()">Refresh</button>
+        </div>
+        <div id="modActionsList">
+          <div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Nothing yet</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-discordsetup">
       <!-- Discord & Verification (merged) — Connection is Elite-gated; Verification is not. -->
       <div style="margin-top:16px;" id="discordSection">
         <div class="card">
@@ -2969,21 +3001,62 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         </div><!-- /Verification & Roles -->
       </div><!-- /Discord & Verification card -->
 
-      <div class="card" id="discordCommandsCard" style="margin-top:16px;">
-        <div class="card-title">🤖 Discord Commands</div>
-        <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
-          Turn each viewer command on/off for your Discord — all on by default. A command also only works when its feature is live (e.g. <code style="color:var(--accent);">/hunt</code> shows nothing if no hunt is running; <code style="color:var(--accent);">/gtb</code> needs an open round). Viewers link Kick with <code style="color:var(--accent);">/verify</code> first. <code style="color:var(--accent);">/points</code>, <code style="color:var(--accent);">/store</code>, <code style="color:var(--accent);">/lb</code> &amp; <code style="color:var(--accent);">/verify</code> are always on.
-        </p>
-        <div id="discordCmdToggles" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;"></div>
-        <div class="field" style="max-width:240px;margin-top:16px;">
-          <label>Daily bonus (<code style="color:var(--accent);">/daily</code>) — points</label>
-          <input type="number" id="discordDailyPoints" min="0" placeholder="0 = off">
-          <div class="hint">Points a viewer can claim once per day. 0 disables <code style="color:var(--accent);">/daily</code>.</div>
-        </div>
-        <button class="btn btn-accent" onclick="saveDiscordCommands()" style="margin-top:12px;">Save Commands</button>
-      </div>
       </div><!-- /discordSection -->
+    </div>
 
+    <div class="page" id="page-team">
+      <!-- Team — owner-only moderator delegation (Elite feature) -->
+      <div style="margin-top:16px;" class="owner-only">
+        <div class="card" style="position:relative;overflow:hidden;">
+          <!-- Elite lock overlay — shown when plan < elite -->
+          <div id="teamLockOverlay" style="display:none;position:absolute;inset:0;background:rgba(13,17,23,0.88);backdrop-filter:blur(4px);border-radius:inherit;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center;">
+            <div style="font-size:32px;">⭐</div>
+            <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:#ffd700;">Elite Feature</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.55);max-width:320px;line-height:1.5;">Team moderators are included in the Elite plan ($50/mo).</div>
+            <button onclick="upgradeTarget='elite';upgradeNow(this)" class="btn btn-accent" style="padding:10px 24px;margin-top:4px;">Upgrade to Elite</button>
+          </div>
+          <div class="card-title">👥 Team — Moderator Access</div>
+          <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+            Grant up to 2 trusted moderators full dashboard access to your account. They keep their own
+            WenBot login and act on your behalf. Billing, Kick reconnect, and team management stay
+            owner-only. Every action is logged with the moderator's identity in your Activity Log.
+          </p>
+
+          <div id="teamModsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+            <div style="font-size:12px;color:var(--text-dim);text-align:center;padding:14px;">Loading moderators…</div>
+          </div>
+
+          <div style="display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;">
+            <input type="email" id="teamAddEmail" placeholder="moderator@example.com" style="flex:1;min-width:200px;">
+            <button class="btn btn-accent" onclick="teamAddMod()" id="teamAddBtn">Add Moderator</button>
+          </div>
+          <div class="hint" style="margin-top:6px;">The mod must already have a WenBot account. After adding, they need to log out and back in for access to take effect.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="page" id="page-yourdata">
+      <!-- Your Data — GDPR-style export -->
+      <div style="margin-top:16px;" class="owner-only">
+        <div class="card">
+          <div class="card-title">📦 Your Data</div>
+          <div class="hint" style="margin-bottom:14px;line-height:1.6;">
+            Download a JSON file containing all your data: profile, verified users, viewers,
+            store redemptions, raffle history, bonus hunts, audit log, and more.
+            Useful for backups, GDPR compliance, or moving your records elsewhere.
+            Kick OAuth tokens are excluded for security.
+          </div>
+          <button id="exportDataBtn" class="btn btn-accent" onclick="exportMyData()" style="font-size:14px;">
+            📥 Download My Data
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Portal settings sits under the Portal group, beside "View public portal",
+         so editing the page and looking at it are one click apart. -->
+    <div class="page" id="page-portalsettings">
       <!-- Streamer Portal (below Discord — viewers visit this hub at wenbot.gg/<channel>) -->
       <div style="margin-top:16px;">
         <div class="card">
@@ -3121,49 +3194,21 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         </div>
       </div>
 
-      <!-- Team — owner-only moderator delegation (Elite feature) -->
-      <div style="margin-top:16px;" class="owner-only">
-        <div class="card" style="position:relative;overflow:hidden;">
-          <!-- Elite lock overlay — shown when plan < elite -->
-          <div id="teamLockOverlay" style="display:none;position:absolute;inset:0;background:rgba(13,17,23,0.88);backdrop-filter:blur(4px);border-radius:inherit;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center;">
-            <div style="font-size:32px;">⭐</div>
-            <div style="font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;color:#ffd700;">Elite Feature</div>
-            <div style="font-size:13px;color:rgba(255,255,255,0.55);max-width:320px;line-height:1.5;">Team moderators are included in the Elite plan ($50/mo).</div>
-            <button onclick="upgradeTarget='elite';upgradeNow(this)" class="btn btn-accent" style="padding:10px 24px;margin-top:4px;">Upgrade to Elite</button>
-          </div>
-          <div class="card-title">👥 Team — Moderator Access</div>
-          <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
-            Grant up to 2 trusted moderators full dashboard access to your account. They keep their own
-            WenBot login and act on your behalf. Billing, Kick reconnect, and team management stay
-            owner-only. Every action is logged with the moderator's identity in your Activity Log.
-          </p>
+    </div>
 
-          <div id="teamModsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
-            <div style="font-size:12px;color:var(--text-dim);text-align:center;padding:14px;">Loading moderators…</div>
-          </div>
-
-          <div style="display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;">
-            <input type="email" id="teamAddEmail" placeholder="moderator@example.com" style="flex:1;min-width:200px;">
-            <button class="btn btn-accent" onclick="teamAddMod()" id="teamAddBtn">Add Moderator</button>
-          </div>
-          <div class="hint" style="margin-top:6px;">The mod must already have a WenBot account. After adding, they need to log out and back in for access to take effect.</div>
-        </div>
-      </div>
-
-      <!-- Your Data — GDPR-style export -->
-      <div style="margin-top:16px;" class="owner-only">
-        <div class="card">
-          <div class="card-title">📦 Your Data</div>
-          <div class="hint" style="margin-bottom:14px;line-height:1.6;">
-            Download a JSON file containing all your data: profile, verified users, viewers,
-            store redemptions, raffle history, bonus hunts, audit log, and more.
-            Useful for backups, GDPR compliance, or moving your records elsewhere.
-            Kick OAuth tokens are excluded for security.
-          </div>
-          <button id="exportDataBtn" class="btn btn-accent" onclick="exportMyData()" style="font-size:14px;">
-            📥 Download My Data
-          </button>
-        </div>
+    <!-- The Creators-directory opt-in, next to the directory it opts you into. -->
+    <div class="page" id="page-communitysettings">
+      <div class="card owner-only">
+        <div class="card-title">🌐 WenBot Community</div>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+          The <strong>Creators</strong> page shows every WenBot creator with live status, so streamers can find and support each other.
+          Your channel is listed automatically while you're on a paid plan or trial. Turn this off to be removed from the directory
+          (and from any future public creator showcases) — it takes effect within a couple of minutes.
+        </p>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--bright);">
+          <input type="checkbox" id="communityListedToggle" checked onchange="toggleCommunityListed(this.checked)" style="width:18px;height:18px;accent-color:var(--accent);flex:0 0 auto;">
+          Show my channel in the Creators directory
+        </label>
       </div>
     </div>
 
@@ -3219,9 +3264,25 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.24.1</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.25.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.25.0 &middot; One place for everything</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 13, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#129517; <strong>Settings is one page per area now.</strong> It used to be ten stacked cards on a single page. <strong>Channel &amp; Casino Setup</strong>, <strong>Kick Chat Bot</strong>, <strong>Discord &amp; Verification</strong> and <strong>Team Moderation</strong> each have their own page, and your account items (Plan &amp; Billing, Invite &amp; Earn, Activity Log, Themes, Help, Your Data) sit under a divider in the same menu. One menu, no hunting.</li>
+            <li>&#127760; <strong>Portal has its own menu.</strong> Viewing your public page and editing it are one click apart instead of buried in Settings. Community settings moved next to the Creators directory it opts you into.</li>
+            <li>&#128202; <strong>Your second leaderboard can post to Discord.</strong> Every extra race now carries its own auto-post: its own channel, schedule and title. Run two races and send them to separate channels, or both to the same one.</li>
+            <li>&#127991;&#65039; <strong>Pro and Elite tags were missing from Store, Bonus Battles and Tournaments.</strong> All three are paid features and the menu showed nothing at all, so they looked included until you clicked. Fixed, and every tag now sits in the corner of its tile in Pro purple or Elite gold.</li>
+            <li>&#127922; <strong>Chat Games is now an Elite feature</strong>, and <strong>Moderation</strong> is part of the Kick Chat Bot page rather than its own entry.</li>
+            <li>&#127920; <strong>Gamba is in the casino list.</strong> Viewers verify with their Gamba username. Gamba has no affiliate API, so names are saved as claimed rather than matched against a race, the same as Stake, Roobet and Gamdom. And <strong>/lb</strong> no longer offers a casino you've left: set to &ldquo;not listed&rdquo;, it now says you have no wager race instead of trying to load one.</li>
+            <li>&#128736;&#65039; <strong>Smaller things.</strong> Manage leads with Overlays, Verified Users and Leaderboard. Companion Extension is now <strong>Bonushunt Extension</strong>. The board switch reads <strong>Board is live</strong>, because it always covered your portal <em>and</em> /lb. And the Getting Started buttons open the right page again.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -3992,7 +4053,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
               </div>
               <div style="display:flex;gap:10px;align-items:flex-start;">
                 <div style="background:var(--accent);color:#0d1117;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">3</div>
-                <div style="font-size:13px;color:var(--text);">Customize your portal under <strong>Settings → 🌐 Streamer Portal</strong>. Viewers find you at <code style="color:var(--accent);">wenbot.gg/&lt;your-channel&gt;</code>.</div>
+                <div style="font-size:13px;color:var(--text);">Customize it under <strong>Portal → 🎨 Portal settings</strong>. Viewers find you at <code style="color:var(--accent);">wenbot.gg/&lt;your-channel&gt;</code>.</div>
               </div>
               <div style="display:flex;gap:10px;align-items:flex-start;">
                 <div style="background:var(--accent);color:#0d1117;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;">4</div>
@@ -5783,44 +5844,6 @@ function copyReferralLink() {
   else { input.select(); try { document.execCommand('copy'); } catch {} done(); }
 }
 
-// ── Settings: make each card collapsible (collapsed by default) ──────────────
-// Runs when the Settings page opens. Idempotent (guarded per card). Keeps the
-// card title as a clickable header and tucks the rest of the card into a body
-// that's hidden until clicked — so the page opens compact.
-function initSettingsCollapse() {
-  document.querySelectorAll('#page-settings .card').forEach(card => {
-    if (card.dataset.collapseInit) return;
-    const title = card.querySelector('.card-title');
-    if (!title) return;
-    // These two start expanded (the essentials); everything else starts collapsed.
-    const titleText = (title.textContent || '').toLowerCase();
-    const startOpen = titleText.includes('active platform') || titleText.includes('kick channel');
-    // The header is the top-level child of the card that contains the title.
-    let header = title;
-    while (header.parentNode && header.parentNode !== card) header = header.parentNode;
-    if (header.parentNode !== card) return;
-    // Move every other top-level child into a collapsible body.
-    const body = document.createElement('div');
-    body.className = 'settings-collapse-body';
-    Array.from(card.children).forEach(ch => { if (ch !== header) body.appendChild(ch); });
-    card.appendChild(body);
-    body.style.display = startOpen ? '' : 'none';
-    // Chevron + clickable header.
-    const chev = document.createElement('span');
-    chev.textContent = startOpen ? '▾' : '▸';
-    chev.style.cssText = 'display:inline-block;margin-right:6px;color:var(--text-dim);font-size:12px;transition:transform .15s;';
-    title.prepend(chev);
-    header.style.cursor = 'pointer';
-    header.addEventListener('click', (e) => {
-      if (e.target.closest('input,button,select,a,label,textarea')) return;
-      const open = body.style.display !== 'none';
-      body.style.display = open ? 'none' : '';
-      chev.textContent = open ? '▸' : '▾';
-    });
-    card.dataset.collapseInit = '1';
-  });
-}
-
 // ── Payment history (streamer's own, in Plan & Billing) ──────────────────────
 // ── Invoices (manual / crypto invoices issued by LogicPlayStudios) ──────────
 // Streamer view of the invoices/receipts an admin sends. Card payers get Stripe
@@ -6344,14 +6367,24 @@ const RAIL_ICONS = {
   manage:    '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><path d="M7 7h.01M7 17h.01"/></svg>',
   community: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3"/><path d="M3.5 19.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15.5 15.2c2.7-.6 5 1.2 5 4.3"/></svg>',
   account:   '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.8 20c0-3.7 3.2-6.2 7.2-6.2s7.2 2.5 7.2 6.2"/></svg>',
+  portal:    '<svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M3 9h18"/><path d="M6.5 6.7h.01M9 6.7h.01"/></svg>',
+  settings:  '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 14.5a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5v.2a2 2 0 0 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 0 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 0 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 0 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1h.2a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>',
   themes:    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="9" cy="9.5" r="1.2"/><circle cx="15" cy="9.5" r="1.2"/><circle cx="9.5" cy="15" r="1.2"/></svg>',
 };
-// Section key -> tile label. Kept short: 62px of tile is about eight characters.
+// Section key -> tile label. Tiles are 156px wide (136px under 900px), so roughly
+// twelve characters fit on one line before it wraps.
 const RAIL_SECTIONS = [
-  { key: 'live',      label: 'Live' },
+  { key: 'live',      label: 'Live Tools' },
   { key: 'manage',    label: 'Manage' },
+  { key: 'portal',    label: 'Portal' },
   { key: 'community', label: 'Social' },
-  { key: 'account',   label: 'Account' },
+  // foot: rendered below the spacer rather than up top with the daily-work
+  // tiles. Somewhere you go weekly shouldn't sit at the same weight as Live
+  // Tools. Settings is a real section now, so it pops out like the rest.
+  // Account lives inside Settings now, below a separator: both halves are
+  // "things about you rather than your stream", and two tiles for that made you
+  // guess which one held Themes.
+  { key: 'settings',  label: 'Settings', foot: true },
 ];
 
 let _railOpenKey = null;
@@ -6450,19 +6483,41 @@ function railOpen(key) {
 
   const row = pop.querySelector('.pop-row');
   row.innerHTML = '';
-  sec.querySelectorAll('.nav-item').forEach(function (real) {
+  // .nav-sep as well as .nav-item, in document order: the separator is what
+  // splits this menu into "your channel's setup" and "your account", and cloning
+  // only the items would drop it silently.
+  sec.querySelectorAll('.nav-item, .nav-sep').forEach(function (real) {
+    if (real.classList.contains('nav-sep')) {
+      const sep = document.createElement('div');
+      sep.className = 'pop-sep';
+      sep.textContent = real.textContent.trim();
+      row.appendChild(sep);
+      return;
+    }
     const btn = document.createElement('div');
     btn.className = 'pop-item' + (real.classList.contains('active') ? ' active' : '');
     btn.setAttribute('role', 'button');
     btn.setAttribute('tabindex', '0');
     const icon = real.querySelector('.icon');
-    const badge = real.querySelector('.nav-badge, .nav-lock-pill');
+    // Take the first VISIBLE flag, preferring the plan lock.
+    //
+    // querySelector returns the first match in document order, and Bonus Battles,
+    // Tournaments and Store each carry a hidden LIVE badge that sits before their
+    // plan pill. So the old single-selector version grabbed the hidden LIVE badge,
+    // failed the display check below, and rendered nothing — three Pro features
+    // looked free in this menu.
+    const flags = Array.prototype.filter.call(
+      real.querySelectorAll('.nav-badge, .nav-lock-pill'),
+      (b) => b.style.display !== 'none');
+    const badge = flags.find((b) => b.classList.contains('nav-lock-pill')) || flags[0];
     const text = Array.prototype.filter.call(real.childNodes, function (n) { return n.nodeType === 3; })
       .map(function (n) { return n.textContent.trim(); }).join(' ').trim();
 
     const i = document.createElement('span');
     i.className = 'icon';
-    i.textContent = icon ? icon.textContent : '';
+    // innerHTML, not textContent: an icon can be an <img> now, and copying text
+    // would silently render an empty box for it.
+    i.innerHTML = icon ? icon.innerHTML : '';
     const t = document.createElement('span');
     t.textContent = text;
     btn.appendChild(i);
@@ -6474,7 +6529,10 @@ function railOpen(key) {
     // report offsetParent null and silently hid every LIVE flag.
     if (badge && badge.style.display !== 'none') {
       const b = document.createElement('span');
-      b.className = 'pop-badge';
+      // Carry the plan variant (pro-pill / elite-pill) across. Dropping it made
+      // every badge fall back to the generic red LIVE styling, so Pro and Elite
+      // rendered identically, in a colour that means "happening now".
+      b.className = ('pop-badge ' + [...badge.classList].filter(c => c.endsWith('-pill')).join(' ')).trim();
       b.textContent = badge.textContent.trim();
       btn.appendChild(b);
     }
@@ -6537,17 +6595,19 @@ window.addEventListener('resize', function () {
   // role/tabindex rather than plain divs: these are the only way to open a
   // category, so a keyboard user could not navigate at all without them.
   // aria-expanded tells a screen reader the tile owns the pop-out.
-  const tiles = RAIL_SECTIONS.map(function (sec) {
+  function railTile(sec) {
     return '<div class="rail-tile" data-sec="' + sec.key + '" title="' + sec.label + '"'
       + ' role="button" tabindex="0" aria-haspopup="true" aria-expanded="false"'
       + ' aria-label="' + sec.label + ' menu">'
       + RAIL_ICONS[sec.key] + '<span>' + sec.label + '</span></div>';
-  }).join('');
+  }
+  const tiles     = RAIL_SECTIONS.filter(function (s) { return !s.foot; }).map(railTile).join('');
+  const footTiles = RAIL_SECTIONS.filter(function (s) { return s.foot; }).map(railTile).join('');
   rail.innerHTML = '<img class="rail-logo" src="/img/logo.png" alt="WenBot" title="Back to Overview" role="button" tabindex="0">'
     + '<div class="rail-tile" id="railHome" title="Overview" role="button" tabindex="0">' + RAIL_ICONS.home + '<span>Home</span></div>'
     + tiles
     + '<div class="rail-spacer"></div>'
-    + '<div class="rail-tile" id="railThemes" title="Themes" role="button" tabindex="0">' + RAIL_ICONS.themes + '<span>Themes</span></div>'
+    + footTiles
     + '<div class="rail-foot">'
     +   '<div class="rf-user" id="railUser" title="Signed in"><i class="rf-dot"></i><span>—</span></div>'
     +   '<div class="rf-link" id="railWhatsNew" role="button" tabindex="0">What\'s new ✨</div>'
@@ -6573,7 +6633,6 @@ window.addEventListener('resize', function () {
   const overview = document.querySelector('.nav-item[onclick*="overview"]');
   rail.querySelector('#railHome').onclick = goHome;
   rail.querySelector('.rail-logo').onclick = goHome;
-  rail.querySelector('#railThemes').onclick = openThemes;
   rail.querySelector('#railWhatsNew').onclick = function () { showPage('whatsnew'); closeRail(); };
   rail.querySelector('#railSignOut').onclick = function () { signOut(); };
 
@@ -6601,6 +6660,10 @@ window.addEventListener('resize', function () {
   rail.querySelectorAll('.rail-tile[data-sec]').forEach(function (t) {
     t.onclick = function () { railOpen(t.dataset.sec); };
   });
+  // Settings is a page, not a category, so its tile navigates instead of opening
+  // a pop-out. Bound AFTER the loop above, which wires every [data-sec] tile to
+  // railOpen. It keeps data-sec only so railMarkCurrent can highlight it while
+  // you're on the page.
 
   // Enter and Space activate anything focusable in the rail — the browser does
   // this for <button> but not for a div with role="button".
@@ -6749,7 +6812,7 @@ function showPage(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', moderation:'Moderation', bounties:'Bounties', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotpicker:'Slot Picker', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', settings:'Settings', activity:'Activity Log', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade', referrals:'Invite & Earn', extension:'Companion Extension', whatsnew:"What's New", creators:'Creators' };
+  const titles = { overview:'Overview', giveaway:'Giveaway', points:'Points', gtb:'Guess the Balance', store:'Store', raffle:'Raffles', commands:'Commands', bounties:'Bounties', leaderboard:'Leaderboard', verified:'Verified Users', bonushunt:'Bonus Hunt', slotpicker:'Slot Picker', slotrequest:'Slot Requests', bonusbattle:'Bonus Battles', tournament:'Tournaments', overlays:'Overlays', games:'Games', channel:'Channel & Casino Setup', kickbot:'Kick Chat Bot', discordsetup:'Discord & Verification', team:'Team Moderation', yourdata:'Your Data', portalsettings:'Portal Settings', communitysettings:'Community Settings', activity:'Activity Log', help:'Help', billing:'Plan & Billing', upgrade:'Upgrade', referrals:'Invite & Earn', extension:'Bonushunt Extension', whatsnew:"What's New", creators:'Creators' };
   document.getElementById('topbarTitle').textContent = titles[id] || id;
   // Re-evaluate the top billing banners for this page (hidden on stream-shown pages).
   _activePage = id;
@@ -6767,14 +6830,13 @@ function showPage(id, el) {
   if (id !== 'overview'    && _bankUnsub)   { _bankUnsub(); _bankUnsub = null; }
   if (id !== 'gtb' && id !== 'bonushunt' && gtbUnsubscribe) { gtbUnsubscribe(); gtbUnsubscribe = null; }
   if (id === 'verified') loadVerifiedUsers();
-  if (id === 'settings') initSettingsCollapse();
   if (id === 'referrals') loadReferrals();
   if (id === 'points') loadTopViewers();
   if (id === 'gtb') openGTBPage();
   if (id === 'leaderboard') { loadLeaderboards(); loadExtraBoards(); }
   if (id === 'store') { loadStoreItems(); loadRedemptions(); }
   if (id === 'commands') { loadCommands(); loadCommandAliases(); loadTimers(); }
-  if (id === 'moderation') { loadModeration(); loadModActions(); }
+  if (id === 'kickbot')    { loadModeration(); loadModActions(); }
   if (id === 'bounties')   { loadBountiesPage(); }
   if (id === 'games') loadGamesSettings();
   if (id === 'bonushunt')   { loadBonusHunt(); loadBhHistory(); }
@@ -6808,7 +6870,7 @@ function sbToggleSection(key) {
 // stream, and Overview is the landing page), the rest folded. Once they change
 // anything the stored set takes over and this never applies again — which is
 // why it keys off the absence of the key, not an empty set.
-const SB_DEFAULT_COLLAPSED = ['manage', 'community', 'account'];
+const SB_DEFAULT_COLLAPSED = ['manage', 'portal', 'community', 'settings'];
 (function restoreSidebarFolds() {
   let keys;
   try {
@@ -6844,6 +6906,7 @@ const PAGE_PLAN = {
   raffle:      'pro',
   commands:    'pro',
   bounties:    'elite',
+  games:       'elite',
   leaderboard: 'elite',
   bonusbattle: 'pro',
   tournament:  'pro',
@@ -6860,7 +6923,7 @@ const PLAN_INFO = {
   },
   elite: {
     label: 'Elite', color: '#ffd700', price: '$50/mo',
-    features: ['Everything in Pro', 'Wager leaderboard (public page)', 'Custom portal theme & branding', 'Discord integration', 'Priority support'],
+    features: ['Everything in Pro', 'Wager leaderboard (public page)', 'Chat Games (coinflip, roulette, limbo)', 'Custom portal theme & branding', 'Discord integration', 'Priority support'],
   },
   agency: {
     label: 'Agency', color: '#00e5ff', price: '$80+/mo',
@@ -10213,6 +10276,28 @@ async function deleteCommand(id) {
 // ── LEADERBOARD → DISCORD ───────────────────────────────────────────────────
 // Config lives on the streamer doc (lbDiscordPost + discordConfig.lbChannelId).
 // An hourly scheduled function honours each streamer's cadence.
+// Every board's channel picker draws from one fetch. Without the cache, a
+// streamer with three boards would hit /api/discord-channels three times on
+// every visit to the page.
+let _lbChannels = null;
+async function fetchLbChannels() {
+  if (_lbChannels) return _lbChannels;
+  const idToken = await fb.currentUser.getIdToken();
+  const resp = await fetch('/api/discord-channels?uid=' + encodeURIComponent(fb.activeUid || ''), {
+    headers: { 'Authorization': 'Bearer ' + idToken },
+  });
+  const { channels, error } = await resp.json();
+  if (error) throw new Error(error);
+  _lbChannels = channels || [];
+  return _lbChannels;
+}
+function lbChannelOptions(cur) {
+  return '<option value="">Pick a channel</option>' +
+    (_lbChannels || []).map(c =>
+      `<option value="${c.id}"${c.id === cur ? ' selected' : ''}>${c.type === 5 ? '📣' : '#'} ${escHtml(c.name)}</option>`
+    ).join('');
+}
+
 async function loadLbDiscord() {
   const cfg = profile?.lbDiscordPost || {};
   document.getElementById('lbdEnabled').classList.toggle('on', cfg.enabled === true);
@@ -10228,20 +10313,46 @@ async function loadLbDiscord() {
 
   const sel = document.getElementById('lbdChannel');
   try {
-    const idToken = await fb.currentUser.getIdToken();
-    const resp = await fetch('/api/discord-channels?uid=' + encodeURIComponent(fb.activeUid || ''), {
-      headers: { 'Authorization': 'Bearer ' + idToken },
-    });
-    const { channels, error } = await resp.json();
-    if (error) throw new Error(error);
-    const cur = profile?.discordConfig?.lbChannelId || '';
-    sel.innerHTML = '<option value="">— select a channel —</option>' +
-      (channels || []).map(c =>
-        `<option value="${c.id}"${c.id === cur ? ' selected' : ''}>${c.type === 5 ? '📣' : '#'} ${escHtml(c.name)}</option>`
-      ).join('');
+    await fetchLbChannels();
+    sel.innerHTML = lbChannelOptions(profile?.discordConfig?.lbChannelId || '');
   } catch (e) {
-    sel.innerHTML = '<option value="">Connect Discord on the Settings page first</option>';
+    sel.innerHTML = '<option value="">Connect Discord under Settings first</option>';
   }
+}
+
+// ── Per-board auto-post ─────────────────────────────────────────────────────
+// The main board's schedule lives on the streamer doc (see saveLbDiscord). An
+// extra board keeps its own on the board doc, so two races can post on their own
+// cadence, to their own channel, or to the same one.
+async function saveBoardDiscord(id) {
+  const on = document.getElementById('bdOn_' + id)?.checked === true;
+  const cfgEl = document.getElementById('bdCfg_' + id);
+  if (cfgEl) cfgEl.style.display = on ? 'flex' : 'none';
+  const channelId  = document.getElementById('bdChan_'  + id)?.value || null;
+  const everyHours = parseInt(document.getElementById('bdEvery_' + id)?.value, 10) || 5;
+  const title      = (document.getElementById('bdTitle_' + id)?.value || '').trim() || null;
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid).collection('leaderboards').doc(id)
+      .set({ discordPost: { enabled: on, channelId, everyHours, title } }, { merge: true });
+    const b = _extraBoards.find(x => x.id === id);
+    if (b) b.discordPost = { ...(b.discordPost || {}), enabled: on, channelId, everyHours, title };
+    flash('Saved.');
+  } catch (e) { flash('Could not save.', 'error'); }
+}
+
+async function testBoardDiscordPost(id) {
+  try {
+    const idToken = await fb.currentUser.getIdToken();
+    const resp = await fetch('/api/leaderboard-discord-post', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid: fb.activeUid, boardId: id }),
+    });
+    const out = await resp.json().catch(() => ({}));
+    if (!resp.ok) { flash(out.error || 'Post failed.', 'error'); return; }
+    flash('Posted to Discord.');
+    loadExtraBoards();
+  } catch (e) { flash('Post failed.', 'error'); }
 }
 
 async function saveLbDiscord() {
@@ -11948,6 +12059,9 @@ async function loadExtraBoards() {
     console.warn('[dashboard] extra boards load failed:', e.message);
     _extraBoards = [];
   }
+  // Each board card carries a channel picker, so the list has to be in hand
+  // before we render. Cached, so this is one fetch however many boards there are.
+  try { await fetchLbChannels(); } catch { /* picker falls back to its placeholder */ }
   renderExtraBoards();
   renderBoardSelector();   // the Wager Rankings picker reads the same list
 }
@@ -12001,6 +12115,9 @@ function renderExtraBoards() {
     const hasCred  = String(credVal).length > 0;
     const prize = Array.isArray(b.prizes) ? b.prizes.filter(n => Number(n) > 0) : [];
     const win   = _boardWindowLabel(b);
+    const dp    = b.discordPost || {};
+    const dpSt  = dp.lastError ? 'Last attempt failed: ' + dp.lastError
+                : (dp.lastPostAt ? 'Last posted ' + new Date(dp.lastPostAt).toLocaleString() : '');
     return `
       <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
@@ -12009,9 +12126,9 @@ function renderExtraBoards() {
             <span style="font-size:10px;font-weight:700;background:var(--bg-panel);border:1px solid var(--border);color:var(--text-dim);padding:2px 8px;border-radius:20px;letter-spacing:.05em;text-transform:uppercase;">${esc(b.provider)}</span>
             ${on ? '' : '<span style="font-size:10px;font-weight:700;color:var(--red);letter-spacing:.05em;">HIDDEN</span>'}
           </div>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);cursor:pointer;" title="Show this board on your public portal.">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-dim);cursor:pointer;" title="Show this board on your portal and offer it to viewers who type /lb in Discord. One switch covers both.">
             <input type="checkbox" ${on ? 'checked' : ''} onchange="setExtraBoardEnabled('${esc(b.id)}', this.checked)" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">
-            Show on portal
+            Board is live
           </label>
         </div>
 
@@ -12048,6 +12165,36 @@ function renderExtraBoards() {
         </div>
 
         <div style="font-size:11px;color:var(--text-dim);margin-top:10px;">${win}</div>
+
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);cursor:pointer;">
+            <input type="checkbox" id="bdOn_${esc(b.id)}" ${dp.enabled ? 'checked' : ''}
+                   onchange="saveBoardDiscord('${esc(b.id)}')"
+                   style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">
+            Auto-post this race to Discord
+          </label>
+          <div id="bdCfg_${esc(b.id)}" style="display:${dp.enabled ? 'flex' : 'none'};gap:12px;flex-wrap:wrap;align-items:flex-end;margin-top:10px;">
+            <label style="font-size:11px;color:var(--text-dim);display:flex;flex-direction:column;gap:3px;">
+              Channel
+              <select id="bdChan_${esc(b.id)}" onchange="saveBoardDiscord('${esc(b.id)}')"
+                      style="width:230px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;">${lbChannelOptions(dp.channelId || '')}</select>
+            </label>
+            <label style="font-size:11px;color:var(--text-dim);display:flex;flex-direction:column;gap:3px;">
+              Post every
+              <select id="bdEvery_${esc(b.id)}" onchange="saveBoardDiscord('${esc(b.id)}')" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;">
+                ${[1,3,5,6,12,24].map(h => `<option value="${h}"${Number(dp.everyHours || 5) === h ? ' selected' : ''}>${h} hour${h === 1 ? '' : 's'}</option>`).join('')}
+              </select>
+            </label>
+            <label style="font-size:11px;color:var(--text-dim);display:flex;flex-direction:column;gap:3px;flex:1;min-width:200px;">
+              Title (optional)
+              <input type="text" id="bdTitle_${esc(b.id)}" maxlength="90" value="${esc(dp.title || '')}"
+                     onchange="saveBoardDiscord('${esc(b.id)}')" placeholder="e.g. ${esc(b.label || b.provider)} Race — Live Standings"
+                     style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;">
+            </label>
+            <button class="btn btn-ghost btn-sm" onclick="testBoardDiscordPost('${esc(b.id)}')">Post one now</button>
+          </div>
+          ${dpSt ? `<div style="font-size:11px;margin-top:8px;color:${dp.lastError ? 'var(--red)' : 'var(--text-dim)'};">${esc(dpSt)}</div>` : ''}
+        </div>
       </div>`;
   }).join('');
 }
@@ -12194,7 +12341,7 @@ async function setExtraBoardEnabled(id, enabled) {
     if (b) b.enabled = !!enabled;
     renderExtraBoards();
     if (typeof logAction === 'function') logAction('leaderboard_board_toggle', { board: id, enabled: !!enabled });
-    flash(enabled ? 'Board shown on your portal.' : 'Board hidden from your portal.');
+    flash(enabled ? 'Board is live again.' : 'Board taken down from your portal and /lb.');
   } catch (e) {
     flash('Failed to update: ' + e.message, 'error');
   }
@@ -16151,7 +16298,7 @@ function srSetDuplicatesUI(on) {
   document.getElementById('srDuplicatesLabel').style.color = on ? 'var(--accent)' : 'var(--text-dim)';
 }
 
-// ── Follow alert (Settings → Bot in Kick Chat) ───────────────────────────────
+// ── Follow alert (Settings → Kick Chat Bot) ───────────────────────────────
 // Writes straight to the streamer profile, which the bot hot-reloads from its
 // own snapshot listener, so a toggle takes effect without a restart.
 function followAlertSetUI(on) {
@@ -18439,13 +18586,13 @@ function gsSteps() {
   const manual = p.gettingStarted || {};
   return [
     { key: 'kick',    icon: '🟢', title: 'Connect your Kick channel',  done: !!p.kickChannel,
-      desc: 'Your channel is the heart of everything.', cta: ['Open Settings', 'settings'] },
+      desc: 'Your channel is the heart of everything.', cta: ['Open Channel settings', 'channel'] },
     { key: 'bot',     icon: '🤖', title: 'Get WenBot online',          done: !!botOnline,
-      desc: 'Mod <strong>WenBot</strong> in your Kick chat — the bot joins within a minute.', cta: ['Open Settings', 'settings'] },
+      desc: 'Mod <strong>WenBot</strong> in your Kick chat. The bot joins within a minute.', cta: ['Open Bot settings', 'kickbot'] },
     { key: 'casino',  icon: '🎰', title: 'Pick your casino',           done: !!p.activeProvider,
-      desc: 'Sets which affiliate code viewers verify under.', cta: ['Open Settings', 'settings'] },
+      desc: 'Sets which affiliate code viewers verify under.', cta: ['Open Channel settings', 'channel'] },
     { key: 'discord', icon: '🎮', title: 'Connect Discord <span style="font-weight:400;color:var(--text-dim);font-size:10px;">(optional)</span>', done: !!(p.discordConfig?.guildId),
-      desc: 'Giveaway pings, verification &amp; slash commands in your server.', cta: ['Open Settings', 'settings'] },
+      desc: 'Giveaway pings, verification &amp; slash commands in your server.', cta: ['Open Discord settings', 'discordsetup'] },
     { key: 'overlay', icon: '📺', title: 'Add an overlay to OBS',      done: !!(p.overlays && Object.keys(p.overlays).length) || !!manual.overlay,
       desc: 'Grab any overlay URL from the Studio and drop it in OBS as a browser source.', cta: ['Open Overlay Studio', 'overlays'], manual: true },
     { key: 'giveaway',icon: '🎁', title: 'Run your first giveaway',    done: ((p.communityStats?.giveawaysRun || 0) > 0) || ((p.communityStats?.winnersDrawn || 0) > 0) || !!manual.giveaway,
@@ -20215,7 +20362,7 @@ function renderHelpTutorials() {
       </div>`).join('');
 }
 
-// Settings → WenBot Community toggle. communityOptOut is streamer-writable
+// Social → Community settings toggle. communityOptOut is streamer-writable
 // (it's not on the profile denylist); the bot aggregator re-reads it every
 // ~2 minutes, so delisting is near-immediate.
 async function toggleCommunityListed(listed) {

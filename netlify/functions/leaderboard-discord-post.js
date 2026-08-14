@@ -1,5 +1,6 @@
 // POST /api/leaderboard-discord-post
-// Body: { uid? }
+// Body: { uid?, boardId? }   boardId targets an extra leaderboard; omit for the
+//                            streamer's main board.
 // The dashboard's "Post one now". Ignores cadence and posts immediately.
 //
 // Separate file from the cron on purpose: Netlify refuses HTTP invocation of
@@ -45,13 +46,24 @@ exports.handler = async (event) => {
     const doc = await db.collection("streamers").doc(uid).get();
     if (!doc.exists) return res(404, { error: "Account not found" });
 
-    const out = await postStandings(doc);
+    // An extra board keeps its own config and its own last-post stamp, so the
+    // result is written back to whichever doc actually owns this posting.
+    const boardId = String(body.boardId || "").trim();
+    let boardDoc = null;
+    if (boardId) {
+      boardDoc = await doc.ref.collection("leaderboards").doc(boardId).get();
+      if (!boardDoc.exists) return res(404, { error: "That leaderboard no longer exists." });
+    }
+    const target = boardDoc || doc;
+    const field  = boardDoc ? "discordPost" : "lbDiscordPost";
+
+    const out = await postStandings(doc, boardDoc);
     if (!out.ok) {
-      await doc.ref.set({ lbDiscordPost: { lastError: out.error } }, { merge: true });
+      await target.ref.set({ [field]: { lastError: out.error } }, { merge: true });
       return res(400, { error: out.error });
     }
 
-    await doc.ref.set({ lbDiscordPost: { lastPostAt: Date.now(), lastError: null } }, { merge: true });
+    await target.ref.set({ [field]: { lastPostAt: Date.now(), lastError: null } }, { merge: true });
     return res(200, { ok: true });
   } catch (err) {
     console.error("[lb-discord-post]", err.message);
