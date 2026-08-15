@@ -807,6 +807,12 @@ exports.handler = async (event) => {
 
     // Elite+ features: live leaderboard, bonus battle / tournament state
     let leaderboard = null;
+    // Raw, pre-period casino totals, kept for the wager raffle. The raffle counts
+    // from its OWN snapshot taken when the streamer started the period, so it must
+    // not see the leaderboard's period baselines subtracted first or every total
+    // arrives already reduced and tickets read low. Captured from the response we
+    // fetch anyway, so this costs no extra call.
+    let raffleRaw = null;
     let leaderboard2 = null; // secondary switchable board (e.g. CSGOBig)
     // Every additional board beyond the primary, in display order. leaderboard2 is
     // kept alongside it because Meg's bespoke portal renders that field directly;
@@ -938,6 +944,7 @@ exports.handler = async (event) => {
             }
             // After the cache, never before the write: what's stored stays the
             // raw casino response, so changing a baseline doesn't need a bust.
+            if (data && Array.isArray(data.rankings)) raffleRaw = data.rankings.slice();
             data = applyDuelbitsPeriod(data, mainPeriod);
             if (data) {
               const lbPrizes = Array.isArray(profile.leaderboardPrizes) ? profile.leaderboardPrizes : [];
@@ -1267,6 +1274,74 @@ exports.handler = async (event) => {
         };
       }
 
+    // ── Wager raffle, for viewers ─────────────────────────────────────────────
+    // Tickets are DERIVED, never stored: banked progress, plus whatever has been
+    // wagered above the snapshot taken when the period started, divided by the
+    // threshold. So this is arithmetic on data already in hand rather than
+    // anything that needs a background job keeping a counter up to date.
+    //
+    // Read-only on purpose. The dashboard writes a lastSeen map when a streamer
+    // opens the Raffles page, which is fine for one person; doing that here would
+    // mean a Firestore write per viewer per page view.
+    let wagerRafflePublic = null;
+    try {
+      const wr = profile.wagerRaffle || {};
+      if (wr.periodStart && Array.isArray(raffleRaw) && raffleRaw.length) {
+        const threshold = Number(wr.threshold) || 1000;
+        const baselines = wr.baselines || {};
+        const accrued   = wr.accrued   || {};
+        const excluded  = new Set((wr.excluded || []).map((x) => String(x).toLowerCase()));
+
+        // casino username -> Kick name, so entrants read as people rather than
+        // masked casino handles.
+        const names = {};
+        try {
+          const vs = await db.collection("streamers").doc(uid).collection("verified_users")
+            .where("provider", "==", String(profile.activeProvider || "").toLowerCase()).get();
+          vs.forEach((d) => {
+            const v = d.data();
+            if (v.providerUsername) names[String(v.providerUsername).toLowerCase()] = v.kickName || d.id;
+          });
+        } catch { /* names are a nicety; ticket counts are the point */ }
+
+        const board = new Map();
+        raffleRaw.forEach((r) => board.set(String(r.username || "").toLowerCase(), r));
+        // Union with banked holders: someone who earned tickets before a board
+        // reset and has not wagered since is absent from the new window, and
+        // dropping them here would hide tickets they already hold.
+        const keys = new Set([...board.keys(), ...Object.keys(accrued)]);
+
+        const entrants = [];
+        keys.forEach((k) => {
+          if (!k || excluded.has(k)) return;
+          const row     = board.get(k);
+          const since   = (accrued[k] || 0) + Math.max(0, ((row && row.wagered) || 0) - (baselines[k] || 0));
+          const tickets = Math.floor(since / threshold);
+          if (tickets <= 0) return;
+          entrants.push({
+            name:       names[k] || (row ? row.username : k),
+            casinoName: row ? row.username : k,
+            wagerSince: since,
+            tickets,
+          });
+        });
+        entrants.sort((a, b) => b.tickets - a.tickets || b.wagerSince - a.wagerSince);
+
+        wagerRafflePublic = {
+          periodStart:  wr.periodStart,
+          threshold,
+          // Duelbits ranks on points (volume adjusted for house edge) and tickets
+          // are counted off that same figure, so the page can say so honestly.
+          weighted:     String(profile.activeProvider || "").toLowerCase() === "duelbits",
+          entrants,
+          totalTickets: entrants.reduce((n, e) => n + e.tickets, 0),
+          totalEntrants: entrants.length,
+        };
+      }
+    } catch (e) {
+      console.warn("[portal-data] wager raffle build failed:", e.message);
+    }
+
     const payload = {
       streamer:    publicProfile,
       // White-label branding (theme, logo, hero, footer credit). Null for
@@ -1286,6 +1361,7 @@ exports.handler = async (event) => {
       pastWinners,
       giveawayWinners,
       bounties,
+      wagerRaffle: wagerRafflePublic,
       // Used by the page to know what to render (and what to lock)
       features: {
         leaderboard: tier >= TIER_RANK.elite,

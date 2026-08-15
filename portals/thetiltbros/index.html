@@ -571,6 +571,8 @@
       <div class="sec-sub" id="rfBlurb"></div>
       <div class="grid g3" id="rfSteps"></div>
       <div id="rfLive"></div>
+      <!-- Live ticket standings. Hidden unless a wager raffle period is running. -->
+      <div id="rfTickets"></div>
       <div class="sec">
         <div class="sec-head"><h2>Recent Raffle Winners</h2><div class="rule"></div></div>
         <div class="grid" id="rfWinners" style="gap:8px;"></div>
@@ -787,6 +789,38 @@
         + '<span class="ico">' + esc(st.icon || '🎟️') + '</span>'
         + '<h3>' + esc(st.title) + '</h3><p>' + esc(st.text) + '</p></div>';
     }).join('');
+
+    // ── Live ticket standings ────────────────────────────────────────────────
+    // Every entrant and their ticket count, straight from the same figures the
+    // dashboard draws from. Counts are derived per request rather than stored,
+    // so a viewer opening this page sees their real standing at that moment
+    // without anything having to run in the background.
+    var wr = s.wagerRaffle;
+    if (wr && wr.entrants && wr.entrants.length) {
+      var unit = wr.weighted ? 'weighted wager' : 'wagered';
+      $('rfTickets').innerHTML =
+        '<div class="sec"><div class="sec-head"><h2>Current Ticket Holders</h2><div class="rule"></div></div>'
+        + '<div class="note">1 ticket per $' + Number(wr.threshold).toLocaleString() + ' of ' + unit
+        + ' since the period started &middot; <strong>' + wr.totalTickets.toLocaleString() + '</strong> tickets from <strong>'
+        + wr.totalEntrants + '</strong> entrants</div>'
+        + '<div class="card" style="padding:0;overflow:hidden;"><table style="width:100%;border-collapse:collapse;">'
+        + '<thead><tr>'
+        + '<th style="text-align:left;padding:12px 16px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);">Entrant</th>'
+        + '<th style="text-align:right;padding:12px 16px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);">' + (wr.weighted ? 'Weighted wager' : 'Wagered') + '</th>'
+        + '<th style="text-align:right;padding:12px 16px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);">Tickets</th>'
+        + '</tr></thead><tbody>'
+        + wr.entrants.map(function (e, i) {
+            return '<tr style="border-top:1px solid var(--line);">'
+              + '<td style="padding:12px 16px;font-weight:700;">' + (i + 1) + '. ' + esc(e.name) + '</td>'
+              + '<td style="padding:12px 16px;text-align:right;color:var(--muted);">$'
+              + Math.round(e.wagerSince).toLocaleString() + '</td>'
+              + '<td style="padding:12px 16px;text-align:right;font-weight:800;color:var(--money);">'
+              + e.tickets.toLocaleString() + '</td></tr>';
+          }).join('')
+        + '</tbody></table></div></div>';
+    } else {
+      $('rfTickets').innerHTML = '';
+    }
 
     // Live raffle items come from the shared store payload (isRaffleItem).
     var items = ((s.store && s.store.items) || []).filter(function (i) { return i.isRaffleItem; });
