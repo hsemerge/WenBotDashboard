@@ -979,11 +979,29 @@
     }).join('');
   }
 
+  // Draws that predate WenBot, carried over from the old site so the page does
+  // not read as though the raffle has no history. Kept as a static list rather
+  // than written into the database: WenBot did not run these, and inventing draw
+  // records would put them in exports and the dashboard as if it had.
+  // Live draws render above them and push them down naturally over time.
+  var HISTORIC_RAFFLES = [
+    { names: '@UL***M, @JM***K, @Sl***k', prize: '50/50 $200 buy', date: 'Aug 12' },
+    { names: '@Ma***g, @UL***M, @JM***K', prize: '50/50 $200 buy', date: 'Aug 5'  },
+    { names: '@Md***1, @An***a, @zA***t', prize: '50/50 $200 buy', date: 'Jul 27' },
+  ];
+
   function renderRaffleWinners(s) {
     var list = s.pastWinners || [];
-    $('rfWinners').innerHTML = list.length
-      ? list.map(function (w) { return winnerRow(w.winner, w.itemName, w.drawnAt); }).join('')
-      : '<div class="empty">No raffle draws yet — the first one lands soon.</div>';
+    var live = list.map(function (w) { return winnerRow(w.winner, w.itemName, w.drawnAt); }).join('');
+    var past = HISTORIC_RAFFLES.map(function (h) {
+      return '<div class="win-row">'
+        + '<div class="w-nm">' + esc(h.names) + '</div>'
+        + '<div class="w-when" style="color:var(--money);font-weight:800;">'
+        +   esc(h.prize) + ' &middot; ' + esc(h.date) + '</div>'
+        + '</div>';
+    }).join('');
+    $('rfWinners').innerHTML = (live + past)
+      || '<div class="empty">No raffle draws yet — the first one lands soon.</div>';
   }
 
   // ── giveaways ────────────────────────────────────────────────────────────
