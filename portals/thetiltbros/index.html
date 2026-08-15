@@ -797,25 +797,50 @@
     // without anything having to run in the background.
     var wr = s.wagerRaffle;
     if (wr && wr.entrants && wr.entrants.length) {
-      var unit = wr.weighted ? 'weighted wager' : 'wagered';
+      var unit  = wr.weighted ? 'weighted wager' : 'wagered';
+      var total = wr.totalTickets || 0;
+      // Odds, not just counts. A ticket total means nothing on its own: what a
+      // viewer actually wants to know is what it buys them in the next draw.
+      var pct = function (t) {
+        if (!total) return '0%';
+        var p = (t / total) * 100;
+        return p < 0.1 ? '<0.1%' : (p < 10 ? p.toFixed(1) : Math.round(p)) + '%';
+      };
+      var started = wr.periodStart
+        ? new Date(wr.periodStart).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : null;
+      var days = wr.periodStart ? Math.max(1, Math.round((Date.now() - wr.periodStart) / 86400000)) : null;
+
       $('rfTickets').innerHTML =
-        '<div class="sec"><div class="sec-head"><h2>Current Ticket Holders</h2><div class="rule"></div></div>'
+        '<div class="sec"><div class="sec-head"><h2>Who Is In</h2><div class="rule"></div></div>'
+        + '<div class="grid g3" style="margin-bottom:14px;">'
+        +   '<div class="card"><h3 style="color:var(--money);">' + total.toLocaleString() + '</h3>'
+        +     '<p style="text-transform:uppercase;letter-spacing:.1em;font-size:11px;">Tickets in</p></div>'
+        +   '<div class="card"><h3 style="color:var(--money);">' + wr.totalEntrants + '</h3>'
+        +     '<p style="text-transform:uppercase;letter-spacing:.1em;font-size:11px;">Players</p></div>'
+        +   '<div class="card"><h3 style="color:var(--money);">$' + Number(wr.threshold).toLocaleString() + '</h3>'
+        +     '<p style="text-transform:uppercase;letter-spacing:.1em;font-size:11px;">Per ticket</p></div>'
+        + '</div>'
         + '<div class="note">1 ticket per $' + Number(wr.threshold).toLocaleString() + ' of ' + unit
-        + ' since the period started &middot; <strong>' + wr.totalTickets.toLocaleString() + '</strong> tickets from <strong>'
-        + wr.totalEntrants + '</strong> entrants</div>'
+        +   (wr.weighted ? '. Duelbits weights your wager by house edge, so low-RTP games earn tickets faster than the same volume on high-RTP ones.' : '.')
+        +   (started ? ' Running since ' + started + ' (' + days + ' day' + (days === 1 ? '' : 's') + ').' : '')
+        +   ' Chance shown is your share of the pool for the next draw.'
+        + '</div>'
         + '<div class="card" style="padding:0;overflow:hidden;"><table style="width:100%;border-collapse:collapse;">'
         + '<thead><tr>'
-        + '<th style="text-align:left;padding:12px 16px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);">Entrant</th>'
-        + '<th style="text-align:right;padding:12px 16px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);">' + (wr.weighted ? 'Weighted wager' : 'Wagered') + '</th>'
-        + '<th style="text-align:right;padding:12px 16px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);">Tickets</th>'
+        +   '<th style="text-align:left;padding:12px 16px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);">#</th>'
+        +   '<th style="text-align:left;padding:12px 16px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);">Entrant</th>'
+        +   '<th style="text-align:right;padding:12px 16px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);">' + (wr.weighted ? 'Weighted wager' : 'Wagered') + '</th>'
+        +   '<th style="text-align:right;padding:12px 16px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);">Tickets</th>'
+        +   '<th style="text-align:right;padding:12px 16px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);">Chance</th>'
         + '</tr></thead><tbody>'
         + wr.entrants.map(function (e, i) {
-            return '<tr style="border-top:1px solid var(--line);">'
-              + '<td style="padding:12px 16px;font-weight:700;">' + (i + 1) + '. ' + esc(e.name) + '</td>'
-              + '<td style="padding:12px 16px;text-align:right;color:var(--muted);">$'
-              + Math.round(e.wagerSince).toLocaleString() + '</td>'
-              + '<td style="padding:12px 16px;text-align:right;font-weight:800;color:var(--money);">'
-              + e.tickets.toLocaleString() + '</td></tr>';
+            var lead = i === 0 ? 'background:rgba(63,208,106,0.06);' : '';
+            return '<tr style="border-top:1px solid var(--line);' + lead + '">'
+              + '<td style="padding:12px 16px;color:var(--muted);font-style:italic;font-weight:800;">' + (i + 1) + '</td>'
+              + '<td style="padding:12px 16px;font-weight:700;">' + esc(e.name) + '</td>'
+              + '<td style="padding:12px 16px;text-align:right;color:var(--muted);">$' + Math.round(e.wagerSince).toLocaleString() + '</td>'
+              + '<td style="padding:12px 16px;text-align:right;font-weight:800;color:var(--money);">' + e.tickets.toLocaleString() + '</td>'
+              + '<td style="padding:12px 16px;text-align:right;color:var(--muted);font-weight:700;">' + pct(e.tickets) + '</td></tr>';
           }).join('')
         + '</tbody></table></div></div>';
     } else {
