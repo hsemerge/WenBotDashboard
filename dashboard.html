@@ -622,7 +622,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.25.3</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.26.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3264,9 +3264,22 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.25.3</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.26.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.26.0 &middot; Your wager raffle survives a leaderboard reset</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 15, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#127903;&#65039; <strong>A raffle period no longer dies when your casino board rolls over.</strong> Tickets are counted as wager above a starting snapshot, so when the casino resets its own board to zero, every total fell below that snapshot and the raffle quietly stopped issuing tickets, with nothing on screen to say so. WenBot now banks everyone's progress in the moment before the reset and carries on counting, so a raffle can run straight through a board rollover and you can still draw whenever you like.</li>
+            <li>&#127915; <strong>Viewers who earned tickets before a reset keep them.</strong> Someone who earned tickets and then stopped wagering used to vanish from the ticket list and from the draw. They stay listed with the tickets they earned.</li>
+            <li>&#9878;&#65039; <strong>Duelbits raffles now say &ldquo;weighted wager&rdquo;.</strong> Duelbits ranks on wager adjusted for house edge, and tickets have always been counted the same way, so low-RTP games earn tickets faster than the same volume on high-RTP ones. The page said plain &ldquo;wagered&rdquo;, which undersold what a ticket actually costs. Rainbet and Degen are unchanged, since they report what was actually staked.</li>
+            <li>&#128737;&#65039; <strong>The verification log says whether the role was granted.</strong> If you post verifications to a mod channel, each one now shows the role and whether it landed. A failure turns the post amber and tells you to check WenBot's permissions and role position, instead of looking identical to a healthy verification.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -5368,7 +5381,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <div class="field">
               <label>Ticket Threshold ($)</label>
               <input type="number" id="wrThreshold" class="form-input" placeholder="e.g. 1000" min="1">
-              <div style="font-size:11px;color:var(--text-dim);margin-top:3px;">Every $X wagered since period start = 1 ticket</div>
+              <div style="font-size:11px;color:var(--text-dim);margin-top:3px;" id="wrThresholdHint">Every $X wagered since period start = 1 ticket</div>
             </div>
             <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Casino provider: <span id="wrProviderLabel" style="color:var(--accent);font-weight:600;">—</span> (set in Settings)</div>
             <button class="btn btn-accent btn-sm" onclick="saveWagerRaffleConfig()">Save Config</button>
@@ -5392,7 +5405,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Kick Name</th><th>Casino Username</th><th>Wager Since Period</th><th>Tickets</th><th style="text-align:right;">Actions</th></tr></thead>
+              <thead><tr><th>Kick Name</th><th>Casino Username</th><th id="wrWagerCol">Wager Since Period</th><th>Tickets</th><th style="text-align:right;">Actions</th></tr></thead>
               <tbody id="wagerTicketTable"><tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;">Start a period to see ticket holders.</td></tr></tbody>
             </table>
           </div>
@@ -17841,7 +17854,18 @@ function loadRafflePage() {
 async function loadWagerRafflePanel() {
   const wr = profile?.wagerRaffle || {};
   document.getElementById('wrThreshold').value    = wr.threshold || '';
-  document.getElementById('wrProviderLabel').textContent = profile?.activeProvider || '—';
+  const _wrProv = String(profile?.activeProvider || '').toLowerCase();
+  document.getElementById('wrProviderLabel').textContent = _wrProv || '—';
+  // Duelbits reports weighted points, not raw volume, and tickets are counted off
+  // that same number. Only Duelbits: Rainbet and Degen report what was actually
+  // staked, so claiming "weighted" there would be wrong in the other direction.
+  const _wrWeighted = _wrProv === 'duelbits';
+  const _wrHint = document.getElementById('wrThresholdHint');
+  if (_wrHint) _wrHint.innerHTML = _wrWeighted
+    ? 'Every $X of <strong>weighted</strong> wager since period start = 1 ticket. Duelbits weights by house edge, so low-RTP games earn tickets faster.'
+    : 'Every $X wagered since period start = 1 ticket';
+  const _wrCol = document.getElementById('wrWagerCol');
+  if (_wrCol) _wrCol.textContent = _wrWeighted ? 'Weighted Wager Since Period' : 'Wager Since Period';
 
   const endBtn = document.getElementById('wrEndPeriodBtn');
   if (wr.periodStart) {
@@ -17890,11 +17914,16 @@ async function startWagerPeriod() {
     'wagerRaffle.periodStart': periodStart,
     'wagerRaffle.baselines':   baselines,
     'wagerRaffle.excluded':    [],
+    'wagerRaffle.accrued':     {},
+    'wagerRaffle.lastSeen':    baselines,
+    'wagerRaffle.boardRolledAt': null,
   });
   if (!profile.wagerRaffle) profile.wagerRaffle = {};
   profile.wagerRaffle.periodStart = periodStart;
   profile.wagerRaffle.baselines   = baselines;
   profile.wagerRaffle.excluded    = [];
+  profile.wagerRaffle.accrued     = {};
+  profile.wagerRaffle.lastSeen    = baselines;
   flash(`New period started! ${Object.keys(baselines).length} users baselined.`);
   loadWagerRafflePanel();
 }
@@ -17970,25 +17999,83 @@ async function loadWagerTickets() {
     return;
   }
 
+  // ── Surviving a board roll ────────────────────────────────────────────────
+  // Baselines are absolute casino totals, and a casino board resets to zero when
+  // its own period rolls. Without this the raffle dies silently the moment that
+  // happens: every current total drops below its baseline, max(0, ...) floors
+  // every delta at zero, and it can never recover because the new window starts
+  // below the stored numbers. No error, just a raffle that stops issuing tickets.
+  //
+  // A roll is unmistakable: totals move BACKWARDS for people who cannot unwager.
+  // On seeing it, bank what everyone had earned up to the last time this panel
+  // was open, then re-baseline to zero for the new window.
+  const rolled = (function () {
+    const seeded = Object.keys(baselines).filter(k => baselines[k] > 0);
+    if (seeded.length < 3) return false;   // too few to tell a roll from a correction
+    const now = {};
+    rankings.forEach(e => { now[String(e.username).toLowerCase()] = e.wagered || 0; });
+    const back = seeded.filter(k => (now[k] || 0) < baselines[k] * 0.5).length;
+    return back >= Math.ceil(seeded.length * 0.6);
+  })();
+
+  let accrued = Object.assign({}, wr.accrued || {});
+  if (rolled) {
+    const seen = wr.lastSeen || {};
+    Object.keys(baselines).forEach(k => {
+      accrued[k] = (accrued[k] || 0) + Math.max(0, (seen[k] != null ? seen[k] : baselines[k]) - baselines[k]);
+    });
+    try {
+      await fb.db.collection('streamers').doc(uid).update({
+        'wagerRaffle.accrued':       accrued,
+        'wagerRaffle.baselines':     {},
+        'wagerRaffle.boardRolledAt': Date.now(),
+      });
+      profile.wagerRaffle.accrued   = accrued;
+      profile.wagerRaffle.baselines = {};
+      Object.keys(baselines).forEach(k => delete baselines[k]);
+      flash('The casino board started a new cycle. Tickets earned so far are banked and counting continues.');
+    } catch (e) { console.warn('[raffle] roll bank failed:', e.message); }
+  }
+
+  // Remember the current totals so the NEXT roll can bank up to this moment
+  // rather than back to the baseline. Cheap: one small map, written only when
+  // the streamer has this panel open.
+  try {
+    const seenNow = {};
+    rankings.forEach(e => { seenNow[String(e.username).toLowerCase()] = e.wagered || 0; });
+    await fb.db.collection('streamers').doc(uid).update({ 'wagerRaffle.lastSeen': seenNow });
+    profile.wagerRaffle.lastSeen = seenNow;
+  } catch (e) { /* best effort: never block the table on a bookkeeping write */ }
+
   // Compute tickets from period wager delta. Excluded entrants (manually
   // removed after a draw) are filtered out of the draw pool entirely.
   const excluded = _wagerExcludedSet();
   let   excludedShown = 0;
   const entries = [];
-  rankings.forEach(e => {
-    const key       = e.username.toLowerCase();
+  const board = new Map();
+  rankings.forEach(e => board.set(String(e.username).toLowerCase(), e));
+
+  // The union of the live board AND anyone holding banked tickets. Iterating the
+  // board alone would drop a viewer who earned tickets before a roll and has not
+  // wagered since: they are absent from the new window, so they would disappear
+  // from this table and from the draw, having already earned their place in it.
+  const keys = new Set([...board.keys(), ...Object.keys(accrued)]);
+  keys.forEach(key => {
+    const e         = board.get(key);
     const base      = baselines[key] || 0;
-    const wagerSince = Math.max(0, (e.wagered || 0) - base);
+    // Banked total from before a board roll, plus what has been wagered since.
+    const wagerSince = (accrued[key] || 0) + Math.max(0, ((e && e.wagered) || 0) - base);
     const tickets   = Math.floor(wagerSince / threshold);
     if (tickets <= 0) return;
     if (excluded.has(key)) { excludedShown++; return; }
     entries.push({
-      username:   verifiedMap[key] || e.username,
-      casinoName: e.username,
+      username:   verifiedMap[key] || (e ? e.username : key),
+      casinoName: e ? e.username : key,
       wagerSince,
       tickets,
     });
   });
+  entries.sort((a, b) => b.tickets - a.tickets || b.wagerSince - a.wagerSince);
   entries.sort((a, b) => b.tickets - a.tickets);
   wagerRaffleEntries = entries;
 
