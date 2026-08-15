@@ -102,6 +102,38 @@ async function detectAnomalies(db, uid, v) {
 }
 
 /**
+ * The role line.
+ *
+ * Omitted entirely when no role is configured or nobody linked a Discord: a
+ * feed full of "no role" on a channel that doesn't use roles is noise.
+ *
+ * When a role IS configured, this is the line worth having. A verification that
+ * links fine but fails to grant looks identical to a healthy one from the mod
+ * side, which is precisely how a broken grant went unnoticed for weeks. The
+ * role is rendered as <@&id> so Discord shows its real name and colour rather
+ * than a name we cached and let drift.
+ */
+// A configured role that did not land. Worth the amber treatment: it is the one
+// thing here a mod can fix, and the viewer can't see that anything went wrong.
+function roleFailed(streamerData, v) {
+  const cfg = (streamerData.discordConfig && streamerData.discordConfig.verify) || {};
+  return !!(cfg.assignRole && cfg.roleId && v.discordUserId && !(v.roleResult && v.roleResult.ok));
+}
+
+function roleField(streamerData, v) {
+  const cfg = (streamerData.discordConfig && streamerData.discordConfig.verify) || {};
+  if (!cfg.assignRole || !cfg.roleId || !v.discordUserId) return [];
+  const ok = v.roleResult && v.roleResult.ok;
+  return [{
+    name:  "Role",
+    value: ok
+      ? `✅ Granted <@&${cfg.roleId}>`
+      : `⚠️ Could not grant <@&${cfg.roleId}>${v.roleResult && v.roleResult.status ? ` (Discord said ${v.roleResult.status})` : ""}`,
+    inline: false,
+  }];
+}
+
+/**
  * Post the verification to the streamer's moderator channel.
  *
  * @param {object} v  { kickUsername, kickUserId, provider, providerUsername,
@@ -131,6 +163,7 @@ async function postVerifyLog(db, uid, streamerData, v) {
       { name: "Kick",    value: `[${v.kickUsername}](https://kick.com/${encodeURIComponent(v.kickUsername)})${v.kickUserId ? `\n\`${v.kickUserId}\`` : ""}`, inline: true },
       { name: casino,    value: v.casinoSkipped ? "_skipped_" : `${v.providerUsername || "?"}${v.providerUid ? `\n\`${String(v.providerUid).slice(0, 18)}\`` : ""}`, inline: true },
       { name: "Discord", value: v.discordUsername ? `@${v.discordUsername}` : "_not linked_", inline: true },
+      ...roleField(streamerData, v),
       { name: "Status",  value: status, inline: false },
       { name: "Came from", value: v.source || "Web link", inline: true },
     ];
@@ -143,9 +176,15 @@ async function postVerifyLog(db, uid, streamerData, v) {
       embeds: [{
         // Their name leads, because that is what a mod is scanning for.
         title: `🛡️ ${v.kickUsername} verified`,
-        color: notes.length ? AMBER : (v.underAffiliate ? GREEN : GREY),
+        color: roleFailed(streamerData, v) || notes.length
+          ? AMBER
+          : (v.underAffiliate ? GREEN : GREY),
         fields,
-        footer: { text: notes.length ? `${notes.length} thing${notes.length === 1 ? "" : "s"} to check` : "Nothing unusual" },
+        footer: {
+          text: roleFailed(streamerData, v)
+            ? "Role not granted, check WenBot's permissions and role position"
+            : (notes.length ? `${notes.length} thing${notes.length === 1 ? "" : "s"} to check` : "Nothing unusual"),
+        },
         timestamp: new Date().toISOString(),
       }],
     });

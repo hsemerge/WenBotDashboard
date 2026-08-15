@@ -132,12 +132,13 @@ exports.handler = async (event) => {
         verifiedAt:             Date.now(),
       });
 
+      let roleResult = null;
       if (discordUserId) {
         await saveDiscordLink(db, streamerUid, discordUserId, { kickUsername, discordUsername });
         // Linking without granting is what left Discord-initiated verifiers
         // role-less: the grant used to live only behind the OAuth button they
         // no longer press.
-        await grantVerifiedRole(streamerData, discordUserId);
+        roleResult = await grantVerifiedRole(streamerData, discordUserId);
       }
 
       // Kick-only verifications go to the mod feed too. They are the ones most
@@ -147,7 +148,7 @@ exports.handler = async (event) => {
         kickUsername, kickUserId: kickLookup.user?.user_id || kickLookup.user?.id || null,
         provider: "none", providerUsername: null, providerUid: null,
         underAffiliate: false, wagerAmount: 0,
-        discordUserId, discordUsername,
+        discordUserId, discordUsername, roleResult,
         casinoSkipped: true,
         source: dtoken ? "Discord" : "Kick or web link",
       });
@@ -382,6 +383,16 @@ exports.handler = async (event) => {
     await batch.commit();
     await burnDtoken();
 
+    // Discord-initiated flow: save the discord_link and grant the role. Both
+    // run BEFORE the mod feed so the post can report whether the role landed;
+    // a feed that says "verified" while the role silently failed is exactly the
+    // blind spot that hid this bug for weeks.
+    let roleResult = null;
+    if (discordUserId) {
+      await saveDiscordLink(db, streamerUid, discordUserId, { kickUsername, discordUsername });
+      roleResult = await grantVerifiedRole(streamerData, discordUserId);
+    }
+
     // Moderator feed. After the commit so it can never announce a verification
     // that failed to save, and awaited only so errors are logged, never thrown:
     // the viewer's verification is already done and must not depend on Discord.
@@ -389,16 +400,10 @@ exports.handler = async (event) => {
       kickUsername, kickUserId: kickLookup.user?.user_id || kickLookup.user?.id || null,
       provider, providerUsername: resultUsername, providerUid,
       underAffiliate, wagerAmount,
-      discordUserId, discordUsername,
+      discordUserId, discordUsername, roleResult,
       previousProviderUsername,
       source: dtoken ? "Discord" : "Kick or web link",
     });
-
-    // Discord-initiated flow: also save the discord_link, and grant the role.
-    if (discordUserId) {
-      await saveDiscordLink(db, streamerUid, discordUserId, { kickUsername, discordUsername });
-      await grantVerifiedRole(streamerData, discordUserId);
-    }
 
     // First-time verify bonus — idempotent via firstVerifyBonusAt on the viewer doc.
     // We use a Firestore atomic increment so we don't clobber any in-flight
