@@ -555,6 +555,75 @@
       <div class="tbl-wrap" id="lbTableWrap"><div id="lbTable"><div class="empty">Loading the board…</div></div></div>
     </div>
 
+    <!-- Fair play + rules. Static because they are the terms of the race, not
+         live data: a viewer disputing a payout needs to see the same wording
+         that was on the page when they wagered. -->
+    <div class="sec" style="margin-top:34px;">
+      <div class="sec-head" style="text-align:center;justify-content:center;">
+        <div>
+          <div class="kicker" style="color:var(--money);">Fair Play</div>
+          <h2>How Weighted Wager Works</h2>
+        </div>
+      </div>
+      <div class="sec-sub" style="text-align:center;max-width:620px;margin:0 auto 22px;">
+        The board ranks on weighted wager, not raw wager, so nobody can farm the top spot on low-house-edge games.
+      </div>
+      <div class="grid g3">
+        <div class="card step"><span class="n">1</span>
+          <h3>Your wager is weighted by RTP</h3>
+          <p>How much of each bet counts toward the board depends on the game's RTP.</p></div>
+        <div class="card step"><span class="n">2</span>
+          <h3>Lower RTP counts more</h3>
+          <p>Low-RTP games count in full; high-RTP games count less, so the board can't be farmed on low-house-edge games.</p></div>
+        <div class="card step"><span class="n">3</span>
+          <h3>Settled wagers only</h3>
+          <p>Only settled real-money bets count toward your total.</p></div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;margin-top:18px;max-width:640px;margin-left:auto;margin-right:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr>
+            <th style="text-align:left;padding:12px 18px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);">Game</th>
+            <th style="text-align:right;padding:12px 18px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);">Counts toward board</th>
+          </tr></thead>
+          <tbody>
+            <tr style="border-top:1px solid var(--line);"><td style="padding:12px 18px;">RTP 97% or lower</td><td style="padding:12px 18px;text-align:right;font-weight:800;font-style:italic;color:var(--money);">100%</td></tr>
+            <tr style="border-top:1px solid var(--line);"><td style="padding:12px 18px;">RTP above 97%</td><td style="padding:12px 18px;text-align:right;font-weight:800;font-style:italic;color:var(--money);">50%</td></tr>
+            <tr style="border-top:1px solid var(--line);"><td style="padding:12px 18px;">RTP above 98%</td><td style="padding:12px 18px;text-align:right;font-weight:800;font-style:italic;color:var(--money);">10%</td></tr>
+            <tr style="border-top:1px solid var(--line);"><td style="padding:12px 18px;">Sports bets over 1.30 odds</td><td style="padding:12px 18px;text-align:right;font-weight:800;font-style:italic;color:var(--money);">100%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note" style="margin-top:16px;text-align:center;">
+        Your wager counts toward the leaderboard based on the game's RTP. Games at 97% RTP or lower count 100% of the amount wagered,
+        games above 97% count 50%, and games above 98% count 10%. Sports bets over 1.30 odds count 100%. Lower-RTP games count more,
+        so nobody can farm the board on low-house-edge games.
+      </div>
+      <div class="note" style="margin-top:10px;text-align:center;">
+        Standings are ranked by points (weighted wager) and refresh about every minute. Wager manipulation may render you ineligible
+        for reward payouts. We retain the right to deny anyone we believe is cheating or abusing the system.
+      </div>
+    </div>
+
+    <div class="sec" style="margin-top:34px;">
+      <div class="sec-head" style="text-align:center;justify-content:center;">
+        <div>
+          <div class="kicker" style="color:var(--money);">The Fine Print</div>
+          <h2>Leaderboard Rules</h2>
+        </div>
+      </div>
+      <div class="card" style="max-width:840px;margin:0 auto;">
+        <ul style="margin:0;padding-left:22px;line-height:1.9;">
+          <li>Play under code <strong>TILTBROS</strong> on Duelbits. Only wager placed under the code counts toward the board.</li>
+          <li>Standings rank by <strong>weighted wager</strong> (your wager adjusted by each game's house edge), so low-house-edge games can't be farmed for the top spot.</li>
+          <li>Only <strong>settled</strong> real-money bets count. Sports bets that are voided, cashed out, or settled half win / half loss do not count.</li>
+          <li>The board runs on a <strong>rolling 30-day cycle</strong> and refreshes from Duelbits about every minute.</li>
+          <li>The <strong>top 10</strong> at the end of each cycle split the <strong>$5,000</strong> pool. Claim by opening a ticket in the TiltBros Discord.</li>
+          <li>One account per person. <strong>Multi-accounting, wager manipulation, or abuse</strong> voids your eligibility.</li>
+          <li>TiltBros reserves the right to deny any payout to anyone believed to be cheating or gaming the system. Decisions are final. 18+ only, gamble responsibly.</li>
+        </ul>
+      </div>
+    </div>
+
     <!-- Finished races. Hidden until one exists, so a brand new board does not
          show an empty shelf. The first race archives when its timer ends. -->
     <div class="sec" id="pastRacesSec" style="margin-top:34px;display:none;">
