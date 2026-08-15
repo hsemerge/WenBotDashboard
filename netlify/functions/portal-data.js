@@ -251,8 +251,8 @@ const PORTAL_PRESETS = {
     prizes: ["$1,500", "$1,000", "$750", "$500", "$400", "$300", "$200", "$150", "$120", "$80"],
     links: [
       { label: "Duelbits", href: "https://duelbits.com/?a=tiltbros", icon: "🎰" },
-      { label: "Discord",  href: "https://discord.gg/tiltbros", icon: "💬" },
-      { label: "Kick",     href: "https://kick.com/tiltbros", icon: "💚" },
+      { label: "Discord",  href: "https://discord.com/invite/thetiltbros", icon: "💬" },
+      { label: "Kick",     href: "https://kick.com/thetiltbros", icon: "💚" },
     ],
     pages: [
       { id: "raffles",   label: "Raffles" },
@@ -325,7 +325,7 @@ const PORTAL_PRESETS = {
         code:       "TILTBROS",
         ctaLabel:   "Claim bonus",
         ctaHref:    "https://duelbits.com/?a=tiltbros",
-        howHref:    "https://discord.gg/tiltbros",
+        howHref:    "https://discord.com/invite/thetiltbros",
         howLabel:   "How to claim?",
         // The real Duelbits sign-up modal with TiltBros' details filled in.
         // When set, the page frames it in browser chrome and overlays the
@@ -418,7 +418,7 @@ const PORTAL_PRESETS = {
           { handle: "thetiltbros",   platform: "Kick",        icon: "K",  href: "https://kick.com/thetiltbros" },
           { handle: "@donthelizard", platform: "X / Twitter", icon: "𝕏",  href: "https://x.com/donthelizard" },
           { handle: "@mrnoface7420", platform: "X / Twitter", icon: "𝕏",  href: "https://x.com/mrnoface7420" },
-          { handle: "thetiltbros",   platform: "Discord",     icon: "💬", href: "https://discord.gg/tiltbros" },
+          { handle: "thetiltbros",   platform: "Discord",     icon: "💬", href: "https://discord.com/invite/thetiltbros" },
         ],
       },
       // Footer. Quick Links are generated from the nav, so they can't drift out
@@ -434,7 +434,7 @@ const PORTAL_PRESETS = {
           { label: "Kick",         href: "https://kick.com/thetiltbros" },
           { label: "X — Donny",    href: "https://x.com/donthelizard" },
           { label: "X — NoFace",   href: "https://x.com/mrnoface7420" },
-          { label: "Discord",      href: "https://discord.gg/tiltbros" },
+          { label: "Discord",      href: "https://discord.com/invite/thetiltbros" },
         ],
         bottomNote: "Play under code TILTBROS. Gamble aware.",
       },
