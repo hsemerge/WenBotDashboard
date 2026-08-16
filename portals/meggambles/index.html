@@ -518,6 +518,10 @@
     height:auto; margin:0 auto; }
   #boardVideo { aspect-ratio:1280/694; width:100%; max-width:100%; height:auto;
     object-fit:contain; margin:0 auto; display:none; }
+  /* Landing banner: no forced ratio, so a replacement of any shape is shown
+     whole rather than cropped to the old one's letterbox. */
+  #landingBanner { aspect-ratio:auto; width:100%; max-width:100%; height:auto;
+    object-fit:contain; margin:0 auto; }
   /* Inline CSGOBig coin icon next to wager amounts (CSGOBig board only). */
   .coin-ic { width:22px; height:22px; vertical-align:-5px; border-radius:50%; }
   /* The gem is a transparent octahedron, so it keeps its own shape. */
@@ -756,9 +760,9 @@
        Degen made the other three look like afterthoughts. This page explains
        MegRewards and sends you to a room; the boards live on their own pages. -->
   <div id="landingView" class="hidden">
-    <video class="hero-banner" autoplay loop muted playsinline
+    <video class="hero-banner" id="landingBanner" autoplay loop muted playsinline
            poster="/portals/meggambles/assets/megrewards-poster.jpg">
-      <source src="/portals/meggambles/assets/megrewards-banner.mp4" type="video/mp4">
+      <source src="/portals/meggambles/assets/newbanner.mp4" type="video/mp4">
     </video>
 
     <!-- Daily reward, no card. It reads as a line of the page rather than a
