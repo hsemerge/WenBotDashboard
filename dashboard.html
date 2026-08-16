@@ -622,7 +622,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.27.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.27.1</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3264,9 +3264,21 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.27.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.27.1</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.27.1 &middot; Viewers choose which casino they are verifying</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 16, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#127918; <strong>If you run more than one board, your verify page now asks which casino.</strong> Viewers pick from your casinos and can come back to add the others, each stored separately. With a single casino nothing changes and there is no extra step.</li>
+            <li>&#9989; <strong>Clash.gg verification is checked properly.</strong> A viewer's Clash name is matched against everyone who has played under your code, not just the current race's leaders, so someone under your code who has not played this period still verifies as under-code.</li>
+            <li>&#128295; <strong>Verification works for casinos that are only an extra board.</strong> It used to look for the API credential in one place that only your primary casino is guaranteed to have, so verifying against a second board could fail with "hasn't configured their API yet" even though the board was set up.</li>
+          </ul>
         </div>
 
         <div class="card">

@@ -23,6 +23,7 @@ const CASINO_NAMES = {
   // from this map, so listing csgobig here cannot make it selectable as a primary
   // casino — it only stops second-board rows rendering as lowercase "csgobig".
   csgobig:    "CSGOBig",
+  clash:      "Clash.gg",
 };
 
 // How each casino's leaderboard is onboarded. Different casinos expose their

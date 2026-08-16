@@ -50,11 +50,9 @@ const CASINO_NAMES = {
 // NOTE: portal-data.js keeps a separate local set of the same name — that one
 // gates a hardcoded Gambulls board fetch, not affiliate lookups. Don't merge them.
 //
-// Clash.gg is deliberately NOT here yet. Its affiliate endpoint only returns the
-// CURRENT race's top players, so "not in that list" does not mean "not under the
-// code" — someone who joined under the code but has not out-wagered the leaders
-// is absent from it. Listing Clash before that distinction is handled would fail
-// real affiliates at verification. Honour system until then; see TODOS.md.
-const API_CASINOS = new Set(["gambulls", "rainbet", "duelbits"]);
+// Clash.gg checks against detailed-summary/v2, which lists every referred user
+// with recorded play, NOT the leaderboard endpoint (that one returns only a
+// race's top players, so absence from it would say nothing about the code).
+const API_CASINOS = new Set(["gambulls", "rainbet", "duelbits", "clash"]);
 
 module.exports = { CASINO_NAMES, API_CASINOS };

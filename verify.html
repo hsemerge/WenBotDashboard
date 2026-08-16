@@ -188,7 +188,26 @@
       <a href="#" id="changeCasinoLink" onclick="revealCasinoForm(); return false;" style="display:block; text-align:center; font-size:12px; color:var(--text-dim); margin-top:14px; text-decoration:underline;">or change your casino username</a>
     </div>
 
+    <style>
+      .cc-chip { font-family:'Exo 2',sans-serif; font-size:13px; font-weight:700; padding:9px 15px;
+        border-radius:999px; cursor:pointer; background:rgba(255,255,255,.03);
+        border:1px solid var(--border); color:var(--text-dim); transition:.15s; }
+      .cc-chip:hover { color:var(--bright); border-color:var(--accent); }
+      .cc-chip.on { background:rgba(0,229,255,.12); border-color:var(--accent); color:var(--accent); }
+      .cc-chip .cc-tick { color:var(--green); margin-left:6px; font-size:11px; }
+    </style>
+
     <div id="formSection">
+      <!-- Casino picker. Only rendered when the streamer runs more than one
+           board: with a single casino there is nothing to choose and a lone
+           chip would just be noise. Verifications are stored per provider, so
+           picking a second one ADDS a record rather than replacing the first. -->
+      <div class="form-group" id="casinoChoiceGroup" style="display:none;">
+        <label>Which casino are you verifying?</label>
+        <div id="casinoChoice" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;"></div>
+        <div class="provider-hint">You can come back and add the others later.</div>
+      </div>
+
       <div class="form-group" id="casinoFieldGroup">
         <label id="affiliateLabel">Casino Username</label>
         <input type="text" class="form-input" id="affiliateInput" placeholder="Enter your exact casino username..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
@@ -338,6 +357,15 @@
           const d = await r.json();
           if (!casino) casino = (d.streamer?.provider || '').toLowerCase();
           if (d.streamer) applyCasinoRequired(d.streamer.casinoRequired !== false);
+          // The picker should be there before sign-in, so someone arriving from
+          // !verify can see straight away that more than one casino is on offer.
+          const prov = String(d.streamer?.provider || '').toLowerCase();
+          const seen = new Set();
+          ccBoards = []
+            .concat(prov ? [{ provider: prov, label: CASINO_NAMES[prov] || prov }] : [])
+            .concat((d.boards || []).map((b) => ({ provider: String(b.key || '').toLowerCase(), label: b.label || b.casinoName })))
+            .filter((b) => b.provider && CASINO_NAMES[b.provider] && !seen.has(b.provider) && seen.add(b.provider));
+          renderCasinoChoice();
         }
       } catch {}
     }
@@ -609,6 +637,10 @@
         // Extra boards, so a viewer who plays the streamer's second casino can
         // link that too. Absent for single-board streamers, which is most of them.
         vfBoards = Array.isArray(sData.boards) ? sData.boards : [];
+        if (vfBoards.length) {
+          ccBoards = vfBoards.map((b) => ({ provider: b.provider, label: b.label, verified: b.verified }));
+          renderCasinoChoice();
+        }
         if (sData.verified && sData.providerUsername) {
           document.getElementById('formSection').style.display = 'none';
           // Name every linked account, not just the casino.
@@ -677,12 +709,36 @@
   // switching boards needs no new submit path, just the right provider and
   // labels. Verifications are stored as `<kick>_<provider>`, so linking a second
   // board ADDS a record rather than replacing the first.
+  // Every board this streamer runs, as {provider, label, verified}. Filled from
+  // portal-data on load and upgraded from verify-status after sign-in.
+  let ccBoards = [];
+
+  function renderCasinoChoice() {
+    const group = document.getElementById('casinoChoiceGroup');
+    const host  = document.getElementById('casinoChoice');
+    if (!group || !host) return;
+    if (ccBoards.length < 2) { group.style.display = 'none'; return; }
+
+    group.style.display = '';
+    host.innerHTML = ccBoards.map((b) => {
+      const on = String(b.provider).toLowerCase() === String(casino).toLowerCase();
+      return '<button type="button" class="cc-chip' + (on ? ' on' : '') + '" data-prov="'
+        + escHtml(b.provider) + '">' + escHtml(b.label || CASINO_NAMES[b.provider] || b.provider)
+        + (b.verified ? '<span class="cc-tick">✓</span>' : '') + '</button>';
+    }).join('');
+
+    host.querySelectorAll('[data-prov]').forEach((el) => {
+      el.addEventListener('click', () => linkBoard(el.getAttribute('data-prov')));
+    });
+  }
+
   function linkBoard(provider) {
     casino     = String(provider || '').toLowerCase();
     casinoName = CASINO_NAMES[casino] || casino;
     applyCasinoText();
     document.getElementById('affiliateInput').value = '';
     revealCasinoForm();
+    renderCasinoChoice();
     renderVfProgress();
   }
   window.linkBoard = linkBoard;

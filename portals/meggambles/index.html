@@ -337,7 +337,7 @@
   }
   @media (prefers-reduced-motion: reduce) { .linkbar a.lk-daily-ready { animation:none; } }
   .linkbar a.lk-daily-off   { opacity:.6; }
-  .linkbar a[data-board='degen'].lk-active   { color:#7ee81a; }
+  .linkbar a[data-board='degen'].lk-active   { color:#ffffff; }
   .linkbar a[data-board='csgobig'].lk-active { color:#e8b33c; }
   .linkbar a[data-board='clash'].lk-active   { color:#9b3fe4; }
   .linkbar a[data-board='ethbet'].lk-active  { color:#1b6cf5; }
@@ -440,18 +440,23 @@
      Colours are taken from each casino's own banner art so the page and the
      artwork agree. */
 
-  /* Degen: acid green on near-black, from degen.png. */
+  /* Degen: black and white. The artwork is green, but the page underneath it is
+     not: white type on black, with gold kept only for prize figures so money
+     still reads as money. */
   body.theme-degen {
-    --accent:#7ee81a; --accent2:#b6ff5c; --gold:#eaff7a;
-    --bg:#050a03; --bg-card:#101c0a; --border:#2f5019;
-    --text:#e6f7d8; --dim:#96bb79; --bright:#ffffff;
+    --accent:#ffffff; --accent2:#c3cad2; --gold:#ffd84d;
+    --bg:#000000; --bg-card:#0d0e11; --border:#2b2e34;
+    --text:#e9edf2; --dim:#98a1ac; --bright:#ffffff;
   }
-  body.theme-degen .hero-banner { box-shadow:0 0 60px rgba(126,232,26,.22); }
-  body.theme-degen .linkbar a:hover { border-color:var(--accent); background:rgba(126,232,26,.12); }
-  body.theme-degen .hero .prize { text-shadow:0 0 30px rgba(126,232,26,.45); }
+  /* White glows would wash the page out at the strength the coloured rooms use. */
+  body.theme-degen .glow { opacity:.10; }
+  body.theme-degen .glow-3 { opacity:.07; }
+  body.theme-degen .hero-banner { box-shadow:0 0 60px rgba(255,255,255,.12); }
+  body.theme-degen .linkbar a:hover { border-color:var(--accent); background:rgba(255,255,255,.08); }
+  body.theme-degen .hero .prize { text-shadow:0 0 30px rgba(255,216,77,.35); }
   body.theme-degen .bonus {
-    color:#08140a; background:linear-gradient(90deg,var(--accent2),var(--accent));
-    box-shadow:0 0 26px rgba(126,232,26,.4);
+    color:#0b0c0e; background:linear-gradient(90deg,#ffffff,#c3cad2);
+    box-shadow:0 0 26px rgba(255,255,255,.28);
   }
 
   /* Clash.gg: violet and gold, from clash3.png. The gold second colour is what
@@ -515,6 +520,8 @@
     object-fit:contain; margin:0 auto; display:none; }
   /* Inline CSGOBig coin icon next to wager amounts (CSGOBig board only). */
   .coin-ic { width:22px; height:22px; vertical-align:-5px; border-radius:50%; }
+  /* The gem is a transparent octahedron, so it keeps its own shape. */
+  .gem-ic { border-radius:0; width:19px; height:19px; vertical-align:-4px; }
   /* Soften the theme swap. */
   body, .cd-cell, .pod, .linkbar, .linkbar a, .lb-row, nav, footer { transition:background-color .35s, border-color .35s, color .35s; }
 
@@ -949,6 +956,9 @@
   // wagerTotal is in site COINS (confirmed by their devs) — never show a $.
   // Coin icon is Meg's CSGOBig chip art (csgocoin.png).
   const COIN_IMG = '<img class="coin-ic" src="/portals/meggambles/assets/csgocoin.png" alt="coins">';
+  // Clash pays in gems. Her gem art rather than the 💎 emoji, which renders as a
+  // different shape and colour on every platform.
+  const GEM_IMG  = '<img class="coin-ic gem-ic" src="/portals/meggambles/assets/gems.png" alt="gems">';
   // Not every room pays in dollars. CSGOBig runs on coins and Clash on gems, so
   // printing a $ against those figures would state a currency Clash never said.
   // Rooms not listed here are dollars.
@@ -957,7 +967,7 @@
   const fmtWager = (n) => {
     const unit = BOARD_UNITS[window.__activeBoard];
     if (unit === 'coins') return COIN_IMG + ' ' + plain(n);
-    if (unit === 'gems')  return '💎 ' + plain(n);
+    if (unit === 'gems')  return GEM_IMG + ' ' + plain(n);
     return money(n);
   };
   const initials = s => (s || '?').slice(0, 2).toUpperCase();
@@ -976,7 +986,7 @@
   function STAR_COLORS(which) {
     return ({
       home:    ['#c43bff', '#ff4fd8', '#ffd84d', '#e9b8ff', '#ffffff'],
-      degen:   ['#7ee81a', '#b6ff5c', '#eaff7a', '#4fae0d', '#ffffff'],
+      degen:   ['#ffffff', '#d7dde4', '#ffd84d', '#8f98a3', '#ffffff'],
       csgobig: ['#e8b33c', '#f7cf6b', '#ffd76a', '#c9974a', '#ffffff'],
       clash:   ['#9b3fe4', '#c07bff', '#f5a623', '#6d21ac', '#ffffff'],
       ethbet:  ['#1b6cf5', '#7fb0ff', '#ffcf5c', '#0f4bb0', '#ffffff'],
@@ -1276,7 +1286,7 @@
     const num = Number(p).toLocaleString('en-US');
     const unit = BOARD_UNITS[window.__activeBoard];
     if (unit === 'coins') return `${COIN_IMG} ${num}`;
-    if (unit === 'gems')  return `💎 ${num}`;
+    if (unit === 'gems')  return `${GEM_IMG} ${num}`;
     return '$' + num;
   }
 
@@ -1383,7 +1393,7 @@
       const cls  = c.live ? 'lp-go-live' : 'lp-go-soon';
       // Colour comes from the casino, not the page, so a row of four reads as
       // four brands rather than four purple cards.
-      const tint = { degen:'#7ee81a', csgobig:'#e8b33c', clash:'#9b3fe4', ethbet:'#1b6cf5' }[k];
+      const tint = { degen:'#d9dee5', csgobig:'#e8b33c', clash:'#9b3fe4', ethbet:'#1b6cf5' }[k];
       return '<a class="lp-room" href="' + href + '" target="_blank" rel="noopener"'
         + ' style="border-color:' + tint + '33">'
         + '<img src="' + c.banner + '" alt="' + esc(c.name) + '" loading="lazy">'

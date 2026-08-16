@@ -269,7 +269,19 @@ exports.handler = async (event) => {
       // Full API verification against streamer's leaderboard
       const providerDoc = await db.collection("streamers").doc(streamerUid)
         .collection("providers").doc(provider).get();
-      if (!providerDoc.exists) {
+
+      // A casino that is only an ADDITIONAL board keeps its credential on the
+      // board document, because that is where the board editor writes it. Only
+      // the streamer's primary casino is guaranteed a providers/ entry, so
+      // requiring one here refused verification for every extra board.
+      let providerCred = providerDoc.exists ? providerDoc.data() : null;
+      if (!providerCred || !Object.keys(providerCred).length) {
+        const bSnap = await db.collection("streamers").doc(streamerUid).collection("leaderboards").get();
+        const board = bSnap.docs.map((d) => d.data())
+          .find((b) => String(b.provider || "").toLowerCase() === provider && b.enabled !== false);
+        if (board && board.credential) providerCred = board.credential;
+      }
+      if (!providerCred) {
         return res(400, { error: `This streamer hasn't configured their ${CASINO_NAMES[provider]} API yet.` });
       }
       // Pass the race period, exactly as the Re-check paths do. Without it
@@ -279,7 +291,7 @@ exports.handler = async (event) => {
       // the code, then turned green the moment a Re-check ran with the period in
       // hand. Verify now sees the same two boards the Re-check sees.
       const result = await lookupAffiliate(
-        provider, providerDoc.data(), affiliateUsername, null,
+        provider, providerCred, affiliateUsername, null,
         { period: streamerData.leaderboardPeriod || null }
       );
       if (result) {

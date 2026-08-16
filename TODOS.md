@@ -124,20 +124,16 @@ Started 2026-05-29, last touched 2026-08-16.
 
 ## 7. Multi-casino verification
 
-**What:** Let a viewer choose which casino they are verifying for, and teach the affiliate lookup about Clash.
+**Status:** working as of 2026-08-16. What is left is polish, not plumbing.
 
-**Effort:** ~half a day
+Viewers pick a casino with chips on `verify.html` when the streamer runs more than one board, and the progress card lists each additional board as an optional row. Records are stored per provider (`<kickKey>_<provider>`), so linking a second casino adds a record rather than replacing the first. Clash.gg is checked against `detailed-summary/v2`, which lists every referred user with recorded play.
 
-**Why:** Meg runs four sites. Verification records are already stored per provider (`<kickKey>_<provider>`), and `verify-affiliate` already accepts a `casino` and validates it against her primary casino plus every enabled board. The gap is the front end: `verify.html` resolves exactly one casino, from `?casino=` or the streamer's primary, so a viewer can only ever verify for one of her four.
+**Still worth doing:**
 
-**What is left:**
-
-- A chooser on `verify.html` when the streamer has more than one enabled board. One casino should stay a straight-through flow with no extra step. The streamer's boards are already in `portal-data` under `boards`, so no new endpoint is needed.
-- `!verify` / `/verify` should link to it and say which casinos are on offer.
-- Per-casino Discord roles, if she wants "Degen Verified" separate from "Clash Verified". Today `discordConfig.verify.roleId` is a single role for the channel.
-- A Clash branch in `lookupAffiliate` (see below) so Clash verifications are checked rather than taken on trust.
-
-**Clash caveat:** `clash.gg` is deliberately NOT in `API_CASINOS`. Its affiliate endpoint only returns the CURRENT race's top players, so absence from that list does not mean "not under the code" - anyone who has not out-wagered the leaders is missing from it. Adding Clash to that set without handling the distinction would fail genuine affiliates at verification. Either find an endpoint that lists all referred users, or treat a miss as unproven rather than as a rejection.
+- `!verify` / `/verify` could name the casinos on offer rather than sending a bare link.
+- Per-casino Discord roles. `discordConfig.verify.roleId` is one role for the channel, so "Degen Verified" cannot differ from "Clash Verified".
+- Someone who signed up under a code but has never wagered does not appear in any affiliate API (true of Rainbet and Clash alike), so they verify as not-under-code until they play. Worth a clearer message than the current one.
+- The picker only lists casinos with an enabled board. A streamer who takes a board down loses the ability for viewers to verify against that casino, which may not be what "disable this board" should mean.
 
 ---
 

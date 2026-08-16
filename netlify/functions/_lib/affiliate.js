@@ -95,6 +95,8 @@ function findMatch(rankings, target, knownUid) {
 }
 
 // opts: { uid } — when provided, match by provider UID (durable, masking-proof).
+const { lookupClashAffiliate } = require("./clash");
+
 async function lookupAffiliate(provider, credential, affiliateUsername, diagnostics = null, opts = {}) {
   const target   = (affiliateUsername || "").toLowerCase().trim();
   const knownUid = opts && opts.uid != null ? String(opts.uid) : null;
@@ -104,6 +106,20 @@ async function lookupAffiliate(provider, credential, affiliateUsername, diagnost
   // nothing that already passes a string had to change.
   const cred   = (credential && typeof credential === "object") ? credential : { apiKey: credential };
   const apiKey = cred.apiKey;
+
+  // ── Clash.gg ───────────────────────────────────────────────────────────────
+  // Real usernames and stable ids, matched against the whole referral history
+  // rather than a race window, so someone under the code who has not played
+  // this period still resolves as under-code.
+  if (provider === "clash") {
+    const token = cred.apiToken || cred.token || apiKey;
+    const hit = await lookupClashAffiliate(token, affiliateUsername);
+    if (diagnostics) diagnostics.push({ provider, matched: !!(hit && hit.found), error: hit ? null : "clash api unreachable" });
+    if (hit && hit.found) {
+      return { username: hit.username, uid: hit.userId, wagerAmount: hit.wagered || 0, matchedViaMask: false };
+    }
+    return null;
+  }
 
   // ── Rainbet ────────────────────────────────────────────────────────────────
   // Real usernames + stable ids, so matching is exact (no masking to unpick).

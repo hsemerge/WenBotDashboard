@@ -19,7 +19,11 @@
 //     is NOT the same number as `xp` (xp is the raw figure the summary endpoint
 //     calls "wagered"). Ranking on anything but `wagered` would order the board
 //     differently from Clash's own.
-//   • `rewards` is in rank order, in Clash balance units, not dollars.
+//   • `rewards` is in rank order, and in HUNDREDTHS of a gem, not gems and not
+//     dollars. Her 2,200 gem pool comes back as 70000 + 50000 + ... = 220000,
+//     so the ladder is divided by 100 on the way out. Confirmed against the
+//     race she actually configured; if a future race disagrees, this is the
+//     single line to revisit.
 //   • `startDate` + `durationDays` define the window; there is no end date field.
 //   • `status` is LIVE for a running race.
 //   • Clash generate this response on demand and ask that it be cached, so every
@@ -28,6 +32,9 @@
 const CLASH_URL   = "https://api.clash.gg/affiliates/leaderboards/my-leaderboards-api";
 const GATE_COOKIE = process.env.CLASH_GATE_COOKIE || "";
 const DAY_MS      = 24 * 60 * 60 * 1000;
+// Clash reports reward amounts in hundredths of a gem. `wagered` is NOT on this
+// scale - it already comes back in gems - so this applies to the ladder only.
+const REWARD_UNITS_PER_GEM = 100;
 
 function num(v) { const n = Number(v); return Number.isFinite(n) ? n : 0; }
 
@@ -60,8 +67,8 @@ function shape(lb) {
     currency: lb.currency || null,
     startAt,
     endAt,
-    // Rank-ordered prize ladder, straight from Clash.
-    prizes:   (lb.rewards || []).map((r) => num(r.amount)),
+    // Rank-ordered prize ladder, converted from hundredths of a gem to gems.
+    prizes:   (lb.rewards || []).map((r) => num(r.amount) / REWARD_UNITS_PER_GEM),
     rankings,
     totalUsers:   rankings.length,
     totalWagered: rankings.reduce((sum, p) => sum + p.wagered, 0),
@@ -115,24 +122,64 @@ async function fetchClashBoard(token, preferId) {
       || all[0];
 }
 
+// ── Affiliate verification ───────────────────────────────────────────────────
+//
+//   GET https://api.clash.gg/affiliates/detailed-summary/v2/{since}
+//
+// A different endpoint from the leaderboard one above, and the right one for
+// "is this viewer under the code": it returns EVERY referred user with activity
+// since the given date, not just a race's top players. Asked from the epoch, it
+// is the whole referral list.
+//
+// Caveat, same as Rainbet: someone who signed up under the code but has never
+// wagered does not appear, because the endpoint reports activity. A miss is
+// therefore "no recorded play under this code", not proof of nothing.
+const SUMMARY_URL = "https://api.clash.gg/affiliates/detailed-summary/v2";
+
+async function fetchClashReferrals(token, sinceMs) {
+  if (!token) return null;
+  const since = new Date(Number(sinceMs) || 0).toISOString();
+  try {
+    const r = await fetch(`${SUMMARY_URL}/${encodeURIComponent(since)}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+        ...(GATE_COOKIE ? { Cookie: GATE_COOKIE } : {}),
+      },
+    });
+    if (!r.ok) return null;
+    const rows = await r.json();
+    if (!Array.isArray(rows)) return null;
+    return rows.map((e) => ({
+      username: e.name || "",
+      userId:   e.userId != null ? String(e.userId) : null,
+      // NOTE: this endpoint's `wagered` is the RAW figure, which the leaderboard
+      // endpoint calls `xp`. It is fine for "did they play", but it is NOT the
+      // adjusted number a race is scored on, so never rank a board with it.
+      wagered:  num(e.wagered),
+    }));
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Is this viewer playing under the streamer's code?
- *
- * Only the current race's top players are visible through this endpoint, so a
- * miss means "not in the standings", NOT "not under the code". Callers must not
- * treat a false here as proof the viewer is unaffiliated.
+ * Is this viewer playing under the streamer's Clash code?
+ * Matched on display name, case-insensitively, from the whole referral history.
+ * Returns null when the API could not be reached, so callers can tell that
+ * apart from a genuine miss.
  */
 async function lookupClashAffiliate(token, username) {
   const name = String(username || "").trim().toLowerCase();
-  if (!name) return { found: false, partial: true };
+  if (!name) return { found: false };
 
-  const lb = await fetchClashBoard(token, null);
-  if (!lb) return null;                       // API failure, distinct from "not found"
+  const rows = await fetchClashReferrals(token, 0);
+  if (!rows) return null;
 
-  const hit = lb.rankings.find((r) => String(r.username).trim().toLowerCase() === name);
+  const hit = rows.find((r) => String(r.username).trim().toLowerCase() === name);
   return hit
     ? { found: true, username: hit.username, userId: hit.userId, wagered: hit.wagered }
-    : { found: false, partial: true };
+    : { found: false };
 }
 
-module.exports = { fetchClashLeaderboards, fetchClashBoard, lookupClashAffiliate };
+module.exports = { fetchClashLeaderboards, fetchClashBoard, fetchClashReferrals, lookupClashAffiliate };
