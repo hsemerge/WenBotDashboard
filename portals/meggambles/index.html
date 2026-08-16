@@ -12,11 +12,11 @@
 <meta property="og:title" content="MegRewards | Wager Leaderboards">
 <meta property="og:description" content="Live wager leaderboards, giveaways & rewards. Join the community!">
 <meta property="og:url" content="https://megrewards.com/">
-<meta property="og:image" content="https://megrewards.com/portals/meggambles/assets/megrewards-poster.jpg">
+<meta property="og:image" content="https://megrewards.com/portals/meggambles/assets/megrewards-og.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="MegRewards | Wager Leaderboards">
 <meta name="twitter:description" content="Live wager leaderboards, giveaways & rewards. Join the community!">
-<meta name="twitter:image" content="https://megrewards.com/portals/meggambles/assets/megrewards-poster.jpg">
+<meta name="twitter:image" content="https://megrewards.com/portals/meggambles/assets/megrewards-og.jpg">
 <link rel="icon" href="/portals/meggambles/assets/logo.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -411,7 +411,10 @@
   .lp-go {
     margin-left:auto; font-family:'Exo 2',sans-serif; font-weight:900; font-size:12px;
     letter-spacing:.08em; text-transform:uppercase; padding:7px 14px; border-radius:999px;
+    display:inline-flex; align-items:center; gap:5px; white-space:nowrap; line-height:1;
   }
+  /* Currency icon inside the pill: sized to the text, not to a table row. */
+  .lp-go img { width:13px; height:13px; vertical-align:0; margin:0; }
   .lp-go-live { color:#0a0710; }
   .lp-go-soon { color:var(--dim); border:1px solid var(--border); }
 
@@ -531,6 +534,7 @@
 
   /* Repaint the page ground with the room. Without this the tokens change but
      the body keeps whatever background it was first given. */
+  html { background-color:#0b0613; }
   body { background-color:var(--bg); }
 
   /* ── INTRO ───────────────────────────────────────────────────────────────
@@ -761,7 +765,7 @@
        MegRewards and sends you to a room; the boards live on their own pages. -->
   <div id="landingView" class="hidden">
     <video class="hero-banner" id="landingBanner" autoplay loop muted playsinline
-           poster="/portals/meggambles/assets/megrewards-poster.jpg">
+           poster="/portals/meggambles/assets/megrewards-og.jpg">
       <source src="/portals/meggambles/assets/newbanner.mp4" type="video/mp4">
     </video>
 

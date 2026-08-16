@@ -121,13 +121,23 @@
   .brand img { width:46px; height:46px; border-radius:13px; object-fit:cover; }
   .brand-name { font-family:'Exo 2',sans-serif; font-weight:900; font-size:22px; color:var(--bright); letter-spacing:.04em; }
   .brand-sub { font-size:11px; color:var(--dim); }
-  .nav-links { display:flex; gap:6px; flex-wrap:wrap; }
+  .nav-links { display:flex; gap:20px; flex-wrap:wrap; align-items:center; }
   .nav-links a {
-    color:var(--dim); text-decoration:none; font-weight:700; font-size:12.5px; letter-spacing:.03em;
-    padding:8px 13px; border-radius:9px; border:1px solid transparent; transition:.15s; cursor:pointer; text-transform:uppercase;
+    position:relative; color:var(--text); text-decoration:none; font-weight:800; font-size:13px;
+    letter-spacing:.06em; padding:4px 0 6px; border:0; background:none; transition:color .15s;
+    cursor:pointer; text-transform:uppercase; white-space:nowrap;
   }
-  .nav-links a:hover { color:var(--bright); background:rgba(255,255,255,.04); }
-  .nav-links a.on { color:var(--bright); border-color:var(--accent); background:var(--accent-10); }
+  /* Always present, just faint, so a bare word still reads as something to
+     press. It fills out on hover and on the page you are on. */
+  .nav-links a::after {
+    content:''; position:absolute; left:0; right:0; bottom:0; height:2px; border-radius:2px;
+    background:currentColor; opacity:.22; transform:scaleX(.82); transform-origin:center;
+    transition:opacity .15s, transform .15s;
+  }
+  .nav-links a:hover { color:var(--bright); }
+  .nav-links a:hover::after,
+  .nav-links a.on::after { opacity:1; transform:scaleX(1); }
+  .nav-links a.on { color:var(--accent); }
 
   /* LINK BAR */
   /* Sits at the end of the nav. The whole header is 1140px of usable width and
@@ -148,6 +158,31 @@
   .linkbar a:hover { border-color:var(--accent); background:var(--accent-10); color:var(--bright); transform:translateY(-1px); }
 
   /* HERO */
+  /* Banner film. No forced aspect ratio: whatever shape the file is, it is
+     shown whole rather than cropped to a letterbox chosen for a different one. */
+  .hero-film {
+    display:block; width:100%; max-width:100%; height:auto; margin:6px auto 4px;
+    border-radius:16px; border:1px solid var(--red-30); background:#0a0a0c;
+    box-shadow:0 0 50px rgba(255,59,59,.16);
+  }
+  @media (max-width:560px) { .hero-film { border-radius:12px; } }
+  .film-wrap { position:relative; }
+  /* Covers the poster until pressed, then gets out of the way. */
+  .film-play {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:12px;
+    background:rgba(0,0,0,.34); border:0; border-radius:16px; cursor:pointer; color:#fff;
+    font-family:inherit; font-weight:800; letter-spacing:.1em; text-transform:uppercase; font-size:13px;
+    transition:background .15s;
+  }
+  .film-play:hover { background:rgba(0,0,0,.2); }
+  .film-play.gone { display:none; }
+  .film-tri {
+    width:0; height:0; border-style:solid; border-width:13px 0 13px 22px;
+    border-color:transparent transparent transparent #fff;
+    filter:drop-shadow(0 0 14px rgba(255,59,59,.65));
+  }
+  @media (max-width:560px) { .film-play { border-radius:12px; font-size:12px; } }
+
   .hero { text-align:center; padding:14px 0 10px; }
   .hero .kicker { display:inline-block; font-size:11px; font-weight:800; letter-spacing:.18em; text-transform:uppercase;
     color:var(--red); border:1px solid var(--red-30); background:var(--red-05);
@@ -544,6 +579,22 @@
 
   <!-- ── HOME / LEADERBOARD ─────────────────────────────────────────────── -->
   <div id="view-home">
+    <!-- Banner film, played on demand. The file is 24MB, so autoplaying it
+         would spend that on every visitor before they have read a word, most of
+         them on a phone. preload="none" means nothing is fetched until the play
+         button is pressed, and the <source> is attached at that moment rather
+         than sitting in the markup, because some browsers begin buffering a
+         source regardless of the preload hint. Until then this costs one poster
+         image. It plays with sound, since a press is the consent autoplay
+         lacks. -->
+    <div class="film-wrap" id="filmWrap">
+      <video class="hero-film" id="heroFilm" playsinline preload="none" poster="hero.jpg"></video>
+      <button class="film-play" id="filmPlay" type="button" aria-label="Play the video">
+        <span class="film-tri"></span>
+        <span class="film-lab">Play</span>
+      </button>
+    </div>
+
     <div class="hero">
       <div class="kicker"><span id="heroKicker">Code TILTBROS</span></div>
       <h1 id="heroTitle">MONTHLY WAGER RACE</h1>
@@ -779,6 +830,30 @@
       a.addEventListener('click', function (e) { e.preventDefault(); showView(a.getAttribute('data-view')); });
     });
   }
+
+  // Banner film: attach the source and play only when asked. Nothing downloads
+  // before this runs.
+  (function () {
+    var btn = document.getElementById('filmPlay');
+    var vid = document.getElementById('heroFilm');
+    if (!btn || !vid) return;
+    btn.addEventListener('click', function () {
+      if (!vid.querySelector('source')) {
+        var src = document.createElement('source');
+        src.src = 'main.mp4';
+        src.type = 'video/mp4';
+        vid.appendChild(src);
+        vid.load();
+      }
+      vid.controls = true;
+      btn.classList.add('gone');
+      vid.play().catch(function () {
+        // Refused for any reason: give the controls back rather than leaving a
+        // dead frame with no way to start it.
+        btn.classList.remove('gone');
+      });
+    });
+  })();
 
   // ── theme ────────────────────────────────────────────────────────────────
   function applyTheme(t) {
