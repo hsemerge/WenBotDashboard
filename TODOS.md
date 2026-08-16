@@ -122,6 +122,25 @@ Started 2026-05-29, last touched 2026-08-16.
 
 ---
 
+## 7. Multi-casino verification
+
+**What:** Let a viewer choose which casino they are verifying for, and teach the affiliate lookup about Clash.
+
+**Effort:** ~half a day
+
+**Why:** Meg runs four sites. Verification records are already stored per provider (`<kickKey>_<provider>`), and `verify-affiliate` already accepts a `casino` and validates it against her primary casino plus every enabled board. The gap is the front end: `verify.html` resolves exactly one casino, from `?casino=` or the streamer's primary, so a viewer can only ever verify for one of her four.
+
+**What is left:**
+
+- A chooser on `verify.html` when the streamer has more than one enabled board. One casino should stay a straight-through flow with no extra step. The streamer's boards are already in `portal-data` under `boards`, so no new endpoint is needed.
+- `!verify` / `/verify` should link to it and say which casinos are on offer.
+- Per-casino Discord roles, if she wants "Degen Verified" separate from "Clash Verified". Today `discordConfig.verify.roleId` is a single role for the channel.
+- A Clash branch in `lookupAffiliate` (see below) so Clash verifications are checked rather than taken on trust.
+
+**Clash caveat:** `clash.gg` is deliberately NOT in `API_CASINOS`. Its affiliate endpoint only returns the CURRENT race's top players, so absence from that list does not mean "not under the code" - anyone who has not out-wagered the leaders is missing from it. Adding Clash to that set without handling the distinction would fail genuine affiliates at verification. Either find an endpoint that lists all referred users, or treat a miss as unproven rather than as a rejection.
+
+---
+
 ## Notes
 
 - The hardcoded `HOST_TO_SLUG` in `netlify/edge-functions/custom-domain.js` currently has just `skslots.co.uk` + `www.skslots.co.uk` → `skslots`. New clients in the meantime: add an entry, push, done. But that's the workaround until item 2 lands.

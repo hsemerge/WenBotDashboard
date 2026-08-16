@@ -323,7 +323,19 @@
 
   /* Daily reward link states. Ready is the only thing in the bar that pulses,
      because it is the only thing there that expires. */
-  .linkbar a.lk-daily-ready { color:var(--gold); border-color:var(--gold); background:rgba(255,216,77,.08); }
+  .linkbar a.lk-daily-ready {
+    color:#241a00; border-color:var(--gold);
+    background:linear-gradient(90deg,var(--gold),#ffe98a);
+    box-shadow:0 0 0 0 rgba(255,216,77,.55);
+    animation:dailyPulse 2.2s ease-out infinite;
+  }
+  .linkbar a.lk-daily-ready:hover { filter:brightness(1.06); color:#241a00; }
+  @keyframes dailyPulse {
+    0%   { box-shadow:0 0 0 0 rgba(255,216,77,.5); }
+    70%  { box-shadow:0 0 0 11px rgba(255,216,77,0); }
+    100% { box-shadow:0 0 0 0 rgba(255,216,77,0); }
+  }
+  @media (prefers-reduced-motion: reduce) { .linkbar a.lk-daily-ready { animation:none; } }
   .linkbar a.lk-daily-off   { opacity:.6; }
   .linkbar a[data-board='degen'].lk-active   { color:#7ee81a; }
   .linkbar a[data-board='csgobig'].lk-active { color:#e8b33c; }
@@ -528,6 +540,37 @@
   .intro-btn:hover { background:rgba(255,255,255,.16); border-color:#fff; }
   @media (max-width:600px) { .intro-btns { right:12px; bottom:12px; } .intro-btn { font-size:12px; padding:8px 14px; } }
 
+  /* ── PHONES ──────────────────────────────────────────────────────────────
+     The older sections already had breakpoints; these cover the pieces added
+     with the four-casino rebuild, plus a guard so nothing can push the page
+     sideways. A phone should never scroll horizontally on a leaderboard. */
+  html, body { max-width:100%; overflow-x:hidden; }
+  img, video, canvas, iframe { max-width:100%; }
+
+  @media (max-width:560px) {
+    /* Daily line reads as two stacked lines rather than a squeezed row. */
+    .lp-daily { flex-direction:column; align-items:center; gap:6px; text-align:center; }
+
+    /* Room cards: name, tag and the play pill each get their own line before
+       they start colliding. */
+    .lp-room-top  { flex-wrap:wrap; gap:4px 8px; }
+    .lp-room-foot { flex-wrap:wrap; gap:9px; }
+    .lp-room-body { padding:13px 14px 14px; }
+    .lp-room-name { font-size:16px; }
+    .lp-step, .lp-fact { padding:14px; }
+
+    /* Opening-soon panel. */
+    .board-soon { padding:20px 15px; }
+    .bs-title { font-size:17px; }
+    .bs-text  { font-size:13px; }
+
+    /* Winners filter chips. */
+    .lb-filter { gap:6px; }
+    .pw-chip { font-size:11.5px; padding:5px 11px; }
+    .pw-row { flex-wrap:wrap; gap:6px 10px; padding:11px 13px; }
+    .pw-date { width:100%; font-size:11px; }
+  }
+
   .hidden { display:none; }
 
   /* ── MOBILE / RESPONSIVE ─────────────────────────────────────────────────
@@ -630,8 +673,21 @@
       if (!vid.muted) vid.play().catch(function () {});
     });
 
+    // Sound on by default where the browser allows it. Chrome and Safari refuse
+    // unmuted autoplay until a site earns enough engagement, so a refusal drops
+    // to muted and leaves the toggle for the viewer, rather than killing the
+    // intro or sitting on a silent frozen frame.
+    vid.muted = false;
+    snd.textContent = '🔊 Sound off';
     var play = vid.play();
-    if (play && play.catch) play.catch(finish);
+    if (play && play.catch) {
+      play.catch(function () {
+        vid.muted = true;
+        snd.textContent = '🔇 Sound on';
+        var retry = vid.play();
+        if (retry && retry.catch) retry.catch(finish);
+      });
+    }
     // Backstop: if metadata never arrives the viewer is staring at black.
     setTimeout(function () { if (!vid.currentTime && !done) finish(); }, 6000);
   })();
@@ -1067,6 +1123,7 @@
     const dailyEl = bar.querySelector('[data-daily]');
     if (dailyEl) dailyEl.addEventListener('click', function (e) { e.preventDefault(); openDailyClaim(); });
 
+    markNav(window.__view || 'home');
     if (window.refreshDailyClaimUI) refreshDailyClaimUI();
 
     // Delegated so the tabs route in-page instead of reloading the site.
@@ -1126,17 +1183,30 @@
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return false;
   }
+  // The one writer of the nav's selected state. `name` is a view id: 'home',
+  // 'main' (a board page), or a section like 'store'.
+  function markNav(name) {
+    const bar = document.getElementById('linkbar');
+    if (!bar) return;
+    bar.querySelectorAll('.lk-board').forEach((b) =>
+      b.classList.toggle('lk-active', name === 'main' && b.getAttribute('data-board') === window.__activeBoard));
+    const home = bar.querySelector('.lk-home');
+    if (home) home.classList.toggle('lk-active', name === 'home');
+    // Sections (Store, Winners, Wager Rewards). The daily button also has a
+    // #href but is an action rather than a destination, hence :not(.lk-ext).
+    bar.querySelectorAll('a[href^="#"]:not(.lk-ext)').forEach((a) =>
+      a.classList.toggle('lk-active', a.getAttribute('href') === '#' + name));
+  }
+
   function showView(name) {
     const main = document.getElementById('mainView');
     const themes = ['theme-degen', 'theme-csgobig', 'theme-clash', 'theme-ethbet'];
     const wear = name === 'home' ? null : (CASINOS[window.__activeBoard] || {}).theme;
     themes.forEach((t) => document.body.classList.toggle(t, t === wear));
     if (window.setStars) setStars(name === 'home' ? 'home' : window.__activeBoard);
-    // Home has no board tab, so nothing in the nav should read as selected.
-    document.querySelectorAll('.lk-board').forEach((b) =>
-      b.classList.toggle('lk-active', name !== 'home' && b.getAttribute('data-board') === window.__activeBoard));
-    const homeTab = document.querySelector('.lk-home');
-    if (homeTab) homeTab.classList.toggle('lk-active', name === 'home');
+    // Remembered so a rebuild of the bar can restore it.
+    window.__view = name;
+    markNav(name);
     // Hide every standalone view first.
     Object.values(PAGE_VIEWS).forEach(vid => document.getElementById(vid)?.classList.add('hidden'));
     if (PAGE_VIEWS[name]) {
@@ -1389,7 +1459,9 @@
     const soon = document.getElementById('boardSoon');
     if (soon) {
       soon.style.display = hasBoard ? 'none' : '';
-      if (!hasBoard) {
+      setStars(which);
+
+    if (!hasBoard) {
         soon.innerHTML = '<div class="bs-title">' + esc(cfg.name || '') + ' is opening soon</div>'
           + '<div class="bs-text">' + esc(cfg.blurb || '') + ' Play under code <b>' + esc(cfg.code || 'MEG')
           + '</b> now and your wager counts from the moment the board goes live.</div>'
@@ -1400,12 +1472,11 @@
     if (wrap) wrap.style.display = hasBoard ? '' : 'none';
     const pod = document.getElementById('podium');
     if (pod) pod.style.display = hasBoard ? '' : 'none';
-    // Nav tab highlight (tabs live in the top link bar) and the sparkle palette.
-    // Both belong to the ROOM, not to its leaderboard, so they run before the
-    // no-board bail-out below.
-    document.querySelectorAll('.lk-board').forEach(b =>
-      b.classList.toggle('lk-active', b.getAttribute('data-board') === which));
-    setStars(which);
+    // Sparkle palette belongs to the ROOM, so it runs before the no-board
+    // bail-out below. The nav highlight deliberately does NOT live here:
+    // showView owns it. renderBoard runs on every 60s refresh, including while
+    // the viewer is on the landing page or the Store, and setting the tab here
+    // lit a board tab on pages that are not that board.
 
     if (!hasBoard) {
       // Otherwise the previous room's prize, CTA and countdown stay on screen and
@@ -2062,7 +2133,7 @@
     // Default to Degen on first load; keep the viewer's chosen tab across refreshes.
     renderBoard(CASINOS[window.__activeBoard] ? window.__activeBoard : 'degen');
     renderRooms();
-    showView(landOnHome ? 'home' : 'main');
+    if (!window.__routedOnce) showView(landOnHome ? 'home' : 'main');
     renderActive(s);
     renderStore(s);
     renderWinners(s);
