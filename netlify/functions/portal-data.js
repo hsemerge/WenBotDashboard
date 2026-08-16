@@ -12,6 +12,7 @@ const { fetchRainbetForPeriod, fetchRainbetRange, applyRainbetExclusions, ymd: r
 const { fetchCsgobigRace }   = require("./_lib/csgobig");
 const { fetchDuelbitsForPeriod, applyDuelbitsPeriod } = require("./_lib/duelbits");
 const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards");
+const { fetchClashBoard } = require("./_lib/clash");
 
 // NOT the shared API_CASINOS from _lib/casinos. This one gates a hardcoded
 // Gambulls board fetch below, so adding a casino here would send that provider to
@@ -167,7 +168,7 @@ const PORTAL_PRESETS = {
   // the referral code in the URL. Preset key stays on the old slug: it resolves
   // through previousChannels, and renaming the key would break her asset paths.
   // provider + degenReferralCode here mean she needs NO Firestore provider doc.
-  irishqueenoftheslots: {
+  meggambles: {
     provider:          "degen",
     degenReferralCode: "meg",
     // Second (switchable) leaderboard: CSGOBig partner API, keyless (ref code in URL).
@@ -190,7 +191,7 @@ const PORTAL_PRESETS = {
       bgCard:     "#19102e",
       border:     "#3a2a5c",
     },
-    logoUrl: "/portals/irishqueenoftheslots/assets/logo.jpg",
+    logoUrl: "/portals/meggambles/assets/logo.jpg",
     hero: {
       tagline:   "Slots. Wins. Vibes. Big Energy. 💜",
       // title omitted — the page markup renders it with a visible crown emoji
@@ -242,7 +243,7 @@ const PORTAL_PRESETS = {
       title:    "MONTHLY WAGER RACE",
       cadence:  "Monthly",
       code:     "TILTBROS",
-      ctaLabel: "Play on Duelbits — code TILTBROS",
+      ctaLabel: "Play on Duelbits with code TILTBROS",
       ctaHref:  "https://duelbits.com/?a=tiltbros",
     },
     // FALLBACK ONLY — the dashboard's Leaderboard Prizes override this the
@@ -262,7 +263,7 @@ const PORTAL_PRESETS = {
       { id: "faq",       label: "FAQ" },
     ],
     rewards: {
-      intro: "Every dollar wagered under code TILTBROS on Duelbits works for you — race payouts, raffle tickets and milestone rewards all come off the same wager.",
+      intro: "Every dollar wagered under code TILTBROS on Duelbits works for you: race payouts, raffle tickets and milestone rewards all come off the same wager.",
       sections: [
         {
           type: "prizes", title: "Monthly Leaderboard", subtitle: "Top 10 get paid",
@@ -277,7 +278,7 @@ const PORTAL_PRESETS = {
             { wager: "$25,000",  reward: "$150" },
             { wager: "$50,000",  reward: "$325" },
             { wager: "$100,000", reward: "$700" },
-            { wager: "$250,000", reward: "TiltBros VIP — open a ticket" },
+            { wager: "$250,000", reward: "TiltBros VIP (open a ticket)" },
           ],
           note: "Milestones reset at the start of each month. Claim by opening a ticket in Discord once you hit a tier.",
         },
@@ -286,7 +287,7 @@ const PORTAL_PRESETS = {
           bullets: [
             "Sign up on Duelbits using code TILTBROS",
             "Type !verify in Kick chat to link your casino account",
-            "Wager — the leaderboard, raffle tickets and milestones all track automatically",
+            "Wager, and the leaderboard, raffle tickets and milestones all track automatically",
           ],
         },
       ],
@@ -304,7 +305,7 @@ const PORTAL_PRESETS = {
         winnersPerDraw: 3,
         steps: [
           { icon: "🎰", title: "Wager on Duelbits", text: "Play under code TILTBROS. Every 1,000 wagered = 1 ticket." },
-          { icon: "🎟️", title: "Tickets stack up",  text: "Tickets are counted automatically — nothing to claim or enter." },
+          { icon: "🎟️", title: "Tickets stack up",  text: "Tickets are counted automatically. Nothing to claim or enter." },
           { icon: "📺", title: "Drawn live",         text: "Three winners pulled live on stream every Monday." },
         ],
       },
@@ -334,7 +335,7 @@ const PORTAL_PRESETS = {
         promoImage: "/img/duelbits-register.png",
       },
       giveaways: {
-        blurb: "Giveaways run live on stream — no wager needed for most of them. Winners are logged here automatically as they're drawn.",
+        blurb: "Giveaways run live on stream, and most need no wager at all. Winners are logged here automatically as they're drawn.",
         // No per-winner prize VALUE is stored anywhere (winners_log records who
         // and when, not how much), so a lifetime total can't be computed from
         // data. Set it here by hand, or leave null and the tile is hidden —
@@ -347,7 +348,7 @@ const PORTAL_PRESETS = {
         items: [
           { icon: "🎯", title: "Slot Bounty",   text: "Land the listed multiplier on the called slot." },
           { icon: "💥", title: "Max Win",       text: "Hit a max win on any bonus bought on stream." },
-          { icon: "🔥", title: "Community Goal", text: "Chat-wide targets — everyone in chat gets paid when it lands." },
+          { icon: "🔥", title: "Community Goal", text: "Chat-wide targets. Everyone in chat gets paid when it lands." },
         ],
         note: "Bounties change often. Current ones are announced on stream and pinned in Discord.",
       },
@@ -377,7 +378,7 @@ const PORTAL_PRESETS = {
           { icon: "code",    text: "JOIN CODE TILTBROS", kind: "code" },
         ],
       },
-      responsible: "18+ only. Gamble responsibly — never wager more than you can afford to lose.",
+      responsible: "18+ only. Gamble responsibly, and never wager more than you can afford to lose.",
       // FAQ accordion. Answers restate the mechanics that live elsewhere on the
       // page, so a player never has to hunt — keep them in sync with the raffle
       // rules and prize list above if those change.
@@ -396,7 +397,7 @@ const PORTAL_PRESETS = {
           },
           {
             q: "How do raffles work?",
-            a: "Wagering under code TILTBROS earns points, and every 1,000 points is one raffle ticket — counted automatically from the leaderboard, with nothing to enter. Three winners are drawn live on the Kick stream every Monday.",
+            a: "Wagering under code TILTBROS earns points, and every 1,000 points is one raffle ticket, counted automatically from the leaderboard, with nothing to enter. Three winners are drawn live on the Kick stream every Monday.",
           },
           {
             q: "How do I link my casino account?",
@@ -426,14 +427,14 @@ const PORTAL_PRESETS = {
       // listed explicitly because a channel can front several accounts (two X
       // handles here) that no auto-derivation would get right.
       footer: {
-        disclaimer: "We take no responsibility for losses incurred on any casino or betting site linked or promoted here. You alone are responsible for your bets. 18+ only — play responsibly.",
+        disclaimer: "We take no responsibility for losses incurred on any casino or betting site linked or promoted here. You alone are responsible for your bets. 18+ only. Play responsibly.",
         partners: [
           { label: "Duelbits", href: "https://duelbits.com/?a=tiltbros" },
         ],
         socials: [
           { label: "Kick",         href: "https://kick.com/thetiltbros" },
-          { label: "X — Donny",    href: "https://x.com/donthelizard" },
-          { label: "X — NoFace",   href: "https://x.com/mrnoface7420" },
+          { label: "Donny on X",   href: "https://x.com/donthelizard" },
+          { label: "NoFace on X",  href: "https://x.com/mrnoface7420" },
           { label: "Discord",      href: "https://discord.com/invite/thetiltbros" },
         ],
         bottomNote: "Play under code TILTBROS. Gamble aware.",
@@ -1164,10 +1165,11 @@ exports.handler = async (event) => {
           try {
             // Credential on the board wins; otherwise inherit providers/{provider}
             // so a streamer who already configured that casino doesn't re-enter a key.
-            let cred = (b.credential && (b.credential.apiKey || b.credential.refCode)) || null;
+            let cred = (b.credential && (b.credential.apiKey || b.credential.refCode
+              || b.credential.apiToken || b.credential.token)) || null;
             if (!cred) {
               const pd = await db.collection("streamers").doc(uid).collection("providers").doc(b.provider).get();
-              if (pd.exists) cred = pd.data().apiKey || pd.data().referralCode || null;
+              if (pd.exists) cred = pd.data().apiKey || pd.data().referralCode || pd.data().token || null;
             }
             if (!cred) { extraBoards.push(entry); continue; } // configured but unusable — still list it
 
@@ -1188,6 +1190,16 @@ exports.handler = async (event) => {
                 // timestamps silently returns nothing.
                 const rb = await fetchRainbetRange(cred, rbYmd(from), rbYmd(to));
                 if (rb) data = { rankings: (rb.rankings || []).map((r) => ({ rank: r.rank, username: r.username, wagered: r.wagered, avatarUrl: null })), totalUsers: rb.totalUsers, totalWagered: rb.totalWagered };
+              } else if (b.provider === "clash") {
+                // Clash owns the race: its period and prize ladder come back with
+                // the standings, so the board inherits them rather than needing
+                // them re-entered here.
+                const cg = await fetchClashBoard(cred, b.credential && b.credential.leaderboardId);
+                if (cg) data = {
+                  rankings: (cg.rankings || []).map((r) => ({ rank: r.rank, username: r.username, wagered: r.wagered, avatarUrl: r.avatarUrl })),
+                  totalUsers: cg.totalUsers, totalWagered: cg.totalWagered,
+                  startAt: cg.startAt, endAt: cg.endAt, prizes: cg.prizes, raceName: cg.name,
+                };
               } else if (b.provider === "gambulls") {
                 const resp = await fetch("https://api.gambulls.com/api/public/streamer/leaderboard?type=monthly&limit=100",
                   { headers: { "x-streamer-api-key": cred, "Accept": "application/json" } });
@@ -1204,9 +1216,18 @@ exports.handler = async (event) => {
             }
 
             if (data) {
+              // A provider that owns the race (Clash) reports its own window and
+              // ladder; use them unless the streamer set prizes of their own.
+              if (data.startAt) entry.startAt = data.startAt;
+              if (data.endAt)   entry.endAt   = data.endAt;
+              if (data.raceName) entry.raceName = data.raceName;
+              const own = ladder.length ? ladder : (Array.isArray(data.prizes) ? data.prizes : []);
+              const prizeAt = (rank) => (Number(own[rank - 1]) > 0 ? Number(own[rank - 1]) : 0);
+              entry.prizePool = own.reduce((s, v) => s + (Number(v) || 0), 0);
+
               entry.rankings     = (data.rankings || []).map((r) => ({
                 rank: r.rank, name: r.username, wagerAmount: r.wagered || 0,
-                avatarUrl: r.avatarUrl || null, prize: prizeFor(r.rank),
+                avatarUrl: r.avatarUrl || null, prize: prizeAt(r.rank),
               }));
               entry.totalUsers   = data.totalUsers   || 0;
               entry.totalWagered = data.totalWagered || 0;

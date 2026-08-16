@@ -27,6 +27,11 @@ const CASINO_NAMES = {
   // offering it there would let a streamer pick a provider half the app can't
   // serve. It lives here so leaderboard-live will accept casino=csgobig.
   csgobig:    "CSGOBig",
+  // Same story as CSGOBig: supported as an ADDITIONAL board, so it stays out of
+  // the browser copy that feeds the primary-casino picker. Its affiliate API can
+  // answer "is this viewer under the code", so unlike CSGOBig it IS in
+  // API_CASINOS below.
+  clash:      "Clash.gg",
 };
 
 // Casinos whose affiliate API lookupAffiliate() can actually query, i.e. the ones
@@ -44,6 +49,6 @@ const CASINO_NAMES = {
 // One copy, imported everywhere, so adding the next casino can't half-land.
 // NOTE: portal-data.js keeps a separate local set of the same name — that one
 // gates a hardcoded Gambulls board fetch, not affiliate lookups. Don't merge them.
-const API_CASINOS = new Set(["gambulls", "rainbet", "duelbits"]);
+const API_CASINOS = new Set(["gambulls", "rainbet", "duelbits", "clash"]);
 
 module.exports = { CASINO_NAMES, API_CASINOS };

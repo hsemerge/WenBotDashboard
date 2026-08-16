@@ -622,7 +622,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.26.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.27.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3264,9 +3264,22 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.26.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.27.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.27.0 &middot; Clash.gg leaderboards</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 16, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#128142; <strong>Clash.gg is now a leaderboard you can add.</strong> Pick it under Leaderboard &rarr; Additional Leaderboards, paste your Clash affiliate API token, and your race appears on your portal and in /lb alongside everything else.</li>
+            <li>&#9203; <strong>Clash races configure themselves.</strong> Clash already knows when your race starts, how long it runs and what it pays, so WenBot reads all of it from your Clash account instead of asking you to type it in twice and hope the two match. Set prizes on the WenBot board only if you are topping the pot up yourself, and those win.</li>
+            <li>&#127942; <strong>Past winners can be filtered by site.</strong> If you run races on more than one casino, your portal's winners page now has a chip per site, so viewers can pull up just the Degen history or just the CSGOBig one instead of scrolling a single mixed list.</li>
+            <li>&#128176; <strong>Coins and gems are no longer labelled as dollars.</strong> Portal boards that pay in a site's own currency show that currency, rather than putting a $ in front of a number that was never dollars.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -12052,6 +12065,8 @@ const BOARD_PROVIDERS = [
     hint: 'Your Rainbet API key. Rainbet races need a start and end date.' },
   { id: 'csgobig',  name: 'CSGOBig',  cred: 'refCode',
     hint: 'Your CSGOBig referral code.' },
+  { id: 'clash',    name: 'Clash.gg',  cred: 'apiToken',
+    hint: 'Your Clash.gg affiliate API token. Clash races need a start date; wager is reported in Clash site units, not dollars.' },
 ];
 
 // Fill the Wager Rankings board selector. Hidden unless the streamer runs more

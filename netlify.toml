@@ -559,3 +559,12 @@
 [[edge_functions]]
   function = "kick-token"
   path = "/api/kick-token"
+
+# Her portal folder was renamed to match her Kick channel. Anything still
+# pointing at the old directory (bookmarks, older Discord posts, the OG image
+# URLs in link unfurls) keeps working instead of 404ing.
+[[redirects]]
+  from   = "/portals/irishqueenoftheslots/*"
+  to     = "/portals/meggambles/:splat"
+  status = 301
+  force  = true

@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TiltBros — Wager Race</title>
-<meta name="description" content="TiltBros rewards hub — live Duelbits leaderboard, weekly wager raffles, giveaways and bounties.">
+<title>TiltBros Wager Race</title>
+<meta name="description" content="TiltBros rewards hub: live Duelbits leaderboard, weekly wager raffles, giveaways and bounties.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -313,8 +313,11 @@
   .bounty-rule { background:linear-gradient(90deg,var(--red),transparent) !important; }
 
   .step { position:relative; }
-  .step .n { position:absolute; top:-9px; right:14px; font-family:'Exo 2',sans-serif; font-weight:900;
-    font-size:40px; color:var(--accent-14); line-height:1; }
+  /* Fully inside the card. At top:-9px the glyph hung over the card's edge, and
+     since it is only 14% opacity it vanished against the darker page behind,
+     which read as the number being clipped by the border. */
+  .step .n { position:absolute; top:12px; right:16px; font-family:'Exo 2',sans-serif; font-weight:900;
+    font-size:40px; color:var(--accent-14); line-height:1; pointer-events:none; }
   /* Step 1 green, step 2 red, step 3 green — the sequence walks the duotone. */
   .step:nth-child(even) .n { color:var(--red-14); }
   .step:nth-child(even) { border-color:var(--red-30); }
@@ -840,7 +843,7 @@
 
   function renderTable(rows, prizes, belowPodium) {
     if (!rows.length) {
-      $('lbTable').innerHTML = belowPodium ? '' : '<div class="empty">No wagers on the board yet — be the first.</div>';
+      $('lbTable').innerHTML = belowPodium ? '' : '<div class="empty">No wagers on the board yet. Be the first.</div>';
       $('lbTableWrap').classList.toggle('hidden', belowPodium);
       return;
     }
@@ -853,7 +856,7 @@
           + '<td class="rk">' + r.rank + '</td>'
           + '<td class="nm-cell">' + esc(r.username) + '</td>'
           + '<td class="wg-cell">' + money(r.wagered) + '</td>'
-          + '<td class="pz-cell">' + (pz ? esc(pz) : '—') + '</td>'
+          + '<td class="pz-cell">' + (pz ? esc(pz) : '-') + '</td>'
           + '</tr>';
       }).join('')
       + '</tbody></table>';
@@ -946,7 +949,7 @@
   function winnerRow(name, what, ts) {
     return '<div class="win-row">'
       + '<div class="w-av">' + esc(initials(name)) + '</div>'
-      + '<div class="w-nm">' + esc(name) + (what ? ' <span class="w-what">— ' + esc(what) + '</span>' : '') + '</div>'
+      + '<div class="w-nm">' + esc(name) + (what ? ' <span class="w-what">&middot; ' + esc(what) + '</span>' : '') + '</div>'
       + '<div class="w-when">' + esc(whenLabel(ts)) + '</div>'
       + '</div>';
   }
@@ -1013,7 +1016,7 @@
         + '</div>';
     }).join('');
     $('rfWinners').innerHTML = (live + past)
-      || '<div class="empty">No raffle draws yet — the first one lands soon.</div>';
+      || '<div class="empty">No raffle draws yet. The first one lands soon.</div>';
   }
 
   // ── giveaways ────────────────────────────────────────────────────────────
@@ -1078,7 +1081,7 @@
         +     '<div class="bw-f"><label>Display Name</label><div class="inp">' + esc(displayFor(s)) + '</div></div>'
         +     '<div class="bw-f"><label>Email Address</label><div class="inp">you@example.com</div></div>'
         +     '<div class="bw-f"><label>Password</label><div class="inp">••••••••••••</div></div>'
-        +     '<div class="bw-f"><label>Referral / Promo Code</label><div class="inp code">' + esc(code || '—') + '</div></div>'
+        +     '<div class="bw-f"><label>Referral / Promo Code</label><div class="inp code">' + esc(code || '-') + '</div></div>'
         +     '<div class="bw-btn">Register</div>'
         +     cursorSvg
         +   '</div>'
@@ -1326,7 +1329,7 @@
     applyTheme(portal.theme);
 
     var display = (s.streamer && s.streamer.displayName) || 'TiltBros';
-    document.title = display + ' — Wager Race';
+    document.title = display + ' Wager Race';
     $('brandName').textContent = display;
     if (s.streamer && s.streamer.kickChannel) {
       $('brandSub').textContent = 'kick.com/' + s.streamer.kickChannel;

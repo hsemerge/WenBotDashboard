@@ -3,32 +3,38 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MegRewards — Wager Race</title>
-<meta name="description" content="MegRewards — live wager leaderboards, giveaways & rewards. Join the community!">
+<title>MegRewards | Wager Leaderboards</title>
+<meta name="description" content="MegRewards: live wager leaderboards, giveaways & rewards. Join the community!">
 <!-- Social / link-unfurl preview (OpenGraph + Twitter). Crawlers don't run JS,
      so these MUST be Meg's MegRewards branding — not the skslots defaults the page was cloned from. -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MegRewards">
-<meta property="og:title" content="MegRewards — Wager Race">
+<meta property="og:title" content="MegRewards | Wager Leaderboards">
 <meta property="og:description" content="Live wager leaderboards, giveaways & rewards. Join the community!">
 <meta property="og:url" content="https://megrewards.com/">
-<meta property="og:image" content="https://megrewards.com/portals/irishqueenoftheslots/assets/megrewards-poster.jpg">
+<meta property="og:image" content="https://megrewards.com/portals/meggambles/assets/megrewards-poster.jpg">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="MegRewards — Wager Race">
+<meta name="twitter:title" content="MegRewards | Wager Leaderboards">
 <meta name="twitter:description" content="Live wager leaderboards, giveaways & rewards. Join the community!">
-<meta name="twitter:image" content="https://megrewards.com/portals/irishqueenoftheslots/assets/megrewards-poster.jpg">
-<link rel="icon" href="/portals/irishqueenoftheslots/assets/logo.jpg">
+<meta name="twitter:image" content="https://megrewards.com/portals/meggambles/assets/megrewards-poster.jpg">
+<link rel="icon" href="/portals/meggambles/assets/logo.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Exo+2:wght@600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!--
   BESPOKE white-label portal for MegRewards (Agency tier).
-  Formerly irishqueenoftheslots; the Kick channel is now meggambles. The
-  directory name is kept so existing asset paths and the preset key stay valid.
-  Self-contained page that pulls the SAME live data as the standard portal via
-  /api/portal-data?channel=irishqueenoftheslots — only the presentation is custom. Reached by
-  irishqueenoftheslots.com through the SLUG_TO_PAGE map in netlify/edge-functions/custom-domain.js.
-  This is the STARTER scaffold — iterate the design freely; the data layer is shared.
+
+  Everything here is named `meggambles`, matching her Kick channel. It used to be
+  `irishqueenoftheslots`, which stopped being true when she rebranded and left the
+  folder, the slug and the preset key all disagreeing with the channel they point
+  at. The slug is not decoration: presetFor() matches it against her channel names,
+  so it has to be one of them.
+
+  irishqueenoftheslots.com and megrewards.com both still resolve here, via
+  HOST_TO_SLUG in netlify/edge-functions/custom-domain.js.
+
+  Self-contained page pulling the SAME live data as the standard portal from
+  /api/portal-data?channel=meggambles. Only the presentation is custom.
 -->
 <style>
   *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
@@ -65,12 +71,36 @@
   .nav-links a:hover { color:var(--bright); }
 
   /* LINK BAR (socials + custom links) — items truly centered as a group */
-  .linkbar { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; align-items:center;
-    margin:8px 0 28px; background:rgba(255,255,255,.02); border:1px solid var(--border);
-    border-radius:14px; padding:12px 16px; }
-  .linkbar a { display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:8px 15px; border-radius:10px;
-    color:var(--text); text-decoration:none; font-size:13px; font-weight:600; border:1px solid var(--border); background:rgba(255,255,255,.02); transition:.15s; white-space:nowrap; }
-  .linkbar a:hover { border-color:var(--accent); background:rgba(168,85,247,.1); color:var(--bright); transform:translateY(-1px); }
+  /* Two kinds of link, styled as two kinds of thing. The page's own sections are
+     bare text, so the row reads as navigation rather than as a tray of buttons
+     inside a box. Links that leave the site keep a button, because they do
+     something different and should look like it. */
+  .linkbar { display:flex; flex-wrap:wrap; gap:22px; justify-content:center; align-items:center;
+    margin:10px 0 26px; padding:0; background:none; border:0; }
+  /* Text links have to advertise themselves as links without a button around
+     them: full-strength colour rather than the dim grey, and an underline that
+     is always present, just faint until you hover it. */
+  .linkbar a { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:7px;
+    font-family:'Exo 2',sans-serif; font-weight:800; font-size:15px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--text); text-decoration:none; padding:4px 0 6px;
+    border:0; background:none; transition:color .15s; white-space:nowrap; }
+  .linkbar a::after { content:''; position:absolute; left:0; right:0; bottom:0; height:2px;
+    border-radius:2px; background:currentColor; opacity:.22; transition:opacity .15s, transform .15s;
+    transform:scaleX(.82); transform-origin:center; }
+  .linkbar a:hover { color:var(--bright); }
+  .linkbar a:hover::after { opacity:1; transform:scaleX(1); }
+  .linkbar a.lk-active::after { opacity:1; transform:scaleX(1); }
+  /* Buttons carry their own shape, so no underline on those. */
+  .linkbar a.lk-ext::after { display:none; }
+  /* The buttons sit as one tight group, apart from the text links. */
+  .lk-buttons { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; }
+  /* Leaves the site: keep the button. */
+  .linkbar a.lk-ext { text-transform:none; letter-spacing:0; font-family:inherit; font-weight:600;
+    font-size:13.5px; color:var(--text); padding:9px 16px; border-radius:10px;
+    border:1px solid var(--border); background:rgba(255,255,255,.02); transition:.15s; }
+  .linkbar a.lk-ext:hover { border-color:var(--accent); background:rgba(255,255,255,.05); color:var(--bright); }
+  /* Divider between the site's own links and the ones that leave it. */
+  .lk-sep { width:1px; height:18px; background:var(--border); }
   .linkbar .lk-emote { font-size:15px; line-height:1; }
 
   /* HERO */
@@ -148,6 +178,9 @@
   .lb-prize { font-family:'Exo 2',sans-serif; font-weight:900; font-size:13px; color:var(--gold);
     background:rgba(245,197,24,.1); border:1px solid rgba(245,197,24,.3); border-radius:20px; padding:3px 12px; flex-shrink:0; }
   .pw-chip:hover { color:var(--bright)!important; border-color:var(--gold)!important; }
+  .lb-filter { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px; }
+  .pw-chip { font-family:'Exo 2',sans-serif; font-size:12px; font-weight:700; padding:6px 14px;
+    border-radius:999px; cursor:pointer; background:var(--bg-card); border:1px solid var(--border); color:var(--dim); }
   .pw-chip.active { background:var(--gold)!important; color:#06121a!important; border-color:var(--gold)!important; }
 
   /* TABLE */
@@ -230,16 +263,6 @@
   .rw-prize .rw-amt { font-size:24px; }
   .rw-footnote { font-size:12px; color:var(--dim); line-height:1.6; text-align:center; max-width:680px; margin:8px auto 0; font-style:italic; }
   /* ── Daily reward ────────────────────────────────────────────────────────── */
-  .daily-claim { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
-    background:linear-gradient(120deg, rgba(255,216,77,.10), rgba(196,59,255,.08)); border:1px solid rgba(255,216,77,.38);
-    border-radius:16px; padding:16px 20px; margin:14px 0 4px; }
-  .dc-title { font-family:'Exo 2',sans-serif; font-weight:900; font-size:17px; color:var(--gold); letter-spacing:.02em; }
-  .dc-sub { font-size:13px; color:var(--dim); margin-top:3px; }
-  .dc-btn { font-family:'Exo 2',sans-serif; font-weight:900; font-size:15px; letter-spacing:.06em; cursor:pointer;
-    color:#241a00; background:linear-gradient(90deg,var(--gold),#ffe98a); border:0; border-radius:12px; padding:12px 30px;
-    box-shadow:0 6px 22px rgba(255,216,77,.28); transition:transform .12s ease, box-shadow .12s ease, filter .12s ease; }
-  .dc-btn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 8px 26px rgba(255,216,77,.4); }
-  .dc-btn:disabled { cursor:default; filter:grayscale(.55) brightness(.8); box-shadow:none; }
 
   .dc-overlay { position:fixed; inset:0; background:rgba(4,2,12,.86); backdrop-filter:blur(6px);
     display:none; align-items:center; justify-content:center; padding:20px; z-index:9999; }
@@ -263,9 +286,7 @@
   .dc-bal { font-size:13px; color:var(--text); margin-top:4px; }
   .dc-error { font-size:14px; color:#ff8f8f; padding:6px 0; }
   @media (max-width:520px) {
-    .daily-claim { justify-content:center; text-align:center; }
-    .dc-btn { width:100%; }
-    .dc-amount { font-size:46px; }
+        .dc-amount { font-size:46px; }
     .dc-video { max-height:44vh; }
   }
 
@@ -294,17 +315,162 @@
   .loading,.empty { text-align:center; color:var(--dim); padding:30px; font-size:14px; }
 
   /* ── LEADERBOARD NAV TABS (Degen ⇄ CSGOBig, live in the top link bar) ────── */
-  .linkbar a.lk-board { font-family:'Exo 2',sans-serif; font-weight:800; letter-spacing:.3px; }
-  .linkbar a.lk-active {
-    color:var(--bright); border-color:var(--accent);
-    background:linear-gradient(135deg,var(--accent),var(--accent2));
-    box-shadow:0 4px 18px rgba(0,0,0,.45); text-shadow:0 1px 2px rgba(0,0,0,.35);
-  }
-  .linkbar a.lk-active:hover { transform:none; }
+  .linkbar a.lk-board, .linkbar a.lk-home { font-family:'Exo 2',sans-serif; font-weight:800; letter-spacing:.3px; }
+  /* Four boards plus sections plus socials is a lot of bar. Each tab carries
+     the casino's own colour so the row scans as brands, and the labels shorten
+     before anything wraps. */
+  .linkbar a.lk-board .lk-lb { white-space:nowrap; }
+
+  /* Daily reward link states. Ready is the only thing in the bar that pulses,
+     because it is the only thing there that expires. */
+  .linkbar a.lk-daily-ready { color:var(--gold); border-color:var(--gold); background:rgba(255,216,77,.08); }
+  .linkbar a.lk-daily-off   { opacity:.6; }
+  .linkbar a[data-board='degen'].lk-active   { color:#7ee81a; }
+  .linkbar a[data-board='csgobig'].lk-active { color:#e8b33c; }
+  .linkbar a[data-board='clash'].lk-active   { color:#9b3fe4; }
+  .linkbar a[data-board='ethbet'].lk-active  { color:#1b6cf5; }
+  @media (max-width:1150px) { .linkbar { gap:16px; } .linkbar a { font-size:13.5px; }
+    .linkbar a.lk-ext { font-size:12.5px; padding-left:12px; padding-right:12px; } }
+  .linkbar a.lk-active { color:var(--accent); }
+  .linkbar a.lk-active:hover { color:var(--accent); }
 
   /* ── CSGOBIG THEME — black + gold tactical. Toggled on <body> while the
         CSGOBig board is active; everything var-driven re-skins automatically,
         the rules below catch the hard-coded purple bits. ── */
+  /* A room that has not opened yet. Deliberately not an empty table. */
+  .board-soon {
+    text-align:center; padding:34px 22px; margin:18px 0 26px;
+    border:1px solid var(--border); border-radius:18px;
+    background:rgba(255,255,255,.025);
+  }
+  .bs-title { font-family:'Exo 2',sans-serif; font-weight:900; font-size:20px; color:#fff; margin-bottom:8px; }
+  .bs-text  { font-size:13.5px; color:var(--dim); line-height:1.7; max-width:560px; margin:0 auto 16px; }
+  .bs-cta {
+    display:inline-block; text-decoration:none; font-family:'Exo 2',sans-serif; font-weight:900;
+    font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:#0a0710;
+    background:var(--accent); border-radius:999px; padding:11px 22px;
+  }
+  .bs-cta:hover { filter:brightness(1.1); }
+
+  /* ── LANDING ───────────────────────────────────────────────────────────────
+     Casino agnostic: purple MegRewards throughout, no site's colours here. */
+  .lp-h1 {
+    font-family:'Exo 2',sans-serif; font-weight:900; font-size:clamp(30px,6vw,52px);
+    letter-spacing:-.5px; margin:0 0 10px; text-align:center;
+    background:linear-gradient(92deg,#fff 10%,var(--accent) 60%,#ff7ae0 95%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .lp-lede { max-width:660px; margin:0 auto; text-align:center; color:var(--dim); line-height:1.75; font-size:14.5px; }
+  .lp-intro { margin:22px 0 34px; }
+  .lp-sub { text-align:center; color:var(--dim); font-size:13px; margin:-6px 0 16px; }
+
+  /* Daily reward as a line, not a card. The old version was a bordered box
+     sitting above the hero announcing itself; this reads as part of the page. */
+  .lp-daily {
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    flex-wrap:wrap; margin:16px 0 4px; font-size:13.5px; color:var(--dim);
+  }
+  .lp-daily-ico { font-size:16px; }
+  .lp-daily-go {
+    background:none; border:none; padding:0; cursor:pointer; font:inherit;
+    color:var(--accent); font-weight:800; text-decoration:underline;
+    text-underline-offset:4px; text-decoration-thickness:2px;
+  }
+  .lp-daily-go:hover { color:#fff; }
+  .lp-daily.is-claimed .lp-daily-go { color:var(--dim); text-decoration:none; cursor:default; }
+
+  /* Room cards: the four sites, each in its own colours. */
+  .lp-rooms { display:grid; gap:16px; grid-template-columns:repeat(2,1fr); margin-bottom:34px; }
+  .lp-room {
+    position:relative; display:block; text-decoration:none; overflow:hidden;
+    border-radius:18px; border:1px solid var(--border); background:#0b0710;
+    transition:transform .18s, border-color .18s, box-shadow .18s;
+  }
+  .lp-room:hover { transform:translateY(-3px); box-shadow:0 16px 40px rgba(0,0,0,.5); }
+  .lp-room img { width:100%; aspect-ratio:3/2; object-fit:cover; display:block; opacity:.92; }
+  .lp-room-body { padding:14px 16px 16px; }
+  .lp-room-top { display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; }
+  .lp-room-name { font-family:'Exo 2',sans-serif; font-weight:900; font-size:17px; color:#fff; }
+  .lp-room-tag { font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--dim); }
+  .lp-room-blurb { font-size:13px; color:var(--dim); line-height:1.6; margin:7px 0 11px; }
+  .lp-room-foot { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .lp-code { font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); }
+  .lp-code b { color:#fff; letter-spacing:.16em; }
+  .lp-go {
+    margin-left:auto; font-family:'Exo 2',sans-serif; font-weight:900; font-size:12px;
+    letter-spacing:.08em; text-transform:uppercase; padding:7px 14px; border-radius:999px;
+  }
+  .lp-go-live { color:#0a0710; }
+  .lp-go-soon { color:var(--dim); border:1px solid var(--border); }
+
+  .lp-steps { display:grid; gap:14px; grid-template-columns:repeat(3,1fr); margin-bottom:34px; }
+  .lp-step { position:relative; padding:20px 18px 18px; border-radius:16px; border:1px solid var(--border); background:rgba(255,255,255,.025); }
+  .lp-step h3 { font-family:'Exo 2',sans-serif; font-size:15px; color:#fff; margin:8px 0 6px; }
+  .lp-step p { font-size:13px; color:var(--dim); line-height:1.65; margin:0; }
+  .lp-n {
+    font-family:'Exo 2',sans-serif; font-weight:900; font-size:30px; line-height:1;
+    color:var(--accent); opacity:.5;
+  }
+  .lp-facts { display:grid; gap:12px; grid-template-columns:repeat(3,1fr); margin-bottom:34px; }
+  .lp-fact { padding:16px 16px 14px; border-radius:14px; border:1px solid var(--border); background:rgba(255,255,255,.02); }
+  .lp-fact h4 { font-family:'Exo 2',sans-serif; font-size:13.5px; color:#fff; margin:0 0 5px; }
+  .lp-fact p { font-size:12.5px; color:var(--dim); line-height:1.6; margin:0; }
+  @media (max-width:820px) { .lp-steps, .lp-facts { grid-template-columns:1fr; } .lp-rooms { grid-template-columns:1fr; } }
+
+  /* Per-room palettes. Every one of these rooms re-skins the WHOLE page, not just
+     the banner: the drifting glows, the hero wordmark gradient, the prize figure,
+     the countdown, the cards and the borders all read from these tokens. An
+     earlier pass set only "--accent-2", which is not a variable this page uses,
+     so the second colour stayed MegRewards pink and a board page came out purple
+     underneath its own artwork. Each palette carries the full set, the way the
+     CSGOBig theme below always has.
+
+     Colours are taken from each casino's own banner art so the page and the
+     artwork agree. */
+
+  /* Degen: acid green on near-black, from degen.png. */
+  body.theme-degen {
+    --accent:#7ee81a; --accent2:#b6ff5c; --gold:#eaff7a;
+    --bg:#050a03; --bg-card:#101c0a; --border:#2f5019;
+    --text:#e6f7d8; --dim:#96bb79; --bright:#ffffff;
+  }
+  body.theme-degen .hero-banner { box-shadow:0 0 60px rgba(126,232,26,.22); }
+  body.theme-degen .linkbar a:hover { border-color:var(--accent); background:rgba(126,232,26,.12); }
+  body.theme-degen .hero .prize { text-shadow:0 0 30px rgba(126,232,26,.45); }
+  body.theme-degen .bonus {
+    color:#08140a; background:linear-gradient(90deg,var(--accent2),var(--accent));
+    box-shadow:0 0 26px rgba(126,232,26,.4);
+  }
+
+  /* Clash.gg: violet and gold, from clash3.png. The gold second colour is what
+     keeps this room from reading as the purple MegRewards landing page. */
+  body.theme-clash {
+    --accent:#9b3fe4; --accent2:#f5a623; --gold:#f5a623;
+    --bg:#08040f; --bg-card:#170e28; --border:#3d2a66;
+    --text:#ead9ff; --dim:#a08fc4; --bright:#ffffff;
+  }
+  body.theme-clash .hero-banner { box-shadow:0 0 60px rgba(155,63,228,.25); }
+  body.theme-clash .linkbar a:hover { border-color:var(--accent); background:rgba(155,63,228,.14); }
+  body.theme-clash .hero .prize { text-shadow:0 0 30px rgba(245,166,35,.45); }
+  body.theme-clash .bonus {
+    color:#1a0f00; background:linear-gradient(90deg,var(--accent2),var(--accent));
+    box-shadow:0 0 26px rgba(155,63,228,.45);
+  }
+
+  /* EthBet: electric blue on near black, from ethbet.png. */
+  body.theme-ethbet {
+    --accent:#1b6cf5; --accent2:#7fb0ff; --gold:#ffcf5c;
+    --bg:#03060f; --bg-card:#0c1626; --border:#1f3c68;
+    --text:#dce8ff; --dim:#8ba5cc; --bright:#ffffff;
+  }
+  body.theme-ethbet .hero-banner { box-shadow:0 0 60px rgba(27,108,245,.25); }
+  body.theme-ethbet .linkbar a:hover { border-color:var(--accent); background:rgba(27,108,245,.14); }
+  body.theme-ethbet .hero .prize { text-shadow:0 0 30px rgba(27,108,245,.45); }
+  body.theme-ethbet .bonus {
+    color:#02101f; background:linear-gradient(90deg,var(--accent2),var(--accent));
+    box-shadow:0 0 26px rgba(27,108,245,.42);
+  }
+
   body.theme-csgobig {
     --accent:#e8b33c; --accent2:#f7cf6b; --gold:#ffd76a;
     --bg:#070502; --bg-card:#171106; --border:#4a3a16;
@@ -327,13 +493,40 @@
   /* The CSGOBig hero video is 1280×694 — keep its native ratio (no banner crop).
      Which banner shows is driven purely by the theme class, so a deep-linked
      #csgobig paints the right hero on the very first frame (no data wait). */
-  #heroBannerCsgo { aspect-ratio:1280/694; max-height:640px; margin:0 auto; display:none; }
-  body.theme-csgobig #heroBannerCsgo { display:block; }
-  body.theme-csgobig #heroBannerVideo { display:none; }
+  /* Room stills are 1536x1024 (3:2), not the wide 2.58:1 the hero box assumes, so
+     object-fit:cover was slicing the top and bottom off every one of them. Each
+     banner keeps its own ratio and is capped at CSGOBig's 640px height instead,
+     so nothing is cropped and all four occupy a similar footprint. */
+  #boardBanner { aspect-ratio:3/2; object-fit:contain; width:100%; max-width:100%;
+    height:auto; margin:0 auto; }
+  #boardVideo { aspect-ratio:1280/694; width:100%; max-width:100%; height:auto;
+    object-fit:contain; margin:0 auto; display:none; }
   /* Inline CSGOBig coin icon next to wager amounts (CSGOBig board only). */
   .coin-ic { width:22px; height:22px; vertical-align:-5px; border-radius:50%; }
   /* Soften the theme swap. */
   body, .cd-cell, .pod, .linkbar, .linkbar a, .lb-row, nav, footer { transition:background-color .35s, border-color .35s, color .35s; }
+
+  /* Repaint the page ground with the room. Without this the tokens change but
+     the body keeps whatever background it was first given. */
+  body { background-color:var(--bg); }
+
+  /* ── INTRO ───────────────────────────────────────────────────────────────
+     Full-screen film that plays before the landing page is revealed. It is in
+     the markup, not injected by script, and paints black from the very first
+     frame: the last version of this idea showed the site for a beat before the
+     video took over, which is exactly what it must not do.
+     Landing page only, once per browser session. */
+  #introGate { position:fixed; inset:0; z-index:9999; background:#000;
+    display:flex; align-items:center; justify-content:center; }
+  #introGate.gone { display:none; }
+  html.intro-open, html.intro-open body { overflow:hidden; }
+  #introVid { width:100%; height:100%; object-fit:contain; background:#000; }
+  .intro-btns { position:absolute; right:18px; bottom:18px; display:flex; gap:9px; align-items:center; }
+  .intro-btn { font-family:'Exo 2',sans-serif; font-weight:800; font-size:13px; letter-spacing:.06em;
+    color:#fff; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.35);
+    border-radius:999px; padding:9px 18px; cursor:pointer; backdrop-filter:blur(6px); transition:.15s; }
+  .intro-btn:hover { background:rgba(255,255,255,.16); border-color:#fff; }
+  @media (max-width:600px) { .intro-btns { right:12px; bottom:12px; } .intro-btn { font-size:12px; padding:8px 14px; } }
 
   .hidden { display:none; }
 
@@ -361,8 +554,10 @@
     .countdown { gap:8px; }
     .cd-cell { min-width:64px; padding:10px 12px; }
     .cd-num { font-size:28px; }
-    .linkbar { padding:10px; gap:8px; }
-    .linkbar a { padding:7px 12px; font-size:12px; }
+    .linkbar { gap:14px; }
+    .linkbar a { font-size:12.5px; }
+    .linkbar a.lk-ext { font-size:12px; padding:7px 12px; }
+    .lk-buttons { gap:7px; }
     .section-title { font-size:16px; margin:24px 0 12px; }
     /* Leaderboard rows: tighten and let long names ellipsis instead of pushing
        the wager/prize off-screen. */
@@ -383,6 +578,65 @@
 </style>
 </head>
 <body>
+<div id="introGate" class="gone">
+  <video id="introVid" playsinline muted preload="auto">
+    <source src="/portals/meggambles/assets/Megclashintro.mp4" type="video/mp4">
+  </video>
+  <div class="intro-btns">
+    <button class="intro-btn" id="introSound" type="button">🔇 Sound on</button>
+    <button class="intro-btn" id="introSkip" type="button">Skip ▸</button>
+  </div>
+</div>
+<script>
+  // Decide BEFORE anything paints. The gate ships hidden so a viewer who is not
+  // getting the intro never sees a black flash; it is only opened here.
+  (function () {
+    try {
+      // Landing page only. In production the edge function rewrites every path
+      // on her domain to this file, so read the route the same way the router
+      // does: strip the /portals/<slug> prefix a local preview adds.
+      var p = location.pathname.replace(/^\/portals\/[^/]+/, '').replace(/\/+$/, '');
+      if (p || location.hash) return;
+      if (sessionStorage.getItem('meg_intro_seen')) return;
+    } catch (e) { return; }
+
+    var gate = document.getElementById('introGate');
+    var vid  = document.getElementById('introVid');
+    gate.classList.remove('gone');
+    document.documentElement.classList.add('intro-open');
+
+    var done = false;
+    function finish() {
+      if (done) return;
+      done = true;
+      try { sessionStorage.setItem('meg_intro_seen', '1'); } catch (e) {}
+      try { vid.pause(); } catch (e) {}
+      gate.classList.add('gone');
+      document.documentElement.classList.remove('intro-open');
+    }
+
+    vid.addEventListener('ended', finish);
+    // A file that will not play must not lock the viewer out of the site.
+    vid.addEventListener('error', finish);
+    document.getElementById('introSkip').addEventListener('click', finish);
+
+    // Autoplay is only allowed muted, so it starts muted and the viewer can turn
+    // sound on. If even the muted play is refused, drop the gate rather than
+    // sitting on a frozen frame.
+    var snd = document.getElementById('introSound');
+    snd.addEventListener('click', function () {
+      vid.muted = !vid.muted;
+      snd.textContent = vid.muted ? '🔇 Sound on' : '🔊 Sound off';
+      if (!vid.muted) vid.play().catch(function () {});
+    });
+
+    var play = vid.play();
+    if (play && play.catch) play.catch(finish);
+    // Backstop: if metadata never arrives the viewer is staring at black.
+    setTimeout(function () { if (!vid.currentTime && !done) finish(); }, 6000);
+  })();
+</script>
+
 <canvas id="starfield"></canvas>
 <script>
   // Deep-linked CSGOBig — either the /csgobig path (shareable, unfurl-friendly)
@@ -400,7 +654,7 @@
 <div class="wrap">
   <nav>
     <a class="brand" href="/" id="brandLink">
-      <img id="brandLogo" src="/portals/irishqueenoftheslots/assets/logo.jpg" alt="MegRewards">
+      <img id="brandLogo" src="/portals/meggambles/assets/logo.jpg" alt="MegRewards">
       <div><div class="brand-name" id="brandName">MegRewards</div><div class="brand-sub" id="brandSub">kick.com/meggambles</div></div>
     </a>
     <div class="nav-links" id="navLinks"></div>
@@ -422,23 +676,12 @@
        nothing is live. -->
   <div class="chips" id="activeChips"></div>
 
-  <!-- Daily reward. Sits above the hero so it's the first thing a returning
-       viewer sees. The amount is rolled server-side by /api/portal-daily-claim;
-       this markup only reveals what came back. -->
-  <div class="daily-claim" id="dailyClaim">
-    <div class="dc-left">
-      <div class="dc-title">🎁 Daily Reward</div>
-      <div class="dc-sub" id="dcSub">Claim free points once every day.</div>
-    </div>
-    <button class="dc-btn" id="dcBtn" onclick="openDailyClaim()">CLAIM</button>
-  </div>
-
   <!-- Claim modal: video plays, amount reveals underneath -->
   <div class="dc-overlay" id="dcOverlay" onclick="if(event.target===this)closeDailyClaim()">
     <div class="dc-modal">
       <button class="dc-close" onclick="closeDailyClaim()" aria-label="Close">✕</button>
       <video class="dc-video" id="dcVideo" playsinline preload="auto">
-        <source src="/portals/irishqueenoftheslots/assets/daily-reward.mp4" type="video/mp4">
+        <source src="/portals/meggambles/assets/daily-reward.mp4" type="video/mp4">
       </video>
       <div class="dc-result" id="dcResult">
         <div class="dc-spinner" id="dcSpinner">Opening your reward…</div>
@@ -446,19 +689,74 @@
     </div>
   </div>
 
+  <!-- LANDING. Casino agnostic on purpose: she runs four now, and opening on
+       Degen made the other three look like afterthoughts. This page explains
+       MegRewards and sends you to a room; the boards live on their own pages. -->
+  <div id="landingView" class="hidden">
+    <video class="hero-banner" autoplay loop muted playsinline
+           poster="/portals/meggambles/assets/megrewards-poster.jpg">
+      <source src="/portals/meggambles/assets/megrewards-banner.mp4" type="video/mp4">
+    </video>
+
+    <!-- Daily reward, no card. It reads as a line of the page rather than a
+         box bolted on top, which is what it looked like before. -->
+    <div class="lp-daily" id="lpDaily">
+      <span class="lp-daily-ico">&#127873;</span>
+      <span class="lp-daily-txt" id="lpDailyTxt">Free points every day, just for showing up.</span>
+      <button class="lp-daily-go" id="lpDailyGo" onclick="openDailyClaim()">Claim today’s</button>
+    </div>
+
+    <div class="lp-intro">
+      <h1 class="lp-h1">MegRewards</h1>
+      <p class="lp-lede">One place for everything Meg runs: wager races on four sites, raffles,
+        giveaways, a points store and daily rewards. Play under code <strong>MEG</strong> wherever
+        you play, and everything below tracks itself.</p>
+    </div>
+
+    <h2 class="section-title">&#127942; <span>Leaderboards</span></h2>
+    <div class="lp-sub">Four sites, four races. Pick where you play.</div>
+    <div class="lp-rooms" id="lpRooms"></div>
+
+    <h2 class="section-title">&#9989; <span>How it works</span></h2>
+    <div class="lp-steps">
+      <div class="lp-step"><span class="lp-n">1</span><h3>Sign up under code MEG</h3>
+        <p>Use the code on whichever site you play. Only play under the code counts toward a board.</p></div>
+      <div class="lp-step"><span class="lp-n">2</span><h3>Verify once</h3>
+        <p>Type <strong>!verify</strong> in Kick chat to link your casino name to your Kick account.</p></div>
+      <div class="lp-step"><span class="lp-n">3</span><h3>Play</h3>
+        <p>Races, raffle tickets and rewards all track automatically. Nothing to claim or enter.</p></div>
+    </div>
+
+    <h2 class="section-title">&#128220; <span>Good to know</span></h2>
+    <div class="lp-facts">
+      <div class="lp-fact"><h4>Each site has its own race</h4>
+        <p>Boards are separate. Wager on Degen counts toward the Degen race only, and the same goes for the rest.</p></div>
+      <div class="lp-fact"><h4>You can play more than one</h4>
+        <p>Verify on as many as you like. Being on one board never takes you off another.</p></div>
+      <div class="lp-fact"><h4>Settled bets only</h4>
+        <p>Only settled real money play counts. Voided or cancelled bets do not.</p></div>
+      <div class="lp-fact"><h4>Prizes are paid after a race closes</h4>
+        <p>Finished races stay on the Winners page with what everyone won, so nothing disappears.</p></div>
+      <div class="lp-fact"><h4>One account per person</h4>
+        <p>Multi accounting or manipulating wager voids eligibility. Decisions are final.</p></div>
+      <div class="lp-fact"><h4>18+ only</h4>
+        <p>Gamble responsibly, and never wager more than you can afford to lose.</p></div>
+    </div>
+  </div>
+
   <div id="mainView">
   <div class="hero">
     <div class="hero-banner-wrap">
-      <!-- MegRewards purple hero video -->
-      <video class="hero-banner" id="heroBannerVideo" autoplay loop muted playsinline poster="/portals/irishqueenoftheslots/assets/megrewards-poster.jpg">
-        <source src="/portals/irishqueenoftheslots/assets/megrewards-banner.mp4" type="video/mp4">
-      </video>
-      <!-- CSGOBig hero video — shown in place of the Degen video while that board
-           is active (visibility is CSS-driven off body.theme-csgobig). Poster =
-           her CSGOBig artwork, so it looks right while loading. -->
-      <video class="hero-banner" id="heroBannerCsgo" loop muted playsinline preload="metadata"
-             poster="/portals/irishqueenoftheslots/assets/csgobig-hero.png">
-        <source src="/portals/irishqueenoftheslots/assets/csgobig-video.mp4" type="video/mp4">
+      <!-- The active room's banner art. src/alt are set per board by
+           renderBoard(); hidden for CSGOBig, which has a video instead. -->
+      <img class="hero-banner" id="boardBanner" src="" alt="">
+      <!-- Animated banner for whichever room has one. CSGOBig's is inlined so a
+           deep-linked /csgobig paints immediately (CSS shows it off the theme
+           class, before any data has loaded); renderBoard swaps the source for
+           any other room that ships a video. -->
+      <video class="hero-banner" id="boardVideo" loop muted playsinline preload="metadata"
+             poster="/portals/meggambles/assets/csgobig-hero.png" autoplay>
+        <source id="boardVideoSrc" src="/portals/meggambles/assets/csgobig-video.mp4" type="video/mp4">
       </video>
     </div>
     <h1 id="heroTitle"><span class="h-emoji">👑</span> MEGREWARDS</h1>
@@ -471,6 +769,8 @@
       <div class="cd-cell"><div class="cd-num" id="cdS">00</div><div class="cd-lab">Seconds</div></div>
     </div>
   </div>
+
+  <div class="board-soon" id="boardSoon" style="display:none;"></div>
 
   <div class="podium" id="podium"></div>
 
@@ -568,8 +868,8 @@
   <footer>
     <div id="footCredit"></div>
     <div style="margin-top:8px;font-size:11px;">
-      <a href="/portals/irishqueenoftheslots/privacy.html" style="color:var(--dim);">Privacy</a> ·
-      <a href="/portals/irishqueenoftheslots/terms.html" style="color:var(--dim);">Terms</a>
+      <a href="/portals/meggambles/privacy.html" style="color:var(--dim);">Privacy</a> ·
+      <a href="/portals/meggambles/terms.html" style="color:var(--dim);">Terms</a>
     </div>
   </footer>
 </div>
@@ -577,13 +877,13 @@
 <script src="/js/kick-auth.js"></script>
 <script>
 (function () {
-  const CHANNEL = 'irishqueenoftheslots';
+  const CHANNEL = 'meggambles';
   // Deep-linked #csgobig: swap the nav logo to the CSGOBig art immediately
   // (the theme class was applied at the top of <body>; this covers the one
   // themed element CSS can't reach — an <img> src).
   if (document.body.classList.contains('theme-csgobig')) {
     const _bl = document.getElementById('brandLogo');
-    if (_bl) _bl.src = '/portals/irishqueenoftheslots/assets/csgobig-logo-round.jpg';
+    if (_bl) _bl.src = '/portals/meggambles/assets/csgobig-logo-round.jpg';
   }
 
   let viewer = null; // { kickUsername, kickUserId, accessToken } from kick-auth.js session
@@ -592,10 +892,18 @@
   // Wager formatter for the leaderboard: Degen wagers are USD; CSGOBig's
   // wagerTotal is in site COINS (confirmed by their devs) — never show a $.
   // Coin icon is Meg's CSGOBig chip art (csgocoin.png).
-  const COIN_IMG = '<img class="coin-ic" src="/portals/irishqueenoftheslots/assets/csgocoin.png" alt="coins">';
-  const fmtWager = n => (window.__activeBoard === 'csgobig')
-    ? COIN_IMG + ' ' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })
-    : money(n);
+  const COIN_IMG = '<img class="coin-ic" src="/portals/meggambles/assets/csgocoin.png" alt="coins">';
+  // Not every room pays in dollars. CSGOBig runs on coins and Clash on gems, so
+  // printing a $ against those figures would state a currency Clash never said.
+  // Rooms not listed here are dollars.
+  const BOARD_UNITS = { csgobig: 'coins', clash: 'gems' };
+  const plain = n => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  const fmtWager = (n) => {
+    const unit = BOARD_UNITS[window.__activeBoard];
+    if (unit === 'coins') return COIN_IMG + ' ' + plain(n);
+    if (unit === 'gems')  return '💎 ' + plain(n);
+    return money(n);
+  };
   const initials = s => (s || '?').slice(0, 2).toUpperCase();
   // Privacy mask for viewer-facing names: first 2 + asterisks + last 1
   // (e.g. "Robertc" -> "Ro****c"). "Anonymous" and very short names pass through.
@@ -607,17 +915,41 @@
   }
 
   // -- Glam sparkle field: drifting, twinkling diamonds in her brand colors --
+  // Sparkle palettes, one per room, so the starfield belongs to the page it is
+  // drifting over. 'home' is the casino-agnostic MegRewards purple.
+  function STAR_COLORS(which) {
+    return ({
+      home:    ['#c43bff', '#ff4fd8', '#ffd84d', '#e9b8ff', '#ffffff'],
+      degen:   ['#7ee81a', '#b6ff5c', '#eaff7a', '#4fae0d', '#ffffff'],
+      csgobig: ['#e8b33c', '#f7cf6b', '#ffd76a', '#c9974a', '#ffffff'],
+      clash:   ['#9b3fe4', '#c07bff', '#f5a623', '#6d21ac', '#ffffff'],
+      ethbet:  ['#1b6cf5', '#7fb0ff', '#ffcf5c', '#0f4bb0', '#ffffff'],
+    })[which] || ({
+      home: ['#c43bff', '#ff4fd8', '#ffd84d', '#e9b8ff', '#ffffff'] }).home;
+  }
+
+  // Repaint the sparkles for a room. Cheap no-op when the palette is already
+  // right, because this is reached from the 60s data refresh as well and
+  // regenerating the points every minute looks jumpy.
+  window.setStars = function (which) {
+    if (window.__starTheme === which) return;
+    window.__starTheme = which;
+    const sc = window.__starColors;
+    if (!sc) return;
+    sc.splice(0, sc.length, ...STAR_COLORS(which));
+    dispatchEvent(new Event('resize'));
+  };
+
   (function sparkles() {
     const c = document.getElementById('starfield'), x = c.getContext('2d');
     // Exposed so the board/theme switcher can recolor the sparkles (it mutates
     // this array in place, then fires a resize to regenerate the points).
     // Initial palette matches the deep-linked theme so #csgobig starts gold.
-    const COLORS = window.__starColors = document.body.classList.contains('theme-csgobig')
-      ? ['#e8b33c', '#f7cf6b', '#ffd76a', '#c9974a', '#ffffff']
-      : ['#c43bff', '#ff4fd8', '#ffd84d', '#e9b8ff', '#ffffff'];
+    const COLORS = window.__starColors = STAR_COLORS(
+      document.body.classList.contains('theme-csgobig') ? 'csgobig' : 'home');
     // Mark the starting palette so renderBoard doesn't pointlessly regenerate
     // the points when the data arrives for the same board.
-    window.__starTheme = document.body.classList.contains('theme-csgobig') ? 'csgobig' : 'degen';
+    window.__starTheme = document.body.classList.contains('theme-csgobig') ? 'csgobig' : 'home';
     const rnd = (a, b) => a + Math.random() * (b - a);
     let w, h, pts;
     function size() {
@@ -689,7 +1021,13 @@
     if (s.pastWinners && s.pastWinners.length) items.push(['👑', 'Winners', '#winners', false]);
 
     // External: the streamer's custom links (e.g. Gambulls referral) + socials.
-    (s.portal?.links || []).forEach(l => items.push([l.icon || '🔗', l.label, l.href, true]));
+    // A custom link named after a room duplicates that room's tab (her Degen
+    // referral did). The room's own page already carries the play button, so the
+    // bar doesn't need to say it twice.
+    const roomNames = new Set(CASINO_ORDER.map(k => CASINOS[k].name.toLowerCase()));
+    (s.portal?.links || [])
+      .filter(l => !roomNames.has(String(l.label || '').toLowerCase()))
+      .forEach(l => items.push([l.icon || '🔗', l.label, l.href, true]));
     if (soc.kick)    items.push(['🟢', 'Kick',    soc.kick,    true]);
     if (soc.discord) items.push(['💬', 'Discord', soc.discord, true]);
     if (soc.youtube) items.push(['▶',  'YouTube', soc.youtube, true]);
@@ -700,18 +1038,46 @@
     const bar = document.getElementById('linkbar');
     // Board nav tabs go first — highlighted state is kept in sync by renderBoard().
     const active = window.__activeBoard || 'degen';
-    const boardTabs = twoBoards
-      ? `<a href="#leaderboard" class="lk-board ${active === 'degen' ? 'lk-active' : ''}" data-board="degen" onclick="return navBoard('degen')"><span class="lk-emote">🎰</span>Degen Leaderboard</a>` +
-        `<a href="#leaderboard" class="lk-board ${active === 'csgobig' ? 'lk-active' : ''}" data-board="csgobig" onclick="return navBoard('csgobig')"><span class="lk-emote">🔫</span>CSGOBig Leaderboard</a>`
-      : '';
-    bar.innerHTML = boardTabs + items.filter(([, , href]) => {
+    // Every room gets a tab, live or not, so the nav is the full map of what
+    // she runs. Compact and label-shedding on narrow screens, because four
+    // boards plus the sections plus her socials will not fit at laptop width.
+    const boardTabs = CASINO_ORDER.map(function (k) {
+      const c = CASINOS[k];
+      return '<a href="/' + k + '" class="lk-board' + (active === k ? ' lk-active' : '')
+        + '" data-board="' + k + '">'
+        + '<span class="lk-lb">' + esc(c.name) + '</span></a>';
+    }).join('')
+    const groups = items.filter(([, , href]) => {
       const key = String(href).toLowerCase();
       if (seen.has(key)) return false; seen.add(key); return true;
-    }).map(([emote, label, href, ext]) =>
-      ext
-        ? `<a href="${esc(href)}" target="_blank" rel="noopener"><span class="lk-emote">${emote}</span>${esc(label)}</a>`
-        : `<a href="${esc(href)}" onclick="return goTo('${esc(href)}')"><span class="lk-emote">${emote}</span>${esc(label)}</a>`
-    ).join('');
+    }).reduce((acc, [emote, label, href, ext]) => {
+      acc[ext ? 'btn' : 'nav'] += ext
+        ? `<a class="lk-ext" href="${esc(href)}" target="_blank" rel="noopener"><span class="lk-emote">${emote}</span>${esc(label)}</a>`
+        : `<a href="${esc(href)}" onclick="return goTo('${esc(href)}')">${esc(label)}</a>`;
+      return acc;
+    }, { nav: '<a href="/" class="lk-home" data-board="home">Home</a>' + boardTabs, btn: '' });
+
+    bar.innerHTML = groups.nav
+      + '<span class="lk-sep"></span>'
+      + '<span class="lk-buttons">'
+      +   '<a class="lk-ext lk-daily" href="#daily" data-daily="1">Claim Daily</a>'
+      +   groups.btn
+      + '</span>';
+
+    const dailyEl = bar.querySelector('[data-daily]');
+    if (dailyEl) dailyEl.addEventListener('click', function (e) { e.preventDefault(); openDailyClaim(); });
+
+    if (window.refreshDailyClaimUI) refreshDailyClaimUI();
+
+    // Delegated so the tabs route in-page instead of reloading the site.
+    bar.querySelectorAll('[data-board]').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        e.preventDefault();
+        const k = el.getAttribute('data-board');
+        if (k === 'home') { showView('home'); history.replaceState(null, '', '/'); window.scrollTo(0, 0); }
+        else navBoard(k);
+      });
+    });
   }
 
   // Nav-tab click: switch the board (which also re-themes the site) and make the
@@ -720,6 +1086,9 @@
   window.navBoard = function (which) {
     renderBoard(which);
     showView('main');
+    // Clash and EthBet have no board yet. They still get a page, themed and
+    // bannered, because a link that goes nowhere is worse than one that says
+    // "not open yet".
     // Always the PATH, never a hash. The old version only wrote a path when the
     // viewer had ARRIVED on one, so switching boards from /store produced
     // /store#csgobig — a url describing two different pages at once. The page
@@ -734,7 +1103,9 @@
   // in-page anchor on the main view that we smooth-scroll to. This is what makes
   // Store / Past Winners / Wager Rewards their OWN sections (like the wager page)
   // instead of stacking under the leaderboard.
-  const PAGE_VIEWS = { rewards: 'rewardsView', store: 'storeView', winners: 'winnersView' };
+  // 'home' is the casino-agnostic landing page; 'main' is now a BOARD page,
+  // shown for /degen, /csgobig, /clash and /ethbet. Everything else is unchanged.
+  const PAGE_VIEWS = { home: 'landingView', rewards: 'rewardsView', store: 'storeView', winners: 'winnersView' };
   const PAGE_IDS = new Set(Object.keys(PAGE_VIEWS));
   // Always write an ABSOLUTE path. Passing a bare "#store" to replaceState
   // resolves it against the CURRENT url, so navigating from /store to Winners
@@ -743,6 +1114,9 @@
   // shareable: /store, /winners, /rewards, / for the leaderboard home.
   function goTo(hash) {
     const id = hash.replace(/^#/, '');
+    if (id === 'daily') { openDailyClaim(); return false; }
+    if (id === 'home') { showView('home'); history.replaceState(null, '', '/'); window.scrollTo(0, 0); return false; }
+    if (CASINOS[id]) { navBoard(id); return false; }
     if (PAGE_IDS.has(id)) { showView(id); history.replaceState(null, '', '/' + id); return false; }
     showView('main');
     // In-page anchors live on the main view, so anchor off the root, not off
@@ -754,6 +1128,15 @@
   }
   function showView(name) {
     const main = document.getElementById('mainView');
+    const themes = ['theme-degen', 'theme-csgobig', 'theme-clash', 'theme-ethbet'];
+    const wear = name === 'home' ? null : (CASINOS[window.__activeBoard] || {}).theme;
+    themes.forEach((t) => document.body.classList.toggle(t, t === wear));
+    if (window.setStars) setStars(name === 'home' ? 'home' : window.__activeBoard);
+    // Home has no board tab, so nothing in the nav should read as selected.
+    document.querySelectorAll('.lk-board').forEach((b) =>
+      b.classList.toggle('lk-active', name !== 'home' && b.getAttribute('data-board') === window.__activeBoard));
+    const homeTab = document.querySelector('.lk-home');
+    if (homeTab) homeTab.classList.toggle('lk-active', name === 'home');
     // Hide every standalone view first.
     Object.values(PAGE_VIEWS).forEach(vid => document.getElementById(vid)?.classList.add('hidden'));
     if (PAGE_VIEWS[name]) {
@@ -813,15 +1196,18 @@
   // Prize for a given rank (1-based) from the prizes array, or '' if none.
   function prizeFor(rank, prizes) { return (prizes && prizes[rank - 1]) || ''; }
 
-  // Prize display: Degen prizes are DOLLAR amounts → "$2,500". CSGOBig pays in
-  // COINS → coin chip + number. Non-numeric configured prizes pass through.
-  // Returns HTML (escapes its own input) — callers must NOT re-escape.
+  // Prize display follows the room's own currency (see BOARD_UNITS): Degen pays
+  // DOLLARS, CSGOBig COINS, Clash GEMS. Non-numeric configured prizes pass
+  // through untouched. Returns HTML (escapes its own input) — do NOT re-escape.
   function fmtPrize(p) {
     if (p == null || p === '') return '';
     const isNum = typeof p === 'number' || /^\d+(\.\d+)?$/.test(String(p).trim());
     if (!isNum) return esc(String(p));
     const num = Number(p).toLocaleString('en-US');
-    return window.__activeBoard === 'csgobig' ? `${COIN_IMG} ${num}` : '$' + num;
+    const unit = BOARD_UNITS[window.__activeBoard];
+    if (unit === 'coins') return `${COIN_IMG} ${num}`;
+    if (unit === 'gems')  return `💎 ${num}`;
+    return '$' + num;
   }
 
   function renderPodium(ranks, prizes) {
@@ -881,56 +1267,174 @@
   // client-side and re-render podium+table+countdown for whichever tab is active.
   window.switchBoard = function (which) { renderBoard(which); };
 
+
+  // ── Landing: the four rooms ────────────────────────────────────────────────
+  // Each card carries the casino's own artwork and colour, so the choice reads
+  // as four places rather than four links. A room with no board yet is shown
+  // anyway: a site she is about to launch is worth advertising, and the card
+  // simply does not offer a leaderboard.
+  // The four rooms MegRewards covers. This is the single source of truth for the
+  // nav tabs, the landing-page room cards and the per-room theme, so adding a
+  // fifth casino is one entry here and nothing else.
+  //
+  // `url` is only rendered for rooms that are NOT live (the coming-soon panel and
+  // its card). Degen and CSGOBig link to their own board page instead.
+  const CASINOS = {
+    degen:   { name:'Degen',    tag:'Slots and originals', code:'Meg', url:'https://degen.com/?ref=Meg',
+               banner:'/portals/meggambles/assets/degensite.png', theme:'theme-degen', live:true,
+               blurb:'Her main board. Slots, originals and the biggest monthly prize pool.' },
+    csgobig: { name:'CSGOBig',  tag:'Cases and coins',     code:'Meg', url:'https://csgobig.com/r/Meg',
+               banner:'/portals/meggambles/assets/csgobigimage.png',
+               theme:'theme-csgobig', live:true,
+               blurb:'Case openings and battles, with a coin race that pays out every two weeks.' },
+    clash:   { name:'Clash.gg', tag:'Case opening',        code:'MEG', url:'https://clash.gg/r/meg',
+               banner:'/portals/meggambles/assets/megclash.png',
+               theme:'theme-clash', live:true,
+               blurb:'Cases, upgrades and battles, with her Clash.gg wager race.' },
+    ethbet:  { name:'EthBet',   tag:'Crypto casino',       code:'MEG', url:'https://ethbet.com/?ref=meg',
+               banner:'/portals/meggambles/assets/ethbetmeg.png', theme:'theme-ethbet', live:false,
+               blurb:'Instant deposits, provably fair, daily rewards. Opening soon.' },
+  };
+  const CASINO_ORDER = ['degen', 'csgobig', 'clash', 'ethbet'];
+
+  function renderRooms() {
+    const host = document.getElementById('lpRooms');
+    if (!host) return;
+    const boards = window.__boards || {};
+    host.innerHTML = CASINO_ORDER.map(function (k) {
+      const c = CASINOS[k];
+      const b = c.live ? boards[k] : null;
+      const pool = b && b.prizePool ? '$' + Number(b.prizePool).toLocaleString() : '';
+      // Every card is the casino's own link under her code. The board for that
+      // room is a tab at the top of every page, so spending the artwork on a
+      // second route to it wastes the click that actually earns her something.
+      const href = c.url;
+      const cta  = c.live ? (pool ? 'Play, ' + pool + ' race' : 'Play now') : 'Play now';
+      const cls  = c.live ? 'lp-go-live' : 'lp-go-soon';
+      // Colour comes from the casino, not the page, so a row of four reads as
+      // four brands rather than four purple cards.
+      const tint = { degen:'#7ee81a', csgobig:'#e8b33c', clash:'#9b3fe4', ethbet:'#1b6cf5' }[k];
+      return '<a class="lp-room" href="' + href + '" target="_blank" rel="noopener"'
+        + ' style="border-color:' + tint + '33">'
+        + '<img src="' + c.banner + '" alt="' + esc(c.name) + '" loading="lazy">'
+        + '<div class="lp-room-body">'
+        +   '<div class="lp-room-top"><span class="lp-room-name">' + esc(c.name) + '</span>'
+        +     '<span class="lp-room-tag">' + esc(c.tag) + '</span></div>'
+        +   '<div class="lp-room-blurb">' + esc(c.blurb) + '</div>'
+        +   '<div class="lp-room-foot">'
+        +     '<span class="lp-code">Code <b>' + esc(c.code) + '</b></span>'
+        +     '<span class="lp-go ' + cls + '"' + (c.live ? ' style="background:' + tint + '"' : '') + '>' + cta + '</span>'
+        +   '</div>'
+        + '</div></a>';
+    }).join('');
+
+    // No in-page interception: these are outbound referral links now.
+  }
+  window.renderRooms = renderRooms;
+
   function renderBoard(which) {
     const s = window.__S || {};
     const boards = window.__boards || {};
-    if (!boards[which]) which = 'degen';
+    // A casino we know about but have no board for (Clash, EthBet) still opens
+    // its own page. Only an unknown key falls back to Degen.
+    if (!CASINOS[which]) which = 'degen';
     window.__activeBoard = which;
+    const cfg = CASINOS[which] || {};
+    const hasBoard = !!boards[which];
     const isCsgobig = which === 'csgobig';
     const portal = s.portal || {};
     const hero = portal.hero || {};
     const lb = boards[which] || {};
 
-    // ── Full site re-theme: CSGOBig = black + gold tactical, Degen = purple glam.
-    document.body.classList.toggle('theme-csgobig', isCsgobig);
+    // ── Full site re-theme. Each room wears its own casino's colours, taken
+    //    from that casino's banner art, so the page and the artwork agree.
+    ['theme-degen','theme-csgobig','theme-clash','theme-ethbet'].forEach(function (t) {
+      document.body.classList.toggle(t, t === cfg.theme);
+    });
 
-    // Nav tab highlight (tabs live in the top link bar).
+    // Banner: the still (or the video where she has one) for this room.
+    const still = document.getElementById('boardBanner');
+    const vid   = document.getElementById('boardVideo');
+    if (still) {
+      still.src = cfg.banner || '';
+      still.alt = (cfg.name || '') + ' banner';
+      // A room can show both. CSGOBig's video IS its artwork, so its still would
+      // just be the same picture twice; Clash's flyer and its animation are two
+      // different pieces and she wants the flyer leading.
+      still.style.display = (cfg.video && !cfg.stillWithVideo) ? 'none' : '';
+    }
+    if (vid) {
+      // Explicit display, not a CSS class: the theme rule only knows CSGOBig, and
+      // a room whose video is swapped in has no rule of its own to fall back on.
+      vid.style.display = cfg.video ? 'block' : 'none';
+      if (cfg.video) {
+        const src = document.getElementById('boardVideoSrc');
+        if (src && src.getAttribute('src') !== cfg.video) {
+          src.setAttribute('src', cfg.video);
+          // Only poster it when the artwork is the same shape as the video.
+          // A 3:2 still postering a 2.78:1 video letterboxes inside its own frame.
+          if (cfg.videoPoster) vid.setAttribute('poster', cfg.videoPoster);
+          else vid.removeAttribute('poster');
+          vid.load();   // <source> changes do nothing until the element reloads
+        }
+        vid.style.aspectRatio = cfg.videoRatio || '1280/694';
+      }
+      vid.style.filter = cfg.videoFilter || '';
+      // Breathing room when a room stacks its flyer above its animation.
+      vid.style.marginTop = (cfg.video && cfg.stillWithVideo) ? '14px' : '';
+    }
+
+    // Rooms that are not open yet: say so plainly instead of showing an empty
+    // table, which reads as broken rather than as not-launched.
+    const soon = document.getElementById('boardSoon');
+    if (soon) {
+      soon.style.display = hasBoard ? 'none' : '';
+      if (!hasBoard) {
+        soon.innerHTML = '<div class="bs-title">' + esc(cfg.name || '') + ' is opening soon</div>'
+          + '<div class="bs-text">' + esc(cfg.blurb || '') + ' Play under code <b>' + esc(cfg.code || 'MEG')
+          + '</b> now and your wager counts from the moment the board goes live.</div>'
+          + '<a class="bs-cta" href="' + esc(cfg.url || '#') + '" target="_blank" rel="noopener">Play on ' + esc(cfg.name || '') + '</a>';
+      }
+    }
+    const wrap = document.getElementById('lbTableWrap');
+    if (wrap) wrap.style.display = hasBoard ? '' : 'none';
+    const pod = document.getElementById('podium');
+    if (pod) pod.style.display = hasBoard ? '' : 'none';
+    // Nav tab highlight (tabs live in the top link bar) and the sparkle palette.
+    // Both belong to the ROOM, not to its leaderboard, so they run before the
+    // no-board bail-out below.
     document.querySelectorAll('.lk-board').forEach(b =>
       b.classList.toggle('lk-active', b.getAttribute('data-board') === which));
+    setStars(which);
 
-    // Hero video: each board has its own — visibility is CSS-driven off the
-    // theme class (set above); here we just make sure only the active one plays.
-    const vid = document.getElementById('heroBannerVideo');
-    const art = document.getElementById('heroBannerCsgo');
-    if (vid) { if (isCsgobig) vid.pause(); else vid.play().catch(() => {}); }
-    if (art) { if (isCsgobig) art.play().catch(() => {}); else art.pause(); }
+    if (!hasBoard) {
+      // Otherwise the previous room's prize, CTA and countdown stay on screen and
+      // read as though they belong to this one.
+      const prizeEl = document.getElementById('heroPrize');
+      const ctaEl   = document.getElementById('heroCtaWrap');
+      const cdEl    = document.getElementById('countdown');
+      if (prizeEl) prizeEl.textContent = '';
+      if (ctaEl)   ctaEl.innerHTML = '';
+      if (cdEl)    cdEl.style.display = 'none';
+      if (cdTimer) { clearInterval(cdTimer); cdTimer = null; }
+      return;
+    }
+
+    // Only play the banner video when the active room actually has one.
+    if (vid) { if (cfg.video) vid.play().catch(() => {}); else vid.pause(); }
 
     // Brand chip follows the theme too (round CSGOBig art vs her main logo).
     const logoEl = document.getElementById('brandLogo');
     if (logoEl) logoEl.src = isCsgobig
-      ? '/portals/irishqueenoftheslots/assets/csgobig-logo-round.jpg'
-      : (portal.logoUrl || s.streamer?.logoUrl || '/portals/irishqueenoftheslots/assets/logo.jpg');
+      ? '/portals/meggambles/assets/csgobig-logo-round.jpg'
+      : (portal.logoUrl || s.streamer?.logoUrl || '/portals/meggambles/assets/logo.jpg');
 
     // Per-board CTA. CSGOBig promo code is MEG (per her artwork).
     const ctaWrap = document.getElementById('heroCtaWrap');
     if (ctaWrap) {
       const ctaHref  = isCsgobig ? 'https://csgobig.com/r/meg' : (hero.ctaHref || '');
-      const ctaLabel = isCsgobig ? 'Play on CSGOBig — code MEG' : (hero.ctaLabel || 'Play now');
+      const ctaLabel = isCsgobig ? 'Play on CSGOBig with code MEG' : (hero.ctaLabel || 'Play now');
       ctaWrap.innerHTML = ctaHref ? `<a class="bonus" href="${esc(ctaHref)}" target="_blank" rel="noopener">${esc(ctaLabel)}</a>` : '';
-    }
-
-    // Recolor the starfield to match — only when the theme actually flips (this
-    // runs on every 60s data refresh; regenerating points then would look jumpy).
-    if (window.__starTheme !== which) {
-      window.__starTheme = which;
-      const sc = window.__starColors;
-      if (sc) {
-        const set = isCsgobig
-          ? ['#e8b33c', '#f7cf6b', '#ffd76a', '#c9974a', '#ffffff']
-          : ['#c43bff', '#ff4fd8', '#ffd84d', '#e9b8ff', '#ffffff'];
-        sc.splice(0, sc.length, ...set);
-        dispatchEvent(new Event('resize'));
-      }
     }
 
     // Countdown + hero prize follow the active board's race window.
@@ -975,10 +1479,10 @@
     const a = s.active || {};
     const ch = (s.streamer.kickChannel);
     const chips = [];
-    if (a.giveaway)  chips.push(`<div class="chip"><span class="dot"></span> <b>Giveaway live</b> <span class="meta">— type ${esc(a.giveaway.keyword || '!join')}</span></div>`);
-    if (a.bonusHunt) chips.push(`<div class="chip"><span class="dot"></span> <b>Bonus Hunt</b> <span class="meta">— ${a.bonusHunt.slotCount} slots · ${money(a.bonusHunt.totalCost)} buy-in</span></div>`);
-    if (a.battle)    chips.push(`<a class="link-btn" href="${APP_ORIGIN}/bonus-battle.html?channel=${encodeURIComponent(ch)}"><span class="dot"></span> ⚔️ Bonus Battle live — ${a.battle.matchCount} matches →</a>`);
-    if (a.tournament)chips.push(`<a class="link-btn" href="${APP_ORIGIN}/tournament.html?channel=${encodeURIComponent(ch)}"><span class="dot"></span> 🏆 Tournament — ${a.tournament.participants} entered →</a>`);
+    if (a.giveaway)  chips.push(`<div class="chip"><span class="dot"></span> <b>Giveaway live</b> <span class="meta">type ${esc(a.giveaway.keyword || '!join')}</span></div>`);
+    if (a.bonusHunt) chips.push(`<div class="chip"><span class="dot"></span> <b>Bonus Hunt</b> <span class="meta">${a.bonusHunt.slotCount} slots · ${money(a.bonusHunt.totalCost)} buy-in</span></div>`);
+    if (a.battle)    chips.push(`<a class="link-btn" href="${APP_ORIGIN}/bonus-battle.html?channel=${encodeURIComponent(ch)}"><span class="dot"></span> ⚔️ Bonus Battle live · ${a.battle.matchCount} matches →</a>`);
+    if (a.tournament)chips.push(`<a class="link-btn" href="${APP_ORIGIN}/tournament.html?channel=${encodeURIComponent(ch)}"><span class="dot"></span> 🏆 Tournament · ${a.tournament.participants} entered →</a>`);
     wrap.innerHTML = chips.join('');
   }
 
@@ -1031,12 +1535,12 @@
         ${it.isRaffleItem ? `<div class="store-raffle-entries" data-id="${esc(it.id)}" style="font-size:12px;color:var(--dim);margin:0 0 8px;min-height:16px;"></div>` : ''}
         ${qtyStepper}
         ${buyBtn}
-        <div class="store-buycmd" title="Copy command" onclick="navigator.clipboard&&navigator.clipboard.writeText('${cmd.replace(/'/g,"\\'")}');this.textContent='✓ Copied — paste in chat';">📋 ${esc(cmd)}</div>
+        <div class="store-buycmd" title="Copy command" onclick="navigator.clipboard&&navigator.clipboard.writeText('${cmd.replace(/'/g,"\\'")}');this.textContent='✓ Copied, paste it in chat';">📋 ${esc(cmd)}</div>
       </div>`;
       }).join('');
       document.getElementById('storeNote').innerHTML =
         `🛒 Click <strong>Buy</strong> to spend your ${esc(_currency)} (sign in with Kick), or use <code>!buy &lt;item&gt;</code> in Kick chat / Discord.` +
-        (hasRaffle ? ` &nbsp; 🎟 <strong style="color:var(--gold)">Raffle</strong> items enter you into a draw — the streamer picks the winner.` : '');
+        (hasRaffle ? ` &nbsp; 🎟 <strong style="color:var(--gold)">Raffle</strong> items enter you into a draw, and the streamer picks the winner.` : '');
     }
     if (hasRaffle) fetchRaffleCounts();
   }
@@ -1127,53 +1631,59 @@
     return sec + 's';
   }
 
+  window.refreshDailyClaimUI = refreshDailyClaimUI;
+
+  // The daily reward is one link in the top bar now, so this drives a link
+  // rather than a card: the link's own label carries the state, and the landing
+  // page's one-liner (when that view exists) carries the detail.
   function refreshDailyClaimUI() {
-    const btn = document.getElementById('dcBtn');
-    const sub = document.getElementById('dcSub');
-    if (!btn || !sub) return;
+    const link = document.querySelector('.linkbar a[href="#daily"]');
+    const line = document.getElementById('lpDailyTxt');
+    const go   = document.getElementById('lpDailyGo');
+    if (!link) return;
 
     if (_dcTicker) { clearInterval(_dcTicker); _dcTicker = null; }
 
+    const set = (label, state, detail, cta) => {
+      link.textContent = label;   // plain text, like the rest of the site's own links
+      link.classList.toggle('lk-daily-ready', state === 'ready');
+      link.classList.toggle('lk-daily-off',   state === 'off');
+      if (line) line.textContent = detail;
+      if (go)   { go.textContent = cta || ''; go.style.display = cta ? '' : 'none'; }
+    };
+
+    // Signed out: the link still advertises the feature, and pressing it starts
+    // the Kick sign-in the claim needs anyway.
     if (!viewer) {
-      // No button at all when signed out. The nav already has "Sign in with
-      // Kick"; a second button doing the identical thing is just noise. The card
-      // stays visible so the feature still advertises itself.
-      btn.style.display = 'none';
-      sub.textContent = 'Free points every day, just for showing up. Sign in with Kick to start.';
+      set('Claim Daily', 'off', 'Free points every day, just for showing up. Sign in with Kick to start.', '');
       return;
     }
 
     if (_dcState === 'unknown') {
-      btn.style.display = '';
-      btn.textContent = 'CHECKING…'; btn.disabled = true;
-      sub.textContent = 'Checking your daily reward…';
+      set('Claim Daily', 'off', 'Checking your daily reward…', '');
       return;
     }
 
     if (_dcState === 'claimed') {
-      btn.style.display = '';
-      btn.textContent = 'CLAIMED'; btn.disabled = true;
       // Live countdown to the next unlock. Resets are UTC midnight (the server
       // sends the exact remaining ms, so the two can't disagree).
       const tick = () => {
         const left = _dcNextAt - Date.now();
         const txt  = _dcCountdown(left);
         if (!txt) {
-          // Rolled over while the page was open — go straight to claimable.
+          // Rolled over while the page was open, so go straight to claimable.
           _dcState = 'ready';
           refreshDailyClaimUI();
           return;
         }
-        sub.textContent = 'Already claimed today. Next reward in ' + txt + '.';
+        set('Claimed, ' + txt, 'off', 'Already claimed today. Next reward in ' + txt + '.', '');
       };
       tick();
       _dcTicker = setInterval(tick, 1000);
       return;
     }
 
-    btn.style.display = '';
-    btn.textContent = 'CLAIM'; btn.disabled = false;
-    sub.textContent = 'Claim free points once every day.';
+    set('Claim Daily', 'ready', 'Claim free points once every day.', 'Claim today’s');
   }
 
   window.openDailyClaim = async function () {
@@ -1237,7 +1747,7 @@
       } else {
         result.innerHTML =
           '<div class="dc-error">' + esc((data && (data.message || data.error)) === 'network'
-            ? 'Connection problem — please try again.'
+            ? 'Connection problem. Please try again.'
             : (data && data.error) || 'Could not claim right now.') + '</div>';
       }
       refreshDailyClaimUI();
@@ -1262,7 +1772,7 @@
       const d = await r.json();
       const pts = d && d.viewerPoints != null ? d.viewerPoints : 0;
       document.getElementById('viewerPts').textContent = Number(pts).toLocaleString() + ' ' + _currency;
-    } catch { document.getElementById('viewerPts').textContent = '—'; }
+    } catch { document.getElementById('viewerPts').textContent = '-'; }
   }
   window.viewerLogin  = function () { initiateKickAuth('viewer', CHANNEL); };
   window.viewerLogout = function () { clearKickViewerSession(); viewer = null; refreshViewerUI(); renderStore(window.__S || {}); };
@@ -1276,7 +1786,7 @@
     const btn = document.querySelector(`.store-buy[data-id="${CSS.escape(id)}"]`);
     if (!btn || btn.dataset.busy) return;
     const q = rqVal(id);
-    btn.textContent = q > 1 ? `Enter ×${q} — ${(Number(item.price) * q).toLocaleString()} ${_currency}` : 'Enter raffle';
+    btn.textContent = q > 1 ? `Enter ×${q} · ${(Number(item.price) * q).toLocaleString()} ${_currency}` : 'Enter raffle';
   }
 
   window.buyItem = async function (itemId) {
@@ -1323,6 +1833,13 @@
   function _tsOf(d) { return d ? (d._seconds ? d._seconds * 1000 : d) : 0; }
   function _dateShort(d) { const t = _tsOf(d); return t ? new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''; }
 
+  window.lbFilter = function (t) {
+    document.querySelectorAll('.lb-per').forEach((el) => {
+      el.style.display = (t === 'all' || el.dataset.casino === t) ? '' : 'none';
+    });
+    document.querySelectorAll('.lb-chip').forEach((c) => c.classList.toggle('active', c.dataset.lbf === t));
+  };
+
   window.pwFilter = function (t) {
     document.querySelectorAll('#pwWinList .pw-row').forEach(r => { r.style.display = (t === 'all' || r.dataset.type === t) ? '' : 'none'; });
     document.querySelectorAll('.pw-chip').forEach(c => c.classList.toggle('active', c.dataset.f === t));
@@ -1341,13 +1858,13 @@
       const rows = winners.map(w => `
         <div class="pw-row">
           <span class="pw-mode" style="background:rgba(245,197,24,.14);color:var(--gold);">#${w.rank}</span>
-          <span class="pw-name">${esc(maskName(w.username) || '—')}</span>
+          <span class="pw-name">${esc(maskName(w.username) || '-')}</span>
           <span style="color:var(--dim);font-size:12px;white-space:nowrap;">${amt(w.wagered)}</span>
           ${w.prize > 0 ? `<span class="lb-prize" style="margin-left:8px;">${amt(w.prize)}</span>` : ''}
         </div>`).join('');
       const open = idx === 0;
-      const label = (p.casinoName ? esc(p.casinoName) + ' — ' : '') + esc(p.period || 'Period');
-      return `<div style="border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden;">
+      const label = (p.casinoName ? esc(p.casinoName) + ' · ' : '') + esc(p.period || 'Period');
+      return `<div class="lb-per" data-casino="${esc(p.casino || 'other')}" style="border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden;">
         <div onclick="const b=this.nextElementSibling;b.style.display=b.style.display==='none'?'':'none';" style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;cursor:pointer;background:var(--bg-card);">
           <strong style="font-family:'Exo 2',sans-serif;color:var(--bright);">${label}</strong>
           <span style="color:var(--dim);font-size:12px;">${winners.length} winners ▾</span>
@@ -1355,7 +1872,23 @@
         <div style="display:${open ? '' : 'none'};padding:6px 14px 12px;">${rows || '<div style="color:var(--dim);padding:8px 0;">No winners recorded.</div>'}</div>
       </div>`;
     }).join('');
-    return `<div style="font-family:'Exo 2',sans-serif;font-weight:900;color:var(--gold);font-size:15px;margin:4px 0 10px;">🏆 Leaderboard Winners</div>${cards}`;
+
+    // Filter by site. She runs a race on every casino she is signed to, so a
+    // flat list of past periods is unreadable once two or three have rolled a
+    // few times: "which of these is the Degen one" is the actual question people
+    // arrive with. Only shown once there is more than one site to choose from.
+    const sites = [...new Set(periods.map(p => p.casino || 'other'))];
+    const siteLabel = (k) => (CASINOS[k] && CASINOS[k].name)
+      || (periods.find(p => (p.casino || 'other') === k) || {}).casinoName
+      || (k === 'other' ? 'Other' : k);
+    const chips = sites.length > 1
+      ? '<div class="lb-filter">' + [['all', 'All sites']].concat(sites.map(k => [k, siteLabel(k)]))
+          .map(([k, lbl], i) =>
+            `<button class="pw-chip lb-chip${i === 0 ? ' active' : ''}" data-lbf="${esc(k)}">${esc(lbl)}</button>`)
+          .join('') + '</div>'
+      : '';
+
+    return `<div style="font-family:'Exo 2',sans-serif;font-weight:900;color:var(--gold);font-size:15px;margin:4px 0 10px;">🏆 Leaderboard Winners</div>${chips}${cards}`;
   }
 
   function renderWinners(s) {
@@ -1380,7 +1913,7 @@
       const rows = wins.map(w => `
         <div class="pw-row" data-type="${esc(w.kind)}">
           <span class="pw-mode">${winTypeLabel(w.kind)}</span>
-          <span class="pw-name">${esc(maskName(w.winner) || '—')}${w.item ? ` <span style="color:var(--dim);">· won “${esc(w.item)}”</span>` : ''}</span>
+          <span class="pw-name">${esc(maskName(w.winner) || '-')}${w.item ? ` <span style="color:var(--dim);">· won “${esc(w.item)}”</span>` : ''}</span>
           <span class="pw-date">${_dateShort(w.drawnAt)}</span>
         </div>`).join('');
       html += `<div style="font-family:'Exo 2',sans-serif;font-weight:900;color:var(--bright);font-size:15px;margin:18px 0 10px;">Recent Wins</div>
@@ -1389,6 +1922,12 @@
     }
 
     el.innerHTML = html;
+
+    // Delegated: this list is rebuilt on every 60s data refresh, so an inline
+    // handler would be re-parsed each time and any chosen filter silently lost.
+    el.querySelectorAll('.lb-chip').forEach((c) => {
+      c.addEventListener('click', () => lbFilter(c.dataset.lbf));
+    });
   }
 
   function renderAbout(s) {
@@ -1478,10 +2017,10 @@
     // Meg rebranded her whole portal to "MegRewards" — keep the site name fixed
     // regardless of the streamer displayName stored in the DB.
     const BRAND = 'MegRewards';
-    document.title = `${BRAND} — Wager Race`;
+    document.title = `${BRAND} | Wager Leaderboards`;
     // Brand logo is board-aware — renderBoard() below sets it (Degen logo vs CSGOBig art).
     const _hc = document.getElementById('heroChip');
-    if (_hc) _hc.src = portal.logoUrl || s.streamer.logoUrl || '/portals/irishqueenoftheslots/assets/logo.jpg';
+    if (_hc) _hc.src = portal.logoUrl || s.streamer.logoUrl || '/portals/meggambles/assets/logo.jpg';
     document.getElementById('brandName').textContent = BRAND;
     document.getElementById('brandSub').textContent = 'kick.com/' + s.streamer.kickChannel;
     document.getElementById('brandLink').href = s.streamer.socials?.kick || '/';
@@ -1498,16 +2037,32 @@
     // Store both and let the viewer switch tabs; renderBoard() owns the countdown,
     // hero prize, heading, podium + table for whichever board is active.
     window.__boards = { degen: s.leaderboard || null, csgobig: s.leaderboard2 || null };
+    // Any further board (Clash today, whatever she signs next) arrives in the
+    // generic `boards` array keyed by its document id. Matching that id against
+    // the room keys means a new room needs a CASINOS entry and nothing else.
+    (s.boards || []).forEach(function (b) {
+      const k = String(b.key || '').toLowerCase();
+      if (CASINOS[k] && !window.__boards[k]) window.__boards[k] = b;
+    });
     // Deep link: /csgobig or /degen (shareable paths) and #csgobig / #degen both
     // land directly on that board.
+    let landOnHome = false;
     if (!window.__routedOnce) {
-      const p = location.pathname.replace(/\/+$/, '');
-      if (p === '/csgobig' || location.hash === '#csgobig') window.__activeBoard = 'csgobig';
-      else if (p === '/degen' || location.hash === '#degen') window.__activeBoard = 'degen';
+      // Strip the /portals/<slug> prefix first. In production the edge function
+      // rewrites megrewards.com/degen to this file and the path stays "/degen",
+      // but a local preview is served AT /portals/meggambles/, where every route
+      // read off the raw path missed and the page fell through to the board.
+      const p = location.pathname.replace(/^\/portals\/[^/]+/, '').replace(/\/+$/, '');
+      const key = (p.replace(/^\//, '') || location.hash.replace(/^#/, '')).toLowerCase();
+      if (CASINOS[key]) window.__activeBoard = key;
+      // Bare / is the landing page now, not Degen's board.
+      else if (!p && !location.hash) landOnHome = true;
     }
     renderLinks(s);
     // Default to Degen on first load; keep the viewer's chosen tab across refreshes.
-    renderBoard(window.__boards[window.__activeBoard] ? window.__activeBoard : 'degen');
+    renderBoard(CASINOS[window.__activeBoard] ? window.__activeBoard : 'degen');
+    renderRooms();
+    showView(landOnHome ? 'home' : 'main');
     renderActive(s);
     renderStore(s);
     renderWinners(s);

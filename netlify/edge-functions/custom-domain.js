@@ -16,10 +16,10 @@
 const HOST_TO_SLUG = {
   "skslots.co.uk":     "skslots",
   "www.skslots.co.uk": "skslots",
-  "irishqueenoftheslots.com":     "irishqueenoftheslots",
-  "www.irishqueenoftheslots.com": "irishqueenoftheslots",
-  "megrewards.com":     "irishqueenoftheslots",
-  "www.megrewards.com": "irishqueenoftheslots",
+  "irishqueenoftheslots.com":     "meggambles",
+  "www.irishqueenoftheslots.com": "meggambles",
+  "megrewards.com":     "meggambles",
+  "www.megrewards.com": "meggambles",
   "tiltbros.com":       "thetiltbros",
   "www.tiltbros.com":   "thetiltbros",
 };
@@ -30,7 +30,7 @@ const HOST_TO_SLUG = {
 // presentation differs. Slugs NOT listed here fall through to portal.html.
 const SLUG_TO_PAGE = {
   skslots: "/portals/skslots/index.html",
-  irishqueenoftheslots: "/portals/irishqueenoftheslots/index.html",
+  meggambles: "/portals/meggambles/index.html",
   thetiltbros: "/portals/thetiltbros/index.html",
 };
 
@@ -67,7 +67,7 @@ export default async (request, context) => {
     // Branded legal pages: megrewards.com/terms + /privacy serve the portal's
     // own documents instead of the catch-all bespoke page. Only for slugs that
     // ship the files.
-    const LEGAL_PAGES = new Set(["irishqueenoftheslots"]);
+    const LEGAL_PAGES = new Set(["meggambles"]);
     if ((path === "/terms" || path === "/privacy") && LEGAL_PAGES.has(slug)) {
       url.pathname = `/portals/${slug}${path}.html`;
       return context.rewrite(url.toString());
@@ -81,7 +81,7 @@ export default async (request, context) => {
     // artwork + title instead of the default purple MegRewards card — the URL
     // fragment (#csgobig) can't do this because crawlers never receive it.
     const CSGOBIG_OG = {
-      slugs: new Set(["irishqueenoftheslots"]),
+      slugs: new Set(["meggambles"]),
     };
     if (path === "/csgobig" && CSGOBIG_OG.slugs.has(slug)) {
       const res  = await context.rewrite(url.toString());

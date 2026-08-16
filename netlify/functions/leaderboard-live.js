@@ -10,6 +10,7 @@ const { fetchDegenRace }   = require("./_lib/degen");
 const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards");
 const { fetchRainbetRange, fetchRainbetForPeriod, applyRainbetExclusions } = require("./_lib/rainbet");
 const { fetchDuelbits, fetchDuelbitsForPeriod, fetchDuelbitsDayBaseline, applyDuelbitsPeriod, ymdNext } = require("./_lib/duelbits");
+const { fetchClashBoard } = require("./_lib/clash");
 const res = (s, b) => _res(s, b, "*");
 
 async function fetchGambulls(apiKey) {
@@ -68,6 +69,8 @@ async function fetchGambullsPeriod(apiKey, type, period) {
 // unchanged. On a fetch failure we serve the last cached copy (even if stale)
 // rather than 502. (`_cache` is admin-SDK only; clients can't read it.)
 const LB_CACHE_TTL_MS = 45 * 1000;
+// Clash build their leaderboard response on request and asked us not to hammer it.
+const CLASH_CACHE_TTL_MS = 5 * 60 * 1000;
 async function getCachedStandings(db, channelKey, provider, apiKey) {
   const ref = db.collection("_cache").doc(`lb_${channelKey}_${provider}`);
   let cached = null;
@@ -174,6 +177,68 @@ exports.handler = async (event) => {
         // Tells a caller the difference between "race has no wagers" and "we haven't
         // fetched this window yet", which otherwise look identical.
         pending: !cached,
+      });
+    }
+
+    // Clash.gg: bearer token + a start date, so the range IS the period and there
+    // are no baselines or carryover, same as Rainbet.
+    //
+    // The token is a secret, so it lives in the server-only providers/ subcollection
+    // rather than on the board doc next to the public referral codes. The board doc
+    // still owns the period and the prize table.
+    if (provider === "clash") {
+      const bSnap = await db.collection("streamers").doc(streamerDoc.id).collection("leaderboards").get();
+      const board = sortBoards(bSnap.docs.map((d) => normalizeBoard(d.data(), d.id)))
+        .find((b) => b.provider === "clash");
+      if (!board) return res(400, { error: "Streamer hasn't set up a Clash.gg board yet." });
+
+      // The token can arrive two ways: providers/clash (where every other API
+      // credential lives) or on the board doc itself, which is what the board
+      // editor writes. Accept both, or configuring it the obvious way through the
+      // dashboard would save a token nothing ever reads.
+      const provDoc = await db.collection("streamers").doc(streamerDoc.id)
+        .collection("providers").doc("clash").get();
+      const token = (provDoc.exists ? (provDoc.data().token || provDoc.data().apiToken || "") : "")
+        || (board.credential && (board.credential.apiToken || board.credential.token)) || "";
+      if (!token) return res(400, { error: "Streamer hasn't configured their Clash.gg API token yet." });
+
+      // Clash generate this response on demand and asked us to cache it, so the
+      // window is 5 minutes rather than the 45s the other providers use. One
+      // document per channel, because the race identifies itself.
+      const cacheRef = db.collection("_cache").doc(`lb_${channel.toLowerCase()}_clash`);
+      let data = null, cached = null;
+      try {
+        const doc = await cacheRef.get();
+        if (doc.exists) {
+          cached = doc.data();
+          if (cached.data && cached.cachedAt && (Date.now() - cached.cachedAt) < CLASH_CACHE_TTL_MS) data = cached.data;
+        }
+      } catch { /* fall through to a live fetch */ }
+
+      if (!data) {
+        data = await fetchClashBoard(token, board.credential && board.credential.leaderboardId);
+        if (data) { try { await cacheRef.set({ cachedAt: Date.now(), data }); } catch {} }
+        else if (cached?.data) data = cached.data;   // serve stale rather than blank the board
+      }
+      if (!data) return res(502, { error: "Failed to fetch from Clash.gg API." });
+
+      // Period and prizes come from Clash, because that is what Clash is actually
+      // running and paying. A prize ladder set on the WenBot board still wins, so
+      // a streamer topping the pot up out of their own pocket can say so.
+      const own    = Array.isArray(board.prizes) && board.prizes.length ? board.prizes : null;
+      const prizes = own || data.prizes || [];
+      const prizeFor = (rank) => (Number(prizes[rank - 1]) > 0 ? Number(prizes[rank - 1]) : 0);
+
+      return res(200, {
+        success: true, casino: provider, casinoName: CASINO_NAMES[provider] || "Clash.gg",
+        period: { active: data.status === "LIVE", startAt: data.startAt, endAt: data.endAt },
+        raceName: data.name || null,
+        rankings: data.rankings.map((r) => ({
+          rank: r.rank, username: r.username, wagered: r.wagered,
+          avatarUrl: r.avatarUrl, prize: prizeFor(r.rank),
+        })),
+        totalWagered: data.totalWagered,
+        totalUsers:   data.totalUsers,
       });
     }
 
