@@ -1,6 +1,9 @@
 # WenBot — Backlog
 
-Deferred items captured 2026-05-29. Re-read at the start of new working sessions.
+Running backlog. Deferred items, oldest first. Re-read at the start of new
+working sessions, and add to it rather than keeping things in your head.
+
+Started 2026-05-29, last touched 2026-08-16.
 
 ---
 
@@ -66,6 +69,56 @@ Deferred items captured 2026-05-29. Re-read at the start of new working sessions
 - Streamers point their CNAME at `cf.wenbot.gg` (a Cloudflare-managed subdomain we own) instead of `wenbot.netlify.app`.
 - Cloudflare API auto-registers each new hostname + provisions SSL via SNI.
 - Worker calls Cloudflare KV (or our existing Firestore via fetch) for the host→slug map.
+
+---
+
+## 4. Rotate the Firebase service account key
+
+**What:** Issue a new private key for `firebase-adminsdk-fbsvc@logictools`, update `FIREBASE_PRIVATE_KEY` everywhere, then delete the old key.
+
+**Effort:** ~15 min
+
+**Why:** Routine hygiene rather than a known compromise. This one key is admin access to the whole database, it has never been rotated, and on 2026-08-16 it was printed in plain text into a local terminal and session transcript while wiring up local dev. Contained to one machine, so not urgent, but it should not be the key that runs forever.
+
+**Steps:**
+
+- Google Cloud Console, IAM & Admin, Service Accounts, `firebase-adminsdk-fbsvc@logictools`.
+- Keys, Add key, Create new key, JSON. Keep the download.
+- `netlify env:set FIREBASE_PRIVATE_KEY` with the new value. **Pipe it, never pass it as a visible argument** - the CLI echoes the value back, which is exactly how it got printed in the first place.
+- Update `C:\Users\cscog\.wenbot-secrets\wenbot-firebase.env` and `wenbot-service-account.json`.
+- WenBotServer on Railway uses the same service account, so update it there too or the bot loses Firestore.
+- Redeploy both, confirm the dashboard and the bot still read and write, then delete the old key in the console.
+
+**Careful:** deleting the old key before both hosts are on the new one takes the whole product down. New key everywhere first, verify, then delete.
+
+---
+
+## 5. Local dev cannot reach Firestore
+
+**What:** `netlify dev` starts without database credentials, so every function 500s locally on `Service account object must contain a string "private_key" property`.
+
+**Effort:** ~30 min
+
+**Why:** Blocks previewing anything that reads data (portals, dashboard) on localhost, which is how we avoid spending Netlify build credits on preview deploys.
+
+**Cause (confirmed 2026-08-16):** Netlify only passes env vars to local functions when the name already exists in the *site* env, and it blanks values it treats as secret. `FIREBASE_PRIVATE_KEY` is marked secret, so it arrives empty and a `.env` override does not help. A long-running dev server had captured the real value before it was marked secret; restarting that server lost it for good.
+
+**Options:**
+
+- Add a non-secret `FIREBASE_SERVICE_ACCOUNT_B64` to the Netlify site env. `_lib/firebase.js` already accepts it (base64 or raw JSON, with the individual vars winning when present), so no other change is needed. Downside: the service account then sits in Netlify as a normal variable.
+- Or run functions through a local harness that sets the env itself, and keep `netlify dev` for static serving only.
+
+---
+
+## 6. Clash.gg prize units
+
+**What:** Confirm what Clash's `rewards[].amount` actually denominates, and label it correctly on the portal.
+
+**Effort:** ~5 min once confirmed
+
+**Why:** Her race pays 70,000 for first. The portal renders Clash amounts as a gem plus the number, because printing `$70,000` would assert a currency Clash never stated. If those are dollars, or a coin with a known conversion, the label and possibly the formatting are wrong on a public page.
+
+**Where:** `BOARD_UNITS` in `portals/meggambles/index.html`.
 
 ---
 
