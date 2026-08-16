@@ -964,6 +964,17 @@
   // Rooms not listed here are dollars.
   const BOARD_UNITS = { csgobig: 'coins', clash: 'gems' };
   const plain = n => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  // An amount in a given ROOM's currency. Returns HTML, so callers must not
+  // escape it and must assign with innerHTML. Pass the room key explicitly
+  // rather than reading the active board: winners lists and landing cards show
+  // several rooms' figures side by side.
+  const unitAmt = (key, n) => {
+    const unit = BOARD_UNITS[key];
+    const num  = Number(n || 0).toLocaleString('en-US');
+    if (unit === 'coins') return COIN_IMG + ' ' + num;
+    if (unit === 'gems')  return GEM_IMG  + ' ' + num;
+    return '$' + num;
+  };
   const fmtWager = (n) => {
     const unit = BOARD_UNITS[window.__activeBoard];
     if (unit === 'coins') return COIN_IMG + ' ' + plain(n);
@@ -1371,8 +1382,12 @@
                banner:'/portals/meggambles/assets/megclash.png',
                theme:'theme-clash', live:true,
                blurb:'Cases, upgrades and battles, with her Clash.gg wager race.' },
-    ethbet:  { name:'EthBet',   tag:'Crypto casino',       code:'MEG', url:'https://ethbet.com/?ref=meg',
-               banner:'/portals/meggambles/assets/ethbetmeg.png', theme:'theme-ethbet', live:false,
+    // No url: EthBet has not opened, so nothing links out to it yet. `url` is
+    // what the room card and the opening-soon panel link to, and an empty one
+    // makes both render as plain "Coming soon" instead. The domain is .gg.
+    ethbet:  { name:'EthBet',   tag:'Crypto casino',       code:'MEG', url:'',
+               site:'https://ethbet.gg/?ref=meg',
+               banner:'/portals/meggambles/assets/megupdatedethbet.png', theme:'theme-ethbet', live:false,
                blurb:'Instant deposits, provably fair, daily rewards. Opening soon.' },
   };
   const CASINO_ORDER = ['degen', 'csgobig', 'clash', 'ethbet'];
@@ -1384,17 +1399,22 @@
     host.innerHTML = CASINO_ORDER.map(function (k) {
       const c = CASINOS[k];
       const b = c.live ? boards[k] : null;
-      const pool = b && b.prizePool ? '$' + Number(b.prizePool).toLocaleString() : '';
+      const pool = b && b.prizePool ? unitAmt(k, b.prizePool) : '';
       // Every card is the casino's own link under her code. The board for that
       // room is a tab at the top of every page, so spending the artwork on a
       // second route to it wastes the click that actually earns her something.
       const href = c.url;
-      const cta  = c.live ? (pool ? 'Play, ' + pool + ' race' : 'Play now') : 'Play now';
+      const cta  = !c.url ? 'Coming soon'
+                 : c.live ? (pool ? 'Play, ' + pool + ' race' : 'Play now')
+                 : 'Play now';
       const cls  = c.live ? 'lp-go-live' : 'lp-go-soon';
       // Colour comes from the casino, not the page, so a row of four reads as
       // four brands rather than four purple cards.
       const tint = { degen:'#d9dee5', csgobig:'#e8b33c', clash:'#9b3fe4', ethbet:'#1b6cf5' }[k];
-      return '<a class="lp-room" href="' + href + '" target="_blank" rel="noopener"'
+      // Without a destination it renders as a card, not a link, so nobody
+      // clicks through to a site that is not open.
+      const tag = href ? 'a' : 'div';
+      return '<' + tag + ' class="lp-room"' + (href ? ' href="' + href + '" target="_blank" rel="noopener"' : '')
         + ' style="border-color:' + tint + '33">'
         + '<img src="' + c.banner + '" alt="' + esc(c.name) + '" loading="lazy">'
         + '<div class="lp-room-body">'
@@ -1405,7 +1425,7 @@
         +     '<span class="lp-code">Code <b>' + esc(c.code) + '</b></span>'
         +     '<span class="lp-go ' + cls + '"' + (c.live ? ' style="background:' + tint + '"' : '') + '>' + cta + '</span>'
         +   '</div>'
-        + '</div></a>';
+        + '</div></' + tag + '>';
     }).join('');
 
     // No in-page interception: these are outbound referral links now.
@@ -1475,7 +1495,9 @@
         soon.innerHTML = '<div class="bs-title">' + esc(cfg.name || '') + ' is opening soon</div>'
           + '<div class="bs-text">' + esc(cfg.blurb || '') + ' Play under code <b>' + esc(cfg.code || 'MEG')
           + '</b> now and your wager counts from the moment the board goes live.</div>'
-          + '<a class="bs-cta" href="' + esc(cfg.url || '#') + '" target="_blank" rel="noopener">Play on ' + esc(cfg.name || '') + '</a>';
+          + (cfg.url
+              ? '<a class="bs-cta" href="' + esc(cfg.url) + '" target="_blank" rel="noopener">Play on ' + esc(cfg.name || '') + '</a>'
+              : '');
       }
     }
     const wrap = document.getElementById('lbTableWrap');
@@ -1522,9 +1544,21 @@
     const _lbEnd = lb.endAt || (s.leaderboardTimer && s.leaderboardTimer.active ? s.leaderboardTimer.endAt : null);
     startCountdown(_lbEnd);
     const _pool = lb.prizePool || 0;
-    document.getElementById('heroPrize').textContent = isCsgobig
-      ? ((_pool ? Number(_pool).toLocaleString('en-US') + ' Coin ' : '') + (lb.period || 'Monthly Race'))
-      : (hero.prize || (_pool ? ('$' + Number(_pool).toLocaleString() + ' Prize Pool') : ''));
+    const _unit = BOARD_UNITS[which];
+    let _heroPrize;
+    if (isCsgobig) {
+      _heroPrize = (_pool ? Number(_pool).toLocaleString('en-US') + ' Coin ' : '') + (lb.period || 'Monthly Race');
+    } else if (_unit) {
+      // Any other room with its own currency: icon, amount, then its cadence.
+      _heroPrize = (_pool ? unitAmt(which, _pool) + ' ' : '') + (lb.period || 'Prize Pool');
+    } else {
+      // Dollars. hero.prize is the streamer's own wording, and belongs only to
+      // the PRIMARY board: using it everywhere printed Degen's prize pool on
+      // rooms that pay something else entirely.
+      const _isPrimary = which === String(s.streamer && s.streamer.provider || '').toLowerCase();
+      _heroPrize = (_isPrimary && hero.prize) || (_pool ? '$' + Number(_pool).toLocaleString() + ' Prize Pool' : '');
+    }
+    document.getElementById('heroPrize').innerHTML = _heroPrize;
 
     // Heading: "<cadence> <Casino> Leaderboard".
     const cadence = isCsgobig ? '' : (hero.cadence ? hero.cadence + ' ' : '');
@@ -1931,11 +1965,9 @@
     if (!periods || !periods.length) return '';
     const cards = periods.map((p, idx) => {
       const winners = p.winners || [];
-      // CSGOBig periods pay/track in coins; everything else is dollars.
-      const isCoins = p.casino === 'csgobig';
-      const amt = n => isCoins
-        ? `${COIN_IMG} ${Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}`
-        : '$' + Number(n || 0).toLocaleString();
+      // Each archived period is priced in ITS OWN casino's currency, not the
+      // currency of whichever room the viewer happens to be looking at.
+      const amt = n => unitAmt(p.casino, n);
       const rows = winners.map(w => `
         <div class="pw-row">
           <span class="pw-mode" style="background:rgba(245,197,24,.14);color:var(--gold);">#${w.rank}</span>
