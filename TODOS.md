@@ -31,6 +31,17 @@ Started 2026-05-29, last touched 2026-08-16.
 
 ## 2. Firestore-backed custom-domain self-serve
 
+**Adding a domain by hand today means FOUR places, and missing one fails quietly:**
+
+1. `HOST_TO_SLUG` + `SLUG_TO_PAGE` in `netlify/edge-functions/custom-domain.js`
+2. The Netlify site's domain aliases (needed for the TLS certificate)
+3. `ALLOWED_RETURN_HOSTS` in `netlify/functions/kick-session-mint.js` - miss this and the
+   portal loads perfectly but Kick sign-in dead-ends on "returnOrigin not allowed"
+4. DNS at the registrar
+
+Caught on tiltbros.com 2026-08-17: 1, 2 and 4 were done and the site looked fine until a
+viewer tried to sign in. Whatever replaces this should read one list.
+
 **What:** Replace the hardcoded `HOST_TO_SLUG` map in `netlify/edge-functions/custom-domain.js` with a Firestore-backed lookup so streamers can register their own domain without a code change. Add a "Custom Domain" section to the dashboard Settings that walks them through it.
 
 **Effort:** ~1 day

@@ -25,7 +25,15 @@ const ALLOWED_RETURN_HOSTS = new Set([
   "www.irishqueenoftheslots.com",
   "megrewards.com",
   "www.megrewards.com",
+  "tiltbros.com",
+  "www.tiltbros.com",
 ]);
+
+// NOTE: every white-label domain must be listed above as well as in the edge
+// function's HOST_TO_SLUG and on the Netlify site's aliases. Miss this one and
+// the portal loads perfectly but Kick sign-in dead-ends on "returnOrigin not
+// allowed", because the OAuth callback can only run on the auth origin and has
+// nowhere approved to hand the session back to.
 
 const CODE_TTL_MS = 60 * 1000;
 
