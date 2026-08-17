@@ -156,6 +156,13 @@
   .ms-fill { height:100%; border-radius:99px; background:linear-gradient(90deg,var(--money),#7ef5b0); transition:width .5s ease; }
   .ms-row.done .ms-lab::after { content:' OK'; color:var(--money); font-size:11px; }
   .ms-note { font-size:11.5px; color:var(--dim); margin-top:12px; line-height:1.6; }
+  /* A reached tier is something to act on, so it gets a control rather than a
+     line of text telling them to go and find Discord themselves. */
+  .ms-claim { display:inline-flex; align-items:center; gap:7px; font-family:'Exo 2',sans-serif;
+    font-weight:800; font-size:12px; letter-spacing:.04em; text-decoration:none;
+    color:#0b1402; background:var(--money); border-radius:8px; padding:7px 13px; transition:.15s; }
+  .ms-claim:hover { filter:brightness(1.08); }
+  .ms-claim::before { content:'F3AB'; }
   .ms-cta { display:inline-flex; align-items:center; gap:8px; background:#53fc18; color:#0b1402; font-weight:800;
     border:none; border-radius:9px; padding:11px 18px; cursor:pointer; font-size:13.5px; font-family:'Exo 2',sans-serif; }
   .ms-cta:hover { filter:brightness(1.07); }
@@ -1324,6 +1331,15 @@
     return n * mult;
   }
 
+  // Their Discord, from the streamer's own configured links so a changed invite
+  // follows automatically. Falls back to the socials block, then to nothing.
+  function msDiscord() {
+    var s = window.__S || {};
+    var fromLinks = ((s.portal && s.portal.links) || [])
+      .filter(function (l) { return /discord/i.test(l.label || '') || /discord\.(gg|com)/i.test(l.href || ''); })[0];
+    return (fromLinks && fromLinks.href) || (s.streamer && s.streamer.socials && s.streamer.socials.discord) || '';
+  }
+
   function msMoney(n) {
     return '$' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
   }
@@ -1344,7 +1360,12 @@
         + 'Your casino name comes from your verification, so there is nothing to type.</div>'
         + '<button class="ms-cta" id="msLogin">Sign in with Kick</button></div>';
       var b = $('msLogin');
-      if (b) b.addEventListener('click', function () { initiateKickAuth('viewer', CHANNEL); });
+      if (b) b.addEventListener('click', function () {
+        // Remember the page they are on, so the round trip through wenbot.gg
+        // brings them back here rather than to the leaderboard.
+        try { localStorage.setItem('tb_return_view', 'bonuses'); } catch (e) {}
+        initiateKickAuth('viewer', CHANNEL);
+      });
       return;
     }
 
@@ -1372,12 +1393,16 @@
       if (!target) return '';
       var pct = Math.max(0, Math.min(100, (total / target) * 100));
       var done = total >= target;
-      var left = done ? 'Reached, claim it in a Discord ticket' : msMoney(target - total) + ' to go';
+      var foot = done
+        ? (msDiscord()
+            ? '<a class="ms-claim" href="' + esc(msDiscord()) + '" target="_blank" rel="noopener">Claim ' + esc(t.reward) + ' in Discord</a>'
+            : '<span class="ms-sub">Reached. Open a ticket in Discord to claim it.</span>')
+        : '<span class="ms-sub">' + esc(msMoney(target - total) + ' to go') + '</span>';
       return '<div class="ms-row' + (done ? ' done' : '') + '">'
         + '<span class="ms-lab">' + esc(t.wager) + '</span>'
         + '<span class="ms-rew">' + esc(t.reward) + '</span>'
         + '<span class="ms-bar"><span class="ms-fill" style="width:' + pct.toFixed(1) + '%"></span></span>'
-        + '<span class="ms-sub" style="grid-column:1 / -1;">' + esc(left) + '</span>'
+        + '<span style="grid-column:1 / -1;">' + foot + '</span>'
         + '</div>';
     }).join('');
 
@@ -1663,8 +1688,51 @@
     }
   }
 
-  load();
-  setInterval(load, 60000);
+  // On a custom domain the Kick callback cannot run here (one registered
+  // redirect URI), so OAuth completes on wenbot.gg and returns with a one-time
+  // handoff code in ?s=. Exchanging that code for a session is what makes the
+  // viewer signed in; without this step the code is ignored, nothing is stored,
+  // and the page still offers "Sign in with Kick" straight after signing in.
+  async function initViewer() {
+    var params = new URLSearchParams(location.search);
+    var code = params.get('s');
+    if (code) {
+      try {
+        var r = await fetch('/api/kick-session-claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: code }),
+        });
+        var d = await r.json();
+        if (r.ok && d.session) localStorage.setItem('kick_viewer_session', JSON.stringify(d.session));
+      } catch (e) {}
+      // Strip ?s= whether or not it worked: it is single-use, and it must not
+      // survive in a shared or bookmarked URL.
+      params.delete('s');
+      history.replaceState(null, '', location.pathname + (params.toString() ? '?' + params : '') + location.hash);
+    }
+  }
+
+  // The cross-domain hop starts before this page can record where the viewer
+  // was, so remember it ourselves and restore it after the claim. Otherwise
+  // signing in from Bonuses drops them back on the leaderboard.
+  var RETURN_KEY = 'tb_return_view';
+
+  (async () => {
+    await initViewer();
+
+    var back = null;
+    try { back = localStorage.getItem(RETURN_KEY); localStorage.removeItem(RETURN_KEY); } catch (e) {}
+    if (back && VIEWS.indexOf(back) !== -1) showView(back);
+
+    // Paint the progress panel against the restored session immediately, rather
+    // than leaving "Sign in with Kick" up until the next 60s refresh.
+    await loadViewerWager();
+    if (window.__S) renderProgress(window.__S);
+
+    load();
+    setInterval(load, 60000);
+  })();
 })();
 </script>
 </body>
