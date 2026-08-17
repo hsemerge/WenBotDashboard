@@ -137,6 +137,44 @@ Viewers pick a casino with chips on `verify.html` when the streamer runs more th
 
 ---
 
+## 8. Wrong-Kick-account recovery (half built, parked)
+
+**Status:** backend done and inert, UI not wired. Nothing calls it, so production is unaffected.
+
+**The problem:** Kick's OAuth never asks which account to use, so a viewer with an alt signed in gets verified as the alt without ever choosing. "Not you?" clears our session and immediately re-asks Kick, which silently returns the same account, so there is no way to switch from our page. If they already verified a casino on the alt, re-verifying on their main hits "already linked to another Kick account, contact a mod" - the uniqueness rule that stops giveaway multi-accounting cannot tell an accident from abuse.
+
+**Done, uncommitted and unreachable:**
+
+- `_lib/discord-role.js` gains `revokeVerifiedRole()`.
+- `netlify/functions/verify-unlink.js`: a viewer releases their OWN verification for one casino. Authorisation is possession of the Kick token, so there is no path to release anyone else's claim. Revokes the Discord role so nobody can walk one casino account through several Kick accounts collecting roles. Only drops the Discord link when it was their LAST verification for that streamer, because Meg's viewers hold several. Refused while a giveaway is running: entries are banked at join time and not re-checked at the draw, so a mid-round switch would put two entries from one casino account in the pool. Audit-logged.
+- `netlify.toml` redirect for `/api/verify-unlink`.
+
+**Left to do:**
+
+- "Verifying as <kick name>" beside the submit button, so a wrong account is obvious before it is committed.
+- Make "Not you?" work: send `prompt=login` ON THE SWITCH PATH ONLY (`initiateKickAuth` is shared with streamer and admin sign-in, do not change those), then compare the returned account with the rejected one and only explain the kick.com logout step when it demonstrably failed.
+- An unlink button on the verify page, behind a confirmation: it revokes a Discord role and should not be one stray tap away on a phone.
+- Reword the 409 to point at self-service without naming the other Kick account, which would leak which account owns a casino name.
+
+**Related, not covered:** the draw should re-check that a winner is still verified. That closes the mid-giveaway hole properly and also covers a mod removing someone mid-round. Lives in WenBotServer.
+
+---
+
+## 9. Giveaway winners can go missing from portals
+
+**What:** Two gaps between drawing a giveaway winner and that winner appearing on a portal.
+
+**Effort:** ~1 hr
+
+**Why:** A streamer who draws in chat gets an empty Giveaways section and no reason why.
+
+- **Chat draws are never recorded.** `!winner` in WenBotServer removes the winner from the pool, blocks them from re-entering and bumps `communityStats.winnersDrawn`, but writes no `winners_log` entry. Only the dashboard draw calls `_writeWinnerLog({ type: 'giveaway', ... })`. The comment in giveaway.js states the split, so it looks deliberate, but it means chat-drawn winners exist nowhere a portal can read. Fix is in the bot: write the same record both paths write.
+- **The portal's window is mixed-type.** portal-data reads the 30 newest `winners_log` docs of ANY type, then filters to giveaways in JS. A channel with a busy raffle can fill all 30 with raffle draws and silently show no giveaway winners. Ask for giveaways specifically instead.
+
+**Not urgent for TiltBros:** confirmed 2026-08-16 that they will not use `!winner`, and their log is currently all raffle draws.
+
+---
+
 ## Notes
 
 - The hardcoded `HOST_TO_SLUG` in `netlify/edge-functions/custom-domain.js` currently has just `skslots.co.uk` + `www.skslots.co.uk` → `skslots`. New clients in the meantime: add an entry, push, done. But that's the workaround until item 2 lands.

@@ -54,4 +54,44 @@ async function grantVerifiedRole(streamerData, discordUserId) {
   }
 }
 
-module.exports = { grantVerifiedRole };
+/**
+ * Take the verified role back off a member.
+ *
+ * Needed wherever a verification is undone, because otherwise a viewer could
+ * move one casino account between several Kick accounts and keep the role each
+ * time, ending up with the verified role on several Discord accounts from a
+ * single casino account. Same best-effort contract as granting.
+ *
+ * @param {object} streamerData  the streamers/{uid} document data
+ * @param {string} discordUserId
+ * @returns {Promise<{expected: boolean, ok: boolean, status?: number}>}
+ */
+async function revokeVerifiedRole(streamerData, discordUserId) {
+  const cfg     = (streamerData && streamerData.discordConfig && streamerData.discordConfig.verify) || {};
+  const guildId = streamerData && streamerData.discordConfig && streamerData.discordConfig.guildId;
+  const expected = !!(cfg.assignRole && cfg.roleId);
+
+  if (!expected || !guildId || !discordUserId || !process.env.DISCORD_BOT_TOKEN) {
+    return { expected, ok: false };
+  }
+
+  try {
+    // DELETE is idempotent, and 404s harmlessly when they have already left or
+    // never held the role.
+    const r = await fetch(
+      `https://discord.com/api/v10/guilds/${guildId}/members/${discordUserId}/roles/${cfg.roleId}`,
+      { method: "DELETE", headers: { "Authorization": `Bot ${process.env.DISCORD_BOT_TOKEN}` } }
+    );
+    if (!r.ok && r.status !== 404) {
+      const body = await r.text().catch(() => "");
+      console.warn("[discord-role] revoke failed:", r.status, body.slice(0, 200));
+      return { expected, ok: false, status: r.status };
+    }
+    return { expected, ok: true };
+  } catch (err) {
+    console.warn("[discord-role] revoke error:", err.message);
+    return { expected, ok: false };
+  }
+}
+
+module.exports = { grantVerifiedRole, revokeVerifiedRole };

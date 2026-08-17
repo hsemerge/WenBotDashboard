@@ -568,3 +568,15 @@
   to     = "/portals/meggambles/:splat"
   status = 301
   force  = true
+
+[[redirects]]
+  from   = "/api/verify-unlink"
+  to     = "/.netlify/functions/verify-unlink"
+  status = 200
+  force  = true
+
+[[redirects]]
+  from   = "/api/viewer-wager"
+  to     = "/.netlify/functions/viewer-wager"
+  status = 200
+  force  = true
