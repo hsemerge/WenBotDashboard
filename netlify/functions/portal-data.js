@@ -464,6 +464,36 @@ function presetFor(channel, profile) {
 // Themed-portal branding (palette/logo/hero/bg). Emitted for Elite+ (the full
 // theme is an Elite perk) OR any white-label override (owner/preset/flag). Null
 // otherwise, so Starter/Pro portals keep the default look.
+// Shallow merge, keyed by section name: a stored section replaces the preset's
+// section of the same name, and every other preset section survives untouched.
+function mergeContent(presetContent, stored) {
+  if (!presetContent && !stored) return null;
+  return { ...(presetContent || {}), ...(stored || {}) };
+}
+
+// Rewards are {intro, sections[]}. Sections are matched on title so a streamer
+// editing one ladder does not delete the others: a stored section replaces the
+// preset section with the same title, and anything new is appended.
+function mergeRewards(presetRewards, stored) {
+  if (!presetRewards && !stored) return null;
+  if (!presetRewards) return stored;
+  if (!stored) return presetRewards;
+
+  const key = (sec) => String((sec && sec.title) || "").trim().toLowerCase();
+  const storedSections = Array.isArray(stored.sections) ? stored.sections : [];
+  const byTitle = new Map(storedSections.map((sec) => [key(sec), sec]));
+
+  const merged = (presetRewards.sections || []).map((sec) => byTitle.get(key(sec)) || sec);
+  const usedTitles = new Set((presetRewards.sections || []).map(key));
+  storedSections.forEach((sec) => { if (!usedTitles.has(key(sec))) merged.push(sec); });
+
+  return {
+    intro:    stored.intro    || presetRewards.intro    || "",
+    footnote: stored.footnote || presetRewards.footnote || "",
+    sections: merged,
+  };
+}
+
 function buildPortalConfig(channel, profile, canBrand) {
   if (!canBrand) return null;
   // Presets are keyed by slug, so a rename would otherwise silently strip a
@@ -519,7 +549,15 @@ function buildPortalConfig(channel, profile, canBrand) {
     // to be whitelisted here before a bespoke page could read it, which meant
     // editing this function for each new agency client. Anything a bespoke page
     // needs and the standard portal doesn't goes in here instead.
-    content:     p.content || preset.content || null,
+    // Stored content overrides the preset SECTION BY SECTION, never wholesale.
+    //
+    // This was `p.content || preset.content`, so the moment anything was written
+    // to portal.content the entire preset stopped applying. Setting one figure on
+    // TheTiltBros' giveaways tile emptied their FAQ, raffles, bounties, banner,
+    // marquee, footer and socials copy in a single write, because all of it lived
+    // in the preset and the preset was now being skipped.
+    content:     mergeContent(preset.content, p.content),
+    rewards:     mergeRewards(preset.rewards, p.rewards),
     brandCredit: p.brandCredit ?? preset.brandCredit ?? true,
   };
 }
@@ -762,8 +800,11 @@ exports.handler = async (event) => {
           .orderBy("drawnAt", "desc").limit(20).get(),
         // Giveaway draw winners (separate store). orderBy on the single drawnAt
         // field is auto-indexed; filter to giveaway type in JS.
+        // Read a wider slice than we display: this one query feeds BOTH the
+        // giveaway list and the raffle list, and filtering a 30-record window by
+        // type let a busy raffle channel show zero giveaways.
         db.collection("streamers").doc(uid).collection("winners_log")
-          .orderBy("drawnAt", "desc").limit(30).get(),
+          .orderBy("drawnAt", "desc").limit(80).get(),
         db.collection("streamers").doc(uid).collection("bounties")
           .where("status", "==", "active").limit(20).get(),
       ]);
@@ -781,10 +822,19 @@ exports.handler = async (event) => {
           };
         }).sort((a, b) => (a.price || 0) - (b.price || 0)),
       };
+      // Raffle winners come from raffle_history ONLY.
+      //
+      // Do NOT merge in winners_log entries of type "raffle": that type is
+      // written by the SLOT REQUEST spinner, which records whose slot got played
+      // (every row carries a slotName and wager 0). They are not raffle winners,
+      // and publishing them as such put 20 slot picks, test spins included, on
+      // TheTiltBros' public winners list. A channel with no raffle draws should
+      // read as having none.
       pastWinners = winnersSnap.docs.map(d => {
         const w = d.data();
         return { winner: w.winner, mode: w.mode, itemName: w.itemName || null, drawnAt: w.drawnAt };
       });
+
       bounties = bountySnap.docs
         .map(d => d.data())
         .map(b => ({

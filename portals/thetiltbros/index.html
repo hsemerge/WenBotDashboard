@@ -183,7 +183,9 @@
   /* Banner film. No forced aspect ratio: whatever shape the file is, it is
      shown whole rather than cropped to a letterbox chosen for a different one. */
   .hero-film {
-    display:block; width:100%; max-width:100%; height:auto; margin:6px auto 4px;
+    display:block; width:100%; max-width:100%; margin:6px auto 4px;
+    aspect-ratio:16/9;            /* placeholder until the file reports its own */
+    height:auto; object-fit:cover;
     border-radius:16px; border:1px solid var(--red-30); background:#0a0a0c;
     box-shadow:0 0 50px rgba(255,59,59,.16);
   }
@@ -861,7 +863,10 @@
     var btn = document.getElementById('filmPlay');
     var vid = document.getElementById('heroFilm');
     if (!btn || !vid) return;
+    var lab = btn.querySelector('.film-lab');
     btn.addEventListener('click', function () {
+      if (btn.dataset.busy) return;
+
       if (!vid.querySelector('source')) {
         var src = document.createElement('source');
         src.src = 'main.mp4';
@@ -870,11 +875,49 @@
         vid.load();
       }
       vid.controls = true;
-      btn.classList.add('gone');
+
+      // The button STAYS while the file loads. This video's moov atom sits at
+      // the end of the file, so the browser cannot show a frame until the whole
+      // thing has arrived; hiding the button on click left a still poster with
+      // no sign anything was happening, which reads as broken. Re-exporting the
+      // file with faststart would make this near-instant, and this stays correct
+      // either way.
+      btn.dataset.busy = '1';
+      if (lab) lab.textContent = 'Loading';
+
+      var started = false;
+      var ready = function () {
+        if (started) return;
+        started = true;
+        btn.classList.add('gone');
+        btn.removeAttribute('data-busy');
+        if (lab) lab.textContent = 'Play';
+      };
+      // Once the file reports its real shape, use it. Until then the CSS
+      // placeholder holds the space, rather than the browser's 300x150 default
+      // squashing the frame into a strip.
+      vid.addEventListener('loadedmetadata', function () {
+        if (vid.videoWidth && vid.videoHeight) {
+          vid.style.aspectRatio = vid.videoWidth + ' / ' + vid.videoHeight;
+          vid.style.objectFit = 'contain';
+        }
+      }, { once: true });
+
+      vid.addEventListener('playing', ready, { once: true });
+      vid.addEventListener('canplay', ready, { once: true });
+
+      // Progress, so a long download reads as progress rather than a hang.
+      vid.addEventListener('progress', function () {
+        if (started || !lab || !vid.buffered.length || !vid.duration) return;
+        var pct = Math.round((vid.buffered.end(vid.buffered.length - 1) / vid.duration) * 100);
+        if (pct > 0 && pct < 100) lab.textContent = 'Loading ' + pct + '%';
+      });
+
       vid.play().catch(function () {
-        // Refused for any reason: give the controls back rather than leaving a
-        // dead frame with no way to start it.
+        // Refused: hand the button back rather than leaving a dead frame.
         btn.classList.remove('gone');
+        btn.removeAttribute('data-busy');
+        if (lab) lab.textContent = 'Play';
       });
     });
   })();
