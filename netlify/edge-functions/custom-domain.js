@@ -46,7 +46,11 @@ export default async (request, context) => {
   if (path.startsWith("/api/") ||
       path.startsWith("/.netlify/") ||
       path.startsWith("/_next/") ||
-      path.match(/\.(js|css|png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|map)$/i)) {
+      // Media matters as much as images here. Without mp4/mov/webm in this list,
+      // a request for a video fell through to the bespoke-page rewrite below and
+      // was answered with the portal's HTML, so a browser expecting footage got a
+      // web page and simply hung. A missing asset should 404 honestly.
+      path.match(/\.(js|css|png|jpg|jpeg|gif|svg|webp|avif|ico|woff2?|ttf|otf|eot|map|mp4|mov|webm|ogg|mp3|wav|m4a|json|txt|xml|pdf)$/i)) {
     return;
   }
 
@@ -63,6 +67,18 @@ export default async (request, context) => {
   const bespoke = SLUG_TO_PAGE[slug];
   if (bespoke) {
     if (path.startsWith("/portals/")) return; // already the page itself
+
+    // Real, separate pages that must NOT be swallowed by the catch-all below.
+    //
+    // The catch-all is deliberate: a bespoke portal routes /store, /winners and
+    // /degen client-side, so those have to reach the portal page. But /verify is
+    // its own document, and answering it with the portal meant a viewer who
+    // pressed "Verify now" on a custom domain was handed the page they were
+    // already on. Kick sign-in works from these domains (see the return-origin
+    // allowlist in kick-session-mint), so they belong on the streamer's own
+    // domain rather than being bounced to wenbot.gg.
+    const REAL_PAGES = new Set(["/verify", "/verify-email", "/commands"]);
+    if (REAL_PAGES.has(path.replace(/\/+$/, ""))) return;
 
     // Branded legal pages: megrewards.com/terms + /privacy serve the portal's
     // own documents instead of the catch-all bespoke page. Only for slugs that

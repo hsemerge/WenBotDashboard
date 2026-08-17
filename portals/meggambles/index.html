@@ -637,9 +637,10 @@
 </head>
 <body>
 <div id="introGate" class="gone">
-  <video id="introVid" playsinline muted preload="auto">
-    <source src="/portals/meggambles/assets/Megclashintro.mp4" type="video/mp4">
-  </video>
+  <!-- Same reasoning as the daily video: the source is attached only when the
+       gate actually opens, below. Otherwise every repeat visit in a session
+       silently pulled 7.4MB for a film it had already decided not to show. -->
+  <video id="introVid" playsinline muted preload="none"></video>
   <div class="intro-btns">
     <button class="intro-btn" id="introSound" type="button">🔇 Sound on</button>
     <button class="intro-btn" id="introSkip" type="button">Skip ▸</button>
@@ -660,6 +661,14 @@
 
     var gate = document.getElementById('introGate');
     var vid  = document.getElementById('introVid');
+    // Only now, having decided the intro IS running, does the file get fetched.
+    if (!vid.querySelector('source')) {
+      var isrc = document.createElement('source');
+      isrc.src = '/portals/meggambles/assets/Megclashintro.mp4';
+      isrc.type = 'video/mp4';
+      vid.appendChild(isrc);
+      vid.load();
+    }
     gate.classList.remove('gone');
     document.documentElement.classList.add('intro-open');
 
@@ -751,9 +760,11 @@
   <div class="dc-overlay" id="dcOverlay" onclick="if(event.target===this)closeDailyClaim()">
     <div class="dc-modal">
       <button class="dc-close" onclick="closeDailyClaim()" aria-label="Close">✕</button>
-      <video class="dc-video" id="dcVideo" playsinline preload="auto">
-        <source src="/portals/meggambles/assets/daily-reward.mp4" type="video/mp4">
-      </video>
+      <!-- No preload and NO inline <source>: this is 7.7MB behind a modal that
+           most visits never open, and display:none does not stop a browser
+           fetching media. The source is attached the first time the modal is
+           opened, in openDailyClaim(). -->
+      <video class="dc-video" id="dcVideo" playsinline preload="none"></video>
       <div class="dc-result" id="dcResult">
         <div class="dc-spinner" id="dcSpinner">Opening your reward…</div>
       </div>
@@ -821,14 +832,6 @@
       <!-- The active room's banner art. src/alt are set per board by
            renderBoard(); hidden for CSGOBig, which has a video instead. -->
       <img class="hero-banner" id="boardBanner" src="" alt="">
-      <!-- Animated banner for whichever room has one. CSGOBig's is inlined so a
-           deep-linked /csgobig paints immediately (CSS shows it off the theme
-           class, before any data has loaded); renderBoard swaps the source for
-           any other room that ships a video. -->
-      <video class="hero-banner" id="boardVideo" loop muted playsinline preload="metadata"
-             poster="/portals/meggambles/assets/csgobig-hero.png" autoplay>
-        <source id="boardVideoSrc" src="/portals/meggambles/assets/csgobig-video.mp4" type="video/mp4">
-      </video>
     </div>
     <h1 id="heroTitle"><span class="h-emoji">👑</span> MEGREWARDS</h1>
     <div class="prize" id="heroPrize"></div>
@@ -1230,9 +1233,15 @@
   function showView(name) {
     const main = document.getElementById('mainView');
     const themes = ['theme-degen', 'theme-csgobig', 'theme-clash', 'theme-ethbet'];
-    const wear = name === 'home' ? null : (CASINOS[window.__activeBoard] || {}).theme;
+    // Every page has ONE fixed palette, and never borrows another page's:
+    //   home, store, winners, rewards -> MegRewards purple (no theme class)
+    //   a board page                  -> that casino's own colours
+    // Store and Winners used to wear whichever room you arrived from, so the
+    // same page was a different colour depending on the route in. It isn't now.
+    const wear = (name === 'main') ? (CASINOS[window.__activeBoard] || {}).theme : null;
     themes.forEach((t) => document.body.classList.toggle(t, t === wear));
-    if (window.setStars) setStars(name === 'home' ? 'home' : window.__activeBoard);
+    // Sparkles follow the same rule, for the same reason.
+    if (window.setStars) setStars(name === 'main' ? window.__activeBoard : 'home');
     // Remembered so a rebuild of the bar can restore it.
     window.__view = name;
     markNav(name);
@@ -1454,11 +1463,10 @@
     const hero = portal.hero || {};
     const lb = boards[which] || {};
 
-    // ── Full site re-theme. Each room wears its own casino's colours, taken
-    //    from that casino's banner art, so the page and the artwork agree.
-    ['theme-degen','theme-csgobig','theme-clash','theme-ethbet'].forEach(function (t) {
-      document.body.classList.toggle(t, t === cfg.theme);
-    });
+    // NOTE: renderBoard deliberately sets NO colours. showView owns the theme,
+    //   because this function also runs on the 60s data refresh, and re-applying
+    //   a room's palette from here repainted whatever page the viewer happened to
+    //   be reading. The theme belongs to the PAGE, not to the last board loaded.
 
     // Banner: the still (or the video where she has one) for this room.
     const still = document.getElementById('boardBanner');
@@ -1497,7 +1505,6 @@
     const soon = document.getElementById('boardSoon');
     if (soon) {
       soon.style.display = hasBoard ? 'none' : '';
-      setStars(which);
 
     if (!hasBoard) {
         soon.innerHTML = '<div class="bs-title">' + esc(cfg.name || '') + ' is opening soon</div>'
@@ -1821,6 +1828,14 @@
     const overlay = document.getElementById('dcOverlay');
     const result  = document.getElementById('dcResult');
     const video   = document.getElementById('dcVideo');
+    // Attach on first open, so the file is only fetched by someone who claims.
+    if (!video.querySelector('source')) {
+      const s = document.createElement('source');
+      s.src = '/portals/meggambles/assets/daily-reward.mp4';
+      s.type = 'video/mp4';
+      video.appendChild(s);
+      video.load();
+    }
     result.innerHTML = '<div class="dc-spinner">Opening your reward…</div>';
     overlay.classList.add('open');
 

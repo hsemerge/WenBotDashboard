@@ -612,7 +612,14 @@ exports.handler = async (event) => {
     // was a heavy uncached read. Cache the whole (per-channel, NOT viewer-specific)
     // response so all portals share one computation per TTL. `_cache` is admin-SDK
     // only — clients can't read it.
-    const PORTAL_CACHE_TTL_MS = 60 * 1000;
+    // Deliberately LONGER than the portals' 60s refresh. When the two were both
+    // 60s every poll landed exactly on expiry, so a channel with one viewer open
+    // never hit the cache at all and the slow path was its permanent steady
+    // state. 150s gives two clean hits per miss with margin for drift.
+    //
+    // The added staleness is smaller than it sounds: CSGOBig is already cached 20
+    // minutes and extra boards 5 minutes, so this tightens nothing that was tight.
+    const PORTAL_CACHE_TTL_MS = 150 * 1000;
     const cacheRef = db.collection("_cache").doc(`portal_${channel}`);
     try {
       const c = await cacheRef.get();

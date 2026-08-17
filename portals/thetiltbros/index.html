@@ -72,7 +72,7 @@
      photographic scene under an overlay where PNG precision buys only weight. */
   .bg-art {
     position:fixed; inset:0; z-index:0; pointer-events:none;
-    background:url('hero.jpg') center top / cover no-repeat;
+    background:url('/portals/thetiltbros/hero.jpg') center top / cover no-repeat;
     /* Blurred on purpose. The artwork carries its own THE TILT BROS wordmark
        dead centre, which landed directly behind the page's own headline and
        read as two logos stacked. Blurring turns it into texture: the skyline,
@@ -612,7 +612,7 @@
          image. It plays with sound, since a press is the consent autoplay
          lacks. -->
     <div class="film-wrap" id="filmWrap">
-      <video class="hero-film" id="heroFilm" playsinline preload="none" poster="hero.jpg"></video>
+      <video class="hero-film" id="heroFilm" playsinline preload="none" poster="/portals/thetiltbros/hero.jpg"></video>
       <button class="film-play" id="filmPlay" type="button" aria-label="Play the video">
         <span class="film-tri"></span>
         <span class="film-lab">Play</span>
@@ -869,7 +869,7 @@
 
       if (!vid.querySelector('source')) {
         var src = document.createElement('source');
-        src.src = 'main.mp4';
+        src.src = '/portals/thetiltbros/main.mp4';
         src.type = 'video/mp4';
         vid.appendChild(src);
         vid.load();
