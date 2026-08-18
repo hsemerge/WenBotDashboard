@@ -121,15 +121,16 @@ viewer tried to sign in. Whatever replaces this should read one list.
 
 ---
 
-## 6. Clash.gg prize units
+## 6. Clash.gg prize units - RESOLVED (18 Aug 2026)
 
-**What:** Confirm what Clash's `rewards[].amount` actually denominates, and label it correctly on the portal.
+**Answer:** every money figure on both Clash endpoints is in GEM CENTS, hundredths
+of a gem. Verified field by field against Clash's own display of the same race:
+`topPlayers[].wagered` 13008.006 -> 130.08, `rewards[].amount` 50000 -> 500.00,
+summary `wagered` 562483 -> 5,624.83. All three now divide by 100 in
+`netlify/functions/_lib/clash.js`, so what we show equals what Clash shows.
 
-**Effort:** ~5 min once confirmed
-
-**Why:** Her race pays 70,000 for first. The portal renders Clash amounts as a gem plus the number, because printing `$70,000` would assert a currency Clash never stated. If those are dollars, or a coin with a known conversion, the label and possibly the formatting are wrong on a public page.
-
-**Where:** `BOARD_UNITS` in `portals/meggambles/index.html`.
+The gem icon on the portal was the right call: these are gems, not dollars, so
+`BOARD_UNITS` needs no change.
 
 ---
 

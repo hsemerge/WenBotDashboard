@@ -19,11 +19,18 @@
 //     is NOT the same number as `xp` (xp is the raw figure the summary endpoint
 //     calls "wagered"). Ranking on anything but `wagered` would order the board
 //     differently from Clash's own.
-//   • `rewards` is in rank order, and in HUNDREDTHS of a gem, not gems and not
-//     dollars. Her 2,200 gem pool comes back as 70000 + 50000 + ... = 220000,
-//     so the ladder is divided by 100 on the way out. Confirmed against the
-//     race she actually configured; if a future race disagrees, this is the
-//     single line to revisit.
+//   • EVERY money figure on both endpoints is in GEM CENTS - hundredths of a
+//     gem - so all of them are divided by 100 on the way out. Verified field by
+//     field against what Clash's own UI displays for the same race:
+//       topPlayers[].wagered  13008.006448666298  ->    130.08   ("Points")
+//       rewards[].amount                   50000  ->    500.00   ("Prize")
+//       summary wagered (BroBert)         562483  ->  5,624.83   ("Total Played")
+//     An earlier version of this file divided the ladder but NOT `wagered`, on
+//     the assumption that a figure already carrying decimals must be in gems.
+//     It is not: Clash carry sub-cent precision. That shipped a board reading
+//     100x high, which a streamer reasonably read as her race doing half a
+//     million in volume. Do not re-derive these scales from how the numbers
+//     look; check them against Clash's own display of the same race.
 //   • `startDate` + `durationDays` define the window; there is no end date field.
 //   • `status` is LIVE for a running race.
 //   • Clash generate this response on demand and ask that it be cached, so every
@@ -32,9 +39,10 @@
 const CLASH_URL   = "https://api.clash.gg/affiliates/leaderboards/my-leaderboards-api";
 const GATE_COOKIE = process.env.CLASH_GATE_COOKIE || "";
 const DAY_MS      = 24 * 60 * 60 * 1000;
-// Clash reports reward amounts in hundredths of a gem. `wagered` is NOT on this
-// scale - it already comes back in gems - so this applies to the ladder only.
-const REWARD_UNITS_PER_GEM = 100;
+// Clash report money in gem cents on both endpoints, so this divides every money
+// figure leaving this file. Nothing downstream rescales, which means one number
+// here is the whole conversion.
+const GEM_CENTS = 100;
 
 function num(v) { const n = Number(v); return Number.isFinite(n) ? n : 0; }
 
@@ -53,7 +61,9 @@ function shape(lb) {
     .map((p) => ({
       username:  p.name || "Anonymous",
       userId:    p.userId != null ? String(p.userId) : null,
-      wagered:   num(p.wagered),          // adjusted wager: what the race is scored on
+      // Adjusted wager - what the race is scored on - converted from gem cents
+      // to gems so it reads as the same figure Clash show on their own board.
+      wagered:   num(p.wagered) / GEM_CENTS,
       avatarUrl: absUrl(p.avatar),
     }))
     .filter((p) => p.wagered > 0)
@@ -67,8 +77,8 @@ function shape(lb) {
     currency: lb.currency || null,
     startAt,
     endAt,
-    // Rank-ordered prize ladder, converted from hundredths of a gem to gems.
-    prizes:   (lb.rewards || []).map((r) => num(r.amount) / REWARD_UNITS_PER_GEM),
+    // Rank-ordered prize ladder, same gem-cent scale as the standings.
+    prizes:   (lb.rewards || []).map((r) => num(r.amount) / GEM_CENTS),
     rankings,
     totalUsers:   rankings.length,
     totalWagered: rankings.reduce((sum, p) => sum + p.wagered, 0),
@@ -156,7 +166,11 @@ async function fetchClashReferrals(token, sinceMs) {
       // NOTE: this endpoint's `wagered` is the RAW figure, which the leaderboard
       // endpoint calls `xp`. It is fine for "did they play", but it is NOT the
       // adjusted number a race is scored on, so never rank a board with it.
-      wagered:  num(e.wagered),
+      // Gem cents here too: this is the figure Clash label "Total Played" on the
+      // referrals tab, and they divide it by 100 to display it. It reaches the
+      // giveaway minimum-wager gate via verify-affiliate, so the scale has to be
+      // the one a streamer sees on Clash when they choose a threshold.
+      wagered:  num(e.wagered) / GEM_CENTS,
     }));
   } catch {
     return null;
