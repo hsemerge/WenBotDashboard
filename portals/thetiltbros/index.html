@@ -168,6 +168,20 @@
   .ms-cta:hover { filter:brightness(1.07); }
   @media (prefers-reduced-motion: reduce) { .ms-fill { transition:none; } }
 
+  /* When a wager raffle started is the most misread thing about it: wager placed
+     before it opened earns nothing. It gets its own panel rather than a clause
+     in a footnote. */
+  .wr-since { border:1px solid var(--red-30); background:rgba(255,59,59,.05);
+    border-radius:12px; padding:14px 16px; margin-bottom:14px; }
+  .wr-since-row { display:flex; justify-content:space-between; align-items:baseline;
+    gap:12px; flex-wrap:wrap; padding:3px 0; }
+  .wr-since-lab { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  .wr-since-val { font-family:'Exo 2',sans-serif; font-weight:900; font-size:16px; color:var(--bright);
+    font-variant-numeric:tabular-nums; }
+  .wr-since-note { font-size:11.5px; color:var(--dim); line-height:1.6; margin-top:8px;
+    border-top:1px solid rgba(255,255,255,.06); padding-top:8px; }
+  @media (max-width:560px) { .wr-since-val { font-size:14.5px; } }
+
   /* LINK BAR */
   /* Sits at the end of the nav. The whole header is 1140px of usable width and
      the brand plus tabs already claim most of it, so these are deliberately
@@ -535,9 +549,13 @@
   .faq-item summary { list-style:none; cursor:pointer; display:flex; align-items:center; gap:12px;
     padding:17px 20px; font-weight:700; color:var(--bright); font-size:15px; }
   .faq-item summary::-webkit-details-marker { display:none; }
-  .faq-item summary .q-ico { width:22px; height:22px; border-radius:50%; background:var(--accent); color:#04150b;
-    font-size:13px; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  .faq-item:nth-child(even) summary .q-ico { background:var(--red); color:#fff; }
+  .faq-item summary .q-ico { width:22px; height:22px; border-radius:50%;
+    background:transparent; border:1.5px solid var(--muted); color:var(--muted);
+    font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center;
+    flex-shrink:0; transition:color .15s, border-color .15s; }
+  /* Colour only where the reader is. */
+  .faq-item[open] summary .q-ico { border-color:var(--accent); color:var(--accent); }
+  .faq-item summary:hover .q-ico { border-color:var(--bright); color:var(--bright); }
   .faq-item summary .chev { margin-left:auto; color:var(--accent); transition:transform .2s; font-size:13px; }
   .faq-item[open] summary .chev { transform:rotate(180deg); }
   .faq-item .ans { padding:0 20px 18px 54px; color:var(--dim); font-size:13.5px; line-height:1.75; }
@@ -1039,12 +1057,27 @@
         var p = (t / total) * 100;
         return p < 0.1 ? '<0.1%' : (p < 10 ? p.toFixed(1) : Math.round(p)) + '%';
       };
-      var started = wr.periodStart
-        ? new Date(wr.periodStart).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : null;
-      var days = wr.periodStart ? Math.max(1, Math.round((Date.now() - wr.periodStart) / 86400000)) : null;
+      // Exact moment, in the VIEWER's own timezone with the zone named, so
+      // nobody has to guess whose clock it is.
+      var startedFull = wr.periodStart
+        ? new Date(wr.periodStart).toLocaleString(undefined, {
+            weekday: 'short', day: 'numeric', month: 'short',
+            hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+          })
+        : null;
 
       $('rfTickets').innerHTML =
         '<div class="sec"><div class="sec-head"><h2>Who Is In</h2><div class="rule"></div></div>'
+        + (startedFull
+            ? '<div class="wr-since">'
+            +   '<div class="wr-since-row"><span class="wr-since-lab">Tickets counting since</span>'
+            +     '<span class="wr-since-val">' + esc(startedFull) + '</span></div>'
+            +   '<div class="wr-since-row"><span class="wr-since-lab">Running for</span>'
+            +     '<span class="wr-since-val" id="wrElapsed">…</span></div>'
+            +   '<div class="wr-since-note">Only wager placed after that moment earns tickets. '
+            +     'Anything wagered before it does not count toward this draw.</div>'
+            + '</div>'
+            : '')
         + '<div class="grid g3" style="margin-bottom:14px;">'
         +   '<div class="card"><h3 style="color:var(--money);">' + total.toLocaleString() + '</h3>'
         +     '<p style="text-transform:uppercase;letter-spacing:.1em;font-size:11px;">Tickets in</p></div>'
@@ -1055,7 +1088,6 @@
         + '</div>'
         + '<div class="note">1 ticket per $' + Number(wr.threshold).toLocaleString() + ' of ' + unit
         +   (wr.weighted ? '. Duelbits weights your wager by house edge, so low-RTP games earn tickets faster than the same volume on high-RTP ones.' : '.')
-        +   (started ? ' Running since ' + started + ' (' + days + ' day' + (days === 1 ? '' : 's') + ').' : '')
         +   ' Chance shown is your share of the pool for the next draw.'
         + '</div>'
         + '<div class="card" style="padding:0;overflow:hidden;"><table style="width:100%;border-collapse:collapse;">'
@@ -1076,7 +1108,10 @@
               + '<td style="padding:12px 16px;text-align:right;color:var(--muted);font-weight:700;">' + pct(e.tickets) + '</td></tr>';
           }).join('')
         + '</tbody></table></div></div>';
+
+      startRaffleClock(wr.periodStart || null);
     } else {
+      if (_wrTimer) { clearInterval(_wrTimer); _wrTimer = null; }
       $('rfTickets').innerHTML = '';
     }
 
@@ -1318,6 +1353,7 @@
   // out of it here: /api/viewer-wager returns that one number server-side,
   // authenticated by their Kick token.
   var _msViewer = null;
+  var _msError  = false;
 
   // "$2.5M weighted" -> 2500000. The ladder is written for humans and the same
   // strings are what the streamer edits, so the target is parsed from the label
@@ -1353,6 +1389,27 @@
       if (sec.type === 'tiers') tiers = tiers.concat(sec.tiers || []);
     });
     if (!tiers.length) { host.innerHTML = ''; return; }
+
+    var session = (typeof getKickViewerSession === 'function') ? getKickViewerSession() : null;
+
+    // Signed in, but the lookup has not answered or has failed. Say that, and
+    // offer a retry. Showing the sign-in button here is what made a SUCCESSFUL
+    // sign-in look like a failed one.
+    if (session && !_msViewer) {
+      host.innerHTML = '<div class="ms-card"><div class="ms-sub">Signed in as <span class="ms-name">@'
+        + esc(session.kickUsername || '') + '</span>. '
+        + (_msError ? 'Your progress could not be loaded just now.' : 'Loading your progress…')
+        + '</div>'
+        + (_msError ? '<button class="ms-cta" id="msRetry" style="margin-top:12px;">Try again</button>' : '')
+        + '</div>';
+      var rt = $('msRetry');
+      if (rt) rt.addEventListener('click', async function () {
+        rt.disabled = true; rt.textContent = 'Checking…';
+        await loadViewerWager();
+        renderProgress(s);
+      });
+      return;
+    }
 
     if (!_msViewer) {
       host.innerHTML = '<div class="ms-card">'
@@ -1431,13 +1488,35 @@
         body: JSON.stringify({ channel: CHANNEL, kickAccessToken: session.accessToken }),
       });
       var d = await r.json();
-      if (r.status === 401) {
-        if (typeof clearKickViewerSession === 'function') clearKickViewerSession();
-        _msViewer = null;
-        return;
-      }
-      _msViewer = (d && !d.error) ? d : null;
-    } catch (e) { _msViewer = null; }
+      // Deliberately does NOT clear the session on 401. This endpoint 401s
+      // whenever it cannot resolve the Kick token, transient failures included,
+      // and clearing here signed people out moments after they signed in. If the
+      // token really is dead, the next action needing it will say so. Losing a
+      // session is far worse than showing a stale panel.
+      _msViewer = (r.ok && d && !d.error) ? d : null;
+      _msError  = !r.ok || !d || !!d.error;
+    } catch (e) { _msViewer = null; _msError = true; }
+  }
+
+  // Live "running for" clock under the wager raffle. Cleared and restarted on
+  // every render, so the 60s data refresh cannot leave two timers running.
+  var _wrTimer = null;
+  function startRaffleClock(startMs) {
+    if (_wrTimer) { clearInterval(_wrTimer); _wrTimer = null; }
+    if (!$('wrElapsed') || !startMs) return;
+    var tick = function () {
+      var el = $('wrElapsed');
+      if (!el) { clearInterval(_wrTimer); _wrTimer = null; return; }
+      var ms = Date.now() - startMs;
+      if (ms < 0) { el.textContent = 'not started yet'; return; }
+      var d = Math.floor(ms / 86400000);
+      var h = Math.floor(ms % 86400000 / 3600000);
+      var m = Math.floor(ms % 3600000 / 60000);
+      var sec = Math.floor(ms % 60000 / 1000);
+      el.textContent = (d ? d + 'd ' : '') + h + 'h ' + m + 'm ' + sec + 's';
+    };
+    tick();
+    _wrTimer = setInterval(tick, 1000);
   }
 
   // ── bounties ─────────────────────────────────────────────────────────────

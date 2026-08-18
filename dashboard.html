@@ -622,7 +622,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.27.1</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.28.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -2092,8 +2092,20 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
               style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
           </div>
           <div class="field">
-            <label>Image URL <span style="color:var(--text-dim);font-weight:400;">(optional)</span></label>
-            <input type="text" id="bnImage" placeholder="slot artwork shown in the embed"
+            <label>Image <span style="color:var(--text-dim);font-weight:400;">(optional)</span></label>
+            <!-- Upload OR paste. The URL box stays because bounties created before
+                 uploading existed hold links, and a streamer with artwork already
+                 hosted should not have to download it to re-upload it. -->
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+              <input type="file" id="bnImageFile" accept="image/*" style="display:none;"
+                onchange="handleBountyImageSelect(this.files[0])">
+              <button type="button" class="btn btn-sm" onclick="document.getElementById('bnImageFile').click()">Upload image</button>
+              <span id="bnImageName" style="font-size:12px;color:var(--text-dim);"></span>
+              <button type="button" class="btn btn-sm" id="bnImageClear" style="display:none;"
+                onclick="clearBountyImage()">Remove</button>
+            </div>
+            <img id="bnImagePreview" alt="" style="display:none;max-width:220px;border-radius:8px;margin-bottom:8px;border:1px solid var(--border);">
+            <input type="text" id="bnImage" placeholder="or paste an image URL"
               style="width:100%;box-sizing:border-box;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:10px 12px;">
           </div>
         </div>
@@ -3264,9 +3276,21 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.27.1</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.28.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.28.0 &middot; Upload artwork for your bounties</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 17, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#128247; <strong>Bounties take an uploaded image now, not just a pasted link.</strong> Pick a file, see it before you save, and it appears on your portal and in the Discord post. The URL box is still there for artwork you already host somewhere.</li>
+            <li>&#128290; <strong>Images are capped at 5MB and checked before the upload starts.</strong> A photo straight off a phone is usually 8 to 12MB, and Discord will not embed past 8MB, so you find out immediately rather than after a slow upload fails.</li>
+            <li>&#9989; <strong>Editing a bounty shows the artwork already on it</strong>, so you can tell at a glance whether one is set.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -10554,6 +10578,54 @@ function _bnForm() {
   };
 }
 
+// Bounty artwork. Same bucket pattern as store images, one file per bounty so a
+// re-upload replaces rather than accumulates.
+//
+// The 5MB cap is new here and deliberate: a phone photo is routinely 8-12MB, the
+// largest store image already on the bucket is 3.4MB, and Discord will not embed
+// beyond 8MB anyway. Rejecting early beats a slow upload that fails at the end.
+let _bnPendingImage = null;
+const BOUNTY_IMAGE_MAX = 5 * 1024 * 1024;
+
+function handleBountyImageSelect(file) {
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { flash('That file is not an image.', 'error'); return; }
+  if (file.size > BOUNTY_IMAGE_MAX) {
+    flash('That image is ' + (file.size / 1048576).toFixed(1) + 'MB. Keep it under 5MB.', 'error');
+    return;
+  }
+  _bnPendingImage = file;
+  document.getElementById('bnImageName').textContent = file.name;
+  document.getElementById('bnImageClear').style.display = '';
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = document.getElementById('bnImagePreview');
+    img.src = e.target.result;
+    img.style.display = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearBountyImage() {
+  _bnPendingImage = null;
+  document.getElementById('bnImageFile').value = '';
+  document.getElementById('bnImageName').textContent = '';
+  document.getElementById('bnImageClear').style.display = 'none';
+  document.getElementById('bnImagePreview').style.display = 'none';
+  document.getElementById('bnImage').value = '';
+}
+
+async function uploadBountyImage(file, bountyId) {
+  const ext  = (file.name.split('.').pop() || 'png').toLowerCase();
+  // bounty-images/<uid>/<bountyId>.<ext>. The matching Storage rule scopes writes
+  // to the streamer's own folder and caps them at 5MB of real image, which is
+  // tighter than the catch-all these uploads would otherwise fall under.
+  const path = `bounty-images/${fb.activeUid}/${bountyId}.${ext}`;
+  const ref  = fb.storage.ref(path);
+  await ref.put(file);
+  return await ref.getDownloadURL();
+}
+
 async function saveBounty(skipPost) {
   const f = _bnForm();
   if (!f.game || !f.prize || !f.objective) {
@@ -10564,14 +10636,27 @@ async function saveBounty(skipPost) {
   if (btn) btn.disabled = true;
   try {
     const col = fb.db.collection('streamers').doc(fb.activeUid).collection('bounties');
-    let id = _bnEditingId;
-    if (id) {
+    // The id is needed to name the upload, so take a ref first for a new bounty
+    // rather than saving twice.
+    let id = _bnEditingId || col.doc().id;
+
+    if (_bnPendingImage) {
+      if (btn) btn.textContent = 'Uploading image…';
+      try {
+        f.imageUrl = await uploadBountyImage(_bnPendingImage, id);
+      } catch (e) {
+        flash('Image upload failed: ' + (e.message || 'unknown error'), 'error');
+        return;   // don't save a bounty pointing at an image that isn't there
+      }
+    }
+
+    if (_bnEditingId) {
       await col.doc(id).set({ ...f, updatedAt: Date.now() }, { merge: true });
     } else {
-      const ref = await col.add({ ...f, status: 'active', createdAt: Date.now(), updatedAt: Date.now() });
-      id = ref.id;
+      await col.doc(id).set({ ...f, status: 'active', createdAt: Date.now(), updatedAt: Date.now() });
     }
     if (!skipPost) await postBounty(id, _bnEditingId ? 'update' : 'post');
+    _bnPendingImage = null;
     cancelBountyEdit();
     loadBounties();
     logAction('bounty_save', { game: f.game, edited: !!_bnEditingId });
@@ -10607,6 +10692,18 @@ async function editBounty(id) {
   document.getElementById('bnObjective').value = b.objective || '';
   document.getElementById('bnDeadline').value  = b.deadline || '';
   document.getElementById('bnImage').value     = b.imageUrl || '';
+  _bnPendingImage = null;
+  document.getElementById('bnImageFile').value = '';
+  document.getElementById('bnImageName').textContent = '';
+  const bnPrev = document.getElementById('bnImagePreview');
+  if (b.imageUrl) {
+    bnPrev.src = b.imageUrl;
+    bnPrev.style.display = '';
+    document.getElementById('bnImageClear').style.display = '';
+  } else {
+    bnPrev.style.display = 'none';
+    document.getElementById('bnImageClear').style.display = 'none';
+  }
   document.getElementById('bnExtra').value     = b.extraRule || '';
   document.getElementById('bnHowTo').value     = b.howTo || '';
   _bnEditingId = id;
@@ -10619,6 +10716,9 @@ function cancelBountyEdit() {
   _bnEditingId = null;
   ['bnGame','bnPrize','bnObjective','bnDeadline','bnImage','bnExtra','bnHowTo']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  // Also drop any picked-but-unsaved file, or it would attach itself to the
+  // NEXT bounty created in this session.
+  clearBountyImage();
   document.getElementById('bnFormTitle').textContent = '➕ New bounty';
   document.getElementById('bnCancelBtn').style.display = 'none';
 }

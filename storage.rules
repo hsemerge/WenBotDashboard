@@ -1,0 +1,40 @@
+rules_version = '2';
+
+// Firebase Storage rules for WenBot.
+//
+// These lived only in the Firebase console until 2026-08-17, so there was no
+// history of them and no way to review a change. They are in the repo now and
+// deploy with `firebase deploy --only storage`.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Store item artwork. Public to read because portals render it to logged-out
+    // viewers; any signed-in streamer may write.
+    match /store-images/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Bounty artwork. Same public-read requirement (portals show it to everyone),
+    // but writes are scoped to the streamer's OWN folder and limited to real
+    // images under 5MB, so a stray upload cannot land in someone else's space or
+    // park a 40MB file on the bucket.
+    match /bounty-images/{uid}/{file} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Everything else: signed-in only.
+    //
+    // NOTE: this is broader than it looks. It lets any signed-in streamer write
+    // to any path, including another streamer's folder. Nothing exploits that
+    // today, and tightening it needs an audit of every existing upload path
+    // (portal/ among them) before it can be scoped safely. Tracked in TODOS.md.
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

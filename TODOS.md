@@ -186,6 +186,22 @@ Viewers pick a casino with chips on `verify.html` when the streamer runs more th
 
 ---
 
+## 10. Storage rules let any streamer write anywhere
+
+**What:** The catch-all in `storage.rules` is `match /{allPaths=**} { allow read, write: if request.auth != null; }`. Any signed-in streamer can write to any path in the bucket, including another streamer's folder.
+
+**Effort:** ~1 hr, mostly auditing
+
+**Why:** Nothing exploits it today and every write goes through the dashboard, which only ever builds paths under the signed-in uid. But the rule is the only thing standing between a modified client and someone else's artwork, and it is doing no work that a scoped rule would not do better.
+
+**Why it is not already fixed:** scoping it needs every existing upload path audited first. `store-images/<uid>/...` and `bounty-images/<uid>/...` are known and safe to scope. `portal/...` is in use (3.5MB across the bucket) and its shape has not been traced. Tightening blindly would break uploads with a permission error that looks like a bug in the dashboard rather than a rules change.
+
+**Note:** `bounty-images` already shows the target shape - owner-scoped, 5MB cap, `image/*` only. Copy that once the other prefixes are traced.
+
+**Also:** these rules lived ONLY in the Firebase console until 2026-08-17. They are in the repo now (`storage.rules`, wired into `firebase.json`) and deploy with `firebase deploy --only storage`. The CLI has LogicTools access, so this no longer needs the console.
+
+---
+
 ## Notes
 
 - The hardcoded `HOST_TO_SLUG` in `netlify/edge-functions/custom-domain.js` currently has just `skslots.co.uk` + `www.skslots.co.uk` → `skslots`. New clients in the meantime: add an entry, push, done. But that's the workaround until item 2 lands.
