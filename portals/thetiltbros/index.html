@@ -219,8 +219,13 @@
     object-position:center; height:auto; margin-top:auto; background:#0a0a0c; }
 
   /* Several bounties tile; a single one does not stretch across the whole page. */
+  /* align-items:stretch (the default) so every card in a row is the same height.
+     With `align-items:start` each card was only as tall as its own text, so a
+     bounty whose objective wrapped to two lines pushed its artwork lower than
+     the card beside it and the images read as different sizes when they were
+     identical. Equal heights plus margin-top:auto on the art lines them up. */
   #btItems { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
-    align-items:start; }
+    align-items:stretch; }
   @media (min-width:900px) { #btItems { grid-template-columns:repeat(auto-fit,minmax(320px,420px)); justify-content:center; } }
 
   /* LINK BAR */

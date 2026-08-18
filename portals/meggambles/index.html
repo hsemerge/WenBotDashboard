@@ -339,7 +339,7 @@
   .linkbar a.lk-daily-off   { opacity:.6; }
   .linkbar a[data-board='degen'].lk-active   { color:#ffffff; }
   .linkbar a[data-board='csgobig'].lk-active { color:#e8b33c; }
-  .linkbar a[data-board='clash'].lk-active   { color:#9b3fe4; }
+  .linkbar a[data-board='clash'].lk-active   { color:#ffc400; }
   .linkbar a[data-board='ethbet'].lk-active  { color:#1b6cf5; }
   @media (max-width:1150px) { .linkbar { gap:16px; } .linkbar a { font-size:13.5px; }
     .linkbar a.lk-ext { font-size:12.5px; padding-left:12px; padding-right:12px; } }
@@ -399,7 +399,11 @@
     transition:transform .18s, border-color .18s, box-shadow .18s;
   }
   .lp-room:hover { transform:translateY(-3px); box-shadow:0 16px 40px rgba(0,0,0,.5); }
-  .lp-room img { width:100%; aspect-ratio:3/2; object-fit:cover; display:block; opacity:.92; }
+  /* Cards stay 3:2 so the four tiles read as an even grid even though the source
+     art is now square; cover crops rather than pillarboxing. Biased towards the
+     top, because these pieces carry the casino's name across the top. */
+  .lp-room img { width:100%; aspect-ratio:3/2; object-fit:cover; object-position:center 22%;
+    display:block; opacity:.92; }
   .lp-room-body { padding:14px 16px 16px; }
   .lp-room-top { display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; }
   .lp-room-name { font-family:'Exo 2',sans-serif; font-weight:900; font-size:17px; color:#fff; }
@@ -462,19 +466,23 @@
     box-shadow:0 0 26px rgba(255,255,255,.28);
   }
 
-  /* Clash.gg: violet and gold, from clash3.png. The gold second colour is what
-     keeps this room from reading as the purple MegRewards landing page. */
+  /* Clash.gg: gold, taken from the new artwork.
+     It was violet, from the previous art. The room is gold now, which puts it
+     next to CSGOBig, so the two are deliberately separated: Clash takes the
+     BRIGHT saturated yellow of its own piece (#ffc400) on a cool near-black,
+     where CSGOBig keeps its softer antique gold (#e8b33c) on a warm one. Side by
+     side they read as two different rooms rather than one repeated. */
   body.theme-clash {
-    --accent:#9b3fe4; --accent2:#f5a623; --gold:#f5a623;
-    --bg:#08040f; --bg-card:#170e28; --border:#3d2a66;
-    --text:#ead9ff; --dim:#a08fc4; --bright:#ffffff;
+    --accent:#ffc400; --accent2:#ffe27a; --gold:#ffc400;
+    --bg:#07070a; --bg-card:#15140d; --border:#4a4118;
+    --text:#f3ecd8; --dim:#aaa383; --bright:#ffffff;
   }
-  body.theme-clash .hero-banner { box-shadow:0 0 60px rgba(155,63,228,.25); }
-  body.theme-clash .linkbar a:hover { border-color:var(--accent); background:rgba(155,63,228,.14); }
-  body.theme-clash .hero .prize { text-shadow:0 0 30px rgba(245,166,35,.45); }
+  body.theme-clash .hero-banner { box-shadow:0 0 60px rgba(255,196,0,.24); }
+  body.theme-clash .linkbar a:hover { border-color:var(--accent); background:rgba(255,196,0,.13); }
+  body.theme-clash .hero .prize { text-shadow:0 0 30px rgba(255,196,0,.45); }
   body.theme-clash .bonus {
-    color:#1a0f00; background:linear-gradient(90deg,var(--accent2),var(--accent));
-    box-shadow:0 0 26px rgba(155,63,228,.45);
+    color:#1a1400; background:linear-gradient(90deg,var(--accent2),var(--accent));
+    box-shadow:0 0 26px rgba(255,196,0,.42);
   }
 
   /* EthBet: electric blue on near black, from ethbet.png. */
@@ -517,8 +525,13 @@
      object-fit:cover was slicing the top and bottom off every one of them. Each
      banner keeps its own ratio and is capped at CSGOBig's 640px height instead,
      so nothing is cropped and all four occupy a similar footprint. */
-  #boardBanner { aspect-ratio:3/2; object-fit:contain; width:100%; max-width:100%;
-    height:auto; margin:0 auto; }
+  /* The new artwork is SQUARE (1254x1254) where the old set was 3:2. In a 3:2
+     box it would sit pillarboxed between two dark bars; given the full page
+     width it would be a 1080px wall to scroll past before reaching the board.
+     Square box, capped height, centred: the whole image at a size that leaves
+     the leaderboard on screen. */
+  #boardBanner { aspect-ratio:1/1; object-fit:contain; width:auto; max-width:100%;
+    height:auto; max-height:min(560px, 62vh); margin:0 auto; display:block; }
   #boardVideo { aspect-ratio:1280/694; width:100%; max-width:100%; height:auto;
     object-fit:contain; margin:0 auto; display:none; }
   /* Landing banner: no forced ratio, so a replacement of any shape is shown
@@ -1010,7 +1023,7 @@
       home:    ['#c43bff', '#ff4fd8', '#ffd84d', '#e9b8ff', '#ffffff'],
       degen:   ['#ffffff', '#d7dde4', '#ffd84d', '#8f98a3', '#ffffff'],
       csgobig: ['#e8b33c', '#f7cf6b', '#ffd76a', '#c9974a', '#ffffff'],
-      clash:   ['#9b3fe4', '#c07bff', '#f5a623', '#6d21ac', '#ffffff'],
+      clash:   ['#ffc400', '#ffe27a', '#f5a623', '#b08600', '#ffffff'],
       ethbet:  ['#1b6cf5', '#7fb0ff', '#ffcf5c', '#0f4bb0', '#ffffff'],
     })[which] || ({
       home: ['#c43bff', '#ff4fd8', '#ffd84d', '#e9b8ff', '#ffffff'] }).home;
@@ -1389,14 +1402,14 @@
   // its card). Degen and CSGOBig link to their own board page instead.
   const CASINOS = {
     degen:   { name:'Degen',    tag:'Slots and originals', code:'Meg', url:'https://degen.com/?ref=Meg',
-               banner:'/portals/meggambles/assets/degensite.png', theme:'theme-degen', live:true,
+               banner:'/portals/meggambles/assets/megnew4.png', theme:'theme-degen', live:true,
                blurb:'Her main board. Slots, originals and the biggest monthly prize pool.' },
     csgobig: { name:'CSGOBig',  tag:'Cases and coins',     code:'Meg', url:'https://csgobig.com/r/Meg',
-               banner:'/portals/meggambles/assets/csgobigimage.png',
+               banner:'/portals/meggambles/assets/megnew2.png',
                theme:'theme-csgobig', live:true,
                blurb:'Case openings and battles, with a coin race that pays out every two weeks.' },
     clash:   { name:'Clash.gg', tag:'Case opening',        code:'MEG', url:'https://clash.gg/r/meg',
-               banner:'/portals/meggambles/assets/megclash.png',
+               banner:'/portals/meggambles/assets/megnew1.png',
                theme:'theme-clash', live:true,
                blurb:'Cases, upgrades and battles, with her Clash.gg wager race.' },
     // No url: EthBet has not opened, so nothing links out to it yet. `url` is
@@ -1404,7 +1417,7 @@
     // makes both render as plain "Coming soon" instead. The domain is .gg.
     ethbet:  { name:'EthBet',   tag:'Crypto casino',       code:'MEG', url:'',
                site:'https://ethbet.gg/?ref=meg',
-               banner:'/portals/meggambles/assets/megupdatedethbet.png', theme:'theme-ethbet', live:false,
+               banner:'/portals/meggambles/assets/megnew3.png', theme:'theme-ethbet', live:false,
                blurb:'Instant deposits, provably fair, daily rewards. Opening soon.' },
   };
   const CASINO_ORDER = ['degen', 'csgobig', 'clash', 'ethbet'];
@@ -1427,7 +1440,7 @@
       const cls  = c.live ? 'lp-go-live' : 'lp-go-soon';
       // Colour comes from the casino, not the page, so a row of four reads as
       // four brands rather than four purple cards.
-      const tint = { degen:'#d9dee5', csgobig:'#e8b33c', clash:'#9b3fe4', ethbet:'#1b6cf5' }[k];
+      const tint = { degen:'#d9dee5', csgobig:'#e8b33c', clash:'#ffc400', ethbet:'#1b6cf5' }[k];
       // Without a destination it renders as a card, not a link, so nobody
       // clicks through to a site that is not open.
       const tag = href ? 'a' : 'div';
