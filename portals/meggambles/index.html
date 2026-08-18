@@ -44,13 +44,15 @@
     --bg:#0b0613; --bg-card:#19102e; --border:#3a2a5c;
     --text:#e8ddff; --dim:#a392c9; --bright:#ffffff;
   }
-  html,body { height:100%; }
+  html,body { min-height:100%; }
   body {
     font-family:'Inter',sans-serif; background:var(--bg); color:var(--text);
     min-height:100vh; overflow-x:hidden; position:relative;
   }
   /* Animated background: starfield canvas + drifting brand-color glows */
-  #starfield { position:fixed; inset:0; z-index:0; }
+  /* Decorative only: never swallow a click or a wheel event. Without this the
+     canvas is what the cursor is over anywhere outside the content column. */
+  #starfield { position:fixed; inset:0; z-index:0; pointer-events:none; }
   .glow { position:fixed; border-radius:50%; filter:blur(130px); opacity:.28; z-index:0; pointer-events:none; }
   .glow-1 { width:560px; height:560px; background:var(--accent);  top:-140px; left:-120px; animation:drift1 20s ease-in-out infinite; }
   .glow-2 { width:500px; height:500px; background:var(--accent2); bottom:-160px; right:-120px; animation:drift2 24s ease-in-out infinite; }
@@ -572,7 +574,11 @@
      The older sections already had breakpoints; these cover the pieces added
      with the four-casino rebuild, plus a guard so nothing can push the page
      sideways. A phone should never scroll horizontally on a leaderboard. */
-  html, body { max-width:100%; overflow-x:hidden; }
+  /* Sideways guard only. overflow-x stays on <body> (set above) and is
+     deliberately NOT repeated on <html>: with it on both, the spec forces the
+     vertical axis from visible to auto and the document stops being the
+     scroller. */
+  html, body { max-width:100%; }
   img, video, canvas, iframe { max-width:100%; }
 
   @media (max-width:560px) {

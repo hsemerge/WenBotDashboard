@@ -23,13 +23,19 @@
     --bg:#08070d; --bg-card:#13111c; --border:#2a2440;
     --text:#d7d2e6; --dim:#8b85a3; --bright:#ffffff;
   }
-  html,body { height:100%; }
+  /* min-height, not height: pinning body to the viewport while it also carries
+     overflow-x:hidden turns body into the scroller instead of the document,
+     which breaks the wheel anywhere outside the content column. */
+  html,body { min-height:100%; }
   body {
     font-family:'Inter',sans-serif; background:var(--bg); color:var(--text);
     min-height:100vh; overflow-x:hidden; position:relative;
   }
   /* Animated background: starfield canvas + drifting brand-color glows */
-  #starfield { position:fixed; inset:0; z-index:0; }
+  /* Decorative only: never swallow a click or a wheel event. Without this the
+     canvas is what the cursor is over anywhere outside the content column,
+     which made scrolling dead at the edges on the sister portal. */
+  #starfield { position:fixed; inset:0; z-index:0; pointer-events:none; }
   .glow { position:fixed; border-radius:50%; filter:blur(120px); opacity:.22; z-index:0; pointer-events:none; }
   .glow-1 { width:520px; height:520px; background:var(--accent);  top:-120px; left:-100px; animation:drift1 18s ease-in-out infinite; }
   .glow-2 { width:460px; height:460px; background:var(--accent2); bottom:-140px; right:-100px; animation:drift2 22s ease-in-out infinite; }
