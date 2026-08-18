@@ -182,6 +182,39 @@
     border-top:1px solid rgba(255,255,255,.06); padding-top:8px; }
   @media (max-width:560px) { .wr-since-val { font-size:14.5px; } }
 
+  /* BOUNTY CARDS
+     Structured like the Discord embed the bounty is announced in, so a viewer
+     who saw it in the server recognises it here. Fields are labelled and in a
+     fixed order; the artwork sits at the bottom at its own aspect rather than
+     being cropped to a strip at the top. */
+  .bt-card { display:flex; flex-direction:column; background:var(--panel);
+    border:1px solid color-mix(in srgb, var(--red) 30%, var(--border));
+    border-radius:14px; overflow:hidden; }
+  .bt-head { display:flex; align-items:center; gap:9px; padding:14px 16px;
+    border-bottom:1px solid var(--line); background:rgba(255,59,59,.06); }
+  .bt-head h3 { margin:0; font-size:16px; color:var(--red); }
+  .bt-trophy { font-size:15px; line-height:1; }
+  .bt-body { padding:14px 16px; display:flex; flex-direction:column; gap:12px; }
+  .bt-field { min-width:0; }
+  .bt-label { font-size:10.5px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:3px; }
+  .bt-value { font-size:13.5px; color:var(--text); line-height:1.6; }
+  /* Prize and deadline read as a pair, the way the embed shows them. */
+  .bt-pair { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .bt-prize { font-family:'Exo 2',sans-serif; font-weight:900; font-size:22px;
+    color:var(--money); line-height:1.1; }
+  .bt-deadline { font-weight:700; color:var(--red); }
+  .bt-rules { margin:0; padding-left:18px; }
+  .bt-rules li { font-size:12.5px; color:var(--dim); line-height:1.65; margin-bottom:3px; }
+  /* Artwork last and uncropped. margin-top:auto keeps the images aligned along
+     the bottom when several cards of different text length sit side by side. */
+  .bt-art { display:block; width:100%; height:auto; margin-top:auto; }
+
+  /* Several bounties tile; a single one does not stretch across the whole page. */
+  #btItems { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+    align-items:start; }
+  @media (min-width:900px) { #btItems { grid-template-columns:repeat(auto-fit,minmax(320px,420px)); justify-content:center; } }
+
   /* LINK BAR */
   /* Sits at the end of the nav. The whole header is 1140px of usable width and
      the brand plus tabs already claim most of it, so these are deliberately
@@ -839,6 +872,18 @@
     return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
   function initials(name) { return String(name || '?').trim().charAt(0).toUpperCase() || '?'; }
+
+  // Brand mark for the footer. "TheTiltBros" -> "TB", not "TH".
+  function brandInitials(name) {
+    var n = String(name || '').trim();
+    if (!n) return '?';
+    // "The" is an article, not part of the mark.
+    n = n.replace(/^the\s*/i, '');
+    var caps = n.match(/[A-Z0-9]/g);
+    if (caps && caps.length >= 2) return caps.slice(0, 2).join('');
+    // No internal capitals (eg "tiltbros"): fall back to the first two letters.
+    return n.slice(0, 2).toUpperCase() || '?';
+  }
   function whenLabel(ts) {
     if (!ts) return '';
     var d = new Date(ts);
@@ -1533,24 +1578,40 @@
         var rules = [];
         if (b.howTo) rules = String(b.howTo).split('\n').filter(Boolean);
         if (b.extraRule) rules.push(b.extraRule);
-        return '<div class="card bounty">'
+
+        // Laid out like the Discord embed this is announced in: labelled fields
+        // in a fixed order, artwork last. The previous card led with a 120px
+        // crop of the image and ran prize, objective, deadline and rules
+        // together as loose paragraphs. That was hard to scan with ONE bounty
+        // and would be unreadable with four.
+        var field = function (label, value, cls) {
+          if (!value) return '';
+          return '<div class="bt-field">'
+            + '<div class="bt-label">' + esc(label) + '</div>'
+            + '<div class="bt-value' + (cls ? ' ' + cls : '') + '">' + esc(value) + '</div>'
+            + '</div>';
+        };
+
+        return '<article class="bt-card">'
+          + '<header class="bt-head"><span class="bt-trophy">🏆</span>'
+          +   '<h3>' + esc(b.game) + '</h3></header>'
+          + '<div class="bt-body">'
+          +   field('Objective', b.objective)
+          +   '<div class="bt-pair">'
+          +     field('Prize', b.prize, 'bt-prize')
+          +     field('Deadline', b.deadline, 'bt-deadline')
+          +   '</div>'
+          +   (rules.length
+                ? '<div class="bt-field"><div class="bt-label">How to enter</div>'
+                  + '<ul class="bt-rules">' + rules.map(function (r) {
+                      return '<li>' + esc(String(r).replace(/^•\s*/, '')) + '</li>';
+                    }).join('') + '</ul></div>'
+                : '')
+          + '</div>'
           + (b.imageUrl
-              ? '<img src="' + esc(b.imageUrl) + '" alt="" onerror="this.remove()"'
-                + ' style="width:100%;height:120px;object-fit:cover;border-radius:10px;margin-bottom:12px;">'
-              : '<span class="ico">🎯</span>')
-          + '<h3>' + esc(b.game) + '</h3>'
-          + '<div style="font-family:\'Exo 2\',sans-serif;font-weight:900;font-size:24px;color:var(--money);margin:6px 0 8px;">'
-          +   esc(b.prize) + '</div>'
-          + '<p>' + esc(b.objective) + '</p>'
-          + (b.deadline
-              ? '<p style="margin-top:8px;color:var(--red);font-weight:700;font-size:12px;">Ends ' + esc(b.deadline) + '</p>'
+              ? '<img class="bt-art" src="' + esc(b.imageUrl) + '" alt="" loading="lazy" onerror="this.remove()">'
               : '')
-          + (rules.length
-              ? '<ul style="margin-top:10px;">' + rules.map(function (r) {
-                  return '<li>' + esc(String(r).replace(/^•\s*/, '')) + '</li>';
-                }).join('') + '</ul>'
-              : '')
-          + '</div>';
+          + '</article>';
       }).join('');
     } else {
       $('btItems').innerHTML = (c.items || []).map(function (b) {
@@ -1634,7 +1695,7 @@
     $('footCols').innerHTML =
       '<div>'
       +   '<div class="f-brand"><span class="brand-mark"><span>'
-      +     esc(display.slice(0, 2).toUpperCase()) + '</span></span>'
+      +     esc(brandInitials(display)) + '</span></span>'
       +     '<span class="f-name">' + esc(display) + '</span></div>'
       +   (f.disclaimer ? '<div class="f-disc">' + esc(f.disclaimer) + '</div>' : '')
       + '</div>'
