@@ -978,7 +978,7 @@
   // themed element CSS can't reach — an <img> src).
   if (document.body.classList.contains('theme-csgobig')) {
     const _bl = document.getElementById('brandLogo');
-    if (_bl) _bl.src = '/portals/meggambles/assets/csgobig-logo-round.jpg';
+    if (_bl) { _bl.src = '/portals/meggambles/assets/megnew2.png'; _bl.style.objectPosition = 'center 28%'; }
   }
 
   let viewer = null; // { kickUsername, kickUserId, accessToken } from kick-auth.js session
@@ -1263,6 +1263,21 @@
     themes.forEach((t) => document.body.classList.toggle(t, t === wear));
     // Sparkles follow the same rule, for the same reason.
     if (window.setStars) setStars(name === 'main' ? window.__activeBoard : 'home');
+
+    // So does the header mark: a board page wears that room's own artwork, and
+    // every other page wears her MegRewards logo. Owned here rather than in
+    // renderBoard, which bails out early for a room with no board yet and runs
+    // on every 60s refresh no matter which page is on screen.
+    const logoEl = document.getElementById('brandLogo');
+    if (logoEl) {
+      const roomLogo = (name === 'main') ? (CASINOS[window.__activeBoard] || {}).logo : null;
+      logoEl.src = roomLogo || HOME_LOGO.src;
+      // Round 48px chip cut from full artwork, so the crop has to be aimed.
+      // Room pieces are square with her centred, so bias upward to her face.
+      // The MegRewards frame is landscape with her on the LEFT, so aim left of
+      // centre or the chip is a close-up of the slot machine.
+      logoEl.style.objectPosition = roomLogo ? 'center 28%' : HOME_LOGO.crop;
+    }
     // Remembered so a rebuild of the bar can restore it.
     window.__view = name;
     markNav(name);
@@ -1410,14 +1425,14 @@
   // its card). Degen and CSGOBig link to their own board page instead.
   const CASINOS = {
     degen:   { name:'Degen',    tag:'Slots and originals', code:'Meg', url:'https://degen.com/?ref=Meg',
-               banner:'/portals/meggambles/assets/megnew4.png', theme:'theme-degen', live:true,
+               banner:'/portals/meggambles/assets/megnew4.png', logo:'/portals/meggambles/assets/megnew4.png', theme:'theme-degen', live:true,
                blurb:'Her main board. Slots, originals and the biggest monthly prize pool.' },
     csgobig: { name:'CSGOBig',  tag:'Cases and coins',     code:'Meg', url:'https://csgobig.com/r/Meg',
-               banner:'/portals/meggambles/assets/megnew2.png',
+               banner:'/portals/meggambles/assets/megnew2.png', logo:'/portals/meggambles/assets/megnew2.png',
                theme:'theme-csgobig', live:true,
                blurb:'Case openings and battles, with a coin race that pays out every two weeks.' },
     clash:   { name:'Clash.gg', tag:'Case opening',        code:'MEG', url:'https://clash.gg/r/meg',
-               banner:'/portals/meggambles/assets/megnew1.png',
+               banner:'/portals/meggambles/assets/megnew1.png', logo:'/portals/meggambles/assets/megnew1.png',
                theme:'theme-clash', live:true,
                blurb:'Cases, upgrades and battles, with her Clash.gg wager race.' },
     // No url: EthBet has not opened, so nothing links out to it yet. `url` is
@@ -1425,10 +1440,15 @@
     // makes both render as plain "Coming soon" instead. The domain is .gg.
     ethbet:  { name:'EthBet',   tag:'Crypto casino',       code:'MEG', url:'',
                site:'https://ethbet.gg/?ref=meg',
-               banner:'/portals/meggambles/assets/megnew3.png', theme:'theme-ethbet', live:false,
+               banner:'/portals/meggambles/assets/megnew3.png', logo:'/portals/meggambles/assets/megnew3.png', theme:'theme-ethbet', live:false,
                blurb:'Instant deposits, provably fair, daily rewards. Opening soon.' },
   };
   const CASINO_ORDER = ['degen', 'csgobig', 'clash', 'ethbet'];
+
+  // Header mark for every page that is not a casino room. Taken from her current
+  // MegRewards banner, so the neutral pages carry the brand the site is actually
+  // called rather than the previous @IrishQueenOfTheSlots logo.
+  const HOME_LOGO = { src: '/portals/meggambles/assets/megrewards-og.jpg', crop: '34% 26%' };
 
   function renderRooms() {
     const host = document.getElementById('lpRooms');
@@ -1562,11 +1582,6 @@
     // Only play the banner video when the active room actually has one.
     if (vid) { if (cfg.video) vid.play().catch(() => {}); else vid.pause(); }
 
-    // Brand chip follows the theme too (round CSGOBig art vs her main logo).
-    const logoEl = document.getElementById('brandLogo');
-    if (logoEl) logoEl.src = isCsgobig
-      ? '/portals/meggambles/assets/csgobig-logo-round.jpg'
-      : (portal.logoUrl || s.streamer?.logoUrl || '/portals/meggambles/assets/logo.jpg');
 
     // Per-board CTA. CSGOBig promo code is MEG (per her artwork).
     const ctaWrap = document.getElementById('heroCtaWrap');
