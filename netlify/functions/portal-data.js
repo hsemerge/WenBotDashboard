@@ -350,7 +350,6 @@ const PORTAL_PRESETS = {
           { icon: "💥", title: "Max Win",       text: "Hit a max win on any bonus bought on stream." },
           { icon: "🔥", title: "Community Goal", text: "Chat-wide targets. Everyone in chat gets paid when it lands." },
         ],
-        note: "Bounties change often. Current ones are announced on stream and pinned in Discord.",
       },
       // Extra slides for the rotating banner overlay (/overlay-banner.html).
       // The prize-pool, live-standings, countdown and raffle slides are built
@@ -813,7 +812,7 @@ exports.handler = async (event) => {
         db.collection("streamers").doc(uid).collection("winners_log")
           .orderBy("drawnAt", "desc").limit(80).get(),
         db.collection("streamers").doc(uid).collection("bounties")
-          .where("status", "==", "active").limit(20).get(),
+          .limit(40).get(),
       ]);
       store = {
         items: itemsSnap.docs.map(d => {
@@ -844,6 +843,11 @@ exports.handler = async (event) => {
 
       bounties = bountySnap.docs
         .map(d => d.data())
+        // Active ones, plus completed ones that recorded a winner. A completed
+        // bounty with nobody named has nothing to say, and a closed one was
+        // pulled rather than won, so neither is shown.
+        .filter(b => (b.status || "active") === "active"
+                  || ((b.status === "complete") && b.winner))
         .map(b => ({
           game:      b.game || "",
           objective: b.objective || "",
@@ -853,8 +857,18 @@ exports.handler = async (event) => {
           howTo:     b.howTo || null,
           imageUrl:  b.imageUrl || null,
           createdAt: b.createdAt || null,
+          status:    b.status || "active",
+          winner:    b.winner || null,
+          winnerNote: b.winnerNote || null,
+          completedAt: b.completedAt || null,
         }))
-        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        .sort((a, b) => {
+          // Live bounties lead; claimed ones follow, most recent first.
+          const rank = (x) => (x.status === "complete" ? 1 : 0);
+          if (rank(a) !== rank(b)) return rank(a) - rank(b);
+          return (b.completedAt || b.createdAt || 0) - (a.completedAt || a.createdAt || 0);
+        })
+        .slice(0, 20);
 
       giveawayWinners = gwSnap.docs
         .map(d => d.data())

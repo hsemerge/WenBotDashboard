@@ -145,6 +145,17 @@ function buildEmbed(b, streamer) {
     : howTo;
   fields.push({ name: "How to enter", value: entry.slice(0, 1024) });
 
+  // Winner, when one has been recorded. Unshifted to the top because once a
+  // bounty is claimed, who took it is the news; the entry rules are history.
+  if (b.winner && String(b.winner).trim()) {
+    fields.unshift({
+      name: "Winner",
+      value: `🎉 **${String(b.winner).trim().slice(0, 200)}**`
+        + (b.winnerNote && b.winnerNote.trim() ? `
+${b.winnerNote.trim().slice(0, 700)}` : ""),
+    });
+  }
+
   const embed = {
     title: `${style.prefix}: ${String(b.game || "Bounty").slice(0, 200)}`,
     color: style.colour,

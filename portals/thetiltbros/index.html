@@ -166,6 +166,9 @@
   .ms-cta { display:inline-flex; align-items:center; gap:8px; background:#53fc18; color:#0b1402; font-weight:800;
     border:none; border-radius:9px; padding:11px 18px; cursor:pointer; font-size:13.5px; font-family:'Exo 2',sans-serif; }
   .ms-cta:hover { filter:brightness(1.07); }
+  /* Secondary action: present, but not competing with the primary one. */
+  .ms-cta-ghost { background:transparent; color:var(--dim); border:1px solid var(--line); }
+  .ms-cta-ghost:hover { color:var(--bright); border-color:var(--muted); filter:none; }
   @media (prefers-reduced-motion: reduce) { .ms-fill { transition:none; } }
 
   /* When a wager raffle started is the most misread thing about it: wager placed
@@ -206,9 +209,14 @@
   .bt-deadline { font-weight:700; color:var(--red); }
   .bt-rules { margin:0; padding-left:18px; }
   .bt-rules li { font-size:12.5px; color:var(--dim); line-height:1.65; margin-bottom:3px; }
-  /* Artwork last and uncropped. margin-top:auto keeps the images aligned along
-     the bottom when several cards of different text length sit side by side. */
-  .bt-art { display:block; width:100%; height:auto; margin-top:auto; }
+  /* Artwork last, every card the same shape.
+     Left at its natural aspect, a square logo and a wide key-art sat at wildly
+     different heights and the row looked broken. A fixed 16:9 window with cover
+     means slot art of any proportion lands identically; centred, because slot
+     artwork puts its logo in the middle. margin-top:auto holds the images to the
+     bottom when the text above them differs in length. */
+  .bt-art { display:block; width:100%; aspect-ratio:16/9; object-fit:cover;
+    object-position:center; height:auto; margin-top:auto; background:#0a0a0c; }
 
   /* Several bounties tile; a single one does not stretch across the whole page. */
   #btItems { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
@@ -1229,6 +1237,7 @@
   // records would put them in exports and the dashboard as if it had.
   // Live draws render above them and push them down naturally over time.
   var HISTORIC_RAFFLES = [
+    { names: '@nO***W, @An***a, @UL***M', prize: '50/50 $200 buy', date: 'Aug 17' },
     { names: '@UL***M, @JM***K, @Sl***k', prize: '50/50 $200 buy', date: 'Aug 12' },
     { names: '@Ma***g, @UL***M, @JM***K', prize: '50/50 $200 buy', date: 'Aug 5'  },
     { names: '@Md***1, @An***a, @zA***t', prize: '50/50 $200 buy', date: 'Jul 27' },
@@ -1398,7 +1407,7 @@
   // out of it here: /api/viewer-wager returns that one number server-side,
   // authenticated by their Kick token.
   var _msViewer = null;
-  var _msError  = false;
+  var _msError  = null;   // null when fine, otherwise the reason from the server
 
   // "$2.5M weighted" -> 2500000. The ladder is written for humans and the same
   // strings are what the streamer edits, so the target is parsed from the label
@@ -1421,6 +1430,15 @@
     return (fromLinks && fromLinks.href) || (s.streamer && s.streamer.socials && s.streamer.socials.discord) || '';
   }
 
+  // There was no way to sign out at all: someone on the wrong Kick account had
+  // no route back short of clearing site data.
+  function msSignOut(s) {
+    try { if (typeof clearKickViewerSession === 'function') clearKickViewerSession(); } catch (e) {}
+    _msViewer = null;
+    _msError  = null;
+    renderProgress(s || window.__S || {});
+  }
+
   function msMoney(n) {
     return '$' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
   }
@@ -1441,18 +1459,33 @@
     // offer a retry. Showing the sign-in button here is what made a SUCCESSFUL
     // sign-in look like a failed one.
     if (session && !_msViewer) {
-      host.innerHTML = '<div class="ms-card"><div class="ms-sub">Signed in as <span class="ms-name">@'
-        + esc(session.kickUsername || '') + '</span>. '
-        + (_msError ? 'Your progress could not be loaded just now.' : 'Loading your progress…')
-        + '</div>'
-        + (_msError ? '<button class="ms-cta" id="msRetry" style="margin-top:12px;">Try again</button>' : '')
+      // Say what actually happened. "Could not be loaded" left a viewer unable to
+      // tell whether they had done something wrong or the site had.
+      var why = !_msError
+        ? 'Checking your progress…'
+        : (/verified|not set|casino/i.test(String(_msError))
+            ? esc(String(_msError))
+            : 'We could not reach the casino to check your wager. This is our end, not yours.');
+
+      host.innerHTML = '<div class="ms-card">'
+        + '<div class="ms-sub">Signed in as <span class="ms-name">@' + esc(session.kickUsername || '') + '</span></div>'
+        + '<div class="ms-sub" style="margin-top:6px;">' + why + '</div>'
+        + (_msError
+            ? '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px;">'
+              + '<button class="ms-cta" id="msRetry">Check again</button>'
+              + '<button class="ms-cta ms-cta-ghost" id="msOut">Sign out</button>'
+              + '</div>'
+            : '')
         + '</div>';
+
       var rt = $('msRetry');
       if (rt) rt.addEventListener('click', async function () {
         rt.disabled = true; rt.textContent = 'Checking…';
         await loadViewerWager();
         renderProgress(s);
       });
+      var so = $('msOut');
+      if (so) so.addEventListener('click', function () { msSignOut(s); });
       return;
     }
 
@@ -1516,10 +1549,14 @@
       + ', playing as <span class="ms-name">' + esc(_msViewer.providerUsername || '') + '</span>'
       + ' &middot; ' + hit + ' of ' + tiers.length + ' reached</div>'
       + '<div class="ms-list">' + rows + '</div>'
+      + '<div style="margin-top:12px;"><button class="ms-cta ms-cta-ghost" id="msOut2">Sign out</button></div>'
       + (_msViewer.weighted
           ? '<div class="ms-note">Weighted wager is your volume multiplied by the house edge of what you play, which is the same number the leaderboard ranks by.</div>'
           : '')
       + '</div>';
+
+    var so2 = $('msOut2');
+    if (so2) so2.addEventListener('click', function () { msSignOut(s); });
   }
 
   // Fetches the viewer's own figure once a Kick session exists.
@@ -1539,8 +1576,8 @@
       // token really is dead, the next action needing it will say so. Losing a
       // session is far worse than showing a stale panel.
       _msViewer = (r.ok && d && !d.error) ? d : null;
-      _msError  = !r.ok || !d || !!d.error;
-    } catch (e) { _msViewer = null; _msError = true; }
+      _msError  = (!r.ok || !d || !!d.error) ? ((d && d.error) || ('HTTP ' + r.status)) : null;
+    } catch (e) { _msViewer = null; _msError = 'network'; }
   }
 
   // Live "running for" clock under the wager raffle. Cleared and restarted on
