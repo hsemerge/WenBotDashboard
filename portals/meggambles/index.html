@@ -541,9 +541,11 @@
   #landingBanner { aspect-ratio:auto; width:100%; max-width:100%; height:auto;
     object-fit:contain; margin:0 auto; }
   /* Inline CSGOBig coin icon next to wager amounts (CSGOBig board only). */
-  .coin-ic { width:22px; height:22px; vertical-align:-5px; border-radius:50%; }
-  /* The gem is a transparent octahedron, so it keeps its own shape. */
-  .gem-ic { border-radius:0; width:19px; height:19px; vertical-align:-4px; }
+  .coin-ic { width:1.05em; height:1.05em; vertical-align:-0.18em; border-radius:50%; }
+  /* The gem is a transparent octahedron, so it keeps its own shape. Slightly
+     smaller than the coin because its points reach the edges of the artwork,
+     which makes it read larger at the same box size. */
+  .gem-ic { border-radius:0; width:0.95em; height:0.95em; vertical-align:-0.14em; }
   /* Soften the theme swap. */
   body, .cd-cell, .pod, .linkbar, .linkbar a, .lb-row, nav, footer { transition:background-color .35s, border-color .35s, color .35s; }
 
