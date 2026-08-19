@@ -69,6 +69,38 @@ async function detectAnomalies(db, uid, v) {
     }
   } catch { /* non-fatal */ }
 
+  // ── Same Kick ACCOUNT, different Kick name: they renamed ───────────────────
+  // Only detectable since verification records started carrying Kick's numeric
+  // user id, which survives a rename while the name the record is filed under
+  // does not. Worth surfacing loudly: everything that viewer owns - points,
+  // WenPoints, raffle tickets, their existing verification - is still filed
+  // under the old name, and to them it looks like it all vanished. A mod
+  // seeing this can merge the two instead of the viewer quietly restarting
+  // from zero, or worse, never mentioning it.
+  //
+  // Compared as strings on purpose: Kick's API returns the id as a number and
+  // Firestore equality is type-sensitive, so a stray number would match nothing.
+  try {
+    if (v.kickUserId) {
+      const same = await col.where("kickUserId", "==", String(v.kickUserId)).limit(5).get();
+      const priorNames = new Map();
+      same.forEach((d) => {
+        const o = d.data();
+        const k = String(o.kickName_lower || o.kickName || "").toLowerCase();
+        if (k && k !== kickKey) priorNames.set(k, o);
+      });
+      for (const [k, o] of priorNames) {
+        const when = o.verifiedAt
+          ? ` on ${new Date(o.verifiedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
+          : "";
+        notes.push(
+          `**Renamed on Kick.** Same Kick account verified as **${o.kickName || k}**${when}. ` +
+          `Their points, tickets and verification are still under that name - merge them (Admin → Merge viewer) so nothing is lost.`
+        );
+      }
+    }
+  } catch { /* non-fatal */ }
+
   // ── The Discord account has been on another Kick name ──────────────────────
   // A second account made by the same person usually reuses the same Discord,
   // because that is the part they cannot easily duplicate.

@@ -65,6 +65,15 @@ exports.handler = async (event) => {
     const kickLookup = await getKickUser(kickAccessToken);
     if (kickLookup.error) throw Object.assign(new Error(kickLookup.error), { status: kickLookup.status });
     const kickUsername = kickLookup.user.name;
+    // Kick returns user_id as a NUMBER. Every other writer - the chat capture
+    // and the backfill - stores it as a string, and Firestore equality is
+    // type-sensitive, so writing a number here would make every lookup by id
+    // silently miss. Normalised once, and null stays null rather than becoming
+    // the string "null".
+    const kickUserIdStr = (() => {
+      const raw = kickLookup.user?.user_id ?? kickLookup.user?.id;
+      return raw == null ? null : String(raw);
+    })();
 
     // If a Discord verification token was provided, consume it and link Discord identity
     let discordUserId   = null;
@@ -124,7 +133,7 @@ exports.handler = async (event) => {
         // NAME, so without this a viewer who renames on Kick reads as never
         // having verified. Already fetched for the identity check above; it was
         // simply being returned to the caller and not kept.
-        kickUserId:             kickLookup.user?.user_id || kickLookup.user?.id || null,
+        kickUserId:             kickUserIdStr,
         providerUsername:       null,
         providerUsername_lower: null,
         provider:               "none",
@@ -150,7 +159,7 @@ exports.handler = async (event) => {
       // worth seeing, in fact: no casino account means none of the casino-side
       // checks can run, so a human is the only thing looking.
       postVerifyLog(db, streamerUid, streamerData, {
-        kickUsername, kickUserId: kickLookup.user?.user_id || kickLookup.user?.id || null,
+        kickUsername, kickUserId: kickUserIdStr,
         provider: "none", providerUsername: null, providerUid: null,
         underAffiliate: false, wagerAmount: 0,
         discordUserId, discordUsername, roleResult,
@@ -378,7 +387,7 @@ exports.handler = async (event) => {
       // Durability was already thought through on the CASINO side; this is the
       // same idea for the Kick side, and it is what lets a renamed viewer be
       // recognised as someone who has already verified.
-      kickUserId:             kickLookup.user?.user_id || kickLookup.user?.id || null,
+      kickUserId:             kickUserIdStr,
       // Denormalized lowercase copy so case-insensitive lookups (tournament,
       // giveaway-eligibility, etc.) can match without iterating. Kick's API
       // returns the username in its original case (e.g. "TriitonGM") which
@@ -419,7 +428,7 @@ exports.handler = async (event) => {
     // that failed to save, and awaited only so errors are logged, never thrown:
     // the viewer's verification is already done and must not depend on Discord.
     postVerifyLog(db, streamerUid, streamerData, {
-      kickUsername, kickUserId: kickLookup.user?.user_id || kickLookup.user?.id || null,
+      kickUsername, kickUserId: kickUserIdStr,
       provider, providerUsername: resultUsername, providerUid,
       underAffiliate, wagerAmount,
       discordUserId, discordUsername, roleResult,
