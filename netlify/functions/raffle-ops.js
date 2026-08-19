@@ -88,10 +88,19 @@ exports.handler = async (event) => {
               .limit(want === Infinity ? PAGE : want).get();
             for (const d of snap.docs) {
               if (d.id === tRef.id) continue; // coalesced doc handled above
+              const dq = Number(d.data().qty) || 1;
+              // A COALESCED doc (qty > 1) reached here means it is filed
+              // somewhere other than its expected id - which is what a merged
+              // rename used to leave behind. Deleting it would take every
+              // ticket the viewer holds for this raffle while reporting that
+              // one was removed. Take one, leave the rest.
+              if (action === "remove_ticket" && dq > 1) {
+                writer.update(d.ref, { qty: admin.firestore.FieldValue.increment(-1) });
+                removed += 1;
+                break;
+              }
               writer.delete(d.ref);
-              removed++;
-              const dq = d.data().qty;
-              if (dq && dq > 1) removed += dq - 1;
+              removed += dq;
               if (action === "remove_ticket" && removed >= 1) break;
             }
             if (action === "remove_ticket" && removed >= 1) break;
