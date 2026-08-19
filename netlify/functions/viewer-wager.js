@@ -38,11 +38,16 @@ exports.handler = async (event) => {
   try {
     const db = getDb();
 
+    // getKickUser answers { user } or { error, status } - it has never had a
+    // `username` field. Reading one meant the guard below was always true, so
+    // this endpoint returned 401 to every caller including a perfectly valid
+    // session, and the viewer was told their sign-in had expired when it had
+    // not. Same shape as every other caller, and it forwards Kick's real status
+    // so "couldn't reach Kick" (503) stops being reported as "expired" (401).
     const kickLookup = await getKickUser(kickAccessToken);
-    if (!kickLookup || !kickLookup.username) {
-      return res(401, { error: "Your Kick session has expired. Sign in again." });
-    }
-    const kickKey = String(kickLookup.username).toLowerCase();
+    if (kickLookup.error) return res(kickLookup.status, { error: kickLookup.error });
+    const kickUsername = kickLookup.user.name;
+    const kickKey      = kickUsername.toLowerCase();
 
     const streamerDoc = await findStreamerByChannel(db, channel);
     if (!streamerDoc) return res(404, { error: "Streamer not found." });
@@ -59,7 +64,7 @@ exports.handler = async (event) => {
     if (!vSnap.exists) {
       return res(200, {
         verified: false, provider, casinoName: CASINO_NAMES[provider],
-        kickUsername: kickLookup.username,
+        kickUsername,
       });
     }
     const v = vSnap.data();
@@ -68,7 +73,7 @@ exports.handler = async (event) => {
       // Verified with Kick only, no casino name attached.
       return res(200, {
         verified: true, casinoLinked: false, provider, casinoName: CASINO_NAMES[provider],
-        kickUsername: kickLookup.username,
+        kickUsername,
       });
     }
 
@@ -104,7 +109,7 @@ exports.handler = async (event) => {
     const payload = {
       verified:     true,
       casinoLinked: true,
-      kickUsername: kickLookup.username,
+      kickUsername,
       provider,
       casinoName:   CASINO_NAMES[provider],
       providerUsername,

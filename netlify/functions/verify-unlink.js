@@ -61,11 +61,16 @@ exports.handler = async (event) => {
 
     // Identity comes from the token, never from the request body. This is the
     // whole security model: you can only unlink what you can prove you own.
+    // getKickUser answers { user } or { error, status } - it has never had a
+    // `username` field. Reading one meant the guard below was always true, so
+    // this endpoint returned 401 to every caller including a perfectly valid
+    // session, and the viewer was told their sign-in had expired when it had
+    // not. Same shape as every other caller, and it forwards Kick's real status
+    // so "couldn't reach Kick" (503) stops being reported as "expired" (401).
     const kickLookup = await getKickUser(kickAccessToken);
-    if (!kickLookup || !kickLookup.username) {
-      return res(401, { error: "Your Kick session has expired. Sign in again." });
-    }
-    const kickKey = String(kickLookup.username).toLowerCase();
+    if (kickLookup.error) return res(kickLookup.status, { error: kickLookup.error });
+    const kickUsername = kickLookup.user.name;
+    const kickKey      = kickUsername.toLowerCase();
 
     const streamerDoc = await findStreamerByChannel(db, channel);
     if (!streamerDoc) return res(404, { error: "Streamer not found." });

@@ -1413,6 +1413,7 @@
   // authenticated by their Kick token.
   var _msViewer = null;
   var _msError  = null;   // null when fine, otherwise the reason from the server
+  var _msStatus = 0;      // HTTP status behind _msError, so 401 can be acted on
 
   // "$2.5M weighted" -> 2500000. The ladder is written for humans and the same
   // strings are what the streamer edits, so the target is parsed from the label
@@ -1441,6 +1442,7 @@
     try { if (typeof clearKickViewerSession === 'function') clearKickViewerSession(); } catch (e) {}
     _msViewer = null;
     _msError  = null;
+    _msStatus = 0;
     renderProgress(s || window.__S || {});
   }
 
@@ -1466,18 +1468,28 @@
     if (session && !_msViewer) {
       // Say what actually happened. "Could not be loaded" left a viewer unable to
       // tell whether they had done something wrong or the site had.
+      // The server writes these messages FOR the viewer and says what to do
+      // about them, so show them. The old keyword filter passed through only
+      // messages mentioning verified/not set/casino and replaced everything
+      // else - including "your sign-in has expired, sign in again" - with a
+      // line blaming our end, next to a Check again button that could never
+      // fix it. Only an opaque transport failure earns the generic line now.
+      var expired = _msStatus === 401;
+      var opaque  = _msStatus === 0 || _msStatus >= 500;
       var why = !_msError
         ? 'Checking your progress…'
-        : (/verified|not set|casino/i.test(String(_msError))
-            ? esc(String(_msError))
-            : 'We could not reach the casino to check your wager. This is our end, not yours.');
+        : (opaque
+            ? 'We could not reach the casino to check your wager. This is our end, not yours.'
+            : esc(String(_msError)));
 
       host.innerHTML = '<div class="ms-card">'
         + '<div class="ms-sub">Signed in as <span class="ms-name">@' + esc(session.kickUsername || '') + '</span></div>'
         + '<div class="ms-sub" style="margin-top:6px;">' + why + '</div>'
         + (_msError
             ? '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px;">'
-              + '<button class="ms-cta" id="msRetry">Check again</button>'
+              + (expired
+                  ? '<button class="ms-cta" id="msReauth">Sign in with Kick</button>'
+                  : '<button class="ms-cta" id="msRetry">Check again</button>')
               + '<button class="ms-cta ms-cta-ghost" id="msOut">Sign out</button>'
               + '</div>'
             : '')
@@ -1488,6 +1500,12 @@
         rt.disabled = true; rt.textContent = 'Checking…';
         await loadViewerWager();
         renderProgress(s);
+      });
+      var ra = $('msReauth');
+      if (ra) ra.addEventListener('click', function () {
+        // Drop the dead session first, so the callback writes a clean one.
+        try { if (typeof clearKickViewerSession === 'function') clearKickViewerSession(); } catch (e) {}
+        initiateKickAuth('viewer', CHANNEL);
       });
       var so = $('msOut');
       if (so) so.addEventListener('click', function () { msSignOut(s); });
@@ -1582,7 +1600,8 @@
       // session is far worse than showing a stale panel.
       _msViewer = (r.ok && d && !d.error) ? d : null;
       _msError  = (!r.ok || !d || !!d.error) ? ((d && d.error) || ('HTTP ' + r.status)) : null;
-    } catch (e) { _msViewer = null; _msError = 'network'; }
+      _msStatus = r.status;
+    } catch (e) { _msViewer = null; _msError = 'network'; _msStatus = 0; }
   }
 
   // Live "running for" clock under the wager raffle. Cleared and restarted on
