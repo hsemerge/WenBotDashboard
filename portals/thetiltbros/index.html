@@ -1920,19 +1920,30 @@
   var RETURN_KEY = 'tb_return_view';
 
   (async () => {
+    // The board goes first and waits for nothing.
+    //
+    // This used to sit at the END of the sequence, behind `await
+    // loadViewerWager()`. That call asks the casino for ONE viewer's own total,
+    // which means a live Duelbits round trip measured at 4 to 6.5 seconds - and
+    // every signed-in visitor sat on "Loading the board..." for the whole of it,
+    // for a figure that is not even part of the board. /api/portal-data answers
+    // in about 0.25s, so the page was ten times slower than its own data.
+    load();
+    setInterval(load, 60000);
+
+    // Must finish before the wager lookup: it exchanges the ?s= handoff that
+    // creates the session that lookup authenticates with.
     await initViewer();
 
     var back = null;
     try { back = localStorage.getItem(RETURN_KEY); localStorage.removeItem(RETURN_KEY); } catch (e) {}
     if (back && VIEWS.indexOf(back) !== -1) showView(back);
 
-    // Paint the progress panel against the restored session immediately, rather
-    // than leaving "Sign in with Kick" up until the next 60s refresh.
-    await loadViewerWager();
-    if (window.__S) renderProgress(window.__S);
-
-    load();
-    setInterval(load, 60000);
+    // Personal progress lands when it lands. The panel already says "Checking
+    // your progress…" in the meantime, so nothing else has to wait on it.
+    loadViewerWager().then(function () {
+      if (window.__S) renderProgress(window.__S);
+    });
   })();
 })();
 </script>
