@@ -622,7 +622,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.28.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.28.1</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3276,9 +3276,20 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.28.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.28.1</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.28.1 &middot; Tag a slot request as SUPER when you add it</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 18, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#127920; <strong>Add to Hunt now takes a tag as well as a slot and bet.</strong> SUPER, 5 SCAT, or your own short label, picked in the same box. Taking a request from chat no longer means adding it plain and then hunting for it in the list afterwards to mark it.</li>
+            <li>&#8635; <strong>Tap the same tag again to clear it</strong>, and the choice resets for every request, so one super does not quietly tag the next five.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -4819,9 +4830,21 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           </div>
         </div>
 
-        <div class="field" style="margin-bottom:16px;">
+        <div class="field" style="margin-bottom:14px;">
           <label>Bet Size ($)</label>
           <input type="number" id="srHuntBet" class="form-input" placeholder="e.g. 4.00" min="0.01" step="0.01">
+        </div>
+
+        <!-- Same badges as the Bonus Hunt add row. Tagging here means a request
+             taken from chat lands already marked, instead of going in plain and
+             needing a second pass over the list to find it again. -->
+        <div class="field" style="margin-bottom:18px;">
+          <label>Tag <span style="color:var(--text-dim);font-weight:400;font-style:normal;">optional</span></label>
+          <div style="display:flex;gap:6px;align-items:center;" id="srHuntBadgePicker">
+            <button type="button" data-badge="super"    onclick="srPickBadge('super')"    title="Mark as a super bonus" style="background:none;border:1px solid var(--border);color:var(--text-dim);font-size:10.5px;font-weight:800;border-radius:7px;padding:9px 11px;cursor:pointer;line-height:1;white-space:nowrap;">SUPER</button>
+            <button type="button" data-badge="5scatter" onclick="srPickBadge('5scatter')" title="Mark as a 5-scatter"   style="background:none;border:1px solid var(--border);color:var(--text-dim);font-size:10.5px;font-weight:800;border-radius:7px;padding:9px 11px;cursor:pointer;line-height:1;white-space:nowrap;">5 SCAT</button>
+            <button type="button" data-badge="custom"   onclick="srPickBadge('custom')"   title="Custom label"          style="background:none;border:1px solid var(--border);color:var(--text-dim);font-size:10.5px;font-weight:800;border-radius:7px;padding:9px 11px;cursor:pointer;line-height:1;white-space:nowrap;">&#9998;</button>
+          </div>
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end;">
           <button onclick="srCloseHuntModal()" style="padding:9px 18px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:13px;cursor:pointer;">Cancel</button>
@@ -16562,11 +16585,49 @@ function srHuntSlotPick(name, provider) {
   document.getElementById('srHuntSlotDrop').style.display = 'none';
 }
 
+// Badge picker inside the slot-request Add-to-Hunt modal.
+//
+// Deliberately its OWN state rather than reusing bhPendingBadge. That one is a
+// one-shot for the next manual add on the Bonus Hunt page, so sharing it would
+// mean picking SUPER here and then cancelling silently tagged whatever the
+// streamer typed in by hand next.
+let srPendingBadge = null;
+
+window.srPickBadge = function (key) {
+  if (key === 'custom') {
+    const txt = prompt('Custom badge label (short - e.g. BUY, BONUS BUY):', '');
+    if (txt == null) return;
+    const t = txt.trim();
+    srPendingBadge = t ? { key: 'custom', label: t.slice(0, 12) } : null;
+  } else {
+    // Clicking the active one clears it, so it is a toggle not a trap.
+    srPendingBadge = (srPendingBadge && srPendingBadge.key === key) ? null : { key, label: null };
+  }
+  srRenderBadgePicker();
+};
+
+function srRenderBadgePicker() {
+  const wrap = document.getElementById('srHuntBadgePicker');
+  if (!wrap) return;
+  wrap.querySelectorAll('button[data-badge]').forEach((btn) => {
+    const k      = btn.dataset.badge;
+    const active = srPendingBadge && srPendingBadge.key === k;
+    const st     = bhBadgeStyle(k === 'custom' ? 'custom' : k, srPendingBadge && srPendingBadge.label);
+    btn.style.color       = active ? st.color : 'var(--text-dim)';
+    btn.style.background  = active ? st.bg : 'none';
+    btn.style.borderColor = active ? st.color : 'var(--border)';
+    if (k === 'custom' && active && srPendingBadge.label) btn.textContent = srPendingBadge.label;
+    else if (k === 'custom') btn.textContent = '✎';
+  });
+}
+
 function srAddToHunt(id, slotName) {
   const req = srRequests.find(r => r.id === id);
   srPendingHunt = { id, slotName, suggestedBy: req?.kickUsername || null };
   document.getElementById('srHuntSlotLabel').textContent = slotName;
   document.getElementById('srHuntBet').value = '';
+  srPendingBadge = null;            // every request starts untagged
+  srRenderBadgePicker();
 
   // Find matches in BH_SLOTS
   const _pool   = BH_SLOTS.length ? BH_SLOTS : _UNUSED_LEGACY;
@@ -16641,6 +16702,8 @@ async function srConfirmAddToHunt() {
       addedAt:      Date.now(),
       thumbnailUrl: srSlotMeta.thumbnailUrl || null,
       gameId:       srSlotMeta.gameId       || null,
+      badge:        srPendingBadge ? srPendingBadge.key   : null,
+      badgeLabel:   srPendingBadge ? srPendingBadge.label : null,
     };
     bonuses.push(newBonus);
     await fb.db.collection('streamers').doc(uid)
@@ -16656,7 +16719,11 @@ async function srConfirmAddToHunt() {
 
     slotReqActOn(id);   // suppress + re-render every slot-request panel instantly
     srCloseHuntModal();
-    flash(`"${slotName}" added to bonus hunt!`);
+    // Name the tag back, so a mis-click is obvious immediately rather than at
+    // the point the hunt is opened on stream.
+    const srTag = srPendingBadge
+      ? ` (${bhBadgeStyle(srPendingBadge.key, srPendingBadge.label).label})` : '';
+    flash(`"${slotName}"${srTag} added to bonus hunt!`);
   } catch (e) {
     flash('Failed: ' + e.message, 'error');
   }
