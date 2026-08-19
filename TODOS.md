@@ -121,6 +121,36 @@ viewer tried to sign in. Whatever replaces this should read one list.
 
 ---
 
+## Viewer renames orphan points - phases 2 and 3
+
+**Phase 1 is DONE (19 Aug 2026):** every viewer write now stamps `kickUserId` on
+the doc when chat has shown us the numeric id. Nothing reads it, nothing is
+re-keyed, and it rides existing writes so it costs no extra Firestore writes.
+
+**Why:** viewer records are keyed by lowercase Kick username
+(`viewers/{name}`, `wenpoints/{name}`, `verified_users/{name}_{casino}`), so a
+viewer who renames on Kick starts again at zero and the old balance is orphaned,
+not deleted. Streamer renames are already handled (`previousChannels`); viewers
+never were.
+
+**Phase 2 - dual read.** Look a viewer up by `kickUserId`, fall back to the name.
+Do NOT start until coverage is real: measure what fraction of active viewer docs
+carry `kickUserId` first, because until then the id path is all cost and no
+benefit, and a query per lookup adds reads (see the 17M-reads incident).
+
+**Phase 3 - id canonical.** Only once coverage is high. A rename then becomes a
+MERGE of two existing records, reviewed rather than automatic.
+
+**Never** move or delete documents to re-key them. 3,400 viewer records and
+15.4M channel points across 28 streamers; a bad migration is unrecoverable.
+
+**Snapshot taken before any of this:**
+`C:\Users\cscog\.wenbot-backups\points-snapshot-2026-08-19T13-56-13-612Z.json`
+plus a copy in `gs://logictools.firebasestorage.app/backups/` - 3,400 records,
+15,467,309 channel points, 1,090 WenPoints ledgers, 33,308 WP.
+
+---
+
 ## 6. Clash.gg prize units - RESOLVED (18 Aug 2026)
 
 **Answer:** every money figure on both Clash endpoints is in GEM CENTS, hundredths
