@@ -120,6 +120,11 @@ exports.handler = async (event) => {
       await skipRef.set({
         kickName:               kickUsername,
         kickName_lower:         kickKey,
+        // Kick's numeric id, which survives a rename. The doc is keyed by the
+        // NAME, so without this a viewer who renames on Kick reads as never
+        // having verified. Already fetched for the identity check above; it was
+        // simply being returned to the caller and not kept.
+        kickUserId:             kickLookup.user?.user_id || kickLookup.user?.id || null,
         providerUsername:       null,
         providerUsername_lower: null,
         provider:               "none",
@@ -369,6 +374,11 @@ exports.handler = async (event) => {
     } catch { /* non-fatal */ }
     batch.set(newDocRef, {
       kickName:               kickUsername,
+      // Kick's numeric id — the rename-proof counterpart to providerUid below.
+      // Durability was already thought through on the CASINO side; this is the
+      // same idea for the Kick side, and it is what lets a renamed viewer be
+      // recognised as someone who has already verified.
+      kickUserId:             kickLookup.user?.user_id || kickLookup.user?.id || null,
       // Denormalized lowercase copy so case-insensitive lookups (tournament,
       // giveaway-eligibility, etc.) can match without iterating. Kick's API
       // returns the username in its original case (e.g. "TriitonGM") which
