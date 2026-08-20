@@ -246,19 +246,29 @@
       $('rerunInputs').innerHTML = rows.map(r =>
         '<dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd>').join('');
 
-      // JSON.stringify for EVERY value. This used to build a `node -e "..."`
-      // shell command with the pool spliced in raw, which meant a pool key
-      // containing $( ), a backtick or a quote executed on the reader's machine
-      // or broke the snippet outright. Nothing here is parsed by a shell now,
-      // and nothing is concatenated into a quoted context.
-      const listArr = proof.pool.map(p => p.key + ':' + p.tickets);
+      // Every value is emitted as a JS string literal in which anything a shell
+      // could act on — $ , backtick, quote, backslash, newline — is written as a
+      // \uXXXX escape. The literal still evaluates to the identical string, so
+      // the hash comes out the same, but the TEXT contains no shell-active
+      // character at all.
+      //
+      // JSON.stringify alone is not enough: it escapes quotes and backslashes
+      // but leaves $ and backticks untouched, and a reader who pastes this into
+      // a terminal rather than saving it — which people do — would run whatever
+      // a pool key contained. Names reaching a pool are charset-guarded now, but
+      // this text is handed specifically to people who distrust the streamer, so
+      // it should not depend on that guard having always been there.
+      const jsStr = (v) => '"' + String(v).replace(/[^A-Za-z0-9 _\-:.,\/]/g,
+        (ch) => '\\u' + ch.charCodeAt(0).toString(16).padStart(4, '0')) + '"';
+      const listLiteral = '[' + proof.pool.map(p => jsStr(p.key + ':' + p.tickets)).join(', ') + ']';
+
       $('rerunCmd').textContent =
           "// Save as verify.js, then run:  node verify.js\n"
         + "const c = require('crypto');\n\n"
-        + 'const seed  = ' + JSON.stringify(proof.serverSeed) + ';\n'
-        + 'const list  = ' + JSON.stringify(listArr) + ".join('\\n');\n"
-        + 'const nonce = ' + JSON.stringify(proof.nonce) + ';\n'
-        + 'const total = ' + JSON.stringify(proof.totalTickets) + ';\n\n'
+        + 'const seed  = ' + jsStr(proof.serverSeed) + ';\n'
+        + 'const list  = ' + listLiteral + ".join(String.fromCharCode(10));\n"
+        + 'const nonce = ' + Number(proof.nonce) + ';\n'
+        + 'const total = ' + Number(proof.totalTickets) + ';\n\n'
         + "const lh = c.createHash('sha256').update(list).digest('hex');\n"
         + "const d  = c.createHmac('sha256', seed).update(lh + ':' + nonce).digest('hex');\n"
         + "const t  = Number(BigInt('0x' + d.slice(0, 16)) % BigInt(total));\n\n"

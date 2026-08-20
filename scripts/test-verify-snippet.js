@@ -5,6 +5,9 @@ const ROOT = require('path').join(__dirname, '..') + '/';
 const F = require(ROOT + 'netlify/functions/_lib/fairness');
 
 const HERE   = require('os').tmpdir();
+// POSIX-shaped so `sh -c` can genuinely create it. With a Windows path the
+// injected `touch` fails for the wrong reason and the test passes vacuously.
+const MARKER = 'WENBOT_INJECTION_MARKER';
 const CANARY = path.join(HERE, 'PWNED');
 try { fs.unlinkSync(CANARY); } catch (e) {}
 
@@ -70,10 +73,23 @@ for (const [label, okv] of checks) { if (!okv) bad++; console.log('  ' + (okv ? 
 // Belt and braces: the old form was dangerous only because it was pasted into a
 // shell. Prove that even if someone pipes this file to sh, nothing detonates —
 // it should simply be a syntax error, not an execution.
-try { fs.unlinkSync(CANARY); } catch (e) {}
-try { cp.execFileSync('sh', ['-c', snippet], { encoding: 'utf8', stdio: 'pipe' }); } catch (e) { /* expected */ }
-const pwnedViaSh = fs.existsSync(CANARY);
-console.log('  ' + (pwnedViaSh ? '*** FAIL ***' : 'ok  ') + ' nothing executes even if the snippet is fed to a shell');
+// The payload announces itself on stderr rather than touching a file: Git
+// Bash's /tmp is not Node's /tmp, so a file canary silently never fires on
+// Windows and the test passes for the wrong reason. sh will of course choke on
+// JavaScript — what matters is whether it EXECUTED anything on the way.
+const probePool = [{ key: 'x$(echo ' + MARKER + ' >&2)', name: 'p', tickets: 1 },
+                   { key: 'y`echo ' + MARKER + ' >&2`',  name: 'q', tickets: 1 }];
+const probe = Object.assign({}, proof, { pool: probePool, totalTickets: 2 });
+g.__r(probe);
+const probeText = els.rerunCmd.textContent;
+let shOut = '';
+try {
+  shOut = cp.execFileSync('sh', ['-c', probeText], { encoding: 'utf8', stdio: 'pipe' });
+} catch (e) {
+  shOut = String(e.stdout || '') + String(e.stderr || '');
+}
+const pwnedViaSh = shOut.includes(MARKER);
+console.log('  ' + (pwnedViaSh ? '*** FAIL ***' : 'ok  ') + ' nothing executes even if the snippet is pasted into a shell');
 if (pwnedViaSh) bad++;
 
 console.log('\n' + (bad ? bad + ' FAILURES' : 'all clear'));
