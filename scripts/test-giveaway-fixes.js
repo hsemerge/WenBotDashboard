@@ -237,14 +237,39 @@ function fixture(profileExtra, secretExtra) {
     vm.runInContext('const $=globalThis.$; const esc=globalThis.esc;' + src + ';globalThis.__r=renderRerun;', g);
     g.__r(proof);
 
-    // Run the exact text the page hands a sceptical viewer. If this ever stops
-    // matching, we are telling people to check our work with a broken command.
-    const inner = els.rerunCmd.textContent.replace(/^node -e "/, '').replace(/"$/, '');
-    const out = cp.execFileSync(process.execPath, ['-e', inner], { encoding: 'utf8' });
-    ok(out.includes(proof.serverSeedHash), 'the command reproduces the published seed hash');
-    ok(out.includes(lh), 'the command reproduces the entry list hash');
-    ok(new RegExp('ticket\\s+' + ticket + '\\b').test(out),
-       'the command reproduces the winning ticket', out.trim());
+    // Run the snippet the way the page tells people to: written to a file and
+    // executed with node. Values are parsed by exact prefix and compared with
+    // ===, rather than regex-matched against formatted output — matching a word
+    // boundary against a printed number is the kind of assertion that can fail
+    // for reasons that have nothing to do with the thing under test.
+    const snippet = els.rerunCmd.textContent;
+    const tmp = require('path').join(require('os').tmpdir(), 'wenbot-rerun-' + process.pid + '.js');
+    fs.writeFileSync(tmp, snippet);
+    let out = '';
+    try {
+      out = cp.execFileSync(process.execPath, [tmp], { encoding: 'utf8' });
+    } finally {
+      try { fs.unlinkSync(tmp); } catch (e) {}
+    }
+    const val = (label) => {
+      const line = out.split(/\r?\n/).find(l => l.startsWith(label));
+      return line ? line.slice(label.length).trim() : null;
+    };
+    const gotSeedHash = val('seed hash');
+    const gotListHash = val('list hash');
+    const gotTicket   = val('ticket');
+
+    // Everything the snippet was built from, so a failure is diagnosable from
+    // the log alone instead of needing the machine it happened on.
+    const dump = 'expected seed=' + proof.serverSeedHash + ' list=' + lh
+      + ' nonce=' + nonce + ' total=' + totalTickets + ' ticket=' + ticket
+      + '\n         got      seed=' + gotSeedHash + ' list=' + gotListHash + ' ticket=' + gotTicket
+      + '\n         raw output: ' + JSON.stringify(out)
+      + '\n         snippet:\n' + snippet.split('\n').map(l => '           ' + l).join('\n');
+
+    ok(gotSeedHash === proof.serverSeedHash, 'the snippet reproduces the published seed hash', dump);
+    ok(gotListHash === lh,                   'the snippet reproduces the entry list hash', dump);
+    ok(gotTicket === String(ticket),         'the snippet reproduces the winning ticket', dump);
   }
 
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
