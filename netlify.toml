@@ -2,7 +2,10 @@
 # scripts/strip-comments.js). Functions + edge functions are read from netlify/
 # (untouched). publish=dist keeps node_modules / config / docs out of the deploy.
 [build]
-  command = "npm run build"
+  # Tests run first and a failure aborts the deploy, so a broken draw never
+  # reaches a live channel. Same principle the build script already applies to
+  # copy failures: fail loudly and leave the last good deploy serving.
+  command = "npm test && npm run build"
   publish = "dist"
 
 # Daily sweep: downgrade expired Elite trials to starter (keeps stored plan
@@ -84,6 +87,16 @@
   status = 200
 
 [[redirects]]
+  from   = "/verify-draw"
+  to     = "/verify-draw.html"
+  status = 200
+
+[[redirects]]
+  from   = "/s"
+  to     = "/share.html"
+  status = 200
+
+[[redirects]]
   from   = "/gtb"
   to     = "/gtb.html"
   status = 200
@@ -141,6 +154,31 @@
 [[redirects]]
   from   = "/api/entrant-wager"
   to     = "/.netlify/functions/entrant-wager"
+  status = 200
+
+[[redirects]]
+  from   = "/api/giveaway-commit"
+  to     = "/.netlify/functions/giveaway-commit"
+  status = 200
+
+[[redirects]]
+  from   = "/api/giveaway-draw"
+  to     = "/.netlify/functions/giveaway-draw"
+  status = 200
+
+[[redirects]]
+  from   = "/api/draw-proof"
+  to     = "/.netlify/functions/draw-proof"
+  status = 200
+
+[[redirects]]
+  from   = "/api/share-admin"
+  to     = "/.netlify/functions/share-admin"
+  status = 200
+
+[[redirects]]
+  from   = "/api/share"
+  to     = "/.netlify/functions/share"
   status = 200
 
 [[redirects]]
@@ -570,6 +608,12 @@
 [[edge_functions]]
   function = "kick-token"
   path = "/api/kick-token"
+
+# Live poll relay for the poll overlay. Edge for the same reason as the two
+# above: kick.com/api/v2 refuses Lambda.
+[[edge_functions]]
+  function = "kick-poll"
+  path = "/api/kick-poll"
 
 # Her portal folder was renamed to match her Kick channel. Anything still
 # pointing at the old directory (bookmarks, older Discord posts, the OG image

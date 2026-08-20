@@ -51,6 +51,15 @@ exports.handler = async (event) => {
       subOnly:         !!profile.giveawaySubOnly,
       verifiedCasino:  !!profile.giveawayVerifiedCasino,
       verifiedDiscord: !!profile.giveawayVerifiedDiscord,
+      // Trivia rides along on the profile read this endpoint already does, so
+      // the trivia overlay costs no extra Firestore reads.
+      trivia: {
+        active:   !!profile.triviaActive,
+        question: profile.triviaQuestion || '',
+        winner:   profile.triviaWinner   || '',
+        answer:   profile.triviaAnswer   || '',
+        endsAt:   profile.triviaEndsAt   || 0,
+      },
     });
   } catch (err) {
     console.error("[overlay-data] error:", err.message);

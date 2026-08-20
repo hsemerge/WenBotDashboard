@@ -132,9 +132,9 @@
       <div class="tablecard">
         <div style="overflow-x:auto;">
           <table>
-            <thead><tr>
-              <th></th><th>Channel</th><th>Plan</th><th>Sub</th><th>Onboarded</th>
-              <th>Referrals</th><th class="num">Total paid</th><th>Last payment</th><th>Last login</th><th>Email</th>
+            <thead><tr id="usersHead">
+              <th></th><th data-sort="channel">Channel</th><th data-sort="plan">Plan</th><th data-sort="sub">Sub</th><th data-sort="onboarded">Onboarded</th>
+              <th data-sort="referrals">Referrals</th><th class="num" data-sort="paid">Total paid</th><th data-sort="lastPayment">Last payment</th><th data-sort="lastLogin">Last login</th><th data-sort="email">Email</th>
             </tr></thead>
             <tbody id="usersTable"><tr><td colspan="10" class="muted" style="text-align:center;padding:24px;">…</td></tr></tbody>
           </table>
@@ -213,6 +213,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="/js/firebase-config.js"></script>
+<script src="/js/table-sort.js"></script>
 <script>
 (function () {
   firebase.initializeApp(firebaseConfig);
@@ -305,6 +306,28 @@
     ].map(([l, n, sub]) => `<div class="stat"><div class="n">${typeof n === 'number' ? n : esc(n)}</div><div class="l">${esc(l)}${sub ? ' · <small>'+esc(sub)+'</small>' : ''}</div></div>`).join('');
   }
 
+  // Click-to-sort on the streamer table. Getters return raw comparable values,
+  // never the rendered cell — sorting "Total paid" on its "$1,250.00" string put
+  // $9 above $1,250. Plan pins its own direction because tier order isn't
+  // alphabetical, and the two booleans map to numbers so active/yes float up.
+  const PLAN_RANK = { starter: 0, pro: 1, elite: 2, agency: 3 };
+  const usersSort = createTableSort({
+    storageKey: 'wb.admin.usersSort',
+    head:       '#usersHead',
+    onChange:   () => renderTable(),
+    columns: {
+      channel:     u => String(u.kickChannel || u.displayName || u.uid || '').toLowerCase(),
+      plan:        { get: u => PLAN_RANK[u.plan] ?? -1, dir: 'asc' },
+      sub:         u => (u.subscriptionActive ? 1 : 0),
+      onboarded:   u => (u.onboarded ? 1 : 0),
+      referrals:   u => Number(u.referralCount || 0),
+      paid:        u => Number(u.totalPaid || 0),
+      lastPayment: u => (u.lastPaymentAt || null),
+      lastLogin:   u => (u.lastLoginAt || null),
+      email:       u => String(u.email || '').toLowerCase(),
+    },
+  });
+
   window.renderTable = function () {
     const q = ($('search').value || '').toLowerCase().trim();
     const showArch = $('showArchived').checked;
@@ -336,9 +359,13 @@
       String(u.plan||'').toLowerCase().includes(q) ||
       String(u.uid||'').toLowerCase().includes(q)));
 
+    // A clicked column wins. apply() is a no-op until then, and also binds the
+    // headers and caches the rows it was handed.
+    rows = usersSort.apply(rows);
+
     // Soonest-to-lapse first on any trial view — that's the whole point of
-    // looking at it.
-    if (filter.startsWith('trial') && filter !== 'trialended') {
+    // looking at it — unless an explicit column sort is in play.
+    if (!usersSort.active() && filter.startsWith('trial') && filter !== 'trialended') {
       rows = rows.slice().sort((a, b) => (a.trialEndsAt || Infinity) - (b.trialEndsAt || Infinity));
     }
 

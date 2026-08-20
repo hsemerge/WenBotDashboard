@@ -26,6 +26,7 @@ const PROFILE_FIELDS = [
   "giveawaySubOnly", "giveawayVerifiedCasino", "giveawayVerifiedDiscord",
   "giveawayOverlayStyle",
   "leaderboardPeriod", "wagerRaffle",
+  "giveawayClaimSeconds", "giveawayManualEntries", "giveawayFairness",
   "discordConfig", // note: filtered below to drop any nested secrets
   "createdAt", "updatedAt",
 ];
@@ -34,7 +35,7 @@ const PROFILE_FIELDS = [
 // could gain a secret later — allowlist its keys too.
 const DISCORD_CONFIG_FIELDS = [
   "guildId", "guildName", "giveawayChannelId", "announcementChannelId",
-  "giveallAuthorId", "verify",
+  "giveallAuthorId", "verify", "routes",
 ];
 
 // Per-subcollection field allowlists. A subcollection NOT listed here is fully

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/png" href="/img/favicon.png" sizes="32x32">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Shared Tool — WenBot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --bg-panel: #161b22; --bg-card: #1a2030;
+      --border: #30363d; --text: #c9d1d9; --text-dim: #8b949e;
+      --bright: #f0f6fc; --accent: #00e5ff; --accent-glow: rgba(0,229,255,0.2);
+      --green: #00ff88; --gold: #ffd700; --red: #ff4757;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    nav { position: sticky; top: 0; z-index: 10; background: rgba(13,17,23,0.92); backdrop-filter: blur(12px);
+          border-bottom: 1px solid var(--border); padding: 0 20px; height: 56px;
+          display: flex; align-items: center; gap: 12px; }
+    .nav-logo { font-family: 'Exo 2', sans-serif; font-size: 18px; font-weight: 900; color: var(--accent); }
+    .nav-meta { margin-left: auto; font-size: 12px; color: var(--text-dim); }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 22px 16px 70px; }
+    h1 { font-family: 'Exo 2', sans-serif; font-size: 22px; font-weight: 900; color: var(--bright); margin-bottom: 4px; }
+    .blurb { font-size: 13px; color: var(--text-dim); line-height: 1.6; margin-bottom: 18px; }
+    .card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; }
+    .msg { border-radius: 12px; padding: 18px; border: 1px solid var(--border); background: var(--bg-panel); }
+    .msg.bad { border-color: rgba(255,71,87,0.45); background: rgba(255,71,87,0.06); }
+    .msg-title { font-family: 'Exo 2', sans-serif; font-size: 18px; font-weight: 900; color: var(--bright); margin-bottom: 5px; }
+    .msg.bad .msg-title { color: var(--red); }
+    .msg-sub { font-size: 13px; color: var(--text); line-height: 1.6; }
+    .row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-card);
+           border: 1px solid var(--border); border-radius: 9px; margin-bottom: 7px; }
+    .row-main { min-width: 0; flex: 1; }
+    .row-title { font-size: 13.5px; color: var(--bright); font-weight: 600;
+                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .row-sub { font-size: 11.5px; color: var(--text-dim); margin-top: 2px; }
+    .btn { border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--text);
+           border-radius: 7px; font-size: 12px; font-weight: 700; padding: 7px 12px; cursor: pointer;
+           font-family: 'Inter', sans-serif; white-space: nowrap; }
+    .btn:disabled { opacity: .5; cursor: default; }
+    .btn-green { background: rgba(0,255,136,0.12); border-color: rgba(0,255,136,0.4); color: var(--green); }
+    .btn-red   { background: rgba(255,71,87,0.1);  border-color: rgba(255,71,87,0.35); color: var(--red); }
+    .btn-big   { background: var(--accent); border: none; color: #0d1117; font-size: 15px; padding: 13px 20px; width: 100%; }
+    .empty { text-align: center; color: var(--text-dim); font-size: 13px; padding: 22px; }
+    .winner { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.4); border-radius: 10px;
+              padding: 16px; text-align: center; margin-bottom: 12px; }
+    .winner-name { font-family: 'Exo 2', sans-serif; font-size: 26px; font-weight: 900; color: var(--gold); }
+    .winner-sub { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+    .winner-sub a { color: var(--accent); }
+    .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+             background: var(--bg-card); border: 1px solid var(--border); border-radius: 9px;
+             padding: 10px 18px; font-size: 13px; color: var(--bright); display: none; z-index: 50; }
+  </style>
+</head>
+<body>
+  <nav>
+    <span class="nav-logo">WenBot</span>
+    <span class="nav-meta" id="navMeta"></span>
+  </nav>
+
+  <div class="wrap">
+    <div id="gate" class="msg"><div class="msg-title">Checking this link…</div></div>
+    <div id="tool" style="display:none;">
+      <h1 id="toolTitle"></h1>
+      <div class="blurb" id="toolBlurb"></div>
+      <div id="toolBody"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // A scoped tool page. It holds a bearer token and nothing else — no login,
+    // no Firebase, no access to anything the scope does not name. Every button
+    // here is re-checked server-side, so this file is convenience, not security.
+    var token = new URLSearchParams(location.search).get('t') || '';
+    var state = null;
+
+    function $(id) { return document.getElementById(id); }
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function toast(msg) {
+      var t = $('toast');
+      t.textContent = msg; t.style.display = 'block';
+      clearTimeout(t._h); t._h = setTimeout(function () { t.style.display = 'none'; }, 2600);
+    }
+    function dead(text) {
+      $('tool').style.display = 'none';
+      $('gate').style.display = '';
+      $('gate').className = 'msg bad';
+      $('gate').innerHTML = '<div class="msg-title">Link not usable</div><div class="msg-sub">' + esc(text) + '</div>';
+    }
+
+    function api(payload) {
+      return fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.assign({ token: token }, payload)),
+      }).then(function (r) {
+        return r.json().then(function (d) {
+          if (!r.ok) throw new Error(d.error || 'Something went wrong.');
+          return d;
+        });
+      });
+    }
+
+    function fmtExpiry(ts) {
+      if (!ts) return '';
+      var mins = Math.round((ts - Date.now()) / 60000);
+      if (mins <= 0) return 'expired';
+      if (mins < 60) return 'expires in ' + mins + ' min';
+      var hrs = Math.round(mins / 60);
+      return 'expires in ' + hrs + (hrs === 1 ? ' hour' : ' hours');
+    }
+
+    // ── Slot request queue ────────────────────────────────────────────────
+    function renderSlots(view) {
+      if (!view.requests.length) {
+        return '<div class="card"><div class="empty">Nothing waiting. New requests appear here as they come in.</div></div>';
+      }
+      return '<div class="card">' + view.requests.map(function (r) {
+        return '<div class="row" data-id="' + esc(r.id) + '">'
+          + '<div class="row-main">'
+          +   '<div class="row-title">' + esc(r.slotName || 'Unnamed slot') + '</div>'
+          +   '<div class="row-sub">' + esc(r.viewer || 'someone')
+          +     (r.betSize ? ' · $' + Number(r.betSize).toLocaleString() : '') + '</div>'
+          + '</div>'
+          + '<button class="btn btn-green" onclick="act(this,\'mark_played\',\'' + esc(r.id) + '\')">Played</button>'
+          + '<button class="btn btn-red"   onclick="act(this,\'dismiss\',\'' + esc(r.id) + '\')">Dismiss</button>'
+          + '</div>';
+      }).join('') + '</div>';
+    }
+
+    window.act = function (btn, action, id) {
+      var row = btn.closest('.row');
+      Array.prototype.forEach.call(row.querySelectorAll('button'), function (b) { b.disabled = true; });
+      api({ op: 'act', action: action, id: id })
+        .then(function () {
+          row.style.transition = 'opacity .2s'; row.style.opacity = '0';
+          setTimeout(function () { row.remove(); }, 200);
+          toast(action === 'dismiss' ? 'Dismissed.' : 'Marked as played.');
+        })
+        .catch(function (e) {
+          toast(e.message);
+          Array.prototype.forEach.call(row.querySelectorAll('button'), function (b) { b.disabled = false; });
+        });
+    };
+
+    // ── Giveaway draw ─────────────────────────────────────────────────────
+    function renderGiveaway(view) {
+      if (!view.active && !view.count) {
+        return '<div class="card"><div class="empty">No giveaway is running right now.</div></div>';
+      }
+      var warn = view.committed ? ''
+        : '<div class="row-sub" style="color:var(--gold);margin-bottom:10px;">This giveaway has no draw seed, so a draw cannot be published. The streamer needs to start a new one.</div>';
+      return '<div class="card">'
+        + '<div id="drawResult"></div>'
+        + warn
+        + '<div class="row-sub" style="margin-bottom:10px;">'
+        +   '<strong style="color:var(--bright);">' + view.count + '</strong> '
+        +   (view.count === 1 ? 'entry' : 'entries') + ' · type <code>' + esc(view.keyword) + '</code> in chat to join'
+        + '</div>'
+        + '<button class="btn btn-big" id="drawBtn" onclick="doDraw()"' + (view.committed ? '' : ' disabled') + '>🎁 Draw a winner</button>'
+        + '</div>'
+        + '<div class="card"><div class="row-sub" style="margin-bottom:8px;">In the draw</div>'
+        + (view.entries.length
+            ? '<div style="display:flex;flex-wrap:wrap;gap:6px;">' + view.entries.map(function (n) {
+                return '<span style="background:var(--bg-card);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:12px;">'
+                  + esc(n) + '</span>';
+              }).join('') + '</div>'
+            : '<div class="empty">Nobody yet.</div>')
+        + '</div>';
+    }
+
+    window.doDraw = function () {
+      var btn = $('drawBtn');
+      btn.disabled = true; btn.textContent = 'Drawing…';
+      api({ op: 'act', action: 'draw' })
+        .then(function (d) {
+          $('drawResult').innerHTML =
+            '<div class="winner">'
+            + '<div class="row-sub">WINNER</div>'
+            + '<div class="winner-name">🏆 ' + esc(d.winner) + '</div>'
+            + '<div class="winner-sub">ticket ' + d.winningTicket + ' of ' + d.totalTickets
+            +   ' · <a href="' + esc(d.proofUrl) + '" target="_blank" rel="noopener">verify this draw</a></div>'
+            + '</div>';
+          btn.textContent = '🎁 Draw again';
+          btn.disabled = false;
+          load();   // refresh the entry list
+        })
+        .catch(function (e) {
+          toast(e.message);
+          btn.textContent = '🎁 Draw a winner';
+          btn.disabled = false;
+        });
+    };
+
+    // ── Boot ──────────────────────────────────────────────────────────────
+    function render() {
+      $('gate').style.display = 'none';
+      $('tool').style.display = '';
+      $('toolTitle').textContent = state.scopeLabel;
+      $('toolBlurb').textContent = state.blurb;
+      $('navMeta').textContent =
+        (state.view.channel ? '@' + state.view.channel + ' · ' : '') + fmtExpiry(state.expiresAt);
+      $('toolBody').innerHTML = state.scope === 'slotrequest'
+        ? renderSlots(state.view)
+        : renderGiveaway(state.view);
+    }
+
+    function load() {
+      return api({ op: 'get' }).then(function (d) { state = d; render(); });
+    }
+
+    if (!token) {
+      dead('This page needs the full link the streamer sent you.');
+    } else {
+      load().catch(function (e) { dead(e.message); });
+      // Keep the queue current without the mod having to reload — they are
+      // usually watching the stream, not this tab.
+      setInterval(function () {
+        if (state) load().catch(function () {});
+      }, 15000);
+    }
+  </script>
+</body>
+</html>

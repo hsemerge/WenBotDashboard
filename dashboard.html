@@ -570,6 +570,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="nav-item" onclick="showPage('slotpicker',this)"><span class="icon">🎯</span> Slot Picker</div>
         <div class="nav-item" onclick="showPage('slotrequest',this)"><span class="icon">📋</span> Slot Requests</div>
         <div class="nav-item" onclick="showPage('gtb',this)"><span class="icon">🎲</span> Guess the Balance</div>
+        <div class="nav-item" onclick="showPage('trivia',this)"><span class="icon">🧠</span> Trivia</div>
         <div class="nav-item" onclick="showPage('bonusbattle',this)"><span class="icon">⚔️</span> Bonus Battles <span class="nav-badge" id="bbLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
         <div class="nav-item" onclick="showPage('tournament',this)"><span class="icon">🏆</span> Tournaments <span class="nav-badge" id="tnLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
       </div>
@@ -630,7 +631,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.28.1</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.30.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -933,7 +934,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         .sidebar-section.sb-collapsed .sb-chev { transform: rotate(-90deg); }
         .sidebar-section.sb-collapsed .nav-item { display: none; }
 
-        #page-points > *, #page-gtb > *, #page-store > *, #page-commands > *,
+        #page-points > *, #page-gtb > *, #page-trivia > *, #page-store > *, #page-commands > *,
         #page-leaderboard > *, #page-verified > *, #page-referrals > *,
         #page-activity > *, #page-extension > *, #page-slotpicker > *,
         #page-slotrequest > *, #page-bonusbattle > *, #page-tournament > *,
@@ -954,6 +955,14 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         .gw-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; min-height: 0; }
         .gw-empty { color: var(--text-dim); font-size: 12px; text-align: center; padding: 32px 12px; }
         .gw-entry { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; }
+        /* Entered before a requirement was switched on — still listed (so the
+           streamer can see who it caught) but visibly out of the draw. */
+        .gw-entry-inel { opacity: .42; border-style: dashed; }
+        .gw-entry-inel .gw-name-text { text-decoration: line-through; }
+        .gw-entry-inel .gw-meta { color: var(--orange); }
+        .gw-elig-note { display:none; font-size:11.5px; line-height:1.5; color: var(--orange);
+          background: rgba(255,166,87,0.08); border: 1px solid rgba(255,166,87,0.28);
+          border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
         .gw-avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(0,229,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: var(--accent); overflow: hidden; flex-shrink: 0; border: 1px solid rgba(0,229,255,0.18); }
         .gw-avatar img { width: 100%; height: 100%; object-fit: cover; }
         /* .gw-name is now a flex row so badges stay visible even when the
@@ -1158,7 +1167,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
               <button type="button" id="gwTargetDiscord" onclick="setGwTarget('discord')">DISCORD</button>
             </div>
           </div>
-          <div class="gw-lock-note">🔒 Live — these lock until the giveaway ends. Luck sliders stay adjustable.</div>
+          <div class="gw-lock-note">🔒 Live — entry mode, keyword and duration lock until the giveaway ends. Who-can-enter toggles and luck sliders stay adjustable.</div>
           <div class="field gw-lock-when-live">
             <label>Entry Mode</label>
             <div class="gw-mode-seg">
@@ -1213,7 +1222,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           </div>
 
           <div class="gw-sec-label">Who can enter</div>
-          <div class="toggle-row gw-tight gw-lock-when-live">
+          <div class="toggle-row gw-tight">
             <div class="toggle-info">
               <div class="toggle-label">Followers Only
                 <span class="gw-info" onclick="this.classList.toggle('open');">i
@@ -1221,7 +1230,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
                 </span>
               </div>
             </div>
-            <div class="toggle" id="toggleFollowerOnly" onclick="toggleOption(this)"></div>
+            <div class="toggle" id="toggleFollowerOnly" onclick="gwToggleEligibility(this)"></div>
           </div>
           <div class="toggle-row gw-tight gw-lock-when-live">
             <div class="toggle-info">
@@ -1257,7 +1266,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
               <input type="range" id="wagerLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('wagerLuckVal').textContent=this.value+'x'" onchange="if(typeof renderEntries==='function')renderEntries()">
             </div>
           </div>
-          <div class="toggle-row gw-tight gw-lock-when-live">
+          <div class="toggle-row gw-tight">
             <div class="toggle-info">
               <div class="toggle-label">Subscribers Only
                 <span class="gw-info" onclick="this.classList.toggle('open');">i
@@ -1265,9 +1274,9 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
                 </span>
               </div>
             </div>
-            <div class="toggle" id="toggleSubOnly" onclick="toggleOption(this)"></div>
+            <div class="toggle" id="toggleSubOnly" onclick="gwToggleEligibility(this)"></div>
           </div>
-          <div class="toggle-row gw-tight gw-lock-when-live">
+          <div class="toggle-row gw-tight">
             <div class="toggle-info">
               <div class="toggle-label">Require Verification
                 <span class="gw-info" onclick="this.classList.toggle('open');">i
@@ -1277,20 +1286,20 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             </div>
             <div class="toggle" id="toggleVerified" onclick="toggleVerifiedReq(this)"></div>
           </div>
-          <div id="verifiedReqFields" class="gw-lock-when-live" style="display:none;margin-top:8px;">
+          <div id="verifiedReqFields" style="display:none;margin-top:8px;">
             <div style="display:flex;flex-direction:column;gap:6px;padding:0 2px;">
               <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text);cursor:pointer;">
-                <input type="checkbox" id="verifiedCasinoCheck" checked style="accent-color:var(--accent);width:14px;height:14px;">
+                <input type="checkbox" id="verifiedCasinoCheck" checked onchange="gwSaveLiveEligibility()" style="accent-color:var(--accent);width:14px;height:14px;">
                 Casino Verified
               </label>
               <!-- Which board that verification has to be on. Hidden unless the
                    streamer runs more than one — with a single board there is no
                    choice to make, and "any board" is exactly today's behaviour. -->
-              <select id="verifiedBoardSelect" title="Which leaderboard the verification must be on" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:11px;padding:3px 6px;font-family:'Inter',sans-serif;cursor:pointer;">
+              <select id="verifiedBoardSelect" onchange="gwSaveLiveEligibility()" title="Which leaderboard the verification must be on" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:11px;padding:3px 6px;font-family:'Inter',sans-serif;cursor:pointer;">
                 <option value="">any board</option>
               </select>
               <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text);cursor:pointer;">
-                <input type="checkbox" id="verifiedDiscordCheck" style="accent-color:var(--accent);width:14px;height:14px;">
+                <input type="checkbox" id="verifiedDiscordCheck" onchange="gwSaveLiveEligibility()" style="accent-color:var(--accent);width:14px;height:14px;">
                 Discord Verified
               </label>
             </div>
@@ -1303,7 +1312,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
                 <span class="gw-info-pop">Subscribers get this many entries each (1x = no bonus).</span>
               </span>
             </label>
-            <input type="range" id="subLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('subLuckVal').textContent=this.value+'x'" onchange="if(typeof renderEntries==='function')renderEntries()">
+            <input type="range" id="subLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('subLuckVal').textContent=this.value+'x'" onchange="if(typeof renderEntries==='function')renderEntries();gwSaveLiveEligibility()">
           </div>
           <div class="field" style="margin-top:10px;margin-bottom:0;">
             <label>Code Luck: <strong id="codeLuckVal">1x</strong> entries
@@ -1311,7 +1320,24 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
                 <span class="gw-info-pop">Viewers verified under your casino code get this many entries each (1x = no bonus). <strong>Stacks</strong> with Subscriber Luck.</span>
               </span>
             </label>
-            <input type="range" id="codeLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('codeLuckVal').textContent=this.value+'x'" onchange="if(typeof renderEntries==='function')renderEntries()">
+            <input type="range" id="codeLuckSlider" min="1" max="5" value="1" oninput="document.getElementById('codeLuckVal').textContent=this.value+'x'" onchange="if(typeof renderEntries==='function')renderEntries();gwSaveLiveEligibility()">
+          </div>
+
+          <div class="gw-sec-label">⏱ After the draw</div>
+          <div class="field" style="margin-bottom:0;">
+            <label>Claim window
+              <span class="gw-info" onclick="this.classList.toggle('open');" style="margin-left:6px;">i
+                <span class="gw-info-pop">If the winner does not say anything in chat within this long, WenBot removes them and draws again. Any message counts as claiming. Off means you decide by hand, as before.</span>
+              </span>
+            </label>
+            <select id="gwClaimSeconds" onchange="gwSaveClaimSeconds(this.value)"
+              style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:13px;padding:8px 10px;width:100%;font-family:'Inter',sans-serif;">
+              <option value="0">Off — I will decide</option>
+              <option value="30">30 seconds</option>
+              <option value="60">1 minute</option>
+              <option value="120">2 minutes</option>
+              <option value="300">5 minutes</option>
+            </select>
           </div>
 
           <!-- OBS overlay style picker — the streamer picks which spinner
@@ -1339,6 +1365,10 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <span id="giveawayStatusText" style="font-size:13px;color:var(--text-dim);">No active giveaway</span>
             <span id="gwCountdown" style="display:none;margin-left:auto;font-size:13px;font-weight:700;color:var(--gold);font-family:'Exo 2',sans-serif;"></span>
           </div>
+          <!-- Fairness strip: the committed seed hash while entries are open,
+               the verify link once a draw has happened. -->
+          <div id="gwProofStrip" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;font-size:11.5px;
+               background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:7px 11px;margin-top:8px;"></div>
           <!-- Idle meta — launch summary chips (the chips already name the
                keyword, so no separate "viewers type X" line). Hidden while LIVE.
                flex column + the summary's flex:1 keeps the count + Start button
@@ -1378,6 +1408,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           </div>
 
           <div class="gw-people-pane" id="gwColParticipants">
+          <div class="gw-elig-note" id="gwEligibilityNote"></div>
           <div class="gw-list" id="gwParticipantsList">
             <div class="gw-empty">Entries appear here as viewers join.</div>
           </div>
@@ -1441,6 +1472,24 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div></div>
       </div>
 
+      <!-- Paste in entrants who did not come from chat: a giveaway announced
+           somewhere else, or someone whose message the bot never saw. -->
+      <div id="gwAddEntrantsModal" style="display:none;position:fixed;inset:0;z-index:700;background:rgba(0,0,0,0.65);align-items:center;justify-content:center;">
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;width:420px;max-width:94vw;">
+          <div style="font-family:'Exo 2',sans-serif;font-size:15px;font-weight:800;color:var(--bright);margin-bottom:6px;">Add entrants by hand</div>
+          <div style="font-size:11.5px;color:var(--text-dim);line-height:1.6;margin-bottom:10px;">
+            One name per line. They join the pool with a single ticket and no luck bonuses, are included in the
+            published draw list like anyone else, and are cleared when the giveaway ends.
+          </div>
+          <textarea id="gwAddEntrantsText" rows="7" placeholder="viewer_one&#10;viewer_two&#10;viewer_three"
+            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:13px;padding:10px;font-family:'Courier New',monospace;resize:vertical;"></textarea>
+          <div style="display:flex;gap:10px;margin-top:12px;">
+            <button class="btn btn-accent" style="flex:1;" onclick="gwAddEntrants()">Add to pool</button>
+            <button class="btn" onclick="gwCloseAddEntrants()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Floating winner decision card — docks right under the spinner reveal
            (which HOLDS on the dashboard until the streamer acts; the on-stream
            OBS overlays still fade on their own). Compact: name row, the
@@ -1451,6 +1500,8 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           <div><span id="gwWinnerName" style="color:var(--gold);font-weight:800;font-size:16px;"></span> <span style="color:var(--text-dim);font-size:13px;">won the giveaway</span></div>
         </div>
         <div id="gwDecisionChatSlot" style="margin-bottom:10px;"></div>
+        <!-- Claim countdown. Only rendered when a claim time is set. -->
+        <div id="gwClaimBar" style="display:none;margin-bottom:10px;"></div>
         <div id="gwWinnerActionRow" style="display:flex;gap:10px;align-items:center;">
           <button id="gwWinnerPopupRemoveBtn" onclick="gwPopupRemoveFromPool()" style="flex:1;padding:9px 12px;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.4);border-radius:8px;color:var(--red);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">🚫 Remove — can't win or rejoin</button>
           <button onclick="closeWinnerPopup()" style="padding:9px 16px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:13px;cursor:pointer;white-space:nowrap;">Keep in pool</button>
@@ -1467,7 +1518,8 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <!-- Hidden legacy element kept so existing setGwTarget/related code refs don't break -->
         <a href="#" target="_blank" id="overlayWheelLink" style="display:none;"></a>
         <span style="color:var(--border);">·</span>
-        <button class="btn btn-ghost btn-sm" onclick="exportEntries()" style="font-size:11px;padding:4px 12px;">Export Entries</button>
+        <button class="btn btn-ghost btn-sm" onclick="gwOpenAddEntrants()" style="font-size:11px;padding:4px 12px;">+ Add entrants</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportEntries()" style="font-size:11px;padding:4px 12px;">Export CSV</button>
       </div>
     </div>
 
@@ -1714,6 +1766,102 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           <table>
             <thead><tr><th>#</th><th>Viewer</th><th>Guess ($)</th><th>Submitted</th><th>Diff</th></tr></thead>
             <tbody id="gtbGuessesTable"><tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;">No active GTB session</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TRIVIA ── -->
+    <div class="page" id="page-trivia">
+      <div class="card">
+        <div class="card-title" style="justify-content:space-between;">
+          <span>🧠 Trivia</span>
+          <span id="trivStatusBadge" style="font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;background:rgba(255,71,87,0.12);color:var(--red);">CLOSED</span>
+        </div>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+          Ask your chat a question and the first correct answer wins. WenBot posts the question, watches chat, and
+          calls it the moment somebody gets it. Answers are read straight from your Kick chat, so
+          <strong>this page has to stay open</strong> while a round is running.
+        </p>
+
+        <div id="trivChatState" style="font-size:11.5px;color:var(--text-dim);margin-bottom:14px;"></div>
+
+        <div class="grid-2" style="gap:12px;">
+          <div class="field">
+            <label>Category</label>
+            <select id="trivCategory"></select>
+          </div>
+          <div class="field">
+            <label>Difficulty</label>
+            <select id="trivDifficulty">
+              <option value="">Any difficulty</option>
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom:8px;">
+          <label>Or ask your own <span style="color:var(--text-dim);font-weight:400;font-size:11px;">— leave blank to use the question bank</span></label>
+          <input type="text" id="trivCustomQ" maxlength="200" placeholder="What slot are we opening next?">
+        </div>
+        <div class="grid-2" style="gap:12px;">
+          <div class="field">
+            <label>Answer</label>
+            <input type="text" id="trivCustomA" maxlength="80" placeholder="The exact answer">
+          </div>
+          <div class="field">
+            <label>Also accept <span style="color:var(--text-dim);font-weight:400;font-size:11px;">— comma separated</span></label>
+            <input type="text" id="trivCustomAlts" maxlength="200" placeholder="other spellings chat will type">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Time limit</label>
+          <select id="trivTimeLimit">
+            <option value="0">No limit — until someone gets it</option>
+            <option value="30">30 seconds</option>
+            <option value="60" selected>1 minute</option>
+            <option value="120">2 minutes</option>
+          </select>
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">
+          <button class="btn btn-green"  id="trivStartBtn" onclick="trivStart()">▶ Ask a question</button>
+          <button class="btn btn-danger" id="trivStopBtn"  onclick="trivStop(true)" disabled>⏹ End round</button>
+          <button class="btn btn-ghost"  onclick="trivRevealAnswer()" id="trivRevealBtn" disabled title="Give up and post the answer in chat">💡 Reveal answer</button>
+        </div>
+      </div>
+
+      <!-- Live round -->
+      <div class="card" id="trivLiveCard" style="display:none;">
+        <div class="card-title" style="justify-content:space-between;">
+          <span>Current question</span>
+          <span id="trivCountdown" style="font-family:'Exo 2',sans-serif;font-weight:800;color:var(--gold);"></span>
+        </div>
+        <div id="trivQuestionText" style="font-size:17px;font-weight:700;color:var(--bright);line-height:1.4;margin-bottom:6px;"></div>
+        <div id="trivAnswerHint" style="font-size:11.5px;color:var(--text-dim);margin-bottom:14px;"></div>
+        <div id="trivWinnerBox" style="display:none;margin-bottom:14px;"></div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">
+          Chat <span id="trivSeenCount" style="color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0;"></span>
+        </div>
+        <div id="trivFeed" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:5px;font-size:12.5px;"></div>
+      </div>
+
+      <!-- Session scores -->
+      <div class="card">
+        <div class="card-title" style="justify-content:space-between;">
+          <span>🏆 This session</span>
+          <button class="btn btn-ghost btn-sm" onclick="trivResetSession()">Reset scores</button>
+        </div>
+        <div style="font-size:11.5px;color:var(--text-dim);margin-bottom:12px;">
+          One point per question won. Scores last until you reset them or reload the dashboard.
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Viewer</th><th class="num">Correct</th><th>Last answer</th></tr></thead>
+            <tbody id="trivScores"><tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">No rounds played yet</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -2390,7 +2538,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Kick Username</th><th>Casino Username</th><th>Casino</th><th>Status</th><th>Discord</th><th>Wager</th><th>Verified At</th><th></th></tr></thead>
+            <thead><tr id="verifiedHead"><th data-sort="kick">Kick Username</th><th data-sort="casinoUser">Casino Username</th><th data-sort="casino">Casino</th><th data-sort="status">Status</th><th data-sort="discord">Discord</th><th data-sort="wager">Wager</th><th data-sort="verifiedAt">Verified At</th><th></th></tr></thead>
             <tbody id="verifiedTable"><tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:20px;">Loading...</td></tr></tbody>
           </table>
         </div>
@@ -2710,6 +2858,14 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
            was one more thing to find in a menu of eleven. Rules still live in
            streamers/{uid}/moderation/config with a live listener on the bot. -->
 
+      <!-- Always-on instructions. The banner below only appears once Kick has
+           already refused an action, which is too late to be the first time a
+           streamer hears about this. -->
+      <div class="card" id="modWenBotCard">
+        <div class="card-title">🛡️ Make WenBot a moderator</div>
+        <div id="modWenBotCardMount"></div>
+      </div>
+
       <!-- WenBot can only delete/timeout in channels where it's a MODERATOR.
            Shown when the bot has actually been refused by Kick. -->
       <div class="card" id="modNeedsModBanner" style="display:none;border-color:var(--red);">
@@ -2944,6 +3100,19 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             </div>
           </div>
 
+          <!-- 📬 Event routing — which announcement goes where, per event -->
+          <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
+              <div style="font-size:13px;color:var(--bright);font-weight:600;">📬 Event routing</div>
+              <button class="btn btn-ghost btn-sm" type="button" onclick="dreToggle()" id="dreToggleBtn" style="font-size:11px;">Show</button>
+            </div>
+            <p style="font-size:11px;color:var(--text-dim);margin:0 0 4px;line-height:1.6;">
+              Every announcement is on and uses the two channels above. Open this to switch one off, or send it somewhere of its own —
+              store redemptions to <code>#store-redemptions</code>, say, so they stop burying your stream announcements.
+            </p>
+            <div id="dreRows" style="display:none;margin-top:10px;"></div>
+          </div>
+
           <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap;">
             <button class="btn btn-accent" onclick="saveDiscordSettings()">Save Discord Settings</button>
             <button class="btn" onclick="populateDiscordChannels()" style="font-size:13px;padding:8px 16px;">↺ Refresh Channels</button>
@@ -3025,6 +3194,42 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
     </div>
 
     <div class="page" id="page-team">
+      <!-- Scoped share links — hand one tool to a mod without an account. -->
+      <div class="card owner-only" id="shareLinksCard">
+        <div class="card-title">🔗 Share a single tool</div>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+          A link that opens <strong>one tool</strong> and nothing else — no WenBot account needed, no access to your
+          settings, your payouts or the rest of the dashboard. Use it when someone is helping for a night rather than
+          joining your team. Links expire on their own and you can kill one instantly.
+        </p>
+        <div class="grid-2" style="gap:12px;">
+          <div class="field">
+            <label>Tool</label>
+            <select id="shareScope"></select>
+          </div>
+          <div class="field">
+            <label>Expires after</label>
+            <select id="shareHours">
+              <option value="4">4 hours</option>
+              <option value="12" selected>12 hours</option>
+              <option value="24">1 day</option>
+              <option value="72">3 days</option>
+              <option value="168">7 days</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Label <span style="color:var(--text-dim);font-weight:400;font-size:11px;">— so you know whose link it is</span></label>
+          <input type="text" id="shareLabel" maxlength="60" placeholder="e.g. Dave, Friday stream">
+        </div>
+        <button class="btn btn-accent" onclick="shareCreate(this)">Create link</button>
+
+        <div id="shareNewLink" style="display:none;margin-top:14px;"></div>
+
+        <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin:18px 0 8px;">Live links</div>
+        <div id="shareList"><div style="font-size:12px;color:var(--text-dim);">Loading…</div></div>
+      </div>
+
       <!-- Team — owner-only moderator delegation (Elite feature) -->
       <div style="margin-top:16px;" class="owner-only">
         <div class="card" style="position:relative;overflow:hidden;">
@@ -3284,9 +3489,45 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.28.1</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.30.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.30.0 &middot; Draws anyone can check, trivia, and polls on stream</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 19, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#128274; <strong>Every giveaway draw can now be checked by anyone.</strong> When your giveaway opens, our server locks in a secret number and publishes only its fingerprint &mdash; before a single person has entered. The winner is worked out from that number, and afterwards the number and the full entry list go public at <strong>wenbot.gg/verify-draw</strong>. Anyone can recompute the result in their own browser. If a winner had been swapped, tickets added or someone quietly dropped, the maths would not come out.</li>
+            <li>&#128279; <strong>Post the proof straight to chat.</strong> After a draw you get a one-click <em>Post link to chat</em> button. &ldquo;It was rigged&rdquo; now has an answer that is not just your word for it.</li>
+            <li>&#9878;&#65039; <strong>Drawing moved off your browser.</strong> Winners used to be picked by your own dashboard, which meant nobody could ever prove they were not chosen. The draw now runs on our servers against the locked-in number, and the odds are published with the result &mdash; including which luck bonuses were on and who was excluded, and why.</li>
+            <li>&#9200; <strong>Claim window with automatic redraw.</strong> Set how long a winner has to say something in chat. Any message counts. If they never reply, WenBot removes them and draws again &mdash; published as its own draw, so a redraw can never happen quietly.</li>
+            <li>&#129504; <strong>NEW: Trivia.</strong> Ask your chat a question and the first correct answer wins. Comes with a built-in question bank (slots, gaming, general knowledge, maths, music, film) or write your own with alternate spellings so nobody loses on a typo. Optional time limit, running scoreboard, and an OBS overlay that shows the question, the countdown and who got it.</li>
+            <li>&#128202; <strong>NEW: Poll overlay.</strong> Run <code>/poll</code> in your Kick chat as you always have &mdash; this puts it on stream with live bars and the countdown, then hides itself when the poll ends. Nothing to set up beyond adding the browser source.</li>
+            <li>&#128100; <strong>Add entrants by hand.</strong> Paste in names for a giveaway you announced somewhere else, or for someone whose message the bot never saw. They join the pool with one ticket and appear in the published draw like everyone else.</li>
+            <li>&#128190; <strong>Export entries as a spreadsheet.</strong> A real CSV with tickets, wager, source and &mdash; where it applies &mdash; why someone was excluded. Useful when a payout is questioned weeks later.</li>
+            <li>&#128273; <strong>NEW: Share a single tool.</strong> Hand a mod a link that opens <em>only</em> the slot request queue, or <em>only</em> giveaway draws. No WenBot account needed, no access to your settings or payouts. Links expire on their own and you can revoke one instantly. Found under Settings &rarr; Team.</li>
+            <li>&#127920; <strong>Slot requests can post to Discord.</strong> A new row in event routing, so requests can land in their own channel as they come in.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.29.0 &middot; Mid-giveaway requirements, Discord routing &amp; sortable tables</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 19, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#9989; <strong>Turn on Require Verification or Followers Only <em>while the giveaway is running</em>.</strong> They used to lock the moment you went live, so forgetting one meant ending the round and restarting it &mdash; losing every entry. If you run one giveaway for the whole stream, that was the whole stream. Both now stay adjustable, and so does Subscribers Only.</li>
+            <li>&#9888;&#65039; <strong>It applies to people who already entered, not just new ones.</strong> Switch a requirement on and anyone in the list who does not meet it is greyed out, labelled with the reason, and left out of the draw &mdash; with a line above the list telling you how many. Nothing is deleted: switch the requirement back off and they are all back in. Entry mode, keyword and duration still lock while live.</li>
+            <li>&#128236; <strong>NEW: Event routing.</strong> Discord settings now list every announcement WenBot can post &mdash; giveaway started, giveaway winner, bonus hunt started, GTB opened, GTB winner, store redemptions &mdash; each with its own on/off switch and its own channel. Leave a row alone and it keeps using your Giveaway or Announcements channel exactly as before.</li>
+            <li>&#127922; <strong>GTB now announces in Discord.</strong> Opening Guess the Balance posts a card with the guess command and a Watch on Kick button while guessing still counts, and your winner goes out to Discord the moment you send it to chat &mdash; with their guess, the actual balance, and how close they were.</li>
+            <li>&#127920; <strong>Bonus hunts stop landing in your giveaway channel.</strong> If you had no announcements channel picked, the hunt announcement used to fall back to the giveaway channel. It now goes to the channel you chose, or nowhere at all.</li>
+            <li>&#128176; <strong>Give store redemptions their own room.</strong> Point that one row at a <code>#store-redemptions</code> channel and the redemption ticker stops burying your go-live and bonus hunt posts.</li>
+            <li>&#128737;&#65039; <strong>Setup now shows you how to mod WenBot.</strong> The bot needs to be a moderator in your Kick chat before it can post or moderate, and that was easy to miss — it was one line of small print, and the warning about it only appeared <em>after</em> Kick had already refused something. The setup wizard now has a step for it with a picture of where the command goes and a button to copy <code>/mod wenbot</code>, the same panel sits at the top of your Bot page, and the Getting Started checklist spells out the command.</li>
+            <li>&#8597; <strong>Sort your Verified Users table.</strong> Click any column heading &mdash; Kick name, casino name, status, Discord, wager, verified date &mdash; to sort by it, click again to reverse, and a third time to go back to the normal order. Biggest wagers or newest verifications are now one click away, it works alongside the search box and the Under Code filter, and WenBot remembers your choice.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -5831,6 +6072,11 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
 <script src="js/firebase-config.js"></script>
 <script src="js/kick-auth.js"></script>
 <script src="js/casinos.js"></script>
+<script src="js/discord-events.js"></script>
+<script src="js/table-sort.js"></script>
+<script src="js/mod-wenbot.js"></script>
+<script src="js/giveaway-odds.js"></script>
+<script src="js/trivia-bank.js"></script>
 <script src="js/utils.js"></script>
 <script>
 // ── DISCORD NOTIFY ───────────────────────────────────────────────────────────
@@ -6949,10 +7195,15 @@ function showPage(id, el) {
   if (id === 'referrals') loadReferrals();
   if (id === 'points') loadTopViewers();
   if (id === 'gtb') openGTBPage();
+  if (id === 'trivia') openTriviaPage();
+  // Only drop the chat socket when no round is running. Closing it mid-round
+  // stopped answers being seen while the countdown kept going, so a question
+  // somebody had already answered ended in "nobody got it".
+  else if (!trivActive) trivDisconnectChat();
   if (id === 'leaderboard') { loadLeaderboards(); loadExtraBoards(); }
   if (id === 'store') { loadStoreItems(); loadRedemptions(); }
   if (id === 'commands') { loadCommands(); loadCommandAliases(); loadTimers(); }
-  if (id === 'kickbot')    { loadModeration(); loadModActions(); }
+  if (id === 'kickbot')    { loadModeration(); loadModActions(); renderModWenBotCard(); }
   if (id === 'bounties')   { loadBountiesPage(); }
   if (id === 'games') loadGamesSettings();
   if (id === 'bonushunt')   { loadBonusHunt(); loadBhHistory(); }
@@ -7017,6 +7268,7 @@ const PAGE_PLAN = {
   // Slot requests are free for everyone (Starter+) — not gated. (Left out of this
   // map = always accessible.) The bot honors the sr_settings.enabled toggle only.
   gtb:         'pro',
+  trivia:      'pro',
   points:      'pro',
   store:       'pro',
   raffle:      'pro',
@@ -7528,7 +7780,7 @@ function onAuthReady(user) {
   loadPortalSettings();
   // Moderator list — only the owner can view/manage. Skip the fetch entirely
   // for mods (the Team card is hidden via owner-only class anyway).
-  if (!fb.isModerating) teamLoadMods();
+  if (!fb.isModerating) { teamLoadMods(); shareLoad(); }
   // Start the pending-redemptions listener at boot so the Store nav badge updates
   // even before the streamer opens the Store page.
   loadRedemptions();
@@ -7645,12 +7897,34 @@ function onAuthReady(user) {
     if (profile.giveawayEntryFee > 0) document.getElementById('gwEntryFee').value = profile.giveawayEntryFee;
     { const q = document.querySelector(`input[name="gwEntryQty"][value="${profile.giveawayEntryMulti ? 'multi' : 'single'}"]`); if (q) q.checked = true; }
   }
+  // The last draw's proof survives a refresh — the streamer usually wants to post
+  // that link in chat, and losing it on an accidental reload meant digging the id
+  // out of Firestore by hand.
+  {
+    const _f = profile?.giveawayFairness;
+    if (_f && _f.lastDrawId && fb.activeUid) {
+      gwLastProof = {
+        drawId:   _f.lastDrawId,
+        nonce:    Math.max(0, (_f.draws || 1) - 1),
+        proofUrl: 'https://wenbot.gg/verify-draw?uid=' + encodeURIComponent(fb.activeUid)
+                  + '&d=' + encodeURIComponent(_f.lastDrawId),
+        restored: true,
+      };
+    }
+  }
+
+  // Restore the claim-window setting whether or not a giveaway is live — it is a
+  // stored preference, and showing "Off" for an armed auto-redraw is a lie.
+  const _claimSel = document.getElementById('gwClaimSeconds');
+  if (_claimSel) _claimSel.value = String(profile?.giveawayClaimSeconds || 0);
+
   gwUpdateUI();
   // Re-attach the winner-chat watcher if a winner was picked before refresh.
   // Independent of giveawayActive — the giveaway may already be closed but the
   // streamer still wants to watch the winner's chat.
   if (profile?.winnerWatch && profile?.winnerWatchAt) {
-    startWinnerChatWatch(profile.winnerWatchName || profile.winnerWatch, profile.winnerWatchAt);
+    // Deliberately NOT armed — see startWinnerChatWatch.
+    startWinnerChatWatch(profile.winnerWatchName || profile.winnerWatch, profile.winnerWatchAt, false);
   }
 }
 
@@ -7905,6 +8179,7 @@ function setType(type) {
 function toggleVerifiedReq(el) {
   el.classList.toggle('on');
   document.getElementById('verifiedReqFields').style.display = el.classList.contains('on') ? 'block' : 'none';
+  gwSaveLiveEligibility();
 }
 
 function toggleWagerReq(el) {
@@ -8002,6 +8277,7 @@ async function startGiveaway() {
     giveawayEntryFee:        entryFee,
     giveawayEntryMulti:      entryMulti,
     giveawayBlocked:         [],   // fresh round — blocks never carry over
+    giveawayManualEntries:   [],   // ditto for anyone added by hand
     giveawayMinWager:        minWager,
     giveawayWagerWindow:     wagerWindow,
     giveawayRequireRecentWager: requireRecentWager,
@@ -8021,7 +8297,21 @@ async function startGiveaway() {
     pendingChatMessage:      announceMsg,
     pendingChatTs:           Date.now() + Math.random(),
   });
+  // Firestore has been cleared, but `profile` is bound once per page load, so the
+  // in-memory copy still holds last round's names — and gwMergeManual reads that
+  // copy. Without this the previous giveaway's hand-added entrants reappear in
+  // the new pool.
+  if (profile) {
+    profile.giveawayManualEntries = [];
+    profile.giveawayBlocked       = [];
+  }
+  gwLastProof = null;
+
   ccBumpStat('giveawaysRun');
+  // Commit to a draw seed before a single entry lands. Deliberately awaited: a
+  // giveaway that opened without one cannot be drawn verifiably later, and the
+  // streamer should find that out now rather than at the draw.
+  await gwCommitFairness();
   gwUpdateUI();
   flash('🎉 Giveaway started! WenBot is announcing in chat.');
   if (gwTarget === 'discord') {
@@ -8052,6 +8342,18 @@ function quickStartGiveaway() {
 }
 
 // ── Redesign: entry mode, lifecycle stepper + launch bar ─────────────────────
+
+async function gwSaveClaimSeconds(val) {
+  const secs = Math.max(0, Math.min(600, parseInt(val, 10) || 0));
+  try {
+    await saveStreamerProfile({ giveawayClaimSeconds: secs });
+    if (profile) profile.giveawayClaimSeconds = secs;
+    flash(secs ? 'Winners now have ' + secs + 's to reply before an automatic redraw.'
+               : 'Automatic redraw off — you decide when to redraw.');
+  } catch (e) {
+    flash('Could not save that: ' + e.message, 'error');
+  }
+}
 
 function gwSetEntryMode(mode) {
   if (giveawayActive) return; // start-frozen — locked while live
@@ -8324,8 +8626,11 @@ async function gwClearAndEnd() {
     giveawayActive:        false,
     giveawayEntriesClosed: false,
     giveawayBlocked:       [],
+    giveawayManualEntries: [],
     winnerWatch:           null,
   });
+  if (profile) { profile.giveawayManualEntries = []; profile.giveawayBlocked = []; }
+  gwLastProof = null;
   flash('Giveaway cleared and ended.', 'success');
 }
 
@@ -8341,19 +8646,11 @@ function gwLuckNow() {
     wager: parseInt(document.getElementById('wagerLuckSlider')?.value, 10) || 1,
   };
 }
-function gwTickets(e, luck) {
-  // Pre-flag snapshots (entries collected before the bot started sending isSub/
-  // underCode) → trust the bot's already-correct precomputed tickets, so weighting
-  // still works for an in-flight giveaway that spanned the update.
-  if (e.isSub === undefined && e.underCode === undefined) return e.tickets || 1;
-  // Multi-buy point entries: each purchased entry is a base ticket.
-  const base = Math.max(1, e.paidEntries || 1);
-  let extra = 0;
-  if (luck.wager > 1 && e.wager > 0) extra += Math.min(Math.floor(e.wager / 1000), luck.wager - 1);
-  if (luck.sub   > 1 && e.isSub)     extra += (luck.sub - 1);
-  if (luck.code  > 1 && e.underCode) extra += (luck.code - 1);
-  return base + extra;
-}
+// Ticket weighting now lives in /js/giveaway-odds.js, because the DRAW happens
+// server-side and publishes the pool as a verifiable proof. The two have to
+// agree entry for entry or the published list would not be the list anyone
+// watched fill up.
+function gwTickets(e, luck) { return gwTicketsFor(e, luck); }
 
 function subscribeEntries() {
   if (entriesUnsub) entriesUnsub();
@@ -8364,8 +8661,10 @@ function subscribeEntries() {
   _gwSubscribeVerifiedIfNeeded();
   entriesUnsub = fb.db.collection('streamers').doc(uid)
     .collection('giveaway_state').doc('snapshot').onSnapshot(snap => {
-      if (!snap.exists) { entries = []; renderEntries(); return; }
-      entries = (snap.data().entries || []).map(e => ({
+      // Merge even with no snapshot doc — before the bot has written one, that
+      // doc is absent, and returning early here dropped every hand-added entrant.
+      if (!snap.exists) { entries = gwMergeManual([]); renderEntries(); return; }
+      entries = gwMergeManual((snap.data().entries || []).map(e => ({
         username:  e.kickName || e.kickKey,
         wager:     e.wager    || 0,
         tickets:   e.tickets  || 1,
@@ -8374,12 +8673,13 @@ function subscribeEntries() {
         isSub:     e.isSub,        // left undefined for pre-flag snapshots (see gwTickets)
         underCode: e.underCode,
         paidEntries: e.paidEntries || 1,  // multi-buy point entries
-      }));
+      })));
       renderEntries();
     });
 }
 
 function updateGiveawayStatus(active) {
+  if (typeof gwRenderProofStrip === 'function') gwRenderProofStrip();
   const dot = document.getElementById('giveawayDot');
   const txt = document.getElementById('giveawayStatusText');
   const typeLabel = currentGiveawayType === 'code' ? 'Code Users' : 'Everyone';
@@ -8578,6 +8878,89 @@ function _gwBadgesFor(entry) {
   return { html, rowClass };
 }
 
+// ── LIVE "WHO CAN ENTER" RULES ───────────────────────────────────────────────
+// These toggles used to lock the moment a giveaway went live, so a streamer who
+// forgot to switch one on had to end the round and restart it — losing every
+// entry. Many run one giveaway for a whole stream, so that was the whole stream.
+// They now stay adjustable, and are graded the same way the luck sliders are:
+// read from the LIVE controls at render and at draw, never from the snapshot
+// taken at start.
+
+// The rules the dashboard can judge for itself, as they stand right now.
+// Followers Only is deliberately absent — entries carry no follow flag, and the
+// bot already re-checks the drawn winner against Kick before announcing, which
+// is the moment that actually matters.
+function gwRulesNow() {
+  const verifiedOn = document.getElementById('toggleVerified')?.classList.contains('on') || false;
+  return {
+    subOnly: document.getElementById('toggleSubOnly')?.classList.contains('on') || false,
+    casino:  verifiedOn && (document.getElementById('verifiedCasinoCheck')?.checked || false),
+    discord: verifiedOn && (document.getElementById('verifiedDiscordCheck')?.checked || false),
+    board:   document.getElementById('verifiedBoardSelect')?.value || '',
+  };
+}
+
+// Why an already-collected entry no longer qualifies, or null if it still does.
+// Verification is read from the same sets that draw the entry badges, so this
+// needs no new data and no extra reads.
+function gwIneligibleReason(e, rules) {
+  return gwIneligibleReasonFor(e, rules, {
+    casino:  _gwVerifiedCasinoSet,
+    discord: _gwVerifiedDiscordSet,
+    boards:  _gwVerifiedBoards,
+  });
+}
+
+// The pool the draw actually runs on — identical to `entries` until a rule that
+// the dashboard can grade is switched on.
+function gwEligibleEntries() {
+  const rules = gwRulesNow();
+  if (!rules.subOnly && !rules.casino && !rules.discord) return entries;
+  return entries.filter(e => !gwIneligibleReason(e, rules));
+}
+
+// Persist a who-can-enter change made WHILE the giveaway is live. The bot reads
+// these off the profile doc — it already listens there (see the block-list note
+// above) — so a flip gates the next entry without a restart. No-op when nothing
+// is running: startGiveaway() writes the same fields itself.
+async function gwSaveLiveEligibility() {
+  if (!giveawayActive || !profile) return;
+  const verifiedOn = document.getElementById('toggleVerified')?.classList.contains('on') || false;
+  // The luck values ride along even though no luck control triggers this. A draw
+  // run from a share link reads its weights off the profile, so leaving them at
+  // whatever startGiveaway wrote would give that draw stale multipliers the
+  // moment a slider moved.
+  const _l = gwLuckNow();
+  const fields = {
+    giveawaySubOnly:         document.getElementById('toggleSubOnly')?.classList.contains('on') || false,
+    giveawayFollowerOnly:    document.getElementById('toggleFollowerOnly')?.classList.contains('on') || false,
+    giveawayVerifiedCasino:  verifiedOn && (document.getElementById('verifiedCasinoCheck')?.checked || false),
+    giveawayVerifiedDiscord: verifiedOn && (document.getElementById('verifiedDiscordCheck')?.checked || false),
+    giveawayVerifiedBoard:   document.getElementById('verifiedBoardSelect')?.value || '',
+    giveawaySubLuck:         _l.sub,
+    giveawayCodeLuck:        _l.code,
+    giveawayWagerLuck:       _l.wager,
+  };
+  try {
+    await saveStreamerProfile(fields);
+    Object.assign(profile, fields);
+    renderEntries();   // re-grade the pool against the new rule
+    const excluded = entries.length - gwEligibleEntries().length;
+    flash(excluded
+      ? `Requirement updated — ${excluded} of ${entries.length} ${excluded === 1 ? 'entry' : 'entries'} no longer qualify.`
+      : 'Requirement updated for the rest of this giveaway.');
+  } catch (e) {
+    flash('Could not update the requirement: ' + e.message, 'error');
+  }
+}
+
+// Followers Only and Subscribers Only share the generic toggle handler, which is
+// used all over the dashboard — wrap it rather than making every toggle save.
+function gwToggleEligibility(el) {
+  toggleOption(el);
+  gwSaveLiveEligibility();
+}
+
 function renderEntries() {
   const list = document.getElementById('gwParticipantsList');
   const count = entries.length;
@@ -8596,8 +8979,10 @@ function renderEntries() {
   }
 
   // Newest at top — the snapshot order is insertion order, so reverse.
-  const luck = gwLuckNow();
+  const luck  = gwLuckNow();
+  const rules = gwRulesNow();
   const ordered = [...entries].reverse();
+  let excluded = 0;
   list.innerHTML = ordered.map(e => {
     const isNew = !_gwShownKeys.has(e.kickKey);
     const meta = [];
@@ -8608,6 +8993,11 @@ function renderEntries() {
     const classes = ['gw-entry'];
     if (isNew) classes.push('gw-pop-in');
     if (badges.rowClass) classes.push(badges.rowClass);
+    // Entered before a requirement was switched on. Kept in the list, greyed and
+    // labelled, so the streamer can see who it caught — and so switching the
+    // requirement back off simply restores them.
+    const reason = gwIneligibleReason(e, rules);
+    if (reason) { excluded++; classes.push('gw-entry-inel'); meta.push(reason); }
     return `<div class="${classes.join(' ')}" data-key="${escHtml(e.kickKey || '')}">
       ${gwAvatarHtml(e)}
       <div class="gw-name"><span class="gw-name-text" style="cursor:pointer;" title="Click to vet @${escHtml(e.username || '')} — wager, Kick info & mod tools" onclick="openViewerProfile('${escHtml(e.username || '')}')">@${escHtml(e.username)}</span>${badges.html}</div>
@@ -8616,8 +9006,23 @@ function renderEntries() {
     </div>`;
   }).join('');
 
+  gwRenderEligibilityNote(excluded, count);
+
   // Update the seen-set so the next render only animates real new arrivals
   _gwShownKeys = new Set(entries.map(e => e.kickKey).filter(Boolean));
+}
+
+// Strip above the participants list, shown only when a live rule change has
+// actually caught someone. Says what the draw will really run on, so the entry
+// count never quietly overstates the pool.
+function gwRenderEligibilityNote(excluded, total) {
+  const el = document.getElementById('gwEligibilityNote');
+  if (!el) return;
+  if (!excluded) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = '';
+  el.innerHTML = `⚠️ <strong>${excluded}</strong> of ${total} `
+    + `${total === 1 ? 'entry does' : 'entries do'} not meet the requirements you switched on — `
+    + `drawing from <strong>${total - excluded}</strong>. Switch the requirement back off to include them again.`;
 }
 
 // Scale the spinner iframe to fit its container, using the chosen overlay's
@@ -8720,24 +9125,368 @@ function gwSyncSpinnerFrame() {
   });
 }
 
+// -- HAND-ADDED ENTRANTS ------------------------------------------------------
+// Entries typed in by the streamer (a giveaway announced on another platform, a
+// viewer whose message got eaten, a raffle winner carried over). They live on
+// the PROFILE, not the giveaway snapshot: the bot rewrites that snapshot
+// wholesale every few seconds and would erase them between flushes. Same reason
+// the block list lives there.
+
+// Bot entries win a key collision — someone who actually typed the keyword has
+// real sub / under-code flags, and a hand-added stub does not.
+function gwMergeManual(botEntries) {
+  const manual = profile?.giveawayManualEntries;
+  if (!Array.isArray(manual) || !manual.length) return botEntries;
+  const seen = new Set(botEntries.map(e => (e.kickKey || '').toLowerCase()));
+  const extra = manual
+    .filter(m => m.kickKey && !seen.has(String(m.kickKey).toLowerCase()))
+    .map(m => ({
+      username: m.kickName || m.kickKey,
+      wager: 0, tickets: 1, kickKey: String(m.kickKey).toLowerCase(),
+      avatarUrl: null, paidEntries: 1, manual: true,
+    }));
+  return botEntries.concat(extra);
+}
+
+function gwOpenAddEntrants() {
+  const el = document.getElementById('gwAddEntrantsModal');
+  if (!el) return;
+  el.style.display = 'flex';
+  const box = document.getElementById('gwAddEntrantsText');
+  if (box) { box.value = ''; box.focus(); }
+}
+function gwCloseAddEntrants() {
+  const el = document.getElementById('gwAddEntrantsModal');
+  if (el) el.style.display = 'none';
+}
+
+async function gwAddEntrants() {
+  const raw = (document.getElementById('gwAddEntrantsText')?.value || '').trim();
+  if (!raw) { gwCloseAddEntrants(); return; }
+  // One name per line, but tolerate commas and a leading @ — people paste these
+  // out of Discord, a spreadsheet and their own notes, and none of those agree.
+  const names = raw.split(/[\n,]+/).map(t => t.trim().replace(/^@/, '')).filter(Boolean);
+  const existing = new Set(entries.map(e => (e.kickKey || '').toLowerCase()));
+  const prior    = Array.isArray(profile?.giveawayManualEntries) ? profile.giveawayManualEntries : [];
+  prior.forEach(m => existing.add(String(m.kickKey || '').toLowerCase()));
+
+  const added = [];
+  for (const name of names) {
+    const key = name.toLowerCase();
+    if (!key || existing.has(key)) continue;
+    existing.add(key);
+    added.push({ kickKey: key, kickName: name, addedAt: Date.now() });
+  }
+  if (!added.length) { flash('Nobody new in that list — they are all entered already.', 'error'); return; }
+
+  const next = prior.concat(added);
+  try {
+    await saveStreamerProfile({ giveawayManualEntries: next });
+    if (profile) profile.giveawayManualEntries = next;
+    entries = gwMergeManual(entries.filter(e => !e.manual));
+    renderEntries();
+    gwCloseAddEntrants();
+    flash('Added ' + added.length + (added.length === 1 ? ' entrant' : ' entrants') + ' by hand.');
+  } catch (e) {
+    flash('Could not add them: ' + e.message, 'error');
+  }
+}
+
+// -- EXPORT -------------------------------------------------------------------
+// A real file rather than a clipboard blob: the reason to want this is usually a
+// dispute or a payout record, and both want something you can keep. Includes who
+// was excluded and why, so the export explains the pool rather than just listing it.
+function exportEntries() {
+  if (!entries.length) { flash('No entries to export.', 'error'); return; }
+  const luck  = gwLuckNow();
+  const rules = gwRulesNow();
+  const rows  = [['entry', 'tickets', 'wager', 'subscriber', 'under_code', 'source', 'eligible', 'note']];
+  entries.forEach(e => {
+    const why = gwIneligibleReason(e, rules);
+    rows.push([
+      e.username || e.kickKey || '',
+      gwTickets(e, luck),
+      e.wager || 0,
+      e.isSub === undefined ? 'unknown' : (e.isSub ? 'yes' : 'no'),
+      e.underCode === undefined ? 'unknown' : (e.underCode ? 'yes' : 'no'),
+      e.manual ? 'added by hand' : 'chat',
+      why ? 'no' : 'yes',
+      why || '',
+    ]);
+  });
+  const csv = rows.map(r => r.map(cell => {
+    const v = String(cell);
+    return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  }).join(',')).join('\r\n');
+
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+  const blob  = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'giveaway-entries-' + stamp + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  flash('Exported ' + entries.length + ' entries.');
+}
+
+// -- CLAIM WINDOW + AUTO-REROLL -----------------------------------------------
+// The winner's chat was already being watched, but watching it was the
+// streamer's job: notice that nobody replied, decide how long is long enough,
+// and redraw by hand, mid-stream, while talking. This puts a clock on it. Any
+// message from the winner counts as a claim; silence past the deadline removes
+// them and draws again.
+//
+// Off unless the streamer sets a claim time. An unattended redraw is not
+// something to switch on for somebody.
+let _gwClaimTimer    = null;
+let _gwClaimDeadline = 0;
+let _gwClaimKey      = null;
+let _gwClaimed       = false;
+
+function gwClaimSeconds() {
+  const n = parseInt(profile?.giveawayClaimSeconds, 10);
+  return Number.isFinite(n) && n > 0 ? Math.min(600, n) : 0;
+}
+
+function gwStartClaimWindow(winnerKey) {
+  gwStopClaimWindow();
+  const secs = gwClaimSeconds();
+  if (!secs || !winnerKey) { gwRenderClaimBar(); return; }
+  _gwClaimKey      = String(winnerKey).toLowerCase();
+  _gwClaimed       = false;
+  _gwClaimDeadline = Date.now() + secs * 1000;
+  _gwClaimTimer    = setInterval(gwTickClaim, 250);
+  gwRenderClaimBar();
+}
+
+function gwStopClaimWindow() {
+  if (_gwClaimTimer) { clearInterval(_gwClaimTimer); _gwClaimTimer = null; }
+  _gwClaimDeadline = 0;
+  _gwClaimKey      = null;
+  gwRenderClaimBar();
+}
+
+// Called by the winner-chat listener the moment they say anything at all.
+function gwMarkClaimed() {
+  if (!_gwClaimKey || _gwClaimed) return;
+  _gwClaimed = true;
+  if (_gwClaimTimer) { clearInterval(_gwClaimTimer); _gwClaimTimer = null; }
+  gwRenderClaimBar();
+}
+
+function gwTickClaim() {
+  if (_gwClaimed || !_gwClaimDeadline) return;
+  if (Date.now() < _gwClaimDeadline) { gwRenderClaimBar(); return; }
+  const key = _gwClaimKey;
+  gwStopClaimWindow();
+  gwAutoReroll(key);
+}
+
+async function gwAutoReroll(key) {
+  if (!key) return;
+  // The winner's messages reach us only through the bot. If the bot is not
+  // running, silence means nothing at all — rerolling on it would punish a
+  // winner who was replying the whole time.
+  const hb = botStatusData?.heartbeat || 0;
+  if (!hb || (Date.now() - hb) > 300000) {
+    flash('Not redrawing: WenBot looks offline, so it cannot see whether @' + key + ' replied.', 'error');
+    return;
+  }
+  flash('No reply from @' + key + ' in time — removing them and drawing again.');
+  // Same path as a manual removal, so they cannot rejoin this round either.
+  await _gwRemoveEntryByKey(key);
+  closeWinnerPopup();
+  // Fresh draw under the SAME commitment at the next nonce, so a re-roll is
+  // published like any other draw rather than quietly replacing the first.
+  await spinPicker();
+}
+
+function gwRenderClaimBar() {
+  const bar = document.getElementById('gwClaimBar');
+  if (!bar) return;
+  if (!_gwClaimKey && !_gwClaimed) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  bar.style.display = '';
+  if (_gwClaimed) {
+    bar.innerHTML = '<span style="color:var(--green);font-weight:700;font-size:11.5px;">&#10003; Claimed — they replied in chat</span>';
+    return;
+  }
+  const secs = Math.max(1, gwClaimSeconds());
+  const left = Math.max(0, Math.ceil((_gwClaimDeadline - Date.now()) / 1000));
+  const pct  = Math.max(0, Math.min(100, (left / secs) * 100));
+  const col  = left <= 10 ? 'var(--red)' : 'var(--gold)';
+  bar.innerHTML =
+    '<div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text-dim);">'
+    + '<span>Waiting for @' + escHtml(_gwClaimKey) + ' to reply</span>'
+    + '<strong style="color:' + col + ';margin-left:auto;">' + left + 's</strong>'
+    + '<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px;" onclick="gwStopClaimWindow()">Cancel</button>'
+    + '</div>'
+    + '<div style="height:3px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden;">'
+    + '<div style="height:100%;width:' + pct + '%;background:' + col + ';transition:width .25s linear;"></div>'
+    + '</div>';
+}
+
+// -- VERIFIABLE DRAWS ---------------------------------------------------------
+// A giveaway commits to a secret seed before entries open and publishes only its
+// hash; the draw happens server-side against that seed and publishes a proof any
+// viewer can recompute. The streamer never holds the seed, so "you picked your
+// mate" stops being an accusation nobody can answer either way.
+
+let gwLastProof = null;   // most recent draw proof, for the strip + chat link
+
+// Called as the giveaway starts. Failure is surfaced but NOT fatal: a giveaway
+// that runs unverifiably is worse than one that does not run at all only if the
+// streamer is left thinking it was verified, so the strip says plainly when
+// there is no commitment.
+async function gwCommitFairness() {
+  if (!fb.currentUser) return;
+  gwLastProof = null;
+  try {
+    const token = await fb.currentUser.getIdToken();
+    const r = await fetch('/api/giveaway-commit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ uid: fb.activeUid }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'commit failed');
+    if (profile) profile.giveawayFairness = { serverSeedHash: d.serverSeedHash, committedAt: d.committedAt, draws: 0 };
+  } catch (e) {
+    flash('This giveaway could not be made verifiable: ' + e.message, 'error');
+    if (profile) profile.giveawayFairness = null;
+  }
+  gwRenderProofStrip();
+}
+
+// Runs the draw. Returns the proof summary, or null after explaining the problem.
+async function gwServerDraw(luck, rules) {
+  if (!fb.currentUser) return null;
+  try {
+    const token = await fb.currentUser.getIdToken();
+    const r = await fetch('/api/giveaway-draw', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ uid: fb.activeUid, luck, rules }),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      // A round with no seed, or one carrying a seed from a previous round, can
+      // be fixed in place — nothing has been revealed for THIS round yet, so a
+      // fresh commitment now is as good as one made at the start. Telling the
+      // streamer to restart would throw away every entry they have collected.
+      if (d.code === 'no_commitment' || d.code === 'stale_commitment') {
+        if (confirm('This giveaway has no draw seed yet, so the result could not be verified.\n\n'
+                  + 'Get one now and draw? Your entries are kept.')) {
+          await gwCommitFairness();
+          if (profile?.giveawayFairness?.serverSeedHash) return gwServerDraw(luck, rules);
+        }
+        return null;
+      }
+      flash(d.error || 'The draw could not be completed.', 'error');
+      return null;
+    }
+    return d;
+  } catch (e) {
+    // Never silently fall back to a local random pick — that would hand back a
+    // winner the streamer cannot prove anything about, under a button that says
+    // the opposite.
+    flash('Could not reach the draw service. Nothing was drawn — try again.', 'error');
+    return null;
+  }
+}
+
+// Strip under the giveaway status bar: the committed hash while entries are open,
+// the verify link once a draw has happened.
+function gwRenderProofStrip() {
+  const el = document.getElementById('gwProofStrip');
+  if (!el) return;
+  const fair = profile?.giveawayFairness;
+
+  if (gwLastProof) {
+    const url = gwLastProof.proofUrl;
+    el.style.display = '';
+    // A proof restored after a reload has the id and the link but not the ticket
+    // figures — show what we actually have rather than "ticket undefined".
+    const detail = gwLastProof.restored
+      ? '<span style="color:var(--text-dim);">from your last draw</span>'
+      : '<span style="color:var(--text-dim);">ticket ' + gwLastProof.winningTicket + ' of ' + gwLastProof.totalTickets + '</span>';
+    el.innerHTML = '<span style="color:var(--green);font-weight:700;">&#10003; Draw #' + (gwLastProof.nonce + 1) + ' published</span>'
+      + detail
+      + '<a href="' + escHtml(url) + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">Open verifier</a>'
+      + '<button class="btn btn-ghost btn-sm" onclick="gwPostProofToChat()" title="Post the verify link in your Kick chat">Post link to chat</button>';
+    return;
+  }
+  if (fair?.serverSeedHash) {
+    el.style.display = '';
+    el.innerHTML = '<span style="color:var(--text-dim);">&#128274; Draw seed committed</span>'
+      + '<code style="color:var(--accent);font-size:10.5px;">' + escHtml(fair.serverSeedHash.slice(0, 24)) + '&hellip;</code>'
+      + '<span style="color:var(--text-dim);">published before entries opened</span>';
+    return;
+  }
+  if (giveawayActive) {
+    el.style.display = '';
+    el.innerHTML = '<span style="color:var(--orange);">&#9888; This giveaway has no draw seed — the result will not be verifiable.</span>';
+    return;
+  }
+  el.style.display = 'none';
+  el.innerHTML = '';
+}
+
+// Queue the verify link for the bot to post, so viewers get it without the
+// streamer having to copy anything mid-stream.
+async function gwPostProofToChat() {
+  if (!gwLastProof) return;
+  await saveStreamerProfile({
+    pendingChatMessage: 'Check the draw yourself: ' + gwLastProof.proofUrl,
+    pendingChatTs:      Date.now() + Math.random(),
+  });
+  flash('Verify link queued for chat.');
+}
+
 async function spinPicker() {
   if (!entries.length) { flash('No entries to pick from.', 'error'); return; }
-  // Minimal debounce — just enough to absorb double-clicks. Spam is handled
-  // properly on the iframe side: while a spin is animating, additional
-  // clicks queue up and the iframe rolls into the latest winner the moment
-  // the current spin lands. No animation gets interrupted mid-flight.
+  // Requirements switched on mid-giveaway are graded here, not just on new
+  // entries — otherwise turning one on would leave the people it was meant to
+  // exclude still able to win.
+  const eligible = gwEligibleEntries();
+  if (!eligible.length) {
+    flash('No entries meet the requirements you have switched on. Turn one back off, or wait for entries that qualify.', 'error');
+    return;
+  }
+  // The guard has to span the whole server round-trip, not a fixed 250ms: a draw
+  // is a real, published, seed-consuming event now, and a second click during a
+  // slow request published a second proof and announced a different winner. Held
+  // until the draw resolves, then released in the finally below.
   if (spinningNow) return;
   spinningNow = true;
-  setTimeout(() => { spinningNow = false; }, 250);
 
-  // True RNG over the weighted pool. Tickets are recomputed from the LIVE luck
-  // sliders at THIS click (gwTickets), NOT the up-to-5s-old snapshot value —
-  // so a streamer who nudges a slider and immediately draws gets the new odds.
-  const luck = gwLuckNow();
-  const pool = [];
-  entries.forEach(e => { const t = gwTickets(e, luck); for (let i = 0; i < t; i++) pool.push(e); });
-  winner = pool[Math.floor(Math.random() * pool.length)];
-  const pickedWinner = winner;
+  // The draw runs on the SERVER against the seed committed before entries
+  // opened, and publishes a proof anyone can recompute. It has to be server-side
+  // to mean anything: a winner picked in this browser is a winner the streamer
+  // could have picked, and no amount of published maths would fix that.
+  //
+  // Tickets are still weighted from the LIVE luck sliders at THIS click, not the
+  // up-to-5s-old snapshot value, so nudging a slider and drawing gets the new
+  // odds — the server is told the slider values and publishes them in the proof.
+  const luck  = gwLuckNow();
+  let drawn;
+  try {
+    drawn = await gwServerDraw(luck, gwRulesNow());
+  } finally {
+    // Released whether the draw succeeded, failed or threw — a stuck flag would
+    // leave the Draw button dead for the rest of the round.
+    spinningNow = false;
+  }
+  if (!drawn) return;   // gwServerDraw already explained why
+
+  // Match the returned winner back to the local entry so the reveal has their
+  // avatar and wager. Falls back to a bare record if the snapshot moved on.
+  const pickedWinner = eligible.find(e => (e.kickKey || e.username || '').toLowerCase() === drawn.winnerKey)
+    || { username: drawn.winner, kickKey: drawn.winnerKey, wager: 0, tickets: 1 };
+  winner = pickedWinner;
+  gwLastProof = drawn;
+  gwRenderProofStrip();
 
   // Make sure the iframe is loaded with the chosen overlay style + activated.
   // Cancel any pending overlay-hide timer from a previous spin — otherwise it
@@ -8764,7 +9513,7 @@ async function spinPicker() {
     type:    'spin',
     winner:  pickedWinner.username,
     wager:   pickedWinner.wager || 0,
-    entries: entries.map(e => {
+    entries: eligible.map(e => {
       const lcKey = (e.username || '').toLowerCase();
       let av = e.avatarUrl;
       if (!av && lcKey === selfKey && profile?.kickAvatar) av = profile.kickAvatar;
@@ -8837,13 +9586,19 @@ window.addEventListener('message', (e) => {
         winnerWatchAt:      watchAt,
       })
       .catch(() => {});
-    startWinnerChatWatch(pickedWinner.username, watchAt);
+    startWinnerChatWatch(pickedWinner.username, watchAt, true);
   }
 });
 
 // ── WINNER CHAT WATCHER ──
 let winnerChatUnsub = null;
-function startWinnerChatWatch(name, watchAt) {
+// `arm` starts the claim countdown, and is passed ONLY by a draw in this
+// session. Re-attaching after a page reload must never arm it: winnerWatch stays
+// set on the profile for the whole rest of the round, so a refresh would start a
+// fresh full-length clock for a winner who may already have been kept, removed
+// or resolved — and then remove them and redraw, with no countdown ever visible
+// (the bar lives in the decision card, which that path does not open).
+function startWinnerChatWatch(name, watchAt, arm) {
   const uid = fb.activeUid;
   if (!uid) return;
   if (winnerChatUnsub) { winnerChatUnsub(); winnerChatUnsub = null; }
@@ -8858,6 +9613,8 @@ function startWinnerChatWatch(name, watchAt) {
   titleEl.onclick = () => openViewerProfile(name);
   msgsEl.innerHTML = '';
   waitingEl.style.display = '';
+  if (arm) gwStartClaimWindow(name);
+  else     gwStopClaimWindow();   // a restored watch is for reading, not for redrawing
   // The under-stage wrap stays hidden — the winner's chat only ever shows
   // inside the decision card (and later via their name in the Winners list).
   // The bot keeps capturing in the background so nothing is missed.
@@ -8870,6 +9627,8 @@ function startWinnerChatWatch(name, watchAt) {
       const msgs = snap.docs.map(d => d.data());
       if (!msgs.length) { waitingEl.style.display = ''; return; }
       waitingEl.style.display = 'none';
+      // They spoke — that is the claim. Stops the auto-reroll clock.
+      gwMarkClaimed();
       msgsEl.innerHTML = msgs.map(m => {
         const t    = m.ts ? new Date(m.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
         const who  = m.kickName || name;
@@ -9790,6 +10549,7 @@ window.addEventListener('resize', _positionWinnerPopup);
 // chat panel back to its under-stage home so the claim-watch continues there.
 function closeWinnerPopup() {
   clearTimeout(_gwWinnerPopupTimer);
+  gwStopClaimWindow();
   const card = document.getElementById('gwWinnerDecision');
   const wasOpen = card && card.style.display === 'block';
   if (card) card.style.display = 'none';
@@ -9873,11 +10633,6 @@ function _gwClearWinnerWatcher() {
     winnerWatchName: '',
     winnerWatchAt:   0,
   }).catch(() => {});
-}
-
-function exportEntries() {
-  const text = entries.map(e => e.username).join('\n');
-  navigator.clipboard.writeText(text).then(() => flash('Entries copied to clipboard!'));
 }
 
 // ── POINTS ──
@@ -10203,6 +10958,7 @@ async function startGTB() {
     pendingChatTs: Date.now(),
   });
   flash('GTB is open! WenBot is announcing in chat.');
+  discordNotify('gtb_open', {});
   ccBumpStat('gtbRun');
   listenGTBGuesses();
   bhGtbRender();
@@ -10298,6 +11054,11 @@ function renderGTBGuesses(actualBalance) {
   }).join('');
 }
 
+// Set by pickGTBWinner, consumed (and cleared) by postGTBAnnounce so the Discord
+// embed carries real numbers even if the streamer rewrites the chat message.
+// Cleared after posting so a second Post to Chat doesn't re-announce the winner.
+let _gtbPickedWinner = null;
+
 function pickGTBWinner() {
   const actual = parseFloat(document.getElementById('gtbActualBalance').value);
   if (isNaN(actual)) { flash('Enter the actual balance first.', 'error'); return; }
@@ -10314,6 +11075,7 @@ function pickGTBWinner() {
     </div>`;
   document.getElementById('gtbAnnounce').value = `🎰 GTB Winner: @${wName} with a guess of $${Number(w.guess).toLocaleString()}! Actual balance was $${actual.toLocaleString()} (±$${diff.toLocaleString()}) 🏆`;
   renderGTBGuesses(actual);
+  _gtbPickedWinner = { winner: wName, guess: Number(w.guess), actual };
   flash('Winner found: ' + wName);
 }
 
@@ -10321,6 +11083,12 @@ async function postGTBAnnounce() {
   const msg = document.getElementById('gtbAnnounce').value.trim();
   if (!msg) return;
   await saveStreamerProfile({ pendingChatMessage: msg, pendingChatTs: Date.now() });
+  // Discord gets the winner at the same moment chat does. Only when a winner was
+  // actually picked — this box doubles as a free-text "post to chat" field.
+  if (_gtbPickedWinner) {
+    discordNotify('gtb_winner', _gtbPickedWinner);
+    _gtbPickedWinner = null;
+  }
   flash('Message queued for WenBot to post!');
 }
 
@@ -10329,6 +11097,418 @@ async function clearGTBSession() {
   activeGuesses = [];
   renderGTBGuesses();
   flash('GTB session cleared.');
+}
+
+// ── SCOPED SHARE LINKS ───────────────────────────────────────────────────────
+// Team delegation is the heavy option: Elite, two people, needs a WenBot login,
+// grants the whole dashboard. This is the light one — a link that opens a single
+// tool for a fixed number of hours. The token is shown ONCE, because only its
+// hash is stored; a lost link gets revoked and reissued rather than recovered.
+
+let _shareScopes = null;
+
+async function shareApi(payload) {
+  const token = await fb.currentUser.getIdToken();
+  const r = await fetch('/api/share-admin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify(Object.assign({ uid: fb.activeUid }, payload)),
+  });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || 'Request failed');
+  return d;
+}
+
+async function shareLoad() {
+  const list = document.getElementById('shareList');
+  if (!list || !fb.currentUser) return;
+  try {
+    const d = await shareApi({ action: 'list' });
+    _shareScopes = d.scopes;
+    const sel = document.getElementById('shareScope');
+    if (sel && !sel.options.length) {
+      sel.innerHTML = Object.keys(d.scopes)
+        .map(k => '<option value="' + k + '">' + escHtml(d.scopes[k].label) + '</option>').join('');
+    }
+    // Revoked and expired links are history, not something to act on.
+    const live = d.links.filter(l => !l.revoked && !l.expired);
+    if (!live.length) {
+      list.innerHTML = '<div style="font-size:12px;color:var(--text-dim);background:var(--bg-card);border:1px dashed var(--border);border-radius:8px;padding:14px;text-align:center;">No live links.</div>';
+      return;
+    }
+    list.innerHTML = live.map(l => {
+      const mins = Math.round((l.expiresAt - Date.now()) / 60000);
+      const when = mins < 60 ? mins + ' min left' : Math.round(mins / 60) + 'h left';
+      const used = l.uses ? l.uses + (l.uses === 1 ? ' use' : ' uses') : 'not used yet';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin-bottom:7px;">'
+        + '<div style="min-width:0;flex:1;">'
+        +   '<div style="font-size:13px;color:var(--bright);font-weight:600;">' + escHtml(l.scopeLabel)
+        +     (l.label ? ' <span style="color:var(--text-dim);font-weight:400;">— ' + escHtml(l.label) + '</span>' : '') + '</div>'
+        +   '<div style="font-size:11px;color:var(--text-dim);margin-top:2px;">' + when + ' · ' + used + '</div>'
+        + '</div>'
+        + '<button class="btn btn-danger btn-sm" onclick="shareRevoke(\'' + escHtml(l.id) + '\')">Revoke</button>'
+        + '</div>';
+    }).join('');
+  } catch (e) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--red);">Could not load links: ' + escHtml(e.message) + '</div>';
+  }
+}
+
+async function shareCreate(btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const d = await shareApi({
+      action: 'create',
+      scope:  document.getElementById('shareScope')?.value,
+      hours:  parseInt(document.getElementById('shareHours')?.value, 10) || 12,
+      label:  (document.getElementById('shareLabel')?.value || '').trim(),
+    });
+    const box = document.getElementById('shareNewLink');
+    if (box) {
+      box.style.display = '';
+      box.innerHTML =
+        '<div style="background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.35);border-radius:9px;padding:12px 14px;">'
+        + '<div style="font-size:11px;color:var(--green);font-weight:800;letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;">Copy this now</div>'
+        + '<div style="font-size:11.5px;color:var(--text-dim);line-height:1.6;margin-bottom:8px;">'
+        +   'This is the only time it can be shown — we store a fingerprint of it, not the link itself. '
+        +   'If it goes astray, revoke it and make another.'
+        + '</div>'
+        + '<input readonly value="' + escHtml(d.url) + '" onclick="this.select()" '
+        +   'style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--accent);font-size:12px;padding:8px 10px;font-family:monospace;">'
+        + '<button class="btn btn-accent btn-sm" style="margin-top:8px;" onclick="shareCopy(this,\'' + escHtml(d.url) + '\')">Copy link</button>'
+        + '</div>';
+    }
+    const lbl = document.getElementById('shareLabel'); if (lbl) lbl.value = '';
+    shareLoad();
+  } catch (e) {
+    flash(e.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function shareCopy(btn, url) {
+  navigator.clipboard.writeText(url).then(() => {
+    const t = btn.textContent;
+    btn.textContent = '✅ Copied';
+    setTimeout(() => { btn.textContent = t; }, 2000);
+  }).catch(() => flash('Could not copy — select the link and copy it by hand.', 'error'));
+}
+
+async function shareRevoke(id) {
+  if (!confirm('Revoke this link? Anyone holding it loses access immediately.')) return;
+  try {
+    await shareApi({ action: 'revoke', id });
+    flash('Link revoked.');
+    shareLoad();
+  } catch (e) {
+    flash(e.message, 'error');
+  }
+}
+
+// ── TRIVIA ───────────────────────────────────────────────────────────────────
+// Ask chat a question, first correct answer wins.
+//
+// Answers are read from Kick's public chat socket IN THIS PAGE rather than
+// through the bot. That is a deliberate trade: it means a round only runs while
+// the dashboard is open, but it also means the streamer sees every answer land
+// in real time and the winner is called the instant it arrives, with no round
+// trip through Firestore. Trivia is an attended, on-stream activity — the
+// streamer is already looking at this page.
+
+let trivQuestion   = null;   // { q, a, alts[], cat, diff }
+let trivActive     = false;
+let trivWinner     = null;
+let trivDeadline   = 0;
+let trivTimer      = null;
+let trivSeen       = 0;      // messages seen this round, for the "chat is alive" count
+let trivAsked      = [];     // questions used this session, so the bank does not repeat
+let trivScores     = {};     // kickKey -> { name, correct, last }
+let trivSocket     = null;
+let trivChatroomId = null;
+let trivBackoff    = 1000;
+
+function trivSetChatState(text, tone) {
+  const el = document.getElementById('trivChatState');
+  if (!el) return;
+  const colour = tone === 'ok' ? 'var(--green)' : (tone === 'bad' ? 'var(--red)' : 'var(--text-dim)');
+  el.innerHTML = '<span style="color:' + colour + ';">' + escHtml(text) + '</span>';
+}
+
+// Opened when the page is opened, closed when it is left. Kick's chat socket is
+// public and read-only — the same feed the chat overlay uses — so this needs no
+// credentials and cannot post anything.
+async function trivConnectChat() {
+  const channel = profile?.kickChannel;
+  if (!channel) { trivSetChatState('Connect your Kick channel first — there is no chat to read.', 'bad'); return; }
+  if (trivSocket) return;
+
+  trivSetChatState('Connecting to your chat…');
+  try {
+    if (!trivChatroomId) {
+      const r = await fetch('/api/kick-channel?username=' + encodeURIComponent(channel));
+      const d = await r.json();
+      trivChatroomId = d && d.chatroom_id;
+    }
+    if (!trivChatroomId) { trivSetChatState('Could not find that Kick channel.', 'bad'); return; }
+  } catch (e) {
+    trivSetChatState('Could not reach Kick to find your chat.', 'bad');
+    return;
+  }
+
+  const PUSHER_KEY = '32cbd69e4b950bf97679';   // Kick's public web client key
+  const ws = new WebSocket('wss://ws-us2.pusher.com/app/' + PUSHER_KEY
+    + '?protocol=7&client=js&version=8.4.0&flash=false');
+  trivSocket = ws;
+  let ping = null;
+
+  ws.onopen = () => { trivBackoff = 1000; };
+
+  ws.onmessage = (evt) => {
+    let pkt; try { pkt = JSON.parse(evt.data); } catch (e) { return; }
+    const ev = pkt.event || '';
+    if (ev === 'pusher:connection_established') {
+      ws.send(JSON.stringify({ event: 'pusher:subscribe', data: { auth: '', channel: 'chatrooms.' + trivChatroomId + '.v2' } }));
+      clearInterval(ping);
+      ping = setInterval(() => { if (ws.readyState === 1) ws.send(JSON.stringify({ event: 'pusher:ping', data: {} })); }, 120000);
+      return;
+    }
+    if (ev === 'pusher:ping') { ws.send(JSON.stringify({ event: 'pusher:pong', data: {} })); return; }
+    if (ev === 'pusher:subscription_succeeded') { trivSetChatState('Connected to your chat — ready to ask.', 'ok'); return; }
+    if (ev.indexOf('ChatMessageEvent') === -1) return;
+
+    let data; try { data = typeof pkt.data === 'string' ? JSON.parse(pkt.data) : pkt.data; } catch (e) { return; }
+    if (!data || !data.sender) return;
+    trivOnChat(data.sender.username || '', data.content || '');
+  };
+
+  ws.onclose = () => {
+    clearInterval(ping);
+    // A newer socket may already have replaced this one; do not null it out from
+    // under the connection that is actually live.
+    if (trivSocket === ws) trivSocket = null;
+    else return;
+    // Only chase it while the page is still the one on screen.
+    if (document.getElementById('page-trivia')?.classList.contains('active')) {
+      trivSetChatState('Chat dropped — reconnecting…');
+      setTimeout(trivConnectChat, trivBackoff);
+      trivBackoff = Math.min(trivBackoff * 2, 15000);
+    }
+  };
+  ws.onerror = () => { try { ws.close(); } catch (e) {} };
+}
+
+function trivDisconnectChat() {
+  if (!trivSocket) return;
+  // Detach the reconnect handler BEFORE closing. close() only moves the socket
+  // to CLOSING; the close event still fires afterwards, and the old handler
+  // would dial a second socket that then double-counts every message.
+  try { trivSocket.onclose = null; trivSocket.onmessage = null; } catch (e) {}
+  try { trivSocket.close(); } catch (e) {}
+  trivSocket = null;
+}
+
+// Every chat message while a round is open.
+function trivOnChat(username, content) {
+  if (!trivActive || !trivQuestion || trivWinner) return;
+  trivSeen++;
+  const correct = triviaIsCorrect(content, trivQuestion);
+  trivRenderFeed(username, content, correct);
+  if (correct) trivDeclareWinner(username, content);
+}
+
+function trivRenderFeed(username, content, correct) {
+  const feed = document.getElementById('trivFeed');
+  if (!feed) return;
+  const row = document.createElement('div');
+  row.style.cssText = 'padding:4px 8px;border-radius:6px;'
+    + (correct ? 'background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.35);' : '');
+  row.innerHTML = '<span style="color:' + (correct ? 'var(--green)' : 'var(--gold)') + ';font-weight:600;">'
+    + escHtml(username) + '</span><span style="color:var(--text);"> ' + escHtml(content) + '</span>'
+    + (correct ? ' <span style="color:var(--green);font-weight:800;">✓</span>' : '');
+  feed.appendChild(row);
+  // Keep the feed short — it is a live check that answers are landing, not a log.
+  while (feed.children.length > 60) feed.removeChild(feed.firstChild);
+  feed.scrollTop = feed.scrollHeight;
+  const c = document.getElementById('trivSeenCount');
+  if (c) c.textContent = trivSeen ? '· ' + trivSeen + ' messages this round' : '';
+}
+
+async function trivDeclareWinner(username, content) {
+  trivWinner = username;
+  trivStopTimer();
+  const key = username.toLowerCase();
+  const prev = trivScores[key] || { name: username, correct: 0, last: '' };
+  trivScores[key] = { name: username, correct: prev.correct + 1, last: content.slice(0, 60) };
+  trivRenderScores();
+
+  const box = document.getElementById('trivWinnerBox');
+  if (box) {
+    box.style.display = '';
+    box.innerHTML = '<div style="background:rgba(0,255,136,0.08);border:1px solid rgba(0,255,136,0.35);border-radius:8px;padding:12px;">'
+      + '<div style="font-size:11px;color:var(--text-dim);margin-bottom:3px;">CORRECT</div>'
+      + '<div style="font-family:\'Exo 2\',sans-serif;font-size:20px;font-weight:800;color:var(--green);">🏆 ' + escHtml(username) + '</div>'
+      + '<div style="font-size:12px;color:var(--text-dim);margin-top:3px;">answered “' + escHtml(content) + '”</div>'
+      + '</div>';
+  }
+
+  trivActive = false;
+  trivUpdateUI();
+  await trivSay('🧠 Correct! @' + username + ' got it — the answer was "' + trivQuestion.a + '". 🏆');
+  await trivPublishState();
+  ccBumpStat('triviaRun');
+}
+
+// Queue a line for the bot to post in chat. Same pipe every other dashboard
+// announcement uses.
+async function trivSay(message) {
+  try {
+    await saveStreamerProfile({ pendingChatMessage: message, pendingChatTs: Date.now() + Math.random() });
+  } catch (e) { /* the round still works, chat just misses the line */ }
+}
+
+// Mirror the round onto the profile so the OBS overlay can show it.
+async function trivPublishState() {
+  try {
+    await saveStreamerProfile({
+      triviaActive:   trivActive,
+      triviaQuestion: trivActive && trivQuestion ? trivQuestion.q : '',
+      triviaWinner:   trivWinner || '',
+      triviaEndsAt:   trivActive ? trivDeadline : 0,
+      triviaAnswer:   (!trivActive && trivQuestion) ? trivQuestion.a : '',
+    });
+  } catch (e) { /* overlay lags a round; the dashboard is still correct */ }
+}
+
+function trivStopTimer() {
+  if (trivTimer) { clearInterval(trivTimer); trivTimer = null; }
+  const el = document.getElementById('trivCountdown');
+  if (el) el.textContent = '';
+}
+
+function trivTick() {
+  const el = document.getElementById('trivCountdown');
+  if (!trivDeadline) { if (el) el.textContent = ''; return; }
+  const left = Math.max(0, Math.ceil((trivDeadline - Date.now()) / 1000));
+  if (el) {
+    el.textContent = left + 's';
+    el.style.color = left <= 10 ? 'var(--red)' : 'var(--gold)';
+  }
+  if (left <= 0) trivTimeUp();
+}
+
+async function trivTimeUp() {
+  trivStopTimer();
+  if (!trivActive) return;
+  trivActive = false;
+  trivUpdateUI();
+  await trivSay('⏰ Time! Nobody got it — the answer was "' + trivQuestion.a + '".');
+  await trivPublishState();
+}
+
+async function trivStart() {
+  if (trivActive) return;
+  const customQ = (document.getElementById('trivCustomQ')?.value || '').trim();
+  const customA = (document.getElementById('trivCustomA')?.value || '').trim();
+
+  if (customQ && !customA) { flash('Give your question an answer too.', 'error'); return; }
+  if (customQ) {
+    const alts = (document.getElementById('trivCustomAlts')?.value || '')
+      .split(',').map(t => t.trim()).filter(Boolean);
+    trivQuestion = { q: customQ, a: customA, alts, cat: 'custom', diff: 'custom' };
+  } else {
+    const cat  = document.getElementById('trivCategory')?.value || '';
+    const diff = document.getElementById('trivDifficulty')?.value || '';
+    trivQuestion = triviaPick(cat, diff, trivAsked);
+    if (!trivQuestion) { flash('No questions match that category and difficulty.', 'error'); return; }
+  }
+  trivAsked.push(trivQuestion.q);
+
+  trivActive = true;
+  trivWinner = null;
+  trivSeen   = 0;
+  const limit = parseInt(document.getElementById('trivTimeLimit')?.value, 10) || 0;
+  trivDeadline = limit ? Date.now() + limit * 1000 : 0;
+
+  const feed = document.getElementById('trivFeed');   if (feed) feed.innerHTML = '';
+  const box  = document.getElementById('trivWinnerBox'); if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+  document.getElementById('trivQuestionText').textContent = trivQuestion.q;
+  document.getElementById('trivAnswerHint').innerHTML =
+    'Answer: <strong style="color:var(--bright);">' + escHtml(trivQuestion.a) + '</strong>'
+    + (trivQuestion.alts && trivQuestion.alts.length
+        ? ' <span style="color:var(--text-dim);">(also accepting ' + escHtml(trivQuestion.alts.join(', ')) + ')</span>' : '')
+    + ' — only you can see this.';
+
+  trivStopTimer();
+  if (trivDeadline) { trivTimer = setInterval(trivTick, 250); trivTick(); }
+  trivUpdateUI();
+
+  await trivSay('🧠 TRIVIA: ' + trivQuestion.q + (limit ? ' — you have ' + limit + 's!' : ' — first correct answer wins!'));
+  await trivPublishState();
+  trivConnectChat();
+}
+
+async function trivStop(announce) {
+  if (!trivActive) return;
+  trivStopTimer();
+  trivActive = false;
+  trivUpdateUI();
+  if (announce) await trivSay('🧠 Trivia round closed. The answer was "' + trivQuestion.a + '".');
+  await trivPublishState();
+}
+
+async function trivRevealAnswer() {
+  if (!trivQuestion) return;
+  await trivSay('💡 The answer was "' + trivQuestion.a + '".');
+  flash('Answer posted in chat.');
+}
+
+function trivResetSession() {
+  if (!confirm('Clear this session’s trivia scores?')) return;
+  trivScores = {};
+  trivAsked  = [];
+  trivRenderScores();
+  flash('Trivia scores cleared.');
+}
+
+function trivRenderScores() {
+  const body = document.getElementById('trivScores');
+  if (!body) return;
+  const rows = Object.values(trivScores).sort((a, b) => b.correct - a.correct);
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">No rounds played yet</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map((r, i) => '<tr>'
+    + '<td style="color:var(--text-dim);">' + (i + 1) + '</td>'
+    + '<td class="td-highlight">' + escHtml(r.name) + '</td>'
+    + '<td class="num" style="color:var(--green);font-weight:700;">' + r.correct + '</td>'
+    + '<td style="color:var(--text-dim);font-size:12px;">' + escHtml(r.last) + '</td>'
+    + '</tr>').join('');
+}
+
+function trivUpdateUI() {
+  const badge = document.getElementById('trivStatusBadge');
+  if (badge) {
+    badge.textContent = trivActive ? 'LIVE' : 'CLOSED';
+    badge.style.background = trivActive ? 'rgba(0,255,136,0.12)' : 'rgba(255,71,87,0.12)';
+    badge.style.color      = trivActive ? 'var(--green)' : 'var(--red)';
+  }
+  const start = document.getElementById('trivStartBtn');  if (start) start.disabled = trivActive;
+  const stop  = document.getElementById('trivStopBtn');   if (stop)  stop.disabled  = !trivActive;
+  const rev   = document.getElementById('trivRevealBtn'); if (rev)   rev.disabled   = !trivQuestion;
+  const live  = document.getElementById('trivLiveCard');  if (live)  live.style.display = trivQuestion ? '' : 'none';
+}
+
+function openTriviaPage() {
+  const catSel = document.getElementById('trivCategory');
+  if (catSel && !catSel.options.length) {
+    catSel.innerHTML = TRIVIA_CATEGORIES
+      .map(c => '<option value="' + c.id + '">' + escHtml(c.label) + '</option>').join('');
+  }
+  trivRenderScores();
+  trivUpdateUI();
+  trivConnectChat();
 }
 
 // ── COMMANDS ──
@@ -10877,6 +12057,14 @@ async function loadModeration() {
   }
 }
 
+// Instructions card at the top of the Bot page. Named with the streamer's own
+// channel so the mock chat header matches what they are looking at.
+function renderModWenBotCard() {
+  const mount = document.getElementById('modWenBotCardMount');
+  if (!mount || typeof modWenBotPanel !== 'function') return;
+  mount.innerHTML = modWenBotPanel({ channel: profile?.kickChannel || '' });
+}
+
 async function saveModeration() {
   const on   = id => document.getElementById(id).classList.contains('on');
   const val  = id => document.getElementById(id).value;
@@ -11052,6 +12240,25 @@ let verifiedCache      = [];  // [{id, data}] cached so the filter checkbox can 
 
 // CASINO_NAMES is provided by /js/casinos.js
 
+// Click-to-sort on the verified users table. Getters return comparable values
+// rather than the rendered cell, so Wager sorts as a number instead of as the
+// string "$1,200.00", and Status sorts by what the badge means rather than by
+// its label. Blank wagers and Discords stay null so they sink either way.
+const verifiedSort = createTableSort({
+  storageKey: 'wb.dash.verifiedSort',
+  head:       '#verifiedHead',
+  onChange:   () => renderVerifiedFromCache(),
+  columns: {
+    kick:       r => String(r.data.kickName || r.id || '').toLowerCase(),
+    casinoUser: r => String(r.data.providerUsername || '').toLowerCase(),
+    casino:     r => String(r.data.provider === 'none' ? 'Skipped' : (CASINO_NAMES[r.data.provider] || r.data.provider || '')).toLowerCase(),
+    status:     r => (r.data.underAffiliate ? 1 : 0),
+    discord:    r => (verifiedDiscordMap[String(r.data.kickName || '').toLowerCase()] || '').toLowerCase(),
+    wager:      r => (r.data.wagerAmount ? Number(r.data.wagerAmount) : null),
+    verifiedAt: r => (r.data.verifiedAt || null),
+  },
+});
+
 function loadVerifiedUsers() {
   const uid            = fb.activeUid;
   const tbody          = document.getElementById('verifiedTable');
@@ -11125,18 +12332,26 @@ function renderVerifiedFromCache() {
       : String(rows.length);
   }
 
+  // A clicked column wins. apply() is a no-op until someone clicks one, and it
+  // also binds the headers — so it runs BEFORE the empty-state return, or a
+  // table filtered down to nothing would leave dead headers behind.
+  rows = verifiedSort.apply(rows);
+  if (!verifiedSort.active()) {
+    // Default: under-code first, then most recently verified within each group.
+    // Copied, not sorted in place — rows is verifiedCache itself when nothing is
+    // filtered, and reordering the cache under the search box is not ours to do.
+    rows = rows.slice().sort((a, b) => {
+      if (!!a.data.underAffiliate !== !!b.data.underAffiliate) return a.data.underAffiliate ? -1 : 1;
+      return (b.data.verifiedAt || 0) - (a.data.verifiedAt || 0);
+    });
+  }
+
   if (!rows.length) {
     tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:16px;">${
       q ? `No one matching “${escHtml(q)}”` : (underCodeOnly ? 'No users under your affiliate code yet' : 'No verified users yet')
     }</td></tr>`;
     return;
   }
-
-  // Sort: under-code first, then by verifiedAt desc within each group
-  rows.sort((a, b) => {
-    if (!!a.data.underAffiliate !== !!b.data.underAffiliate) return a.data.underAffiliate ? -1 : 1;
-    return (b.data.verifiedAt || 0) - (a.data.verifiedAt || 0);
-  });
 
   tbody.innerHTML = rows.map(({ id, data: v }) => {
     const ts = v.verifiedAt ? new Date(v.verifiedAt).toLocaleDateString() : '—';
@@ -13417,6 +14632,8 @@ const OS_OVERLAYS = [
   { id:'deposits',    name:'Deposits',       icon:'💰', tag:'bankroll',   desc:'Total you have deposited this session.',                    path:'/overlay-deposits.html',      obsW:320,  obsH:130,  demo:true,  header:'💰 Deposited',            note:'Width: 320, height: 130.' },
   { id:'withdrawals', name:'Withdrawals',    icon:'💸', tag:'bankroll',   desc:'Total you have withdrawn this session.',                    path:'/overlay-withdrawals.html',   obsW:320,  obsH:130,  demo:true,  header:'💸 Withdrawn',            note:'Width: 320, height: 130.' },
   { id:'chat',        name:'Live Chat',      icon:'💬', tag:'chat',       desc:'Your Kick chat on stream — themed, with badges and emotes.', hasFontSize:true, path:'/overlay-chat.html',          obsW:380,  obsH:600,  demo:true,  header:null,                     note:'Width: 380, height: 600. Pulls your Kick chat live — no setup needed. Use ?ttl=60 to fade messages after 60s.' },
+  { id:'trivia',      name:'Trivia',         icon:'🧠', tag:'giveaway',   desc:'Shows the current trivia question, the countdown, and who got it first.', path:'/overlay-trivia.html',        obsW:440,  obsH:260,  demo:true,  header:null,                     note:'Width: 440, height: 260. Appears when you ask a question on the Trivia page and hides itself a few seconds after the answer.' },
+  { id:'poll',        name:'Chat Poll',      icon:'📊', tag:'chat',       desc:'Shows whatever poll you run with /poll in Kick chat, with live bars and the countdown.', path:'/overlay-poll.html',          obsW:380,  obsH:320,  demo:true,  header:null,                     note:'Width: 380, height: 320. Nothing to start \u2014 run /poll in your Kick chat as normal and this follows it, then hides itself when the poll ends.' },
   { id:'banner',      name:'Rotating Banner', icon:'📊', tag:'branding',  desc:'Lower-third bar that cycles your prize pool, code, live wager standings and race countdown.', path:'/overlay-banner.html', obsW:1920, obsH:110, demo:true, header:null, note:'Width: 1920, height: 110 — sits along the bottom of the screen. Pulls live from your leaderboard, so there is nothing to set up. Use ?secs=8 to change how long each slide holds, ?rows=3 for how many leaderboard places it rotates through.' },
   { id:'banner2',     name:'Rotating Banner — Transparent', icon:'📉', tag:'branding', desc:'Same rotation with no bar — the text floats straight over your scene.', path:'/overlay-banner.html', extra:'layout=transparent', obsW:1920, obsH:130, demo:true, header:null, note:'Width: 1920, height: 130. No background, so it suits a busy or light scene where a solid bar would cover artwork. Text carries heavy shadows to stay readable.' },
   { id:'ticker',      name:'Scrolling Ticker', icon:'📰', tag:'branding', desc:'Top strip that scrolls your socials, website and code across the screen, non-stop.', path:'/overlay-banner.html', extra:'layout=marquee', obsW:1391, obsH:101, demo:true, header:null, note:'Sits along the TOP of the screen. Size the OBS source to match the strip in your own artwork, then pass the same height with &h= (e.g. &h=101) so the text lands inside it. Transparent by default. Scrolls continuously with no jump. Speed adapts to how many items you have; override with ?speed=60 (seconds per full loop).' },
@@ -15917,6 +17134,7 @@ async function loadDiscordSettings() {
   document.getElementById('discordDailyPoints').value = cfg.dailyPoints || '';
   loadVerifySettings();
   loadGoLiveSettings();
+  renderDiscordRoutes();
 }
 
 // Per-server Discord command on/off toggles (config.discordConfig.commands).
@@ -16010,6 +17228,10 @@ async function populateDiscordChannels(selectedGiveaway, selectedAnnouncement) {
     const v = (profile?.discordConfig?.verify) || {};
     if (cSel && v.gateChannelId) cSel.value = v.gateChannelId;
     if (rSel && v.roleId)        rSel.value = v.roleId;
+    // Event-routing rows build their selects from the same channel list. Re-render
+    // rather than patch, so a Refresh Channels picks up newly created channels.
+    _discordChanOpts = chanOpts;
+    renderDiscordRoutes();
   } catch (e) {
     gSel.innerHTML = '<option value="">Failed to load channels</option>';
     aSel.innerHTML = '<option value="">Failed to load channels</option>';
@@ -16030,6 +17252,73 @@ function loadGoLiveSettings() {
   const pr = document.getElementById('dgoPingRoleId'); if (pr && g.pingRoleId) pr.value = g.pingRoleId;
   const ms = document.getElementById('dgoMessage'); if (ms) ms.value = g.message || '';
   dgoToggleChanged();
+}
+
+// ── Discord event routing ──
+// One row per entry in DISCORD_EVENTS (js/discord-events.js). A row writes into
+// discordConfig.routes[key]; the server resolves route channel → bucket channel →
+// skip, so a blank select means "keep using the dropdown above" and an untouched
+// config behaves exactly as it did before this table existed.
+
+// Channel <option> markup, cached from the last populateDiscordChannels() run so
+// the rows can re-render (or first render) without another API round-trip.
+let _discordChanOpts = '';
+
+function dreToggle() {
+  const rows = document.getElementById('dreRows');
+  const btn  = document.getElementById('dreToggleBtn');
+  if (!rows) return;
+  const showing = rows.style.display !== 'none';
+  rows.style.display = showing ? 'none' : '';
+  if (btn) btn.textContent = showing ? 'Show' : 'Hide';
+}
+
+function renderDiscordRoutes() {
+  const wrap = document.getElementById('dreRows');
+  if (!wrap || typeof DISCORD_EVENTS === 'undefined') return;
+  const routes = (profile?.discordConfig?.routes) || {};
+
+  wrap.innerHTML = DISCORD_EVENTS.map(ev => {
+    const r        = routes[ev.key] || {};
+    const on       = r.enabled !== false;   // absent = on
+    const bucketLbl = DISCORD_BUCKET_LABELS[ev.bucket] || 'default channel';
+    return `
+      <div style="display:grid;grid-template-columns:20px 1fr minmax(180px,240px);gap:12px;align-items:center;padding:9px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;">
+        <input type="checkbox" id="dre_on_${ev.key}" ${on ? 'checked' : ''} style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer;">
+        <label for="dre_on_${ev.key}" style="cursor:pointer;min-width:0;">
+          <div style="font-size:12px;font-weight:600;color:var(--bright);">${escHtml(ev.label)}</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${escHtml(ev.hint)}</div>
+        </label>
+        <select id="dre_ch_${ev.key}" style="font-size:12px;">
+          <option value="">Default — ${escHtml(bucketLbl)}</option>
+          ${_discordChanOpts}
+        </select>
+      </div>`;
+  }).join('');
+
+  // Restore each row's channel override after the markup exists.
+  DISCORD_EVENTS.forEach(ev => {
+    const sel = document.getElementById('dre_ch_' + ev.key);
+    const val = (routes[ev.key] || {}).channelId;
+    if (sel && val) sel.value = val;
+  });
+}
+
+function collectDiscordRoutes() {
+  if (typeof DISCORD_EVENTS === 'undefined') return (profile?.discordConfig?.routes) || {};
+  // The rows may never have rendered (no guild linked yet) — in that case keep
+  // whatever is stored rather than writing every event to a blank default.
+  if (!document.getElementById('dre_on_' + DISCORD_EVENTS[0].key)) {
+    return (profile?.discordConfig?.routes) || {};
+  }
+  const routes = {};
+  DISCORD_EVENTS.forEach(ev => {
+    routes[ev.key] = {
+      enabled:   document.getElementById('dre_on_' + ev.key)?.checked !== false,
+      channelId: document.getElementById('dre_ch_' + ev.key)?.value || '',
+    };
+  });
+  return routes;
 }
 
 // ── Discord Verification & Roles ──
@@ -16185,7 +17474,8 @@ async function saveDiscordSettings() {
     const channelIds = myChannelsEl && myChannelsEl.options.length
       ? Array.from(myChannelsEl.selectedOptions).map(o => o.value)
       : ((profile?.discordConfig || {}).channelIds || []);
-    const discordConfig = { ...(profile?.discordConfig || {}), guildId, giveawayChannelId, announcementChannelId, giveallAuthorId, goLive, channelIds };
+    const routes = collectDiscordRoutes();
+    const discordConfig = { ...(profile?.discordConfig || {}), guildId, giveawayChannelId, announcementChannelId, giveallAuthorId, goLive, channelIds, routes };
     await saveStreamerProfile({ discordConfig });
     if (profile) profile.discordConfig = discordConfig;
     updateDiscordStatusBadge(guildId);
@@ -16228,9 +17518,26 @@ async function loadSlotRequests() {
   // Live queue — LIVE listener so new !sr requests appear instantly. Scoped to this
   // page (torn down on leave); slot-request write volume is low, so cost stays small.
   if (srUnsub) { srUnsub(); srUnsub = null; }
+  // Only announce requests that ARRIVE while we are watching. Without this the
+  // first snapshot replays the whole pending queue into Discord every time the
+  // page is opened.
+  let _srFirstSnap = true;
   srUnsub = fb.db.collection('streamers').doc(uid)
     .collection('slot_requests').where('status', '==', 'pending')
     .onSnapshot(snap => {
+      if (!_srFirstSnap) {
+        snap.docChanges()
+          .filter(c => c.type === 'added')
+          .forEach(c => {
+            const d = c.doc.data() || {};
+            discordNotify('slot_request', {
+              slotName:     d.slotName || d.slot || '',
+              kickUsername: d.kickUsername || d.viewer || '',
+              betSize:      d.betSize || 0,
+            });
+          });
+      }
+      _srFirstSnap = false;
       srRequests = _suppress(_supSlotReqs, _slotReqRows(snap));
       srRenderQueue();
     }, () => {});
@@ -18954,7 +20261,10 @@ function gsSteps() {
     { key: 'kick',    icon: '🟢', title: 'Connect your Kick channel',  done: !!p.kickChannel,
       desc: 'Your channel is the heart of everything.', cta: ['Open Channel settings', 'channel'] },
     { key: 'bot',     icon: '🤖', title: 'Get WenBot online',          done: !!botOnline,
-      desc: 'Mod <strong>WenBot</strong> in your Kick chat. The bot joins within a minute.', cta: ['Open Bot settings', 'kickbot'] },
+      // The one step nothing can verify for them, so spell out the command here
+      // rather than making them open another page to find it.
+      desc: 'Type <code style="color:var(--accent);">/mod wenbot</code> in your Kick chat so the bot can post and moderate. It joins within a minute.',
+      cta: ['Show me how', 'kickbot'] },
     { key: 'casino',  icon: '🎰', title: 'Pick your casino',           done: !!p.activeProvider,
       desc: 'Sets which affiliate code viewers verify under.', cta: ['Open Channel settings', 'channel'] },
     { key: 'discord', icon: '🎮', title: 'Connect Discord <span style="font-weight:400;color:var(--text-dim);font-size:10px;">(optional)</span>', done: !!(p.discordConfig?.guildId),

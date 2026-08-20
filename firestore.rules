@@ -261,6 +261,14 @@ service cloud.firestore {
       // GTB guesses live one level deeper than the single-level catch-all
       // below can reach (gtb_sessions/{id}/guesses/{id}). Viewer guesses are
       // written by the bot via admin SDK; the dashboard only needs to read.
+      // Published draw proofs. Written by /api/giveaway-draw with the admin SDK
+      // and read by the public through /api/draw-proof. A proof a streamer could
+      // edit after the fact would be worth nothing, so nothing client-side may
+      // touch these — not even the owner.
+      match /giveaway_draws/{drawId} {
+        allow read, write: if false;
+      }
+
       match /gtb_sessions/{sessionId}/guesses/{guessId} {
         allow read:  if isOwnerOrMod(uid);
         allow write: if false;
@@ -278,7 +286,7 @@ service cloud.firestore {
           && !(subcollection in [
             'referrals', 'payments', 'verified_users', 'discord_links', 'audit_logs',
             'bot_status', 'bb_votes', 'store_redemptions', 'bot_locks', 'invoices',
-            'mod_actions', 'mod_strikes'
+            'mod_actions', 'mod_strikes', 'giveaway_draws'
           ]);
       }
     }
@@ -398,5 +406,18 @@ service cloud.firestore {
     match /discord_guilds/{doc}        { allow read, write: if false; }
     match /_rate_limits/{doc}          { allow read, write: if false; }
     match /agency_inquiries/{doc}      { allow read, write: if false; }
+
+    // Giveaway fairness seeds. The WHOLE POINT is that the streamer cannot see
+    // the seed before the draw — if they could, they could try seeds until one
+    // favoured whoever they liked and only then open entries. Admin SDK only;
+    // the seed reaches the public exclusively through /api/draw-proof, and only
+    // after the draw it was committed for has happened.
+    match /giveaway_fairness/{uid}     { allow read, write: if false; }
+
+    // Scoped share links. The document id is the SHA-256 of the token, so a
+    // client that could read this collection could not use what it found — but
+    // it could enumerate who has links open, and it must never be able to mint
+    // or extend one. Admin SDK only, through /api/share-admin and /api/share.
+    match /share_links/{tokenHash}     { allow read, write: if false; }
   }
 }

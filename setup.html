@@ -204,9 +204,23 @@
 
           <div class="step-divider"></div>
 
-          <!-- ── STEP 2 — Affiliate platform ── -->
+          <!-- Mod WenBot. Nothing can verify this one (Kick exposes no "is this
+               account a mod" check), so it is informational and never blocks
+               Finish. The Getting Started checklist chases it afterwards. -->
           <div class="step" id="step2">
             <div class="step-num" id="step2Num">2</div>
+            <div class="step-body">
+              <div class="step-title">Make WenBot a moderator</div>
+              <div class="step-sub">One command in your own chat. Without it the bot cannot post or moderate.</div>
+              <div id="modWenBotMount"></div>
+            </div>
+          </div>
+
+          <div class="step-divider"></div>
+
+          <!-- ── STEP 3 — Affiliate platform ── -->
+          <div class="step" id="step3">
+            <div class="step-num" id="step3Num">3</div>
             <div class="step-body">
               <div class="step-title">Your affiliate platform</div>
               <div class="step-sub">Where your viewers wager. Used for verification &amp; the leaderboard.</div>
@@ -245,9 +259,9 @@
 
           <div class="step-divider"></div>
 
-          <!-- ── STEP 3 — Finish ── -->
-          <div class="step" id="step3">
-            <div class="step-num" id="step3Num">3</div>
+          <!-- ── STEP 4 — Finish ── -->
+          <div class="step" id="step4">
+            <div class="step-num" id="step4Num">4</div>
             <div class="step-body">
               <div class="step-title">Finish</div>
               <div class="step-sub">Set how viewers see your name, then launch your dashboard.</div>
@@ -256,7 +270,7 @@
                 <input type="text" id="setupDisplayName" placeholder="How viewers see your name">
               </div>
               <button type="submit" class="btn btn-accent setup-submit" id="setupBtn" disabled title="Connect your Kick account first">Complete Setup</button>
-              <div id="setupBtnHint" class="hint" style="text-align:center;margin-top:6px;">Finish Step 1 to enable this.</div>
+              <div id="setupBtnHint" class="hint" style="text-align:center;margin-top:6px;">Connect your Kick account to enable this.</div>
             </div>
           </div>
 
@@ -275,6 +289,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/kick-auth.js"></script>
+  <script src="js/mod-wenbot.js"></script>
   <script>
     const PLAN_LABELS = { starter: 'Starter — Free', pro: 'Pro — $30/mo', elite: 'Elite — $50/mo', agency: 'Agency — $80/mo' };
     const PLAN_PRICES = { pro: '$30/mo', elite: '$50/mo', agency: '$80/mo' };
@@ -356,8 +371,9 @@
       const s1 = document.getElementById("step1");
       s1.classList.remove("active"); s1.classList.add("done");
       document.getElementById("step1Num").textContent = "✓";
-      document.getElementById("step2").classList.add("active");
-      document.getElementById("step3").classList.add("active");
+      ["step2", "step3", "step4"].forEach(id => document.getElementById(id).classList.add("active"));
+      // Now that we know the channel, the mod instructions can name it.
+      renderModWenBotStep(username);
 
       const btn = document.getElementById("setupBtn");
       btn.disabled = false;
@@ -370,6 +386,14 @@
       initiateKickAuth("streamer");
     }
 
+    // Rendered immediately, so the command is on screen before Kick is even
+    // connected, then again with the real channel name once it is.
+    function renderModWenBotStep(channel) {
+      const mount = document.getElementById("modWenBotMount");
+      if (mount) mount.innerHTML = modWenBotPanel({ channel });
+    }
+    renderModWenBotStep(null);
+
     function disconnectKick() {
       document.getElementById("kickNotConnected").style.display = "block";
       document.getElementById("kickConnected").style.display    = "none";
@@ -377,8 +401,8 @@
       const s1 = document.getElementById("step1");
       s1.classList.remove("done"); s1.classList.add("active");
       document.getElementById("step1Num").textContent = "1";
-      document.getElementById("step2").classList.remove("active");
-      document.getElementById("step3").classList.remove("active");
+      ["step2", "step3", "step4"].forEach(id => document.getElementById(id).classList.remove("active"));
+      renderModWenBotStep(null);
 
       const btn = document.getElementById("setupBtn");
       btn.disabled = true;

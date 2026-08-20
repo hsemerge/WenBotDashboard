@@ -1,10 +1,14 @@
 // POST /api/discord-notify (internal — called by other functions/dashboard actions)
 // Sends embeds to a streamer's configured Discord channels
 // Body: { uid, type, data }
-// Types: giveaway_start | giveaway_winner | store_redemption
+//
+// Which channel an event lands in is decided by _lib/discord-events.js, not here:
+// the streamer's per-event route wins, otherwise the event's bucket (the Giveaway
+// or Announcements dropdown). Adding an event = a catalogue entry + a builder.
 
 const { getDb, admin } = require("./_lib/firebase");
 const { CASINO_NAMES } = require("./_lib/casinos");
+const { resolveDiscordRoute } = require("./_lib/discord-events");
 
 // Local res() — no CORS header (internal-only endpoint, not called from browser)
 function res(statusCode, body) {
@@ -29,6 +33,17 @@ async function discordPost(path, body) {
     throw new Error(`Discord API ${r.status}: ${err}`);
   }
   return r.json();
+}
+
+const streamerName = (profile) =>
+  profile?.displayName || profile?.kickChannel || "the streamer";
+
+// Appended to the "come watch" embeds. Omitted entirely when no Kick channel is
+// set, rather than linking kick.com/undefined.
+function watchLine(profile) {
+  return profile?.kickChannel
+    ? `\n\n[▶ Watch on Kick](https://kick.com/${encodeURIComponent(profile.kickChannel)})`
+    : "";
 }
 
 function buildGiveawayStartEmbed(data, profile) {
@@ -74,6 +89,75 @@ function buildRedemptionEmbed(data) {
   };
 }
 
+function buildHuntStartEmbed(data, profile) {
+  const cost = Number(data?.totalCost) || 0;
+  return {
+    color:       0xffd700,
+    title:       "🎰 Bonus Hunt is LIVE!",
+    description: `**${streamerName(profile)}** just started a bonus hunt with a `
+      + `**$${cost.toLocaleString()}** start balance.` + watchLine(profile),
+    footer:      { text: "WenBot • Bonus Hunt" },
+    timestamp:   new Date().toISOString(),
+  };
+}
+
+function buildGtbOpenEmbed(data, profile) {
+  const keyword = data?.keyword || "!gtb";
+  return {
+    color:       0x9b6bff,
+    title:       "🎲 Guess the Balance is OPEN!",
+    description: `Guessing is live on **${streamerName(profile)}**'s stream — `
+      + `how much will the bonus hunt finish on?` + watchLine(profile),
+    fields: [
+      { name: "How to guess", value: `Type \`${keyword} <amount>\` in Kick chat — e.g. \`${keyword} 4250\``, inline: false },
+    ],
+    footer:    { text: "WenBot • Guess the Balance" },
+    timestamp: new Date().toISOString(),
+  };
+}
+
+function buildGtbWinnerEmbed(data, profile) {
+  const guess  = Number(data?.guess)  || 0;
+  const actual = Number(data?.actual) || 0;
+  const diff   = Math.abs(guess - actual);
+  return {
+    color:       0xffd700,
+    title:       "🎲 GTB winner!",
+    description: `**${data?.winner || "Someone"}** had the closest guess on `
+      + `**${streamerName(profile)}**'s bonus hunt.`,
+    fields: [
+      { name: "Their guess",     value: `$${guess.toLocaleString()}`,  inline: true },
+      { name: "Actual balance",  value: `$${actual.toLocaleString()}`, inline: true },
+      { name: "Off by",          value: `$${diff.toLocaleString()}`,   inline: true },
+    ],
+    footer:    { text: "WenBot • Guess the Balance" },
+    timestamp: new Date().toISOString(),
+  };
+}
+
+function buildSlotRequestEmbed(data) {
+  const bet = Number(data?.betSize) || 0;
+  return {
+    color:       0x9b6bff,
+    description: `\u{1F3B0} **${data?.slotName || "A slot"}** requested by **${data?.kickUsername || "a viewer"}**`
+      + (bet ? `\n\u{1F4B5} Bet size: $${bet.toLocaleString()}` : ""),
+    footer:      { text: "WenBot \u2022 Slot Requests" },
+    timestamp:   new Date().toISOString(),
+  };
+}
+
+// One builder per event key. `components` is optional — only the giveaway entry
+// card needs a button.
+const EMBED_BUILDERS = {
+  giveaway_start:   buildGiveawayStartEmbed,
+  giveaway_winner:  buildGiveawayWinnerEmbed,
+  hunt_start:       buildHuntStartEmbed,
+  gtb_open:         buildGtbOpenEmbed,
+  gtb_winner:       buildGtbWinnerEmbed,
+  slot_request:     buildSlotRequestEmbed,
+  store_redemption: buildRedemptionEmbed,
+};
+
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return res(405, { error: "Method not allowed" });
 
@@ -113,59 +197,30 @@ exports.handler = async (event) => {
 
   if (!cfg.guildId) return res(200, { skipped: "No Discord configured for this streamer" });
 
+  const build = EMBED_BUILDERS[type];
+  if (!build) return res(400, { error: `Unknown notify type: ${type}` });
+
+  // Per-event route wins, then the event's bucket channel, then nothing. An
+  // event the streamer switched off, or one whose bucket was never picked, is a
+  // skip rather than a misfile into whichever channel happens to be set.
+  const route = resolveDiscordRoute(cfg, type);
+  if (!route.enabled) return res(200, { skipped: route.reason });
+
+  const payload = { embeds: [build(data, profile)] };
+  if (type === "giveaway_start") {
+    payload.components = [{
+      type:       1,
+      components: [{
+        type:      2,
+        style:     1,
+        label:     "🎉 Join Giveaway",
+        custom_id: "join_giveaway",
+      }],
+    }];
+  }
+
   try {
-    // Bonus hunt started — announce in the streamer's announcement channel
-    // (falls back to the giveaway channel) so Discord knows the hunt is live.
-    if (type === "hunt_start") {
-      const chan = cfg.announcementChannelId || cfg.giveawayChannelId;
-      if (!chan) return res(200, { skipped: "No announcement channel configured" });
-      const cost = Number(data?.totalCost) || 0;
-      const chan_name = profile.displayName || profile.kickChannel || "The streamer";
-      await discordPost(`/channels/${chan}/messages`, {
-        embeds: [{
-          color:       0xffd700,
-          title:       "🎰 Bonus Hunt is LIVE!",
-          description: `**${chan_name}** just started a bonus hunt with a **$${cost.toLocaleString()}** start balance.`
-            + (profile.kickChannel ? `\n\n[▶ Watch on Kick](https://kick.com/${encodeURIComponent(profile.kickChannel)})` : ""),
-          timestamp:   new Date().toISOString(),
-          footer:      { text: "WenBot" },
-        }],
-      });
-      return res(200, { success: true });
-    }
-
-    if (type === "giveaway_start") {
-      if (!cfg.giveawayChannelId) return res(200, { skipped: "No giveaway channel configured" });
-
-      const payload = {
-        embeds:     [buildGiveawayStartEmbed(data, profile)],
-        components: [{
-          type:       1,
-          components: [{
-            type:      2,
-            style:     1,
-            label:     "🎉 Join Giveaway",
-            custom_id: "join_giveaway",
-          }],
-        }],
-      };
-      await discordPost(`/channels/${cfg.giveawayChannelId}/messages`, payload);
-    }
-
-    else if (type === "giveaway_winner") {
-      if (!cfg.giveawayChannelId) return res(200, { skipped: "No giveaway channel configured" });
-      await discordPost(`/channels/${cfg.giveawayChannelId}/messages`, {
-        embeds: [buildGiveawayWinnerEmbed(data, profile)],
-      });
-    }
-
-    else if (type === "store_redemption") {
-      if (!cfg.announcementChannelId) return res(200, { skipped: "No announcement channel configured" });
-      await discordPost(`/channels/${cfg.announcementChannelId}/messages`, {
-        embeds: [buildRedemptionEmbed(data)],
-      });
-    }
-
+    await discordPost(`/channels/${route.channelId}/messages`, payload);
     return res(200, { success: true });
   } catch (err) {
     console.error("[discord-notify] error:", err.message);

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Poll — WenBot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--ov-accent:#00e5ff;--ov-accent-rgb:0,229,255;--ov-panel:rgba(13,17,23,0.93);--ov-text:#ffffff;--ov-font:'Inter',sans-serif;--ov-font-heading:'Exo 2',sans-serif;}
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       var(--ov-panel);
+      --border:   rgba(var(--ov-accent-rgb),0.25);
+      --text:     #c9d1d9;
+      --text-dim: #8b949e;
+      --bright:   var(--ov-text);
+      --accent:   var(--ov-accent);
+    }
+
+    body {
+      background: transparent;
+      font-family: var(--ov-font);
+      color: var(--text);
+      padding: 12px;
+      width: 380px;
+    }
+
+    .panel {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(var(--ov-accent-rgb),0.05);
+      /* Hidden until there is a poll, and never mid-fade when OBS screenshots it. */
+      opacity: 0;
+      transform: translateY(-8px);
+      transition: opacity .28s ease, transform .28s ease;
+    }
+    .panel.show { opacity: 1; transform: translateY(0); }
+
+    .header {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .header-title {
+      font-family: var(--ov-font-heading);
+      font-size: 11px; font-weight: 900; color: var(--accent);
+      letter-spacing: 0.1em; text-transform: uppercase;
+    }
+    .header-timer {
+      margin-left: auto;
+      font-family: var(--ov-font-heading);
+      font-size: 12px; font-weight: 800; color: var(--bright);
+      font-variant-numeric: tabular-nums;
+    }
+    .question {
+      padding: 12px 14px 4px;
+      font-size: 15px; font-weight: 700; color: var(--bright);
+      line-height: 1.35;
+    }
+    .options { padding: 8px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+
+    .opt { position: relative; }
+    .opt-row {
+      display: flex; align-items: baseline; gap: 8px;
+      font-size: 13px; margin-bottom: 4px;
+    }
+    .opt-label { color: var(--bright); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .opt-pct   { margin-left: auto; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+    .opt-votes { font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+    .bar { height: 8px; background: rgba(255,255,255,0.06); border-radius: 5px; overflow: hidden; }
+    .bar-fill {
+      height: 100%; width: 0;
+      background: linear-gradient(90deg, rgba(var(--ov-accent-rgb),0.55), var(--accent));
+      border-radius: 5px;
+      transition: width .45s cubic-bezier(.22,.61,.36,1);
+    }
+    /* The option in front reads as the answer, not just another bar. */
+    .opt.lead .opt-label { color: var(--accent); }
+    .opt.lead .bar-fill  { box-shadow: 0 0 12px rgba(var(--ov-accent-rgb),0.55); }
+
+    .footer {
+      padding: 8px 14px 12px;
+      font-size: 11px; color: var(--text-dim);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .countdown-track { height: 3px; background: rgba(255,255,255,0.07); }
+    .countdown-fill  { height: 100%; background: var(--accent); transition: width 1s linear; }
+  </style>
+</head>
+<body>
+  <div class="panel" id="panel">
+    <div class="header">
+      <span class="header-title">Poll</span>
+      <span class="header-timer" id="timer"></span>
+    </div>
+    <div class="question" id="question"></div>
+    <div class="options" id="options"></div>
+    <div class="footer"><span id="totalVotes">0 votes</span></div>
+    <div class="countdown-track"><div class="countdown-fill" id="countdownFill" style="width:100%"></div></div>
+  </div>
+
+  <script src="/js/overlay-theme.js"></script>
+  <script>
+    // Reads whatever poll is running in the channel's Kick chat and puts it on
+    // stream. Nothing to configure and nothing to start — the streamer runs
+    // /poll in chat as usual and this follows it, including the countdown.
+    const params  = new URLSearchParams(location.search);
+    const channel = (params.get('channel') || '').trim();
+    const demo    = params.get('demo') === 'true' || params.get('demo') === '1';
+    // OBS sources are cheap to add and easy to forget about, so poll slowly
+    // enough that a browser source left running all stream is not a burden.
+    const EVERY_MS = 2000;
+
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    let lastKey = '';   // question + option labels, to tell a new poll from an update
+
+    function fmtTime(sec) {
+      if (!sec || sec < 0) return '';
+      const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+      return m ? m + ':' + String(s).padStart(2, '0') : s + 's';
+    }
+
+    function render(poll) {
+      const panel = $('panel');
+      if (!poll) { panel.classList.remove('show'); lastKey = ''; return; }
+
+      const key = poll.title + '|' + poll.options.map(o => o.label).join('|');
+      if (key !== lastKey) { lastKey = key; }
+
+      $('question').textContent = poll.title || 'Poll';
+      $('timer').textContent    = fmtTime(poll.remaining);
+
+      const total = poll.total || 0;
+      const top   = Math.max(...poll.options.map(o => o.votes), 0);
+
+      $('options').innerHTML = poll.options.map(o => {
+        // Share of the vote, not share of the leader — a bar that always shows
+        // one option at 100% reads as "decided" when it is 3 votes to 2.
+        const pct  = total > 0 ? (o.votes / total) * 100 : 0;
+        const lead = total > 0 && o.votes === top && top > 0;
+        return '<div class="opt' + (lead ? ' lead' : '') + '">'
+          + '<div class="opt-row">'
+          +   '<span class="opt-label">' + esc(o.label) + '</span>'
+          +   '<span class="opt-votes">' + o.votes + '</span>'
+          +   '<span class="opt-pct">' + pct.toFixed(0) + '%</span>'
+          + '</div>'
+          + '<div class="bar"><div class="bar-fill" style="width:' + pct.toFixed(1) + '%"></div></div>'
+          + '</div>';
+      }).join('');
+
+      $('totalVotes').textContent = total + (total === 1 ? ' vote' : ' votes');
+
+      const cd = $('countdownFill');
+      cd.style.width = (poll.duration > 0
+        ? Math.max(0, Math.min(100, (poll.remaining / poll.duration) * 100))
+        : 100) + '%';
+
+      panel.classList.add('show');
+    }
+
+    async function tick() {
+      if (demo) {
+        render({
+          title: 'Which slot next?',
+          options: [
+            { id: 1, label: 'Sugar Rush 1000', votes: 42 },
+            { id: 2, label: 'Gates of Olympus', votes: 27 },
+            { id: 3, label: 'Le Bandit',        votes: 11 },
+          ],
+          total: 80, duration: 120, remaining: 74,
+        });
+        return;
+      }
+      if (!channel) return;
+      try {
+        const r = await fetch('/api/kick-poll?channel=' + encodeURIComponent(channel));
+        const d = await r.json();
+        render(d.poll || null);
+      } catch (e) {
+        // Leave whatever is on screen alone. A poll that blinks out because one
+        // request timed out looks broken to everyone watching.
+      }
+    }
+
+    tick();
+    setInterval(tick, EVERY_MS);
+  </script>
+</body>
+</html>

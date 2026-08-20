@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trivia — WenBot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--ov-accent:#00e5ff;--ov-accent-rgb:0,229,255;--ov-panel:rgba(13,17,23,0.93);--ov-text:#ffffff;--ov-font:'Inter',sans-serif;--ov-font-heading:'Exo 2',sans-serif;}
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       var(--ov-panel);
+      --border:   rgba(var(--ov-accent-rgb),0.25);
+      --text:     #c9d1d9;
+      --text-dim: #8b949e;
+      --bright:   var(--ov-text);
+      --accent:   var(--ov-accent);
+      --green:    #00ff88;
+      --gold:     #ffd700;
+    }
+
+    body { background: transparent; font-family: var(--ov-font); color: var(--text); padding: 12px; width: 440px; }
+
+    .panel {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(var(--ov-accent-rgb),0.05);
+      opacity: 0; transform: translateY(-8px);
+      transition: opacity .3s ease, transform .3s ease;
+    }
+    .panel.show { opacity: 1; transform: translateY(0); }
+    .panel.won  { border-color: rgba(0,255,136,0.5); }
+
+    .header {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .header-title {
+      font-family: var(--ov-font-heading);
+      font-size: 11px; font-weight: 900; color: var(--accent);
+      letter-spacing: 0.12em; text-transform: uppercase;
+    }
+    .header-timer {
+      margin-left: auto;
+      font-family: var(--ov-font-heading);
+      font-size: 14px; font-weight: 800; color: var(--gold);
+      font-variant-numeric: tabular-nums;
+    }
+    .header-timer.urgent { color: #ff4757; }
+
+    .question {
+      padding: 14px;
+      font-size: 17px; font-weight: 700; color: var(--bright); line-height: 1.4;
+    }
+    .prompt {
+      padding: 0 14px 14px;
+      font-size: 12px; color: var(--text-dim);
+    }
+    .prompt code {
+      background: rgba(var(--ov-accent-rgb),0.1);
+      color: var(--accent);
+      padding: 2px 7px; border-radius: 5px; font-size: 12px;
+    }
+
+    .winner {
+      margin: 0 14px 14px;
+      background: rgba(0,255,136,0.09);
+      border: 1px solid rgba(0,255,136,0.35);
+      border-radius: 9px;
+      padding: 12px 14px;
+    }
+    .winner-label { font-size: 10px; color: var(--text-dim); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 3px; }
+    .winner-name  { font-family: var(--ov-font-heading); font-size: 21px; font-weight: 900; color: var(--green); }
+    .winner-answer{ font-size: 12px; color: var(--text-dim); margin-top: 3px; }
+
+    .countdown-track { height: 3px; background: rgba(255,255,255,0.07); }
+    .countdown-fill  { height: 100%; background: var(--gold); transition: width .3s linear; }
+  </style>
+</head>
+<body>
+  <div class="panel" id="panel">
+    <div class="header">
+      <span class="header-title">🧠 Trivia</span>
+      <span class="header-timer" id="timer"></span>
+    </div>
+    <div class="question" id="question"></div>
+    <div class="prompt" id="prompt">First correct answer in chat wins.</div>
+    <div id="winnerBox"></div>
+    <div class="countdown-track"><div class="countdown-fill" id="countdownFill" style="width:100%"></div></div>
+  </div>
+
+  <script src="/js/overlay-theme.js"></script>
+  <script>
+    var params  = new URLSearchParams(location.search);
+    var channel = (params.get('channel') || '').trim();
+    var demo    = params.get('demo') === 'true' || params.get('demo') === '1';
+    // The dashboard drives the round; this only mirrors it. Two seconds is well
+    // inside human reaction time for a question people are reading aloud.
+    var EVERY_MS = 2000;
+    // How long the answer stays up after someone wins, so the reveal is not
+    // yanked off screen the moment the streamer moves on.
+    var HOLD_MS  = 12000;
+
+    function $(id) { return document.getElementById(id); }
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    var wonAt = 0;      // when we first saw a winner, for the hold timer
+    var lastQ = '';
+    var totalMs = 0;    // round length, learned from the first tick that has one
+
+    function render(t) {
+      var panel = $('panel');
+      if (!t) { panel.classList.remove('show'); return; }
+
+      if (t.question && t.question !== lastQ) { lastQ = t.question; wonAt = 0; totalMs = 0; }
+
+      var hasWinner = !!t.winner;
+      if (hasWinner && !wonAt) wonAt = Date.now();
+
+      // Nothing running and the reveal has had its moment — get off the screen.
+      if (!t.active && (!hasWinner || Date.now() - wonAt > HOLD_MS)) {
+        panel.classList.remove('show');
+        return;
+      }
+
+      $('question').textContent = t.question || '';
+      panel.classList.toggle('won', hasWinner);
+
+      if (hasWinner) {
+        $('prompt').style.display = 'none';
+        $('winnerBox').innerHTML =
+          '<div class="winner">'
+          + '<div class="winner-label">Correct</div>'
+          + '<div class="winner-name">🏆 ' + esc(t.winner) + '</div>'
+          + (t.answer ? '<div class="winner-answer">The answer was “' + esc(t.answer) + '”</div>' : '')
+          + '</div>';
+        $('timer').textContent = '';
+        $('countdownFill').style.width = '100%';
+      } else {
+        $('prompt').style.display = '';
+        $('winnerBox').innerHTML = '';
+        if (t.endsAt) {
+          var left = Math.max(0, Math.ceil((t.endsAt - Date.now()) / 1000));
+          if (!totalMs) totalMs = Math.max(1000, t.endsAt - Date.now());
+          $('timer').textContent = left + 's';
+          $('timer').classList.toggle('urgent', left <= 10);
+          $('countdownFill').style.width =
+            Math.max(0, Math.min(100, ((t.endsAt - Date.now()) / totalMs) * 100)) + '%';
+        } else {
+          $('timer').textContent = '';
+          $('countdownFill').style.width = '100%';
+        }
+      }
+      panel.classList.add('show');
+    }
+
+    function tick() {
+      if (demo) {
+        render({ active: true, question: 'What does RTP stand for?', winner: '', answer: '',
+                 endsAt: Date.now() + 41000 });
+        return;
+      }
+      if (!channel) return;
+      fetch('/api/overlay-data?channel=' + encodeURIComponent(channel))
+        .then(function (r) { return r.json(); })
+        .then(function (d) { render(d && d.trivia ? d.trivia : null); })
+        .catch(function () { /* keep what is on screen rather than blinking out */ });
+    }
+
+    tick();
+    setInterval(tick, EVERY_MS);
+    // The countdown should move every second even though the data only refreshes
+    // every two — otherwise the clock visibly stutters on stream.
+    setInterval(function () {
+      var t = $('timer');
+      if (t && t.textContent && t.textContent.indexOf('s') > 0) {
+        var n = parseInt(t.textContent, 10);
+        if (n > 0) {
+          t.textContent = (n - 1) + 's';
+          t.classList.toggle('urgent', n - 1 <= 10);
+        }
+      }
+    }, 1000);
+  </script>
+</body>
+</html>
