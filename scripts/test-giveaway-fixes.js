@@ -45,6 +45,16 @@ function makeDb(seed) {
   }
   return { collection: collRef,
     runTransaction: async (fn) => fn({ get: (r) => r.get(), update: (r, v) => r.update(v), set: (r, v) => r.set(v) }),
+    batch: () => {
+      const ops = [];
+      return {
+        set:    (ref, v) => { ops.push(() => ref.set(v)); },
+        update: (ref, v) => { ops.push(() => ref.update(v)); },
+        // One commit = one "round trip"; count it as a single read so the
+        // read-cost assertion reflects the batching.
+        commit: async () => { reads++; for (const op of ops) await op(); },
+      };
+    },
     _store: store, _reads: () => reads, _resetReads: () => { reads = 0; } };
 }
 const A = { firestore: { FieldValue: { increment: (n) => ({ __inc: n }) } } };

@@ -53,6 +53,16 @@ function makeDb(seed) {
       update: (ref, v) => ref.update(v),
       set: (ref, v) => ref.set(v),
     }),
+    // Minimal WriteBatch: collect ops, apply on commit — enough to exercise the
+    // batched write the draw now does.
+    batch: () => {
+      const ops = [];
+      return {
+        set:    (ref, v) => { ops.push(() => ref.set(v)); },
+        update: (ref, v) => { ops.push(() => ref.update(v)); },
+        commit: async () => { for (const op of ops) await op(); },
+      };
+    },
     _store: store,
   };
 }

@@ -631,7 +631,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.31.1</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.31.2</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -1094,6 +1094,9 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         .gw-chip.paused-chip { color:var(--orange); }
         .gw-main-cta { background:var(--accent); color:#0d1117; font-size:15px; font-weight:800; border:none; border-radius:12px; padding:13px 28px; cursor:pointer; box-shadow:0 0 24px rgba(0,229,255,0.3); white-space:nowrap; font-family:'Exo 2',sans-serif; transition:all .15s; }
         .gw-main-cta.draw { background:var(--gold); color:#2b2200; box-shadow:0 0 24px rgba(255,215,0,0.28); }
+        /* Inline spinner shown on the Draw button while the server draw is in flight. */
+        .gw-btn-spin { display:inline-block; width:13px; height:13px; vertical-align:-1px; margin-right:4px; border:2px solid rgba(0,0,0,0.25); border-top-color:currentColor; border-radius:50%; animation:gwBtnSpin .6s linear infinite; }
+        @keyframes gwBtnSpin { to { transform:rotate(360deg); } }
         .gw-main-cta:disabled { opacity:.55; cursor:not-allowed; box-shadow:none; }
         .gw-ghost-cta { background:none; border:1px solid var(--border); color:var(--text-dim); font-size:12px; font-weight:600; border-radius:10px; padding:10px 16px; cursor:pointer; white-space:nowrap; transition:all .15s; }
         .gw-ghost-cta.pause { border-color:rgba(255,167,38,0.45); color:var(--orange); }
@@ -3503,9 +3506,19 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.31.1</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.31.2</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.31.2 &middot; Snappier winner draws</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 20, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#9889; <strong>Drawing a winner is quicker, and the button responds instantly.</strong> The draw now writes its result in a single step instead of several, and the <strong>Draw Winner</strong> button shows a <em>Drawing&hellip;</em> spinner the moment you click &mdash; so there is no more staring at a button that looks like it did not register.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -9572,6 +9585,19 @@ async function spinPicker() {
   if (spinningNow) return;
   spinningNow = true;
 
+  // Instant feedback. The draw is a server round-trip (300ms–2s, more on a cold
+  // function), and without this the button just sits there looking unclicked for
+  // the whole wait. Flip it to a spinning "Drawing…" the moment it is pressed,
+  // and restore it in the finally — so the click always registers immediately,
+  // whatever the network does.
+  const drawBtn = document.getElementById('gwMainBtn');
+  const drawBtnHtml = drawBtn ? drawBtn.innerHTML : '';
+  if (drawBtn) {
+    drawBtn.disabled = true;
+    drawBtn.style.opacity = '0.8';
+    drawBtn.innerHTML = '<span class="gw-btn-spin"></span> Drawing…';
+  }
+
   // The draw runs on the SERVER against the seed committed before entries
   // opened, and publishes a proof anyone can recompute. It has to be server-side
   // to mean anything: a winner picked in this browser is a winner the streamer
@@ -9588,6 +9614,7 @@ async function spinPicker() {
     // Released whether the draw succeeded, failed or threw — a stuck flag would
     // leave the Draw button dead for the rest of the round.
     spinningNow = false;
+    if (drawBtn) { drawBtn.disabled = false; drawBtn.style.opacity = ''; drawBtn.innerHTML = drawBtnHtml; }
   }
   if (!drawn) return;   // gwServerDraw already explained why
 

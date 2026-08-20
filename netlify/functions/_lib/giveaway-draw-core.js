@@ -177,19 +177,12 @@ async function performDraw(db, admin, uid, luck, rules, opts) {
   const won    = ownerOfTicket(pool, ticket);
   const drawId = `${committedAt}-${nonce}`;
 
-  // Short code for the chat link. Retried on the vanishing chance of a
-  // collision; if every attempt somehow lands on a taken code the draw still
-  // completes and the long URL still works, because the code is a convenience
-  // and never the source of truth.
-  let code = null;
-  for (let i = 0; i < 4 && !code; i++) {
-    const candidate = newDrawCode();
-    const held = await db.collection("draw_codes").doc(candidate).get();
-    if (!held.exists) {
-      await db.collection("draw_codes").doc(candidate).set({ uid, drawId, at: Date.now() });
-      code = candidate;
-    }
-  }
+  // Short code for the chat link. Generated without a pre-read: 8 characters
+  // over a 30-symbol alphabet is ~6.5e11 combinations, so a collision is far
+  // below one in a billion at any realistic draw volume — and if one ever did
+  // happen it would repoint one old code, never touch this proof, which is the
+  // source of truth. The read-to-check-first it replaces was a whole round trip.
+  const code = newDrawCode();
 
   const proof = {
     uid, drawId, nonce,
@@ -207,14 +200,22 @@ async function performDraw(db, admin, uid, luck, rules, opts) {
     channel: profile.kickChannel || "",
   };
 
-  await db.collection("streamers").doc(uid).collection("giveaway_draws").doc(drawId).set(proof);
-  await db.collection("streamers").doc(uid).update({
-    "giveawayFairness.draws":         admin.firestore.FieldValue.increment(1),
-    "giveawayFairness.lastDrawId":    drawId,
+  // All three writes — the proof, the code lookup, the fairness counter — go to
+  // different documents and do not depend on each other, so one batched commit
+  // lands them in a SINGLE round trip instead of three sequential ones. The
+  // seed rotation stays in its own transaction above; it is the only part that
+  // has to read-then-write atomically.
+  const batch = db.batch();
+  batch.set(db.collection("streamers").doc(uid).collection("giveaway_draws").doc(drawId), proof);
+  batch.set(db.collection("draw_codes").doc(code), { uid, drawId, at: Date.now() });
+  batch.update(db.collection("streamers").doc(uid), {
+    "giveawayFairness.draws":          admin.firestore.FieldValue.increment(1),
+    "giveawayFairness.lastDrawId":     drawId,
     // The strip shows the commitment the NEXT draw will run under.
     "giveawayFairness.serverSeedHash": nextSeedHash,
     "giveawayFairness.committedAt":    Date.now(),
   });
+  await batch.commit();
 
   return {
     ok: true,
