@@ -631,7 +631,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.31.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.31.1</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3503,9 +3503,19 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.31.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.31.1</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.31.1 &middot; The verify link is clickable</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 20, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#128279; <strong>The proof link in your winner message is now a real link.</strong> It was posting as plain text you could not click. It keeps its <code>https://</code> so chat clients turn it into a link, and the dashboard&rsquo;s own chat views make any link clickable too.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -9494,8 +9504,11 @@ function gwBuildWinMessage(winnerName, proofUrl) {
   const base = (profile?.gwWinMessage || '').trim()
     || '\u{1F3C6} Congratulations {winner}! You won the giveaway! \u{1F389}';
 
-  // Strip the scheme: chat clients link it anyway and it buys back 8 characters.
-  const shortUrl = String(proofUrl || '').replace(/^https?:\/\//, '');
+  // Keep the https:// scheme. It was stripped to save 8 characters on the
+  // assumption chat clients auto-link a bare domain — they do not reliably, so
+  // the link rendered as dead plain text. A verify link people cannot click is
+  // pointless; the 8 characters are nothing against a 400-char budget.
+  const shortUrl = String(proofUrl || '');
 
   // Whether they placed {verify} is a question about the TEMPLATE, so ask it
   // before substituting anything — testing the substituted string would let a
@@ -9761,8 +9774,25 @@ function escapeHtml(s) {
 // Kick chat content → HTML: escape everything, then swap Kick's emote tokens
 // ([emote:4148074:HYPERCLAP]) for the real emote images off files.kick.com.
 function renderKickChatHtml(raw) {
-  return escapeHtml(raw).replace(/\[emote:(\d+):([^\]\s]*)\]/g, (_, id, name) =>
+  let html = escapeHtml(raw);
+  // Linkify URLs so a posted verify link is actually clickable. Runs on the
+  // ALREADY-ESCAPED text, so a match contains only URL-safe characters and can
+  // go straight into an href — and BEFORE emote replacement, so it cannot match
+  // the https:// inside an emote's <img src>. Two shapes are linkified: a full
+  // http(s) URL, or a bare domain that has a /path (wenbot.gg/v/abc). Requiring
+  // a path for the schemeless form keeps "1.5x", "e.g." and the like from
+  // turning into links.
+  html = html.replace(
+    /\b(https?:\/\/[^\s<]+|(?:[a-z0-9-]+\.)+[a-z]{2,}\/[^\s<]+)/gi,
+    (m) => {
+      const trail = (m.match(/[.,!?)]+$/) || [''])[0];   // trailing punctuation is not part of the link
+      const url   = m.slice(0, m.length - trail.length);
+      const href  = /^https?:\/\//i.test(url) ? url : 'https://' + url;
+      return `<a href="${href}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">${url}</a>${trail}`;
+    });
+  html = html.replace(/\[emote:(\d+):([^\]\s]*)\]/g, (_, id, name) =>
     `<img src="https://files.kick.com/emotes/${id}/fullsize" alt="${name}" title="${name}" style="height:22px;vertical-align:middle;margin:0 1px;" onerror="this.replaceWith(this.alt)">`);
+  return html;
 }
 
 // Styled in-app confirm — replaces the browser's native confirm() popup (the

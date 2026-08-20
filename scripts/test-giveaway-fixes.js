@@ -186,7 +186,7 @@ function fixture(profileExtra, secretExtra) {
     let m = build('luckyviewer', URL);
     ok(m.includes('@luckyviewer') && m.includes('wenbot.gg/v/a7k2m9x4'),
        'default message carries the winner and the link', m);
-    ok(!m.includes('https://'), 'scheme stripped, to save characters in chat');
+    ok(m.includes('https://wenbot.gg/v/a7k2m9x4'), 'scheme kept so the link is clickable in chat');
 
     setP({ giveawayPostVerifyLink: false });
     ok(!build('luckyviewer', URL).includes('wenbot.gg'), 'toggle off suppresses the automatic link');
