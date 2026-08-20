@@ -157,6 +157,96 @@ function fixture(profileExtra, secretExtra) {
     ok(s.rules.casino === true && s.rules.board === 'degen', 'casino requirement and board carry through');
   }
 
+  console.log('\n== short verify codes ==');
+  {
+    const { newDrawCode } = require('../netlify/functions/_lib/fairness');
+    const seen = new Set();
+    for (let i = 0; i < 20000; i++) seen.add(newDrawCode());
+    ok(seen.size === 20000, '20000 codes, no collisions');
+    const all = [...seen].join('');
+    ok(!/[01ilo]/.test(all), 'no 0/1/i/l/o — readable off a stream and typeable on a phone');
+    ok([...seen].every(c => c.length === 8), 'every code is 8 characters');
+    ok(('wenbot.gg/v/' + [...seen][0]).length === 20, 'the chat link is 20 characters, not 80');
+  }
+
+  console.log('\n== the winner chat message ==');
+  {
+    const fs = require('fs'), vm = require('vm');
+    // Pulled out of the page so the test exercises the shipped function rather
+    // than a copy that can drift away from it.
+    const html = fs.readFileSync(__dirname + '/../dashboard.html', 'utf8');
+    const src  = html.slice(html.indexOf('function gwBuildWinMessage'),
+                            html.indexOf('// Queue the verify link'));
+    const g = {}; vm.createContext(g);
+    vm.runInContext('let profile=null;' + src + ';globalThis.__b=gwBuildWinMessage;globalThis.__set=p=>{profile=p};', g);
+    const build = g.__b, setP = g.__set;
+    const URL = 'https://wenbot.gg/v/a7k2m9x4';
+
+    setP({});
+    let m = build('luckyviewer', URL);
+    ok(m.includes('@luckyviewer') && m.includes('wenbot.gg/v/a7k2m9x4'),
+       'default message carries the winner and the link', m);
+    ok(!m.includes('https://'), 'scheme stripped, to save characters in chat');
+
+    setP({ giveawayPostVerifyLink: false });
+    ok(!build('luckyviewer', URL).includes('wenbot.gg'), 'toggle off suppresses the automatic link');
+
+    setP({ gwWinMessage: '{winner} won! proof: {verify} gg', giveawayPostVerifyLink: false });
+    ok(build('luckyviewer', URL).includes('wenbot.gg/v/a7k2m9x4'),
+       'an explicit {verify} beats the toggle — placing it IS asking for it');
+
+    setP({ gwWinMessage: '{winner} won! proof: {verify} gg' });
+    ok(build('luckyviewer', null) === '@luckyviewer won! gg',
+       'with no link, the placeholder AND its stranded label are removed',
+       build('luckyviewer', null));
+
+    setP({ gwWinMessage: 'GG {winner} you scooped it' });
+    ok(/it · Verify/.test(build('luckyviewer', URL)),
+       'a message ending mid-sentence gets a separator, not a run-on', build('luckyviewer', URL));
+
+    setP({ gwWinMessage: '{winner} takes it!' });
+    ok(/it! Verify/.test(build('luckyviewer', URL)),
+       'a message already ending in punctuation gets no extra separator');
+
+    setP({ gwWinMessage: 'x'.repeat(390) });
+    ok(build('luckyviewer', URL).length <= 400, 'output is capped so chat cannot reject it');
+  }
+
+  console.log('\n== the "re-run it yourself" command actually runs ==');
+  {
+    const fs = require('fs'), vm = require('vm'), cp = require('child_process');
+    const F = require('../netlify/functions/_lib/fairness');
+    const O2 = require('../netlify/functions/_lib/giveaway-odds');
+    const { pool, totalTickets } = O2.buildPool(
+      [{ kickKey: 'alice', kickName: 'Alice', isSub: true, underCode: true, wager: 0 },
+       { kickKey: 'bob',   kickName: 'Bob',   isSub: false, underCode: false, wager: 0 }],
+      O2.sanitiseLuck({ sub: 2 }), O2.sanitiseRules({}),
+      { casino: new Set(), discord: new Set(), boards: {} });
+    const seed = F.newServerSeed(), lh = F.entryListHash(pool), nonce = 2;
+    const { ticket } = F.drawTicket(seed, lh, nonce, totalTickets);
+    const proof = { pool, nonce, serverSeed: seed, serverSeedHash: F.sha256Hex(seed),
+                    entryListHash: lh, winningTicket: ticket, totalTickets,
+                    winnerKey: F.ownerOfTicket(pool, ticket).key };
+
+    const html = fs.readFileSync(__dirname + '/../verify-draw.html', 'utf8');
+    const src  = html.slice(html.indexOf('function renderRerun'), html.indexOf('function copyRerun'));
+    const els  = { rerunInputs: {}, rerunCmd: {}, rerunCard: { style: {} } };
+    const g = { document: { getElementById: (id) => els[id] }, esc: String };
+    g.$ = (id) => els[id];
+    vm.createContext(g);
+    vm.runInContext('const $=globalThis.$; const esc=globalThis.esc;' + src + ';globalThis.__r=renderRerun;', g);
+    g.__r(proof);
+
+    // Run the exact text the page hands a sceptical viewer. If this ever stops
+    // matching, we are telling people to check our work with a broken command.
+    const inner = els.rerunCmd.textContent.replace(/^node -e "/, '').replace(/"$/, '');
+    const out = cp.execFileSync(process.execPath, ['-e', inner], { encoding: 'utf8' });
+    ok(out.includes(proof.serverSeedHash), 'the command reproduces the published seed hash');
+    ok(out.includes(lh), 'the command reproduces the entry list hash');
+    ok(new RegExp('ticket\\s+' + ticket + '\\b').test(out),
+       'the command reproduces the winning ticket', out.trim());
+  }
+
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

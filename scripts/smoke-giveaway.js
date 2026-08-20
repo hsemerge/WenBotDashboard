@@ -130,8 +130,15 @@ function recompute(proof) {
   head('Overlay payload carries trivia');
   if (channel) {
     const r = await req('/api/overlay-data?channel=' + encodeURIComponent(channel));
-    ok(r.status === 200 && r.json && r.json.trivia && typeof r.json.trivia.active === 'boolean',
-       'overlay-data includes a trivia block', JSON.stringify(r.json && r.json.trivia));
+    // A channel that is not a WenBot streamer 404s here long before trivia is
+    // reached. Reporting that as a failed trivia check sends you hunting a bug
+    // that is really just the wrong --channel.
+    if (r.status === 404) {
+      skipped('overlay trivia — "' + channel + '" is not a WenBot channel; pass a real streamer slug');
+    } else {
+      ok(r.status === 200 && r.json && r.json.trivia && typeof r.json.trivia.active === 'boolean',
+         'overlay-data includes a trivia block', JSON.stringify(r.json && r.json.trivia));
+    }
   } else skipped('overlay trivia — pass --channel <slug> to test');
 
   // ── Authenticated end-to-end ─────────────────────────────────────────────

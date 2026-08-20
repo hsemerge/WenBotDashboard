@@ -81,6 +81,24 @@
       <div class="verdict-sub"  id="verdictSub">Fetching the published proof.</div>
     </div>
 
+    <div class="card" id="rerunCard" style="display:none;">
+      <h2>Re-run it yourself</h2>
+      <p style="font-size:12.5px;color:var(--text-dim);line-height:1.65;margin-bottom:12px;">
+        These are the exact inputs. Nothing above is doing anything you cannot do here —
+        the page checks the draw in your browser, and this lets you check the page.
+      </p>
+      <dl class="kv" id="rerunInputs" style="margin-bottom:14px;"></dl>
+      <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">
+        Save as verify.js and run it with Node
+      </div>
+      <pre id="rerunCmd" style="background:#0b0e13;border:1px solid var(--border);border-radius:8px;padding:12px;
+           font-family:'Courier New',monospace;font-size:11px;color:var(--accent);overflow-x:auto;white-space:pre;
+           line-height:1.6;margin:0;"></pre>
+      <button onclick="copyRerun(this)" style="margin-top:10px;background:rgba(0,229,255,0.1);
+              border:1px solid rgba(0,229,255,0.35);border-radius:7px;color:var(--accent);font-size:12px;
+              font-weight:800;padding:8px 14px;cursor:pointer;font-family:'Inter',sans-serif;">Copy command</button>
+    </div>
+
     <div class="card" id="lookupCard" style="display:none;">
       <h2>Look up a draw</h2>
       <div class="lookup">
@@ -146,19 +164,28 @@
     function goLookup() {
       const raw = ($('lookupUrl').value || '').trim();
       if (!raw) return;
-      // Accept a full link or a bare "uid:drawId" — people paste both.
+      // The short form is what the bot posts, so it has to be the first thing
+      // this box understands — a viewer pasting the link from chat and being
+      // told it is not a draw link would be the most common possible failure.
+      // Matches wenbot.gg/v/CODE, /v/CODE, a bare code, with or without scheme.
+      const short = raw.match(/(?:^|\/)v\/([A-Za-z0-9]{4,16})\/?$/) || raw.match(/^([A-Za-z0-9]{6,16})$/);
+      if (short) { window.location.href = '/v/' + short[1].toLowerCase(); return; }
+
       try {
-        const u = new URL(raw, window.location.origin);
+        const u = new URL(/^https?:\/\//.test(raw) ? raw : 'https://' + raw);
         const uid = u.searchParams.get('uid'), d = u.searchParams.get('d');
         if (uid && d) {
           window.location.search = '?uid=' + encodeURIComponent(uid) + '&d=' + encodeURIComponent(d);
           return;
         }
-      } catch (e) { /* not a URL — fall through to the bare form */ }
+        const c = u.searchParams.get('code');
+        if (c) { window.location.href = '/v/' + c.toLowerCase(); return; }
+      } catch (e) { /* not a URL — fall through to the bare uid:drawId form */ }
+
       const m = raw.match(/^([A-Za-z0-9_-]+)[:\s]+([0-9]+-[0-9]+)$/);
       if (m) window.location.search = '?uid=' + encodeURIComponent(m[1]) + '&d=' + encodeURIComponent(m[2]);
       else setVerdict('fail', 'That does not look like a draw link',
-                      'Paste the whole link the streamer posted in chat.');
+                      'Paste the link the streamer posted in chat, or just the code from the end of it.');
     }
 
     function renderPool(proof) {
@@ -205,10 +232,60 @@
       $('detailCard').style.display = '';
     }
 
+    // The whole recomputation as one runnable command. Deliberately spelled out
+    // rather than hidden behind a helper: someone checking a draw they lost
+    // should be able to read every step, not take our word for what it does.
+    function renderRerun(proof) {
+      const rows = [
+        ['seed (revealed)',  proof.serverSeed],
+        ['committed as',     proof.serverSeedHash],
+        ['entry list hash',  proof.entryListHash],
+        ['draw number',      String(proof.nonce)],
+        ['total tickets',    String(proof.totalTickets)],
+      ];
+      $('rerunInputs').innerHTML = rows.map(r =>
+        '<dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd>').join('');
+
+      // JSON.stringify for EVERY value. This used to build a `node -e "..."`
+      // shell command with the pool spliced in raw, which meant a pool key
+      // containing $( ), a backtick or a quote executed on the reader's machine
+      // or broke the snippet outright. Nothing here is parsed by a shell now,
+      // and nothing is concatenated into a quoted context.
+      const listArr = proof.pool.map(p => p.key + ':' + p.tickets);
+      $('rerunCmd').textContent =
+          "// Save as verify.js, then run:  node verify.js\n"
+        + "const c = require('crypto');\n\n"
+        + 'const seed  = ' + JSON.stringify(proof.serverSeed) + ';\n'
+        + 'const list  = ' + JSON.stringify(listArr) + ".join('\\n');\n"
+        + 'const nonce = ' + JSON.stringify(proof.nonce) + ';\n'
+        + 'const total = ' + JSON.stringify(proof.totalTickets) + ';\n\n'
+        + "const lh = c.createHash('sha256').update(list).digest('hex');\n"
+        + "const d  = c.createHmac('sha256', seed).update(lh + ':' + nonce).digest('hex');\n"
+        + "const t  = Number(BigInt('0x' + d.slice(0, 16)) % BigInt(total));\n\n"
+        + "console.log('seed hash', c.createHash('sha256').update(seed).digest('hex'));\n"
+        + "console.log('list hash', lh);\n"
+        + "console.log('ticket   ', t);\n";
+      $('rerunCard').style.display = '';
+    }
+
+    function copyRerun(btn) {
+      navigator.clipboard.writeText($('rerunCmd').textContent).then(function () {
+        const t = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(function () { btn.textContent = t; }, 2000);
+      }).catch(function () { /* it is on screen to select by hand */ });
+    }
+
     async function run() {
       const q = new URLSearchParams(window.location.search);
+      // Short links arrive as /v/<code>; the long form still works unchanged.
+      const pathCode = (window.location.pathname.match(/^\/v\/([A-Za-z0-9]{4,16})\/?$/) || [])[1];
+      // Lowercased: the codes we mint are lowercase, the server looks them up as
+      // a document id (case-sensitive), and someone retyping a code off a stream
+      // in caps should not get a 400.
+      const code = (pathCode || q.get('code') || '').toLowerCase();
       const uid = q.get('uid'), d = q.get('d');
-      if (!uid || !d) {
+      if (!code && (!uid || !d)) {
         setVerdict('busy', 'Paste a draw link', 'The streamer posts one in chat after every draw.');
         $('lookupCard').style.display = '';
         return;
@@ -216,7 +293,10 @@
 
       let data;
       try {
-        const r = await fetch('/api/draw-proof?uid=' + encodeURIComponent(uid) + '&d=' + encodeURIComponent(d));
+        const qs = code
+          ? 'code=' + encodeURIComponent(code)
+          : 'uid=' + encodeURIComponent(uid) + '&d=' + encodeURIComponent(d);
+        const r = await fetch('/api/draw-proof?' + qs);
         data = await r.json();
         if (!r.ok) throw new Error(data.error || 'Could not load that draw');
       } catch (e) {
@@ -227,6 +307,7 @@
 
       const proof = data.proof;
       renderDetail(proof);
+      renderRerun(proof);
       renderPool(proof);
 
       const result = await fvVerify(proof);

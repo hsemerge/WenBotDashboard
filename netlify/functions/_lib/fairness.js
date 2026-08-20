@@ -36,6 +36,23 @@ const crypto = require("crypto");
 
 const SEED_BYTES = 32;
 
+// Alphabet for the short verify code. No 0/O/1/I/L — a viewer reading this off
+// a stream and typing it into a phone should not have to guess which character
+// they are looking at. 8 chars over 30 symbols is ~6.5e11 combinations, so
+// collisions stay theoretical even at a lot of draws (the caller retries anyway).
+const CODE_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz";
+const CODE_LENGTH   = 8;
+
+function newDrawCode() {
+  const bytes = crypto.randomBytes(CODE_LENGTH);
+  let out = "";
+  // Rejection-free mapping is not needed here: the tiny modulo bias across a
+  // 31-symbol alphabet costs a fraction of a bit and this is an identifier, not
+  // a secret — nothing about the draw depends on the code being unguessable.
+  for (let i = 0; i < CODE_LENGTH; i++) out += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
+  return out;
+}
+
 function newServerSeed() {
   return crypto.randomBytes(SEED_BYTES).toString("hex");
 }
@@ -126,6 +143,6 @@ function verifyDraw(proof) {
 }
 
 module.exports = {
-  newServerSeed, sha256Hex, canonicalEntryList, entryListHash,
+  newServerSeed, newDrawCode, sha256Hex, canonicalEntryList, entryListHash,
   drawTicket, ownerOfTicket, verifyDraw,
 };

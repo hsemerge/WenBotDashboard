@@ -631,7 +631,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.30.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.31.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -2098,10 +2098,24 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           <div class="field">
             <label style="font-size:11px;">Giveaway won message
               <span class="gw-info" onclick="this.classList.toggle('open');" style="margin-left:6px;">i
-                <span class="gw-info-pop">Posted in chat when a giveaway winner is drawn (dashboard draws and <strong>!winner</strong>). Use <strong>{winner}</strong> where the winner's name should go. Leave blank for the default.</span>
+                <span class="gw-info-pop">Posted in chat when a giveaway winner is drawn. Leave blank for the default. <strong>{verify}</strong> and the verify link only apply to draws made from this dashboard — a winner drawn with <strong>!winner</strong> in chat gets your message with just the name filled in.</span>
               </span>
             </label>
-            <input type="text" id="gwWinMsgInput" placeholder="🏆 Congratulations {winner}! You won the giveaway! 🎉" maxlength="240">
+            <input type="text" id="gwWinMsgInput" placeholder="🏆 Congratulations {winner}! You won the giveaway! 🎉" maxlength="240"
+                   oninput="gwWinMsgPreview()">
+            <div class="hint" style="line-height:1.7;">
+              <code style="color:var(--accent);">{winner}</code> becomes the winner's name with the @ attached.<br>
+              <code style="color:var(--accent);">{verify}</code> becomes the link to that draw's proof, so chat can check it themselves.
+              Leave it out and the link is added on the end automatically.
+            </div>
+            <div style="margin-top:8px;padding:8px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:7px;">
+              <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Chat will see</div>
+              <div id="gwWinMsgPreviewOut" style="font-size:12.5px;color:var(--bright);word-break:break-word;"></div>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--text);cursor:pointer;">
+              <input type="checkbox" id="gwPostVerifyLink" checked onchange="gwWinMsgPreview()" style="accent-color:var(--accent);width:14px;height:14px;">
+              Include the verify link with every winner
+            </label>
           </div>
           <button class="btn btn-accent" onclick="saveCommandAliases()">Save Command Names</button>
         </div>
@@ -3489,9 +3503,22 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.30.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.31.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.31.0 &middot; Every winner announcement now carries its own proof</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 20, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#128279; <strong>The verify link goes out with the win, automatically.</strong> Your winner message now ends with a short link to that draw&rsquo;s proof &mdash; <code>wenbot.gg/v/a7k2m9x4</code>. A link you only post when somebody accuses you reads as a defence; posted every time, it is simply how your giveaways work. That is the version that settles the argument, because nobody had to ask.</li>
+            <li>&#9997;&#65039; <strong>Two placeholders for your win message.</strong> <code>{winner}</code> becomes their name with the @ attached, and <code>{verify}</code> becomes the proof link, wherever you want it. Leave <code>{verify}</code> out and the link is added on the end for you. There is a live preview under the box showing exactly what chat will see, and a switch to turn the link off entirely.</li>
+            <li>&#128269; <strong>&ldquo;Re-run it yourself&rdquo; on the verify page.</strong> The seed, the entry list and the draw number now sit at the top, with a ready-made command you can paste into a terminal. The page checks the draw in your browser; this lets a sceptical viewer check the page. Nothing is asking anyone to take our word for it.</li>
+            <li>&#128736;&#65039; <strong>Fixes.</strong> The fairness strip laid its pieces out on top of each other and reported the winning ticket as an unhelpful &ldquo;0 of 1&rdquo; &mdash; it now reads &ldquo;drawn from N tickets&rdquo; and lines up properly. The warning that tells you how many entries no longer qualify after you switch a requirement on mid-giveaway was never appearing at all; it does now.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -9019,7 +9046,9 @@ function gwRenderEligibilityNote(excluded, total) {
   const el = document.getElementById('gwEligibilityNote');
   if (!el) return;
   if (!excluded) { el.style.display = 'none'; el.innerHTML = ''; return; }
-  el.style.display = '';
+  // 'block', not '' — .gw-elig-note carries display:none, so clearing the inline
+  // style hands control back to the class and the warning stays invisible.
+  el.style.display = 'block';
   el.innerHTML = `⚠️ <strong>${excluded}</strong> of ${total} `
     + `${total === 1 ? 'entry does' : 'entries do'} not meet the requirements you switched on — `
     + `drawing from <strong>${total - excluded}</strong>. Switch the requirement back off to include them again.`;
@@ -9170,12 +9199,20 @@ async function gwAddEntrants() {
   const prior    = Array.isArray(profile?.giveawayManualEntries) ? profile.giveawayManualEntries : [];
   prior.forEach(m => existing.add(String(m.kickKey || '').toLowerCase()));
 
-  const added = [];
+  // Kick usernames are letters, numbers and underscores. Anything else pasted in
+  // here ends up published in the proof pool and shown to strangers, so hold the
+  // hand-added path to the same shape rather than trusting whatever was pasted.
+  const added = [], rejected = [];
   for (const name of names) {
     const key = name.toLowerCase();
     if (!key || existing.has(key)) continue;
+    if (!/^[a-z0-9_-]{1,64}$/.test(key)) { rejected.push(name); continue; }
     existing.add(key);
     added.push({ kickKey: key, kickName: name, addedAt: Date.now() });
+  }
+  if (rejected.length) {
+    flash('Skipped ' + rejected.length + ' that are not valid Kick names: '
+      + rejected.slice(0, 3).join(', ') + (rejected.length > 3 ? '…' : ''), 'error');
   }
   if (!added.length) { flash('Nobody new in that list — they are all entered already.', 'error'); return; }
 
@@ -9307,7 +9344,7 @@ function gwRenderClaimBar() {
   const bar = document.getElementById('gwClaimBar');
   if (!bar) return;
   if (!_gwClaimKey && !_gwClaimed) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
-  bar.style.display = '';
+  bar.style.display = 'block';
   if (_gwClaimed) {
     bar.innerHTML = '<span style="color:var(--green);font-weight:700;font-size:11.5px;">&#10003; Claimed — they replied in chat</span>';
     return;
@@ -9405,12 +9442,21 @@ function gwRenderProofStrip() {
 
   if (gwLastProof) {
     const url = gwLastProof.proofUrl;
-    el.style.display = '';
-    // A proof restored after a reload has the id and the link but not the ticket
-    // figures — show what we actually have rather than "ticket undefined".
+    // 'flex', never '' — clearing the property drops the div back to block and
+    // the gap/align-items set inline on it stop applying.
+    el.style.display = 'flex';
+    // A proof restored after a reload has the id and the link but not the pool
+    // figures — show what we actually have rather than "undefined".
+    //
+    // Deliberately NOT the winning ticket index. It is zero-based, so a
+    // single-entry draw read "ticket 0 of 1", which looks like a failure rather
+    // than a result. The index is genuinely useful on the verifier page, where
+    // every entrant's ticket range is listed beside it; here it is just a number
+    // with no context. What is worth knowing at a glance is how big the pool was.
+    const n = gwLastProof.totalTickets;
     const detail = gwLastProof.restored
       ? '<span style="color:var(--text-dim);">from your last draw</span>'
-      : '<span style="color:var(--text-dim);">ticket ' + gwLastProof.winningTicket + ' of ' + gwLastProof.totalTickets + '</span>';
+      : '<span style="color:var(--text-dim);">drawn from ' + n + (n === 1 ? ' ticket' : ' tickets') + '</span>';
     el.innerHTML = '<span style="color:var(--green);font-weight:700;">&#10003; Draw #' + (gwLastProof.nonce + 1) + ' published</span>'
       + detail
       + '<a href="' + escHtml(url) + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">Open verifier</a>'
@@ -9418,19 +9464,71 @@ function gwRenderProofStrip() {
     return;
   }
   if (fair?.serverSeedHash) {
-    el.style.display = '';
+    el.style.display = 'flex';
     el.innerHTML = '<span style="color:var(--text-dim);">&#128274; Draw seed committed</span>'
       + '<code style="color:var(--accent);font-size:10.5px;">' + escHtml(fair.serverSeedHash.slice(0, 24)) + '&hellip;</code>'
       + '<span style="color:var(--text-dim);">published before entries opened</span>';
     return;
   }
   if (giveawayActive) {
-    el.style.display = '';
+    el.style.display = 'flex';
     el.innerHTML = '<span style="color:var(--orange);">&#9888; This giveaway has no draw seed — the result will not be verifiable.</span>';
     return;
   }
   el.style.display = 'none';
   el.innerHTML = '';
+}
+
+// The message the bot posts when a winner is drawn.
+//
+// {winner} and {verify} are both honoured. A streamer who has written their own
+// message and placed {verify} gets it exactly where they put it; one who has
+// not gets the link appended, because the whole point is that it goes out every
+// time without anyone remembering to add it.
+//
+// Off is still possible (giveawayPostVerifyLink === false) for a streamer who
+// wants a quieter chat — but the default is on, since a trust feature nobody
+// switches on is not a trust feature.
+function gwBuildWinMessage(winnerName, proofUrl) {
+  const at   = '@' + winnerName;
+  const base = (profile?.gwWinMessage || '').trim()
+    || '\u{1F3C6} Congratulations {winner}! You won the giveaway! \u{1F389}';
+
+  // Strip the scheme: chat clients link it anyway and it buys back 8 characters.
+  const shortUrl = String(proofUrl || '').replace(/^https?:\/\//, '');
+
+  // Whether they placed {verify} is a question about the TEMPLATE, so ask it
+  // before substituting anything — testing the substituted string would let a
+  // winner whose name contained the literal text change how their own
+  // announcement is built.
+  const placed = /\{verify\}/i.test(base);
+
+  // Function replacement, not a string: a replacement string interprets $$, $&
+  // and $` , so a name containing them would mangle the message.
+  let msg = base.replace(/\{winner\}/gi, () => at);
+
+  if (placed) {
+    // An explicit placeholder beats the toggle — putting it there IS asking for
+    // it. With nothing to substitute, remove it and any short label left
+    // stranded in front, so nobody posts "proof:" with nothing after it.
+    msg = shortUrl
+      ? msg.replace(/\{verify\}/gi, () => shortUrl)
+      : msg.replace(/(\s*\S{0,12}?:)?\s*\{verify\}/gi, '');
+    return msg.replace(/\s{2,}/g, ' ').trim().slice(0, 400);
+  }
+
+  let tail = '';
+  if (profile?.giveawayPostVerifyLink !== false && shortUrl) {
+    // Separator only when the message does not already end in punctuation or an
+    // emoji, so "...you scooped it" does not run straight into "Verify".
+    const sep = /[\p{L}\p{N}]$/u.test(msg) ? ' \u00B7 ' : ' ';
+    tail = sep + 'Verify this draw: ' + shortUrl;
+  }
+  // Trim the MESSAGE to fit the link, never the link to fit the message — a
+  // half-truncated URL is a dead link, which is worse than a shorter greeting.
+  msg = msg.replace(/\s{2,}/g, ' ').trim();
+  if (msg.length + tail.length > 400) msg = msg.slice(0, 400 - tail.length).trim();
+  return msg + tail;
 }
 
 // Queue the verify link for the bot to post, so viewers get it without the
@@ -9575,11 +9673,18 @@ window.addEventListener('message', (e) => {
   const uid = fb.activeUid;
   if (uid) {
     const watchAt = Date.now();
+    // Attach the proof ONLY when it demonstrably belongs to this winner. The
+    // name arrives from the spinner iframe, the proof from the draw call — two
+    // sources that agree in every normal case but need not agree if a spin
+    // message is dropped during a double draw. Posting the link anyway would
+    // announce one name beside a proof naming another, which is the single
+    // failure this feature must never have. No link beats a contradictory one.
+    const _p = gwLastProof;
+    const _proofUrl = (_p && _p.winnerKey
+      && _p.winnerKey === pickedWinner.username.toLowerCase()) ? _p.proofUrl : null;
     fb.db.collection('streamers').doc(uid)
       .update({
-        pendingChatMessage: (profile?.gwWinMessage || '').trim()
-          ? profile.gwWinMessage.trim().replace(/\{winner\}/gi, '@' + pickedWinner.username)
-          : `🏆 Congratulations @${pickedWinner.username}! You won the giveaway! 🎉`,
+        pendingChatMessage: gwBuildWinMessage(pickedWinner.username, _proofUrl),
         pendingChatTs:      Date.now() + Math.random(),
         winnerWatch:        pickedWinner.username.toLowerCase(),
         winnerWatchName:    pickedWinner.username,
@@ -11523,7 +11628,27 @@ function loadCommandAliases() {
   });
   const wm = document.getElementById('gwWinMsgInput');
   if (wm) wm.value = profile?.gwWinMessage || '';
+  const vl = document.getElementById('gwPostVerifyLink');
+  if (vl) vl.checked = profile?.giveawayPostVerifyLink !== false;
+  gwWinMsgPreview();
   updateStoreModeLabel();
+}
+
+function gwWinMsgPreview() {
+  const out = document.getElementById('gwWinMsgPreviewOut');
+  if (!out) return;
+  // Built through gwBuildWinMessage itself, against a stand-in profile, so the
+  // preview cannot drift from what actually gets posted.
+  const real = profile;
+  try {
+    profile = Object.assign({}, real, {
+      gwWinMessage: document.getElementById('gwWinMsgInput')?.value || '',
+      giveawayPostVerifyLink: document.getElementById('gwPostVerifyLink')?.checked !== false,
+    });
+    out.textContent = gwBuildWinMessage('luckyviewer', 'https://wenbot.gg/v/a7k2m9x4');
+  } finally {
+    profile = real;
+  }
 }
 
 async function saveCommandAliases() {
@@ -11533,8 +11658,12 @@ async function saveCommandAliases() {
     if (val) aliases[k] = val;
   });
   const gwWinMessage = (document.getElementById('gwWinMsgInput')?.value || '').trim().slice(0, 240);
-  await saveStreamerProfile({ commandAliases: aliases, gwWinMessage });
-  if (profile) profile.gwWinMessage = gwWinMessage;
+  const giveawayPostVerifyLink = document.getElementById('gwPostVerifyLink')?.checked !== false;
+  await saveStreamerProfile({ commandAliases: aliases, gwWinMessage, giveawayPostVerifyLink });
+  if (profile) {
+    profile.gwWinMessage = gwWinMessage;
+    profile.giveawayPostVerifyLink = giveawayPostVerifyLink;
+  }
   flash('Command names saved! Bot will pick them up within seconds.');
 }
 

@@ -91,6 +91,13 @@
   to     = "/verify-draw.html"
   status = 200
 
+# Short verify links, short enough to sit in a chat message and be retyped off
+# a stream. The page reads the code out of its own path.
+[[redirects]]
+  from   = "/v/*"
+  to     = "/verify-draw.html"
+  status = 200
+
 [[redirects]]
   from   = "/s"
   to     = "/share.html"

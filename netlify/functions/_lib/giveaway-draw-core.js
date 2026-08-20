@@ -5,7 +5,7 @@
 // authenticate completely differently and must not be able to produce different
 // results — a second copy of this logic is a second set of odds.
 
-const { entryListHash, drawTicket, ownerOfTicket, newServerSeed, sha256Hex } = require("./fairness");
+const { entryListHash, drawTicket, ownerOfTicket, newServerSeed, sha256Hex, newDrawCode } = require("./fairness");
 const { buildPool, anyRuleActive } = require("./giveaway-odds");
 
 // Two extra reads per draw, not per entry, and a draw is an occasional human
@@ -177,6 +177,20 @@ async function performDraw(db, admin, uid, luck, rules, opts) {
   const won    = ownerOfTicket(pool, ticket);
   const drawId = `${committedAt}-${nonce}`;
 
+  // Short code for the chat link. Retried on the vanishing chance of a
+  // collision; if every attempt somehow lands on a taken code the draw still
+  // completes and the long URL still works, because the code is a convenience
+  // and never the source of truth.
+  let code = null;
+  for (let i = 0; i < 4 && !code; i++) {
+    const candidate = newDrawCode();
+    const held = await db.collection("draw_codes").doc(candidate).get();
+    if (!held.exists) {
+      await db.collection("draw_codes").doc(candidate).set({ uid, drawId, at: Date.now() });
+      code = candidate;
+    }
+  }
+
   const proof = {
     uid, drawId, nonce,
     serverSeed, serverSeedHash,          // the seed for THIS draw, revealed now it is done
@@ -188,6 +202,7 @@ async function performDraw(db, admin, uid, luck, rules, opts) {
     winnerKey:  won.key,
     winnerName: won.name,
     pool, luck, rules,
+    code,
     drawnAt: Date.now(),
     channel: profile.kickChannel || "",
   };
@@ -210,7 +225,12 @@ async function performDraw(db, admin, uid, luck, rules, opts) {
       winningTicket: ticket,
       serverSeedHash,
       nextSeedHash,
-      proofUrl: `https://wenbot.gg/verify-draw?uid=${encodeURIComponent(uid)}&d=${encodeURIComponent(drawId)}`,
+      code,
+      // Short form when we have a code, long form as the fallback. Both land on
+      // the same page.
+      proofUrl: code
+        ? `https://wenbot.gg/v/${code}`
+        : `https://wenbot.gg/verify-draw?uid=${encodeURIComponent(uid)}&d=${encodeURIComponent(drawId)}`,
       excluded,
     },
   };

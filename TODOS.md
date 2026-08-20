@@ -253,3 +253,6 @@ Viewers pick a casino with chips on `verify.html` when the streamer runs more th
   - The claim-window auto-reroll now refuses when the bot heartbeat is stale, but it still cannot tell "winner replied in DMs" from "winner said nothing in chat" — chat is the only signal.
   - Trivia scores and the asked-question list live in memory only; a reload loses the session scoreboard.
   - `giveaway_draws` proofs are never pruned. One doc per draw per streamer, forever. Fine for now, worth a retention sweep if draw volume grows.
+
+- **WenBotServer: `{verify}` and the verify link do not work for `!winner`.** The dashboard builds the winner announcement with `gwBuildWinMessage` (short proof link, `{verify}` placeholder, `giveawayPostVerifyLink` toggle). The bot's `!winner` path substitutes `{winner}` only, so a streamer who puts `{verify}` in their template and then draws from chat posts the literal text. The dashboard tooltip now says so explicitly, but the real fix is the same one as the draw itself: route `!winner` through `/api/giveaway-draw` so it gets a proof and a link like every other draw.
+- **`draw_codes` is never pruned.** One doc per draw, forever, mapping short code to draw. Tiny documents and nothing scans the collection, so this is a housekeeping item rather than a cost problem — but it only grows.
