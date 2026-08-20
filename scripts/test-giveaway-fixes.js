@@ -212,14 +212,16 @@ function fixture(profileExtra, secretExtra) {
     ok(build('luckyviewer', URL).length <= 400, 'output is capped so chat cannot reject it');
   }
 
-  console.log('\n== the "re-run it yourself" command actually runs ==');
+  console.log('\n== the "re-run it yourself" snippet — hermetic checks ==');
   {
-    const fs = require('fs'), vm = require('vm'), cp = require('child_process');
-    const F = require('../netlify/functions/_lib/fairness');
+    const fs = require('fs'), vm = require('vm');
+    const F  = require('../netlify/functions/_lib/fairness');
     const O2 = require('../netlify/functions/_lib/giveaway-odds');
     const { pool, totalTickets } = O2.buildPool(
-      [{ kickKey: 'alice', kickName: 'Alice', isSub: true, underCode: true, wager: 0 },
-       { kickKey: 'bob',   kickName: 'Bob',   isSub: false, underCode: false, wager: 0 }],
+      // Every character a shell could act on, in a name that also has to survive
+      // JSON: quotes, backslash, $, backtick, and an apostrophe.
+      [{ kickKey: 'x$(id)`whoami`', kickName: 'a', isSub: true, underCode: true, wager: 0 },
+       { kickKey: "o'neil\"\\bob", kickName: 'b', isSub: false, underCode: false, wager: 0 }],
       O2.sanitiseLuck({ sub: 2 }), O2.sanitiseRules({}),
       { casino: new Set(), discord: new Set(), boards: {} });
     const seed = F.newServerSeed(), lh = F.entryListHash(pool), nonce = 2;
@@ -236,41 +238,38 @@ function fixture(profileExtra, secretExtra) {
     vm.createContext(g);
     vm.runInContext('const $=globalThis.$; const esc=globalThis.esc;' + src + ';globalThis.__r=renderRerun;', g);
     g.__r(proof);
-
-    // Run the snippet the way the page tells people to: written to a file and
-    // executed with node. Values are parsed by exact prefix and compared with
-    // ===, rather than regex-matched against formatted output — matching a word
-    // boundary against a printed number is the kind of assertion that can fail
-    // for reasons that have nothing to do with the thing under test.
     const snippet = els.rerunCmd.textContent;
-    const tmp = require('path').join(require('os').tmpdir(), 'wenbot-rerun-' + process.pid + '.js');
-    fs.writeFileSync(tmp, snippet);
-    let out = '';
-    try {
-      out = cp.execFileSync(process.execPath, [tmp], { encoding: 'utf8' });
-    } finally {
-      try { fs.unlinkSync(tmp); } catch (e) {}
-    }
-    const val = (label) => {
-      const line = out.split(/\r?\n/).find(l => l.startsWith(label));
-      return line ? line.slice(label.length).trim() : null;
-    };
-    const gotSeedHash = val('seed hash');
-    const gotListHash = val('list hash');
-    const gotTicket   = val('ticket');
 
-    // Everything the snippet was built from, so a failure is diagnosable from
-    // the log alone instead of needing the machine it happened on.
-    const dump = 'expected seed=' + proof.serverSeedHash + ' list=' + lh
-      + ' nonce=' + nonce + ' total=' + totalTickets + ' ticket=' + ticket
-      + '\n         got      seed=' + gotSeedHash + ' list=' + gotListHash + ' ticket=' + gotTicket
-      + '\n         raw output: ' + JSON.stringify(out)
-      + '\n         snippet:\n' + snippet.split('\n').map(l => '           ' + l).join('\n');
+    // No subprocess. The snippet is a plain JS file the reader saves and runs;
+    // whether it reproduces the draw is a property of the STRING, so evaluate it
+    // in a vm and read the numbers back. Hermetic — no shell, no temp file, no
+    // dependence on how the host prints a number, which is the class of thing
+    // that made the subprocess version fail on the build host but nowhere here.
+    const logs = [];
+    const sandbox = { require, console: { log: (...a) => logs.push(a.join(' ')) }, BigInt, Number, String };
+    vm.createContext(sandbox);
+    vm.runInContext(snippet, sandbox);
+    const line = (label) => { const l = logs.find(x => x.startsWith(label)); return l ? l.slice(label.length).trim() : null; };
 
-    ok(gotSeedHash === proof.serverSeedHash, 'the snippet reproduces the published seed hash', dump);
-    ok(gotListHash === lh,                   'the snippet reproduces the entry list hash', dump);
-    ok(gotTicket === String(ticket),         'the snippet reproduces the winning ticket', dump);
+    ok(line('seed hash') === proof.serverSeedHash, 'the snippet reproduces the published seed hash',
+       'got ' + line('seed hash') + ' want ' + proof.serverSeedHash);
+    ok(line('list hash') === lh, 'the snippet reproduces the entry list hash',
+       'got ' + line('list hash') + ' want ' + lh);
+    ok(line('ticket') === String(ticket), 'the snippet reproduces the winning ticket',
+       'got ' + line('ticket') + ' want ' + ticket + '\n         snippet:\n' + snippet);
+
+    // The security property, asserted on the TEXT directly: no character a shell
+    // acts on may appear outside a \uXXXX escape. Stronger than executing it,
+    // because it holds regardless of which shell a reader pastes it into. $ and
+    // backtick are the shell's command-substitution triggers; neither appears
+    // anywhere in the snippet template, and jsStr escapes them to \uXXXX inside
+    // the data. So after stripping the \uXXXX escapes, neither may remain —
+    // whatever a pool key contained.
+    const bare = snippet.replace(/\\u[0-9a-f]{4}/g, '');
+    ok(!bare.includes('$'), 'no un-escaped $ survives into the snippet', bare.slice(0, 300));
+    ok(!bare.includes('`'), 'no un-escaped backtick survives into the snippet', bare.slice(0, 300));
   }
+
 
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);

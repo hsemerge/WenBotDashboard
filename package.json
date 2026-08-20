@@ -4,7 +4,8 @@
   "scripts": {
     "build": "node scripts/strip-comments.js",
     "smoke": "node scripts/smoke-giveaway.js",
-    "test": "node scripts/test-giveaway.js && node scripts/test-giveaway-fixes.js && node scripts/test-verify-snippet.js"
+    "test": "node scripts/test-giveaway.js && node scripts/test-giveaway-fixes.js",
+    "test:exec": "node scripts/test-snippet-exec.js"
   },
   "dependencies": {
     "firebase-admin": "^12.0.0",
