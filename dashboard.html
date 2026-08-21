@@ -9350,7 +9350,10 @@ async function gwAutoReroll(key) {
   // running, silence means nothing at all — rerolling on it would punish a
   // winner who was replying the whole time.
   const hb = botStatusData?.heartbeat || 0;
-  if (!hb || (Date.now() - hb) > 300000) {
+  // 7 min, matching the status pill's offline threshold: the bot heartbeats every
+  // 3 min, so a healthy bot (even after one missed write) stays under this and a
+  // legit reroll is never blocked.
+  if (!hb || (Date.now() - hb) > 420000) {
     flash('Not redrawing: WenBot looks offline, so it cannot see whether @' + key + ' replied.', 'error');
     return;
   }
@@ -20427,7 +20430,7 @@ function startLiveBadgeListeners(uid) {
 
 // ── BOT STATUS HEARTBEAT ────────────────────────────────────────────────────
 // Subscribes to streamers/{uid}/bot_status/current. WenBotServer writes the
-// heartbeat every 60s while connected. Stale > 5min = offline.
+// heartbeat every 3 min while connected. Online < 4min, stale < 7min, else offline.
 let botStatusUnsub    = null;
 let botStatusData     = undefined; // undefined = listener hasn't fired yet; null = doc doesn't exist
 let botStatusTimer    = null;
@@ -20441,7 +20444,7 @@ let _gsSig = '';
 function gsSteps() {
   const p = profile || {};
   const hb = botStatusData?.heartbeat || 0;
-  const botOnline = hb && (Date.now() - hb) < 300000;
+  const botOnline = hb && (Date.now() - hb) < 420000;
   const manual = p.gettingStarted || {};
   return [
     { key: 'kick',    icon: '🟢', title: 'Connect your Kick channel',  done: !!p.kickChannel,
@@ -20565,10 +20568,10 @@ function renderBotStatus() {
   if (!hb) {
     state = 'unknown'; color = 'var(--text-dim)'; label = 'Not connected';
     ariaLabel = 'Bot status: not connected. Bot has never reported in for this channel.';
-  } else if (ageSec < 120) {
+  } else if (ageSec < 240) {
     state = 'online';  color = 'var(--green)';   label = 'Online';
     ariaLabel = `Bot status: online. Last heartbeat ${formatAge(ageSec)} ago.`;
-  } else if (ageSec < 300) {
+  } else if (ageSec < 420) {
     state = 'stale';   color = '#ffa500';        label = 'Stale';
     ariaLabel = `Bot status: stale. Last heartbeat ${formatAge(ageSec)} ago — may be reconnecting.`;
   } else {
