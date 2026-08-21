@@ -8,6 +8,7 @@
 
 const { getDb, admin }         = require("./_lib/firebase");
 const { res, checkRateLimit }  = require("./_lib/http");
+const { fingerprint }          = require("./_lib/fingerprint");
 const { CASINO_NAMES, API_CASINOS } = require("./_lib/casinos");
 const { findStreamerByChannel } = require("./_lib/streamer");
 const { logAudit }             = require("./_lib/audit");
@@ -25,6 +26,12 @@ exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return res(405, { error: "Method not allowed" });
 
   const ip = event.headers["x-forwarded-for"]?.split(",")[0].trim() || "unknown";
+  // Salted connection fingerprint from the verifying browser's IP - the ONLY
+  // point WenBot sees an IP (entries come through chat, which carries none). We
+  // store the hash + a short label so mods can later cluster accounts that
+  // verified from the same connection, WITHOUT ever storing the raw IP. null
+  // when there's no usable IP or no salt configured (feature inert).
+  const fp = fingerprint(ip);
   const db = getDb();
   if (!(await checkRateLimit(db, ip, "verify", 10, 60))) {
     return res(429, { error: "Too many requests. Please wait a moment and try again." });
@@ -134,6 +141,9 @@ exports.handler = async (event) => {
         // having verified. Already fetched for the identity check above; it was
         // simply being returned to the caller and not kept.
         kickUserId:             kickUserIdStr,
+        connHash:               fp ? fp.hash  : null,
+        connLabel:              fp ? fp.label : null,
+        connSeenAt:             fp ? Date.now() : null,
         providerUsername:       null,
         providerUsername_lower: null,
         provider:               "none",
@@ -388,6 +398,9 @@ exports.handler = async (event) => {
       // same idea for the Kick side, and it is what lets a renamed viewer be
       // recognised as someone who has already verified.
       kickUserId:             kickUserIdStr,
+      connHash:               fp ? fp.hash  : null,
+      connLabel:              fp ? fp.label : null,
+      connSeenAt:             fp ? Date.now() : null,
       // Denormalized lowercase copy so case-insensitive lookups (tournament,
       // giveaway-eligibility, etc.) can match without iterating. Kick's API
       // returns the username in its original case (e.g. "TriitonGM") which
