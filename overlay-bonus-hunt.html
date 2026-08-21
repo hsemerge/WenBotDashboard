@@ -530,7 +530,10 @@
         const data = await r.json();
         render(data);
       } catch {}
-      setTimeout(poll, 800);
+      // 1.5s is invisible on a bonus-hunt overlay (the figures change on the
+      // pace of opening bonuses, not sub-second), and the endpoint caches for
+      // 2.5s anyway, so a faster poll only bought duplicate work.
+      setTimeout(poll, 1500);
     }
     poll();
   }

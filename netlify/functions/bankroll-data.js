@@ -6,6 +6,10 @@
 
 const { getDb } = require("./_lib/firebase");
 const { findStreamerByChannel } = require("./_lib/streamer");
+const { memo } = require("./_lib/overlay-cache");
+
+// Bankroll changes only when the streamer logs a deposit/withdrawal by hand.
+const CACHE_TTL_MS = 4000;
 
 function res(statusCode, body) {
   return {
@@ -26,29 +30,32 @@ exports.handler = async (event) => {
   if (!channel) return res(400, { error: "Missing ?channel=" });
 
   try {
-    const db = getDb();
-    const snapDoc = await findStreamerByChannel(db, channel);
-    if (!snapDoc) return res(404, { error: "Channel not found" });
+    const { code, body } = await memo(`bankroll:${channel}`, CACHE_TTL_MS, async () => {
+      const db = getDb();
+      const snapDoc = await findStreamerByChannel(db, channel);
+      if (!snapDoc) return { code: 404, body: { error: "Channel not found" } };
 
-    const uid = snapDoc.id;
-    const doc = await db.collection("streamers").doc(uid)
-      .collection("bankroll").doc("current").get();
+      const uid = snapDoc.id;
+      const doc = await db.collection("streamers").doc(uid)
+        .collection("bankroll").doc("current").get();
 
-    const d = doc.exists ? doc.data() : {};
-    const deposited = Number(d.deposited) || 0;
-    const withdrawn = Number(d.withdrawn) || 0;
-    const entries   = Array.isArray(d.entries) ? d.entries : [];
+      const d = doc.exists ? doc.data() : {};
+      const deposited = Number(d.deposited) || 0;
+      const withdrawn = Number(d.withdrawn) || 0;
+      const entries   = Array.isArray(d.entries) ? d.entries : [];
 
-    return res(200, {
-      deposited,
-      withdrawn,
-      net:             withdrawn - deposited,
-      depositCount:    entries.filter((e) => e && e.type === "deposit").length,
-      withdrawalCount: entries.filter((e) => e && e.type === "withdrawal").length,
-      count:           entries.length,
-      sessionStart:    d.sessionStart || null,
-      updatedAt:       d.updatedAt || null,
+      return { code: 200, body: {
+        deposited,
+        withdrawn,
+        net:             withdrawn - deposited,
+        depositCount:    entries.filter((e) => e && e.type === "deposit").length,
+        withdrawalCount: entries.filter((e) => e && e.type === "withdrawal").length,
+        count:           entries.length,
+        sessionStart:    d.sessionStart || null,
+        updatedAt:       d.updatedAt || null,
+      } };
     });
+    return res(code, body);
   } catch (err) {
     console.error("[bankroll-data] error:", err.message);
     return res(500, { error: "Internal server error" });

@@ -3,6 +3,10 @@
 
 const { getDb } = require("./_lib/firebase");
 const { findStreamerByChannel } = require("./_lib/streamer");
+const { memo } = require("./_lib/overlay-cache");
+
+// Reads up to 50 docs per poll, so this is the biggest per-poll saving.
+const CACHE_TTL_MS = 2500;
 
 // Local res() — includes Cache-Control: no-store for overlay freshness
 function res(statusCode, body) {
@@ -24,9 +28,10 @@ exports.handler = async (event) => {
   if (!channel) return res(400, { error: "Missing ?channel=" });
 
   try {
+    const { code, body } = await memo(`slotreq:${channel}`, CACHE_TTL_MS, async () => {
     const db   = getDb();
     const snapDoc = await findStreamerByChannel(db, channel);
-    if (!snapDoc) return res(404, { error: "Channel not found" });
+    if (!snapDoc) return { code: 404, body: { error: "Channel not found" } };
 
     const uid = snapDoc.id;
 
@@ -47,7 +52,9 @@ exports.handler = async (event) => {
       requestedAt: d.data().requestedAt,
     })).sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
 
-    return res(200, { requests });
+      return { code: 200, body: { requests } };
+    });
+    return res(code, body);
   } catch (err) {
     console.error("[slot-request-data] error:", err.message);
     return res(500, { error: "Internal server error" });

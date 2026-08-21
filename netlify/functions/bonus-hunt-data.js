@@ -3,6 +3,10 @@
 
 const { getDb } = require("./_lib/firebase");
 const { findStreamerByChannel } = require("./_lib/streamer");
+const { memo } = require("./_lib/overlay-cache");
+
+// A bonus-hunt figure a couple of seconds behind looks identical on stream.
+const CACHE_TTL_MS = 2500;
 
 // Local res() — includes Cache-Control: no-store for overlay freshness
 function res(statusCode, body) {
@@ -24,19 +28,19 @@ exports.handler = async (event) => {
   if (!channel) return res(400, { error: "Missing ?channel=" });
 
   try {
-    const db   = getDb();
-    const snapDoc = await findStreamerByChannel(db, channel);
-    if (!snapDoc) return res(404, { error: "Channel not found" });
+    const { code, body } = await memo(`bonushunt:${channel}`, CACHE_TTL_MS, async () => {
+      const db   = getDb();
+      const snapDoc = await findStreamerByChannel(db, channel);
+      if (!snapDoc) return { code: 404, body: { error: "Channel not found" } };
 
-    const uid     = snapDoc.id;
-    const huntDoc = await db.collection("streamers").doc(uid)
-      .collection("bonus_hunt").doc("current").get();
+      const uid     = snapDoc.id;
+      const huntDoc = await db.collection("streamers").doc(uid)
+        .collection("bonus_hunt").doc("current").get();
 
-    if (!huntDoc.exists || !huntDoc.data().active) {
-      return res(200, { active: false });
-    }
-
-    return res(200, huntDoc.data());
+      if (!huntDoc.exists || !huntDoc.data().active) return { code: 200, body: { active: false } };
+      return { code: 200, body: huntDoc.data() };
+    });
+    return res(code, body);
   } catch (err) {
     console.error("[bonus-hunt-data] error:", err.message);
     return res(500, { error: "Internal server error" });
