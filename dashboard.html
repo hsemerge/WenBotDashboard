@@ -1654,7 +1654,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
               <label style="font-size:12px;color:var(--text);margin:0;">Activity window (minutes)</label>
               <input type="number" id="earnActivityWindow" value="5" min="1" max="60">
             </div>
-            <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.6;"><strong style="color:var(--text);">Minimum message length</strong> — a message must be at least this many characters (and not a <code>!</code> command or an all-caps shout) to count as a real message.<br><br><strong style="color:var(--text);">Activity window</strong> — how long a viewer keeps earning after their last real message. Example: at 5 minutes, someone earns for 5 minutes after each message they send; if they go quiet longer than that, they stop earning until they chat again. This stops idle/AFK lurkers from farming points.</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.6;"><strong style="color:var(--text);">Minimum message length</strong>, a message must be at least this many characters (and not a <code>!</code> command or an all-caps shout) to count as a real message.<br><br><strong style="color:var(--text);">Activity window</strong>, how long a viewer keeps earning after their last real message. Example: at 5 minutes, someone earns for 5 minutes after each message they send; if they go quiet longer than that, they stop earning until they chat again. This stops idle/AFK lurkers from farming points.</div>
           </div>
 
           <button class="btn btn-accent" onclick="saveEarnRates()" style="width:100%;margin-top:14px;">Save Earn Rates</button>
@@ -1806,7 +1806,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         </div>
 
         <div class="field" style="margin-bottom:8px;">
-          <label>Or ask your own <span style="color:var(--text-dim);font-weight:400;font-size:11px;">— leave blank to use the question bank</span></label>
+          <label>Or ask your own<span style="color:var(--text-dim);font-weight:400;font-size:11px;">, leave blank to use the question bank</span></label>
           <input type="text" id="trivCustomQ" maxlength="200" placeholder="What slot are we opening next?">
         </div>
         <div class="grid-2" style="gap:12px;">
@@ -1815,7 +1815,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <input type="text" id="trivCustomA" maxlength="80" placeholder="The exact answer">
           </div>
           <div class="field">
-            <label>Also accept <span style="color:var(--text-dim);font-weight:400;font-size:11px;">— comma separated</span></label>
+            <label>Also accept<span style="color:var(--text-dim);font-weight:400;font-size:11px;">, comma separated</span></label>
             <input type="text" id="trivCustomAlts" maxlength="200" placeholder="other spellings chat will type">
           </div>
         </div>
@@ -2021,7 +2021,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           </div>
 
           <div style="font-weight:700;font-size:13px;color:var(--bright);margin-bottom:6px;">🎮 On Discord (when enabled)</div>
-          <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">Same games as slash commands: <code style="color:var(--accent);">/coinflip</code>, <code style="color:var(--accent);">/roulette</code>, <code style="color:var(--accent);">/limbo</code>, <code style="color:var(--accent);">/double</code>, <code style="color:var(--accent);">/take</code>, <code style="color:var(--accent);">/games</code> — Discord shows the options as players type, and results post publicly for the hype. Players must link with <code style="color:var(--accent);">/register</code> first; bets hit the same points balance as Kick chat.</div>
+          <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">Same games as slash commands: <code style="color:var(--accent);">/coinflip</code>, <code style="color:var(--accent);">/roulette</code>, <code style="color:var(--accent);">/limbo</code>, <code style="color:var(--accent);">/double</code>, <code style="color:var(--accent);">/take</code>, <code style="color:var(--accent);">/games</code>. Discord shows the options as players type, and results post publicly for the hype. Players must link with <code style="color:var(--accent);">/register</code> first; bets hit the same points balance as Kick chat.</div>
         </div>
       </div>
     </div>
@@ -2060,7 +2060,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           <span style="font-size:11px;color:var(--text-dim);font-weight:400;">Rename to avoid conflicts with other bots</span>
         </div>
         <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px;line-height:1.5;">
-          Customize the trigger for each built-in command. Enter without the <code>!</code> — it's added automatically. Leave blank to keep the default.
+          Customize the trigger for each built-in command. Enter without the <code>!</code>, it's added automatically. Leave blank to keep the default.
         </div>
         <div class="grid-2" style="gap:10px;">
           <div class="field">
@@ -2086,7 +2086,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           <div class="field">
             <label style="font-size:11px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">
               <span>Store list <span style="color:var(--text-dim);font-weight:400;">(default: !store)</span></span>
-              <button type="button" onclick="openStoreModeModal()" style="background:none;border:none;padding:0;color:var(--accent);font-size:11px;cursor:pointer;white-space:nowrap;">⚙ Reply: <span id="storeModeLabel">Item list</span> — change</button>
+              <button type="button" onclick="openStoreModeModal()" style="background:none;border:none;padding:0;color:var(--accent);font-size:11px;cursor:pointer;white-space:nowrap;">⚙ Reply: <span id="storeModeLabel">Item list</span>, change</button>
             </label>
             <input type="text" id="alias_store" placeholder="store" maxlength="20">
           </div>
@@ -2410,7 +2410,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
               <button id="lbStopTimerBtn" onclick="openStopModal()" style="display:none;background:none;border:none;cursor:pointer;color:var(--red);font-size:12px;padding:0;">Stop</button>
             </div>
             <div id="lbPeriodStatus" style="font-size:12px;color:var(--text-dim);">No period running, pick a length and Start.</div>
-            <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5;">▶ Start <strong>resets the board to 0</strong> — current wagers become the baseline, so only wagering after that counts. When the period ends, standings snapshot to <strong>Past Winners</strong>.</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5;">▶ Start <strong>resets the board to 0</strong>, current wagers become the baseline, so only wagering after that counts. When the period ends, standings snapshot to <strong>Past Winners</strong>.</div>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text-dim);">
             <span>Updates live · viewers see current casino rankings + past winners</span>
@@ -2666,7 +2666,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <h3 style="margin:0 0 5px;font-family:'Exo 2',sans-serif;">🌐 WenBot Creators</h3>
             <div style="font-size:13px;color:var(--text-dim);line-height:1.6;max-width:520px;">
               The creators running WenBot, all in one place. See who's live right now, drop into a stream to show support,
-              and talk shop in <strong style="color:var(--bright);">Creator Chat</strong> — the 💬 dock at the bottom right, on every page.
+              and talk shop in <strong style="color:var(--bright);">Creator Chat</strong>, the 💬 dock at the bottom right, on every page.
             </div>
             <div id="ccTodayLine" style="display:none;font-size:12px;color:var(--bright);margin-top:9px;cursor:pointer;" onclick="ccSetFilter('sched')" title="Open the schedule board"></div>
           </div>
@@ -3236,7 +3236,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           </div>
         </div>
         <div class="field">
-          <label>Label <span style="color:var(--text-dim);font-weight:400;font-size:11px;">— so you know whose link it is</span></label>
+          <label>Label<span style="color:var(--text-dim);font-weight:400;font-size:11px;">, so you know whose link it is</span></label>
           <input type="text" id="shareLabel" maxlength="60" placeholder="e.g. Dave, Friday stream">
         </div>
         <button class="btn btn-accent" onclick="shareCreate(this)">Create link</button>
@@ -3866,7 +3866,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <li>🔗 <strong><code>!permit username</code></strong> lets your mods wave a link through without turning the filter off.</li>
             <li>📜 <strong>An action log</strong> shows every automod decision, who, which rule, what it did, and the message itself.</li>
             <li>⚠️ <strong>One thing to do:</strong> WenBot needs to be a moderator in your chat to remove messages. Type <code>/mod wenbot</code> in your Kick chat. The Moderation page tells you if it's missing.</li>
-            <li>🔕 Everything is <strong>off by default</strong> — nothing changes in your chat until you switch it on.</li>
+            <li>🔕 Everything is <strong>off by default</strong>, nothing changes in your chat until you switch it on.</li>
           </ul>
         </div>
 
@@ -3961,7 +3961,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
             <li>🧹 <strong>Settings without the noise.</strong> Every descriptor subtitle moved into little (i) buttons (which now always pop up fully visible), toggles are one clean line each, section labels group who-can-enter and luck bonuses, and the entry-mode buttons are big obvious targets.</li>
             <li>🏆 <strong>Winner flow polished.</strong> The decision card now floats over empty space instead of your Draw / Finish buttons, those buttons lock while it's up (no more accidental Finish & Clear), the Finish confirmation is a proper styled dialog instead of the browser popup, and popups center on your content, not the raw window.</li>
-            <li>😂 <strong>Kick emotes render everywhere chat shows</strong> — the winner's live chat and viewer profile cards display real emote images instead of [emote:...] codes.</li>
+            <li>😂 <strong>Kick emotes render everywhere chat shows</strong>, the winner's live chat and viewer profile cards display real emote images instead of [emote:...] codes.</li>
             <li>💬 <strong>Custom giveaway-won message.</strong> Commands page → Bot Messages: write your own winner announcement with a <code>{winner}</code> placeholder, used by both dashboard draws and <code>!winner</code>.</li>
           </ul>
         </div>
@@ -3983,7 +3983,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <span style="font-size:12px;color:var(--text-dim);">July 27, 2026</span>
           </div>
           <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
-            <li>🎮 <strong>Games now run on Discord too:</strong> <code>/coinflip</code>, <code>/roulette</code>, <code>/limbo</code>, <code>/double</code>, <code>/take</code>, and <code>/games</code> — same games, same limits, same points balance as Kick chat (players link once with <code>/register</code>). Results post publicly in the channel for the hype.</li>
+            <li>🎮 <strong>Games now run on Discord too:</strong> <code>/coinflip</code>, <code>/roulette</code>, <code>/limbo</code>, <code>/double</code>, <code>/take</code>, and <code>/games</code>, same games, same limits, same points balance as Kick chat (players link once with <code>/register</code>). Results post publicly in the channel for the hype.</li>
             <li>🎛 <strong>Pick your platforms.</strong> The Games tab now has separate switches for Kick chat and Discord, run games in one, the other, or both. Discord is off by default, like everything else here.</li>
             <li>💡 <strong>House edge, explained.</strong> The Games tab now has a plain-English explainer of what the house edge setting does and why it keeps your points economy healthy.</li>
           </ul>
@@ -4006,7 +4006,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <span style="font-size:12px;color:var(--text-dim);">July 27, 2026</span>
           </div>
           <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
-            <li>🎲 <strong>NEW: Chat Games.</strong> Four casino-style mini-games viewers play right in your Kick chat with their channel points: <strong>🪙 !coinflip</strong> red/blue at 2x, <strong>🎡 !roulette</strong> with colors, exact numbers (36x), sections and green (14x), <strong>🚀 !limbo</strong> with pick-your-own target multipliers, and <strong>🎲 !double</strong> — ride your winnings double-or-nothing until you <strong>!take</strong> (pots auto-bank after 45s so nobody loses a win by walking away). <strong>!games</strong> lists what's on.</li>
+            <li>🎲 <strong>NEW: Chat Games.</strong> Four casino-style mini-games viewers play right in your Kick chat with their channel points: <strong>🪙 !coinflip</strong> red/blue at 2x, <strong>🎡 !roulette</strong> with colors, exact numbers (36x), sections and green (14x), <strong>🚀 !limbo</strong> with pick-your-own target multipliers, and <strong>🎲 !double</strong>, ride your winnings double-or-nothing until you <strong>!take</strong> (pots auto-bank after 45s so nobody loses a win by walking away). <strong>!games</strong> lists what's on.</li>
             <li>🎛 <strong>You're in full control.</strong> Off by default, flip them on from the Points page's new Chat Games card, or right from chat with <code>!games on</code> / <code>!games off</code> (mods). Per-game toggles, min/max bets, a per-viewer cooldown, and a configurable house edge keep games a slow points sink instead of a printer. Settings go live in your chat within seconds, no restart. Full command list on the Help page.</li>
             <li>🛡 <strong>Built like the rest of WenBot:</strong> wagers debit atomically (no double-spends), "all" bets cap at your max, and cooldown nags are throttled so the bot never floods your chat. Points have no cash value; losses are simply burned.</li>
           </ul>
@@ -4186,8 +4186,8 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <span style="font-size:12px;color:var(--text-dim);">July 23, 2026</span>
           </div>
           <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
-            <li>🎁 <strong>Giveaway panel redesign.</strong> A clear lifecycle bar (Set up → Live → Finished) shows exactly where you are, your settings sit above one big launch button so nothing gets skipped, and a summary line shows exactly what you're about to run. Once live, the button turns gold: <strong>Draw Winner</strong> — draw anytime, as often as you like, while entries keep flowing.</li>
-            <li>⏸ <strong>Pause &amp; reopen entries.</strong> "Close Entries" is now <em>Pause Entries</em> — freeze the pool before a big draw, then <em>Reopen</em> to keep collecting. Timers now pause entries instead of ending things, and a paused round survives a page refresh correctly.</li>
+            <li>🎁 <strong>Giveaway panel redesign.</strong> A clear lifecycle bar (Set up → Live → Finished) shows exactly where you are, your settings sit above one big launch button so nothing gets skipped, and a summary line shows exactly what you're about to run. Once live, the button turns gold: <strong>Draw Winner</strong>, draw anytime, as often as you like, while entries keep flowing.</li>
+            <li>⏸ <strong>Pause &amp; reopen entries.</strong> "Close Entries" is now <em>Pause Entries</em>, freeze the pool before a big draw, then <em>Reopen</em> to keep collecting. Timers now pause entries instead of ending things, and a paused round survives a page refresh correctly.</li>
             <li>🪙 <strong>NEW: Point-entry giveaways.</strong> Charge an entry cost in your channel points, viewers type the keyword and the fee is auto-deducted (with a chat confirmation). Choose one entry per viewer, or let viewers buy multiple entries (each costs the fee, each is another ticket). Can't afford it? The bot tells them once. End the round without drawing a winner and everyone is automatically refunded.</li>
             <li>🚫 <strong>Removed means removed.</strong> Removing a viewer (or a winner via "can't win again") now blocks them from rejoining that giveaway, no more sneaking back in. They land in a <em>Blocked this giveaway</em> list under Participants, where one click lets them back in (e.g. after they get verified). Blocks clear automatically each new round.</li>
             <li>🎛 <strong>NEW: Viewer control card.</strong> Click any viewer's name (winners, participants, anywhere) for the full picture, Kick info, points with quick +/− adjust, live chat, wager intel, and a one-click <em>add to an existing or new raffle</em>.</li>
@@ -4204,7 +4204,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           </div>
           <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
             <li>🎟️ <strong>New command shortcuts.</strong> <code>!give</code> is now the default for gifting points (<code>!pgive</code> still works too), and viewers can use <code>!sr</code> for slot requests alongside <code>!r</code>.</li>
-            <li>🛒 <strong>Choose what <code>!store</code> replies with.</strong> On the Commands page, next to your store command, click <em>Reply</em> to pick <em>Item list</em> (the classic list of items + prices) or <em>A link</em> — a single clickable link to your store page or white-label portal, with no item list. Use the built-in store page or paste your own URL.</li>
+            <li>🛒 <strong>Choose what <code>!store</code> replies with.</strong> On the Commands page, next to your store command, click <em>Reply</em> to pick <em>Item list</em> (the classic list of items + prices) or <em>A link</em>, a single clickable link to your store page or white-label portal, with no item list. Use the built-in store page or paste your own URL.</li>
             <li>🔗 <strong>Your custom commands now win.</strong> If you've made your own custom command like <code>!store</code>, it always takes priority over the built-in, no more renaming the built-in to something random to get it out of the way.</li>
             <li>⚡ <strong>Snappier overlays.</strong> Bankroll, deposits, withdrawals, giveaway, bonus battle and tournament overlays now update in OBS 2.5–4× faster.</li>
             <li>🐛 <strong>Fixed.</strong> On the Overlays page, the “Copy OBS URL” button could get cut off, it's back in view.</li>
@@ -4464,21 +4464,21 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           <div class="card help-section" style="margin-bottom:0;">
             <h3>🧭 Dashboard Modules</h3>
             <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--text);line-height:1.55;">
-              <div><strong style="color:var(--accent);">Overview</strong> — live stats: viewers chatting, points distributed, bot status, recent activity.</div>
-              <div><strong style="color:var(--accent);">Giveaway</strong> — start/stop giveaways, configure the keyword + type + restrictions, watch the entries list, spin a winner.</div>
-              <div><strong style="color:var(--accent);">Bonus Hunt</strong> — track slot bonuses live with cost, win, multiplier; chat suggestions via <code>!r</code>.</div>
-              <div><strong style="color:var(--accent);">Slot Requests</strong> — review and approve <code>!r</code> submissions; configure eligibility + cooldown.</div>
-              <div><strong style="color:var(--accent);">Bonus Battles</strong> — two slots, viewers vote with points, payout to winners.</div>
-              <div><strong style="color:var(--accent);">Tournaments</strong> — bracket-style head-to-head with point-cost entry.</div>
-              <div><strong style="color:var(--accent);">Leaderboard</strong> — your casino's monthly wager rankings + period reset history.</div>
-              <div><strong style="color:var(--accent);">Verified Users</strong> — everyone who's linked their casino account; under-code badge, removable.</div>
-              <div><strong style="color:var(--accent);">Points</strong> — earn rates, engagement filter, top viewers, manual adjustments.</div>
-              <div><strong style="color:var(--accent);">Store</strong> — items for sale, raffle-item toggle, pending redemption queue.</div>
-              <div><strong style="color:var(--accent);">Raffles</strong> — wager-tickets (auto-accumulated) and point-raffles (per store item).</div>
-              <div><strong style="color:var(--accent);">Commands</strong> — custom <code>!commands</code> with cooldown + mod-only options.</div>
-              <div><strong style="color:var(--accent);">Overlays</strong> — OBS Browser Source URLs for wheel, winner, entries, hunt, battles, etc.</div>
-              <div><strong style="color:var(--accent);">Activity Log</strong> — server-recorded history of sensitive actions. Filter by action or moderator.</div>
-              <div><strong style="color:var(--accent);">Settings</strong> — casino + API key, Kick reconnect, Discord, portal customization, team, data export.</div>
+              <div><strong style="color:var(--accent);">Overview</strong>, live stats: viewers chatting, points distributed, bot status, recent activity.</div>
+              <div><strong style="color:var(--accent);">Giveaway</strong>, start/stop giveaways, configure the keyword + type + restrictions, watch the entries list, spin a winner.</div>
+              <div><strong style="color:var(--accent);">Bonus Hunt</strong>, track slot bonuses live with cost, win, multiplier; chat suggestions via <code>!r</code>.</div>
+              <div><strong style="color:var(--accent);">Slot Requests</strong>, review and approve <code>!r</code> submissions; configure eligibility + cooldown.</div>
+              <div><strong style="color:var(--accent);">Bonus Battles</strong>, two slots, viewers vote with points, payout to winners.</div>
+              <div><strong style="color:var(--accent);">Tournaments</strong>, bracket-style head-to-head with point-cost entry.</div>
+              <div><strong style="color:var(--accent);">Leaderboard</strong>, your casino's monthly wager rankings + period reset history.</div>
+              <div><strong style="color:var(--accent);">Verified Users</strong>, everyone who's linked their casino account; under-code badge, removable.</div>
+              <div><strong style="color:var(--accent);">Points</strong>, earn rates, engagement filter, top viewers, manual adjustments.</div>
+              <div><strong style="color:var(--accent);">Store</strong>, items for sale, raffle-item toggle, pending redemption queue.</div>
+              <div><strong style="color:var(--accent);">Raffles</strong>, wager-tickets (auto-accumulated) and point-raffles (per store item).</div>
+              <div><strong style="color:var(--accent);">Commands</strong>, custom <code>!commands</code> with cooldown + mod-only options.</div>
+              <div><strong style="color:var(--accent);">Overlays</strong>, OBS Browser Source URLs for wheel, winner, entries, hunt, battles, etc.</div>
+              <div><strong style="color:var(--accent);">Activity Log</strong>, server-recorded history of sensitive actions. Filter by action or moderator.</div>
+              <div><strong style="color:var(--accent);">Settings</strong>, casino + API key, Kick reconnect, Discord, portal customization, team, data export.</div>
             </div>
           </div>
 
@@ -5602,7 +5602,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <div id="tnModeHint" style="font-size:12px;color:var(--text-dim);background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:14px;line-height:1.5;"></div>
 
             <div class="field" id="tnPrizeField" style="margin-bottom:14px;">
-              <label class="label">Prize Distribution <span style="color:var(--text-dim);font-weight:400;font-size:11px;">— splits the points prize pool</span></label>
+              <label class="label">Prize Distribution<span style="color:var(--text-dim);font-weight:400;font-size:11px;">, splits the points prize pool</span></label>
               <select id="tnPrizePreset" class="form-input" onchange="tnPresetChange()">
                 <option value="winner">Winner Takes All (100%)</option>
                 <option value="top2">Top 2 (65 / 35%)</option>
@@ -21171,8 +21171,8 @@ document.addEventListener('visibilitychange', () => {
     </div>
     <div style="font-size:13px;color:var(--text-dim);margin-bottom:8px;line-height:1.55;">Choose how to end the current period:</div>
     <ul style="font-size:12.5px;color:var(--text-dim);line-height:1.6;margin:0 0 16px;padding-left:18px;">
-      <li><strong style="color:var(--bright);">Finalize Period</strong> — record the current standings (with prizes) to Past Winners, then end.</li>
-      <li><strong style="color:var(--bright);">Stop without saving</strong> — just end it. Board reverts to your casino's raw monthly totals; nothing is saved.</li>
+      <li><strong style="color:var(--bright);">Finalize Period</strong>, record the current standings (with prizes) to Past Winners, then end.</li>
+      <li><strong style="color:var(--bright);">Stop without saving</strong>, just end it. Board reverts to your casino's raw monthly totals; nothing is saved.</li>
     </ul>
     <div id="stopPrizeWarn" style="display:none;font-size:12px;color:var(--orange);background:rgba(255,179,71,0.08);border:1px solid rgba(255,179,71,0.25);border-radius:8px;padding:9px 11px;margin-bottom:14px;line-height:1.5;">⚠️ No prizes set, a finalize would record winners without prize amounts. Set them in 💰 Prizes first.</div>
     <div style="font-size:12px;color:var(--red);margin-bottom:12px;" id="stopStatus"></div>
@@ -21194,7 +21194,7 @@ document.addEventListener('visibilitychange', () => {
       <button onclick="closeGiveawayPolicyNotice()" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:18px;">✕</button>
     </div>
     <div style="font-size:13px;color:var(--text);line-height:1.6;margin-bottom:14px;">
-      To stay aligned with <strong style="color:var(--bright);">Kick's giveaway policy</strong>, we've updated how giveaways work. Kick requires every giveaway to be <strong style="color:var(--bright);">open to all viewers with an equal chance to win</strong> — no entry restrictions and no weighted odds.
+      To stay aligned with <strong style="color:var(--bright);">Kick's giveaway policy</strong>, we've updated how giveaways work. Kick requires every giveaway to be <strong style="color:var(--bright);">open to all viewers with an equal chance to win</strong>, no entry restrictions and no weighted odds.
     </div>
     <div style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">What changed</div>
     <ul style="font-size:12.5px;color:var(--text-dim);line-height:1.7;margin:0 0 14px;padding-left:18px;">

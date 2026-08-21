@@ -295,7 +295,7 @@
       <ol class="steps">
         <li><span class="step-num">1</span><span class="step-text">Viewer types <code>!verify</code> in Kick chat</span></li>
         <li><span class="step-num">2</span><span class="step-text">WenBot generates a <strong>one-time token</strong> tied to their Kick username and posts a link (5 min expiry)</span></li>
-        <li><span class="step-num">3</span><span class="step-text">Viewer opens <code>verify.html</code> — Kick username is pre-filled and locked</span></li>
+        <li><span class="step-num">3</span><span class="step-text">Viewer opens <code>verify.html</code>. Kick username is pre-filled and locked</span></li>
         <li><span class="step-num">4</span><span class="step-text">Viewer enters their <strong>casino username</strong> and submits</span></li>
         <li><span class="step-num">5</span><span class="step-text">Casino account verified ✅ — record saved to Firestore</span></li>
         <li><span class="step-num">6</span><span class="step-text"><span class="badge optional">Optional</span> "Connect Discord" OAuth button appears, viewer can link their Discord account too</span></li>
@@ -306,7 +306,7 @@
       <ol class="steps">
         <li><span class="step-num">1</span><span class="step-text">Viewer runs <code>/register</code> in the Discord server</span></li>
         <li><span class="step-num">2</span><span class="step-text">WenBot generates a <strong>Discord token (dtoken)</strong> tied to their Discord user ID and sends a private link (10 min expiry)</span></li>
-        <li><span class="step-num">3</span><span class="step-text">Viewer opens <code>verify.html</code> — Discord identity is pre-confirmed, they enter both Kick username and casino username</span></li>
+        <li><span class="step-num">3</span><span class="step-text">Viewer opens <code>verify.html</code>. Discord identity is pre-confirmed, they enter both Kick username and casino username</span></li>
         <li><span class="step-num">4</span><span class="step-text">Casino account verified AND Discord linked in <strong>one step</strong> ✅</span></li>
         <li><span class="step-num">5</span><span class="step-text">Viewer can now use <code>/points</code>, <code>/buy</code>, and <code>/join</code> in Discord immediately</span></li>
       </ol>
@@ -325,27 +325,27 @@
       <tr>
         <td>🔑 Token validity</td>
         <td>Token exists in Firestore and has not been used yet (<code>used: false</code>). Runs inside a <strong>Firestore transaction</strong> to prevent race conditions.</td>
-        <td><span class="fail">❌ Blocked</span> — "Invalid or expired verification link"</td>
+        <td><span class="fail">❌ Blocked</span>, "Invalid or expired verification link"</td>
       </tr>
       <tr>
         <td>⏱ Token expiry</td>
         <td>Token's <code>expiresAt</code> timestamp has not passed. Kick tokens expire in <strong>5 minutes</strong>; Discord tokens in <strong>10 minutes</strong>.</td>
-        <td><span class="fail">❌ Blocked</span> — "Link has expired, get a new one"</td>
+        <td><span class="fail">❌ Blocked</span>, "Link has expired, get a new one"</td>
       </tr>
       <tr>
         <td>🎰 Active casino match</td>
         <td>The casino in the link matches the streamer's currently active casino (<code>activeProvider</code> on their profile). Prevents verifying at the wrong casino.</td>
-        <td><span class="fail">❌ Blocked</span> — "Streamer is at [Casino X], verify there instead"</td>
+        <td><span class="fail">❌ Blocked</span>, "Streamer is at [Casino X], verify there instead"</td>
       </tr>
       <tr>
         <td>🔒 Casino username uniqueness</td>
         <td>The casino username being submitted is not already linked to a <em>different</em> Kick account. Prevents sharing casino accounts.</td>
-        <td><span class="fail">❌ Blocked</span> — "Already linked to another Kick account"</td>
+        <td><span class="fail">❌ Blocked</span>, "Already linked to another Kick account"</td>
       </tr>
       <tr>
         <td>📡 API leaderboard check <span class="badge api">Gambulls</span></td>
         <td>For API-backed casinos, the casino username is looked up live on the streamer's leaderboard. Determines whether the user is wagering <strong>under the streamer's affiliate code</strong>.</td>
-        <td><span class="warn">⚠ Soft-pass</span> — User is still verified as "General" (not "Under Code"). They can enter non-code giveaways.</td>
+        <td><span class="warn">⚠ Soft-pass</span>. User is still verified as "General" (not "Under Code"). They can enter non-code giveaways.</td>
       </tr>
       <tr>
         <td>🤝 Honor-system casinos <span class="badge honor">All others</span></td>
