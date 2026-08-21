@@ -54,7 +54,7 @@
     const roleLine = roleAssigned
       ? `<div class="pill" style="background:rgba(0,255,136,0.08);border-color:rgba(0,255,136,0.25);color:#00ff88;">✅ Verified role granted</div>`
       : (roleExpected
-          ? `<div class="pill" style="background:rgba(255,167,38,0.08);border-color:rgba(255,167,38,0.3);color:#ffa726;max-width:100%;white-space:normal;text-align:left;">⚠️ Your accounts linked, but the verified role couldn't be granted — let the streamer know (their bot needs its role moved higher).</div>`
+          ? `<div class="pill" style="background:rgba(255,167,38,0.08);border-color:rgba(255,167,38,0.3);color:#ffa726;max-width:100%;white-space:normal;text-align:left;">⚠️ Your accounts linked, but the verified role couldn't be granted, let the streamer know (their bot needs its role moved higher).</div>`
           : '');
     // Members → deep-link straight into the server. Non-members → a real invite
     // (the channels deep-link does nothing for non-members, so never use it for them).
@@ -71,7 +71,7 @@
     document.getElementById('card').innerHTML = `
       <div class="icon">🎉</div>
       <div class="title">Discord Linked!</div>
-      <div class="sub">Your Discord is now tied to your Kick identity — verification complete. You can use <strong>/points</strong>, <strong>/give</strong>, and <strong>/buy</strong> in the Discord server.</div>
+      <div class="sub">Your Discord is now tied to your Kick identity, verification complete. You can use <strong>/points</strong>, <strong>/give</strong>, and <strong>/buy</strong> in the Discord server.</div>
       ${roleLine}
       <div class="pill">💬 ${kickUsername} → 🎮 ${discordUsername}</div>
       ${ctaBtn}`;

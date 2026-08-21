@@ -664,13 +664,13 @@
         ${it.isRaffleItem ? `<div class="store-raffle-entries" data-id="${esc(it.id)}" style="font-size:12px;color:var(--dim);margin:0 0 8px;min-height:16px;"></div>` : ''}
         ${qtyStepper}
         ${buyBtn}
-        <div class="store-buycmd" title="Copy command" onclick="navigator.clipboard&&navigator.clipboard.writeText('${cmd.replace(/'/g,"\\'")}');this.textContent='✓ Copied — paste in chat';">📋 ${esc(cmd)}</div>
+        <div class="store-buycmd" title="Copy command" onclick="navigator.clipboard&&navigator.clipboard.writeText('${cmd.replace(/'/g,"\\'")}');this.textContent='✓ Copied, paste in chat';">📋 ${esc(cmd)}</div>
       </div>`;
     }).join('');
     const hasRaffle = items.some(it => it.isRaffleItem);
     document.getElementById('storeNote').innerHTML =
       `🛒 Click <strong>Buy</strong> to spend your ${esc(_currency)} (sign in with Kick), or use <code>!buy &lt;item&gt;</code> in Kick chat / Discord.` +
-      (hasRaffle ? ` &nbsp; 🎟 <strong style="color:var(--gold)">Raffle</strong> items enter you into a draw — the streamer picks the winner.` : '');
+      (hasRaffle ? ` &nbsp; 🎟 <strong style="color:var(--gold)">Raffle</strong> items enter you into a draw, the streamer picks the winner.` : '');
     if (hasRaffle) fetchRaffleCounts();
   }
 

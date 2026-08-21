@@ -120,7 +120,7 @@
           <!-- Enter / already entered -->
           <div id="tnEnterBlock">
             <div id="tnSlotPickWrap" style="display:none;margin-bottom:10px;position:relative;">
-              <div style="font-size:11px;color:var(--dim);margin-bottom:6px;">🎰 Pick your slot — it shows next to your name on the bracket</div>
+              <div style="font-size:11px;color:var(--dim);margin-bottom:6px;">🎰 Pick your slot, it shows next to your name on the bracket</div>
               <input type="text" id="tnSlotPick" placeholder="Search slots… (e.g. Gates of Olympus)" maxlength="80" autocomplete="off"
                      style="width:100%;padding:11px 12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:13px;"
                      onfocus="tnSlotFocus()" oninput="tnSlotInput()" onkeydown="if(event.key==='Escape')tnSlotHideDrop();">
@@ -297,7 +297,7 @@ function renderRegistration(t, s) {
           <strong style="color:var(--bright,#fff);">${entered.toLocaleString()}</strong> ${cfg.maxEntriesPerUser > 1 ? 'ticket' + (entered === 1 ? '' : 's') + ' in the draw' : (entered === 1 ? 'player' : 'players') + ' entered'}${t.lastEntrant ? ` · latest: <strong style="color:var(--green,#31d76c);">${escHtml(t.lastEntrant)}</strong>` : ''}<br>
           The <strong style="color:var(--bright,#fff);">${t.bracketSize}</strong> bracket players are <strong>drawn from the entries</strong> when registration closes. ${cfg.maxEntriesPerUser > 1 ? 'More tickets = better odds!' : ''}
         </div>`
-      : '<div class="text-dim" style="font-size:13px;text-align:center;padding:16px;">No entries yet — be the first in!</div>';
+      : '<div class="text-dim" style="font-size:13px;text-align:center;padding:16px;">No entries yet, be the first in!</div>';
   } else {
     document.getElementById('tnViewPartList').innerHTML = participants.map((p, i) =>
       `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
@@ -364,8 +364,8 @@ function tnViewChampionHtml(t) {
   if (!rows.length) return '';
   const heading = isWager ? '🎯 Champion Bets' : '🗳️ Fan Favorite';
   const howto = isWager
-    ? `Back a player to win — type <strong style="color:var(--accent);">!champion # &lt;amount&gt;</strong> in chat · pot ${total.toLocaleString()} pts`
-    : `Back a player to win it all — type <strong style="color:var(--accent);">!champion #</strong> in chat (${total} vote${total !== 1 ? 's' : ''})`;
+    ? `Back a player to win, type <strong style="color:var(--accent);">!champion # &lt;amount&gt;</strong> in chat · pot ${total.toLocaleString()} pts`
+    : `Back a player to win it all, type <strong style="color:var(--accent);">!champion #</strong> in chat (${total} vote${total !== 1 ? 's' : ''})`;
   return `<div class="card">
     <div style="font-weight:800;font-size:13px;margin-bottom:4px;">${heading}</div>
     <div class="text-dim" style="font-size:11px;margin-bottom:12px;">${howto}</div>
@@ -430,7 +430,7 @@ async function tnEnter() {
     if (sp) sp.value = '';
     tnSlotSel = null;
     await fetchState();
-  } catch { msg.textContent = 'Network error — try again.'; btn.disabled = false; btn.textContent = 'Enter Tournament'; }
+  } catch { msg.textContent = 'Network error, try again.'; btn.disabled = false; btn.textContent = 'Enter Tournament'; }
 }
 
 function show(id) { document.getElementById(id).style.display = ''; }

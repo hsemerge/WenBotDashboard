@@ -50,7 +50,7 @@
     <p class="lead" style="margin-bottom:24px;">Click the link in that email, then come back here. We'll automatically detect once you've verified.</p>
     <button class="btn btn-accent" id="resendBtn" onclick="resendEmail()">Resend Email</button>
     <br>
-    <button class="btn btn-ghost" onclick="checkNow()">I've verified — check now</button>
+    <button class="btn btn-ghost" onclick="checkNow()">I've verified: check now</button>
     <div class="status" id="status"></div>
     <div class="help">
       Didn't get the email? Check your spam folder, or click "Resend Email" above.<br>
@@ -119,7 +119,7 @@
         const d = await resp.json().catch(() => ({}));
         throw new Error(d.error || 'send failed');
       }
-      setStatus('Verification email sent — check your inbox (and spam).', 'ok');
+      setStatus('Verification email sent, check your inbox (and spam).', 'ok');
       resendCooldown = 30;
       const tick = setInterval(() => {
         resendCooldown--;

@@ -155,7 +155,7 @@
 
   <div class="scroll-wrap" id="scrollWrap">
     <div class="scroll-inner" id="scrollInner">
-      <div class="empty" id="emptyState">No requests yet — type <code style="color:var(--accent);font-family:monospace;">!r &lt;slot name&gt;</code></div>
+      <div class="empty" id="emptyState">No requests yet, type <code style="color:var(--accent);font-family:monospace;">!r &lt;slot name&gt;</code></div>
     </div>
   </div>
 
@@ -202,7 +202,7 @@
   function buildRows(requests) {
     lastRequests = requests || [];
     if (requests.length === 0) {
-      scrollInner.innerHTML = '<div class="empty" id="emptyState">No requests yet — type <code style="color:var(--accent);font-family:monospace;">!r &lt;slot name&gt;</code></div>';
+      scrollInner.innerHTML = '<div class="empty" id="emptyState">No requests yet, type <code style="color:var(--accent);font-family:monospace;">!r &lt;slot name&gt;</code></div>';
       document.getElementById('countNum').textContent = '0';
       scrollWrap.style.maxHeight = '';
       cancelAnimationFrame(rafId);

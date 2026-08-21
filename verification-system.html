@@ -278,7 +278,7 @@
 
 <div class="doc-header">
   <div class="doc-logo">WenBot</div>
-  <div class="doc-title">Verification System — How It Works</div>
+  <div class="doc-title">Verification System, How It Works</div>
   <div class="doc-subtitle">All flows, validations, and cross-checks · v1.0 · May 2026</div>
 </div>
 
@@ -287,7 +287,7 @@
   <div class="section-title"><span class="num">1</span> Overview</div>
   <p style="color:var(--dim); margin-bottom:16px;">
     Verification connects a viewer's <strong style="color:var(--bright)">Kick username</strong> to their <strong style="color:var(--bright)">casino account</strong> and optionally their <strong style="color:var(--purple)">Discord account</strong>. This unlocks giveaway eligibility, points tracking, and Discord commands like <code style="background:var(--card);border:1px solid var(--border);padding:1px 5px;border-radius:4px;color:var(--accent);font-family:monospace;">/buy</code> and <code style="background:var(--card);border:1px solid var(--border);padding:1px 5px;border-radius:4px;color:var(--accent);font-family:monospace;">/points</code>.
-    There are two entry points — Kick chat and Discord — both funnel to the same verification page.
+    There are two entry points, Kick chat and Discord, both funnel to the same verification page.
   </p>
   <div class="flow-grid">
     <div class="flow-card kick">
@@ -298,7 +298,7 @@
         <li><span class="step-num">3</span><span class="step-text">Viewer opens <code>verify.html</code> — Kick username is pre-filled and locked</span></li>
         <li><span class="step-num">4</span><span class="step-text">Viewer enters their <strong>casino username</strong> and submits</span></li>
         <li><span class="step-num">5</span><span class="step-text">Casino account verified ✅ — record saved to Firestore</span></li>
-        <li><span class="step-num">6</span><span class="step-text"><span class="badge optional">Optional</span> "Connect Discord" OAuth button appears — viewer can link their Discord account too</span></li>
+        <li><span class="step-num">6</span><span class="step-text"><span class="badge optional">Optional</span> "Connect Discord" OAuth button appears, viewer can link their Discord account too</span></li>
       </ol>
     </div>
     <div class="flow-card discord">
@@ -349,13 +349,13 @@
       </tr>
       <tr>
         <td>🤝 Honor-system casinos <span class="badge honor">All others</span></td>
-        <td>For non-API casinos (Stake, Rainbet, etc.) the username is taken at face value — no API check is possible. Streamer accepts on trust.</td>
-        <td>N/A — always passes if username is entered</td>
+        <td>For non-API casinos (Stake, Rainbet, etc.) the username is taken at face value, no API check is possible. Streamer accepts on trust.</td>
+        <td>N/A, always passes if username is entered</td>
       </tr>
       <tr>
         <td>🧹 Legacy doc cleanup</td>
         <td>If the viewer previously verified under an old doc ID format (just <code>kickUsername</code> without casino suffix), that old doc is deleted and replaced with the new <code>kickUsername_casino</code> format.</td>
-        <td>N/A — automatic cleanup, no user impact</td>
+        <td>N/A, automatic cleanup, no user impact</td>
       </tr>
     </tbody>
   </table>
@@ -373,7 +373,7 @@
     <li><span class="step-num">5</span><span class="step-text">Viewer can now use Discord bot commands immediately</span></li>
   </ol>
   <div class="info-box">
-    <strong>Note:</strong> The Discord <code>/register</code> flow skips this OAuth step entirely — it already knows the Discord user ID from the slash command interaction, so casino verification and Discord linking happen in a single form submission.
+    <strong>Note:</strong> The Discord <code>/register</code> flow skips this OAuth step entirely, it already knows the Discord user ID from the slash command interaction, so casino verification and Discord linking happen in a single form submission.
   </div>
 </div>
 
@@ -412,7 +412,7 @@
         <li>Giveaway must be active</li>
         <li>Not already entered</li>
         <li>Sub-only check (if enabled)</li>
-        <li>No verification required — any viewer can enter</li>
+        <li>No verification required: any viewer can enter</li>
       </ul>
     </div>
   </div>
@@ -454,7 +454,7 @@
         <td>/register</td>
         <td><span class="fail">No</span></td>
         <td><span class="fail">No</span></td>
-        <td>Starts the verification flow — this IS the link step</td>
+        <td>Starts the verification flow, this IS the link step</td>
       </tr>
     </tbody>
   </table>

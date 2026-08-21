@@ -172,7 +172,7 @@
 
       <!-- Stripe cancelled notice (shown on return from cancelled checkout) -->
       <div id="stripeCancelledNotice" style="display:none;background:rgba(255,193,7,0.07);border:1px solid rgba(255,193,7,0.25);border-radius:8px;padding:11px 14px;margin-bottom:16px;font-size:13px;color:#ffc107;">
-        No problem — you can complete setup on Starter and upgrade anytime from the dashboard.
+        No problem, you can complete setup on Starter and upgrade anytime from the dashboard.
       </div>
 
       <form class="setup-form" onsubmit="handleSetup(event)">
@@ -183,7 +183,7 @@
             <div class="step-num" id="step1Num">1</div>
             <div class="step-body">
               <div class="step-title">Connect your Kick account</div>
-              <div class="step-sub">One click — securely links your channel. This is how WenBot joins your chat.</div>
+              <div class="step-sub">One click, securely links your channel. This is how WenBot joins your chat.</div>
               <div id="kickNotConnected">
                 <button type="button" class="btn btn-accent" style="width:100%;padding:11px;font-size:14px;" onclick="connectKick()">
                   Connect with Kick
@@ -291,7 +291,7 @@
   <script src="js/kick-auth.js"></script>
   <script src="js/mod-wenbot.js"></script>
   <script>
-    const PLAN_LABELS = { starter: 'Starter — Free', pro: 'Pro — $30/mo', elite: 'Elite — $50/mo', agency: 'Agency — $80/mo' };
+    const PLAN_LABELS = { starter: 'Starter, Free', pro: 'Pro — $30/mo', elite: 'Elite — $50/mo', agency: 'Agency — $80/mo' };
     const PLAN_PRICES = { pro: '$30/mo', elite: '$50/mo', agency: '$80/mo' };
     // API-verified casinos (require streamer API key on setup)
     const API_CASINOS = new Set(['gambulls']);
@@ -443,7 +443,7 @@
         hint.textContent  = cred.hint + " You can add this later in Settings.";
         input.placeholder = cred.placeholder || '';
         input.type        = (cred.field === 'apiKey') ? 'password' : 'text';
-        info.innerHTML    = '<span style="color:var(--text-dim);">Optional now — you can skip it and add it from Settings anytime. Your leaderboard stays empty until you do.</span>';
+        info.innerHTML    = '<span style="color:var(--text-dim);">Optional now, you can skip it and add it from Settings anytime. Your leaderboard stays empty until you do.</span>';
       } else {
         apiKeyField.style.display = 'none';
         input.required = false;
@@ -471,7 +471,7 @@
         const apiKey      = document.getElementById("setupApiKey").value.trim();
         const displayName = document.getElementById("setupDisplayName").value.trim();
 
-        if (!kickChannel) throw new Error("Please click 'Connect Kick Account' above first — required for security.");
+        if (!kickChannel) throw new Error("Please click 'Connect Kick Account' above first, required for security.");
 
         const plan        = fb.streamerProfile?.plan || 'starter';
         const pendingPlan = fb.streamerProfile?.pendingPlan

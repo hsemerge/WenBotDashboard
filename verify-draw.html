@@ -84,7 +84,7 @@
     <div class="card" id="rerunCard" style="display:none;">
       <h2>Re-run it yourself</h2>
       <p style="font-size:12.5px;color:var(--text-dim);line-height:1.65;margin-bottom:12px;">
-        These are the exact inputs. Nothing above is doing anything you cannot do here —
+        These are the exact inputs. Nothing above is doing anything you cannot do here,
         the page checks the draw in your browser, and this lets you check the page.
       </p>
       <dl class="kv" id="rerunInputs" style="margin-bottom:14px;"></dl>
@@ -132,7 +132,7 @@
       <div class="how">
         <ol>
           <li>When the giveaway opens, our server generates a random 32-byte <strong>seed</strong> and publishes only
-              <code>SHA-256(seed)</code>. Nobody — not the streamer, not us — can change the seed afterwards without
+              <code>SHA-256(seed)</code>. Nobody, not the streamer, not us, can change the seed afterwards without
               that hash failing to match.</li>
           <li>Every entry is recorded with the number of tickets it holds. At draw time the whole list is hashed:
               <code>SHA-256("name:tickets" per line)</code>.</li>
@@ -140,7 +140,7 @@
               modulo the total ticket count.</li>
           <li>Afterwards the seed and the full list are published. That is what this page just recomputed.</li>
           <li><strong>Every draw gets its own seed.</strong> The same moment a draw reveals its seed, the next seed is
-              locked in and its fingerprint published — shown below as <em>Next draw commitment</em>. That matters for
+              locked in and its fingerprint published, shown below as <em>Next draw commitment</em>. That matters for
               re-draws: once a seed is public, anyone knowing it could work out which entry list would produce which
               winner. A fresh commitment per draw means a re-draw is decided by a number nobody could see when the
               entry list was still changeable.</li>
@@ -220,7 +220,7 @@
         ['Drawn',           when],
         ['Draw number',     '#' + ((proof.nonce || 0) + 1)],
         ['Requirements',    rules.length ? rules.join(', ') : 'open to everyone'],
-        ['Luck bonuses',    luck.length ? luck.join(', ') : 'none — every entry equal'],
+        ['Luck bonuses',    luck.length ? luck.join(', ') : 'none, every entry equal'],
         ['Winner',          proof.winnerName],
         ['Winning ticket',  proof.winningTicket + ' of ' + proof.totalTickets],
         ['Seed hash',       proof.serverSeedHash],
@@ -334,7 +334,7 @@
         setVerdict('pass', '✅ This draw checks out',
           '<strong style="color:var(--bright);">' + esc(proof.winnerName) + '</strong> held ticket '
           + proof.winningTicket + ' of ' + proof.totalTickets + '. The seed was committed before entries opened, '
-          + 'and recomputing it here produces the same winner — so the result could not have been chosen afterwards.');
+          + 'and recomputing it here produces the same winner, so the result could not have been chosen afterwards.');
       } else {
         setVerdict('fail', '❌ This draw does not check out',
           'The published numbers do not reproduce the announced winner. The failing step is marked below — '

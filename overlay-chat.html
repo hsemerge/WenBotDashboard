@@ -202,7 +202,7 @@
         { u: 'HighRoller',   c: '#4dd0e1', b: [{ type: 'founder' }],                     m: 'gl everyone 🍀' },
       ];
       var di = 0;
-      addMessage('System', '#8b949e', [], 'Chat preview — your live Kick chat appears here on stream.');
+      addMessage('System', '#8b949e', [], 'Chat preview, your live Kick chat appears here on stream.');
       setInterval(function () { var d = demo[di % demo.length]; di++; addMessage(d.u, d.c, d.b, d.m); }, 2200);
       return;
     }
@@ -265,7 +265,7 @@
       if (!id) { setStatus('Couldn’t find that Kick channel.'); return; }
       chatroomId = id;
       connect();
-    }).catch(function () { setStatus('Chat unavailable — retrying…'); setTimeout(function () { location.reload(); }, 8000); });
+    }).catch(function () { setStatus('Chat unavailable, retrying…'); setTimeout(function () { location.reload(); }, 8000); });
   })();
 
   // Chat can't use track() — #chat is an empty div that is technically visible

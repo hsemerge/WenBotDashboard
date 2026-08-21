@@ -702,7 +702,7 @@
     }
     document.title = `${s.streamer.displayName} — WenBot Portal`;
     document.getElementById('metaDesc').setAttribute('content',
-      s.streamer.bio || `${s.streamer.displayName}'s portal — leaderboard, store, and giveaways on Kick.`);
+      s.streamer.bio || `${s.streamer.displayName}'s portal, leaderboard, store, and giveaways on Kick.`);
     document.getElementById('ogTitle').setAttribute('content', `${s.streamer.displayName} — WenBot`);
     document.getElementById('ogDesc').setAttribute('content',
       s.streamer.bio || `Follow ${s.streamer.displayName}'s leaderboard, store, and giveaways on WenBot.`);
@@ -1121,7 +1121,7 @@
           ${it.isRaffleItem ? `<div class="store-raffle-entries" data-id="${esc(it.id)}" style="font-size:12px;color:var(--text-dim);margin:0 0 8px;min-height:16px;"></div>` : ''}
           ${qtyStepper}
           ${buyBtn}
-          <div class="buy-cmd" title="Copy command" onclick="navigator.clipboard&&navigator.clipboard.writeText('${buyCmd.replace(/'/g,"\\'")}');this.textContent='✓ Copied — paste in chat';">📋 ${esc(buyCmd)}</div>
+          <div class="buy-cmd" title="Copy command" onclick="navigator.clipboard&&navigator.clipboard.writeText('${buyCmd.replace(/'/g,"\\'")}');this.textContent='✓ Copied, paste in chat';">📋 ${esc(buyCmd)}</div>
         </div>`;
     }).join('');
     const hasRaffleItem = items.some(it => it.isRaffleItem);
@@ -1207,7 +1207,7 @@
            <span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;animation:live-pulse 1.6s infinite;"></span>
            Battle Live · ${battle.matchCount} match${battle.matchCount !== 1 ? 'es' : ''}
          </div>`
-      : `<div style="font-size:13px;color:var(--text-dim);margin-bottom:16px;">No active battle right now — check back when the streamer starts one.</div>`;
+      : `<div style="font-size:13px;color:var(--text-dim);margin-bottom:16px;">No active battle right now, check back when the streamer starts one.</div>`;
     return `
       <div class="panel" style="text-align:center;padding:36px 24px;">
         <div style="font-size:44px;margin-bottom:12px;">⚔️</div>

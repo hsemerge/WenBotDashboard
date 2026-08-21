@@ -268,7 +268,7 @@
         alert(d.message || 'Success!');
         loadStore(); // refresh stock
       }
-    } catch { alert('Purchase failed — try again.'); }
+    } catch { alert('Purchase failed, try again.'); }
     if (btn) { btn.disabled = false; btn.textContent = item.isRaffleItem ? '🎟 Buy tickets' : 'Buy'; }
   }
 

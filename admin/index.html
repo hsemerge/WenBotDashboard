@@ -100,7 +100,7 @@
       <!-- TRANSFER VIEWER -->
       <div class="tablecard" style="padding:16px;margin-bottom:16px;">
         <div style="font-weight:700;margin-bottom:3px;">🔁 Transfer Viewer</div>
-        <div class="sub" style="margin-bottom:11px;">Move a viewer's points, verification, raffle tickets &amp; purchases from an old Kick username to a new one — across every channel they're in. Preview is read-only; confirm migrates.</div>
+        <div class="sub" style="margin-bottom:11px;">Move a viewer's points, verification, raffle tickets &amp; purchases from an old Kick username to a new one, across every channel they're in. Preview is read-only; confirm migrates.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <input id="mvFrom" type="text" placeholder="Old username" style="background:#0a1120;border:1px solid #26385a;color:#eaf1fb;border-radius:8px;padding:9px 11px;min-width:150px;">
           <span class="sub">→</span>
@@ -161,7 +161,7 @@
       <div class="tablecard" style="padding:16px;margin-bottom:14px;">
         <div style="font-weight:800;font-size:15px;margin-bottom:6px;">⟳ Pull Shuffle catalog (server-side)</div>
         <div class="sub" style="margin-bottom:10px;line-height:1.5;">
-          Shuffle's catalog is public, so this runs <b>server-side — no bookmarklet</b>. Click to pull Shuffle's slots (including their exclusives) into the catalog. Live-casino games and Shuffle originals are filtered out automatically.
+          Shuffle's catalog is public, so this runs <b>server-side, no bookmarklet</b>. Click to pull Shuffle's slots (including their exclusives) into the catalog. Live-casino games and Shuffle originals are filtered out automatically.
         </div>
         <button id="shufBtn" onclick="pullShuffle()">⟳ Pull Shuffle now</button>
         <span class="sub" id="shufNote" style="margin-left:10px;"></span>
@@ -195,7 +195,7 @@
           </table>
         </div>
       </div>
-      <div class="sub" style="margin-top:14px;">💳 Stripe subscriptions auto-renew (dates come from Stripe). 🪙 Crypto subs are manual — send an invoice near the due date. Only streamers with an active billing cycle appear here.</div>
+      <div class="sub" style="margin-top:14px;">💳 Stripe subscriptions auto-renew (dates come from Stripe). 🪙 Crypto subs are manual, send an invoice near the due date. Only streamers with an active billing cycle appear here.</div>
     </div>
   </div>
 
@@ -395,16 +395,16 @@
       const ovp = _billingOverview[u.uid];
       const cryptoPaying = u.planManual && ovp && ovp.paidCount > 0;   // manual plan + real payments = paying, not comped
       const compTag = cryptoPaying
-        ? ` <span class="pill" style="background:rgba(45,212,150,.15);color:#5fe0a8;margin-left:4px;" title="Paying via crypto — plan locked">crypto</span>`
+        ? ` <span class="pill" style="background:rgba(45,212,150,.15);color:#5fe0a8;margin-left:4px;" title="Paying via crypto, plan locked">crypto</span>`
         : (u.planManual
-          ? ` <span class="pill comp" title="Comp — overrides Stripe">comp</span> <a href="#" onclick="clearManual('${esc(u.uid)}');return false;" class="muted" style="font-size:11px;">↺ auto</a>`
+          ? ` <span class="pill comp" title="Comp, overrides Stripe">comp</span> <a href="#" onclick="clearManual('${esc(u.uid)}');return false;" class="muted" style="font-size:11px;">↺ auto</a>`
           : '');
       // Recently-expired trial (post-sweep): trialExpiredAt set within the last 30
       // days and no longer on a trial — so you can see who just lapsed.
       const expiredAgo = (u.trialExpiredAt && !onTrial) ? Math.floor((Date.now() - u.trialExpiredAt) / 86400000) : -1;
       const recentlyExpired = expiredAgo >= 0 && expiredAgo <= 30;
       const trialTag = onTrial
-        ? ` <span class="pill" style="background:rgba(255,215,0,.15);color:#ffd700;" title="Free ${esc(_tp)} trial — auto-drops to starter ${esc(date(u.trialEndsAt))}">🎁 ${esc(_tp)} trial · ${trialDays}d</span>`
+        ? ` <span class="pill" style="background:rgba(255,215,0,.15);color:#ffd700;" title="Free ${esc(_tp)} trial, auto-drops to starter ${esc(date(u.trialEndsAt))}">🎁 ${esc(_tp)} trial · ${trialDays}d</span>`
         : (trialEnded
             ? ` <span class="pill" style="background:rgba(255,140,140,.16);color:#ff9b9b;" title="${esc(_tp)} trial expired ${esc(date(u.trialEndsAt))} — reverts to starter on the next daily sweep">⌛ ${esc(_tp)} trial ended</span>`
             : (recentlyExpired
@@ -466,7 +466,7 @@
       ? `<span class="muted" style="font-size:11px;">last edited by ${esc(d.adminNotesUpdatedBy)}${d.adminNotesUpdatedAt ? ' · ' + esc(date(d.adminNotesUpdatedAt)) : ''}</span>` : '';
     const notesBlock = `<div style="margin-top:12px;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;"><b style="color:var(--bright);">📝 Admin notes</b> ${noteMeta}</div>
-        <textarea id="note-${esc(uid)}" placeholder="Internal note — e.g. 'comped Elite for launch help, revisit Aug'…" style="width:100%;min-height:58px;background:#0c0c14;border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:12px;padding:8px 10px;font-family:inherit;resize:vertical;box-sizing:border-box;">${esc(d.adminNotes || '')}</textarea>
+        <textarea id="note-${esc(uid)}" placeholder="Internal note, e.g. 'comped Elite for launch help, revisit Aug'…" style="width:100%;min-height:58px;background:#0c0c14;border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:12px;padding:8px 10px;font-family:inherit;resize:vertical;box-sizing:border-box;">${esc(d.adminNotes || '')}</textarea>
         <button id="noteSave-${esc(uid)}" class="btn-ghost" style="margin-top:6px;" onclick="saveNote('${esc(uid)}')">Save note</button>
       </div>`;
     // Billing lives in the Billing tab now — here we show a one-line summary + a deep-link.
@@ -499,14 +499,14 @@
     const PLAN_LABEL = { starter: 'Starter', pro: 'Pro', elite: 'Elite', agency: 'Agency' };
     const plan = d.plan || 'starter';
     const defAmt = PLAN_PRICE[plan] || '';
-    const defDesc = `WenBot ${PLAN_LABEL[plan] || 'Pro'} Plan — Monthly`;
+    const defDesc = `WenBot ${PLAN_LABEL[plan] || 'Pro'} Plan, Monthly`;
     const billLine = d.stripeSubscribed
       ? `💳 <b style="color:#a78bfa;">Stripe subscription</b>${d.stripePeriodEnd ? ' · renews ' + date(d.stripePeriodEnd) : ''} — auto-renews, receipts sent by Stripe. No manual invoice needed.`
-      : (d.cryptoBillingNextDue ? `🪙 <b style="color:var(--accent);">Crypto</b> · next payment due <b>${date(d.cryptoBillingNextDue)}</b>` : 'No active billing cycle yet — create a crypto invoice below to start one.');
+      : (d.cryptoBillingNextDue ? `🪙 <b style="color:var(--accent);">Crypto</b> · next payment due <b>${date(d.cryptoBillingNextDue)}</b>` : 'No active billing cycle yet, create a crypto invoice below to start one.');
     const payRows = (d.payments || []).map(p => `<tr><td class="muted">${date(p.paidAt)}</td><td>💳 Stripe · ${esc(p.plan||'—')}</td><td>${esc((p.currency||'').toUpperCase())} ${Number(p.amount||0).toFixed(2)}</td><td><span style="color:#53e077;font-weight:700;">PAID</span></td><td>${p.hostedInvoiceUrl?`<a class="btn-ghost" style="text-decoration:none;" href="${esc(p.hostedInvoiceUrl)}" target="_blank" rel="noopener">Receipt ↗</a>`:''}</td></tr>`).join('');
     const invR = (d.invoices || []).map(v => {
       const st = v.status === 'paid' ? '<span style="color:#53e077;font-weight:700;">PAID</span>'
-               : (v.paymentSubmitted ? '<span style="color:#ffb020;font-weight:700;">CLAIMED — confirm?</span>' : '<span style="color:var(--red);">UNPAID</span>');
+               : (v.paymentSubmitted ? '<span style="color:#ffb020;font-weight:700;">CLAIMED, confirm?</span>' : '<span style="color:var(--red);">UNPAID</span>');
       const btn = v.status === 'paid'
         ? `<button class="btn-ghost" onclick="invAction('${esc(uid)}','${esc(v.id)}','unconfirm')">Unmark</button>`
         : `<button class="btn-ghost" style="border-color:#53e077;color:#53e077;" onclick="invAction('${esc(uid)}','${esc(v.id)}','confirm')">✓ Confirm paid</button>`;
@@ -540,16 +540,16 @@
   const invMoney = n => '$' + Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   const invDate  = ms => { if(!ms) return '—'; try { return new Date(ms).toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'}); } catch { return '—'; } };
   function invCryptoBoxAdmin(){
-    return `<div style="margin-top:12px;background:#fff7f0;border:1px solid #ffd9bd;border-radius:8px;padding:14px 16px;font-size:12px;color:#7a4a1f;"><div style="font-weight:800;margin-bottom:8px;">Pay by crypto — send the exact USD amount (in coin) to any of these:</div>${INV_CRYPTO.map(c=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #ffe6d1;flex-wrap:wrap;"><span style="font-weight:700;min-width:150px;">${esc(c.coin)} <span style="font-weight:400;color:#a86a3a;">(${esc(c.network)})</span></span><code style="flex:1;min-width:180px;font-family:monospace;word-break:break-all;background:#fff;border:1px solid #ffe0c8;border-radius:5px;padding:5px 8px;">${esc(c.address)}</code></div>`).join('')}</div>`;
+    return `<div style="margin-top:12px;background:#fff7f0;border:1px solid #ffd9bd;border-radius:8px;padding:14px 16px;font-size:12px;color:#7a4a1f;"><div style="font-weight:800;margin-bottom:8px;">Pay by crypto, send the exact USD amount (in coin) to any of these:</div>${INV_CRYPTO.map(c=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #ffe6d1;flex-wrap:wrap;"><span style="font-weight:700;min-width:150px;">${esc(c.coin)} <span style="font-weight:400;color:#a86a3a;">(${esc(c.network)})</span></span><code style="flex:1;min-width:180px;font-family:monospace;word-break:break-all;background:#fff;border:1px solid #ffe0c8;border-radius:5px;padding:5px 8px;">${esc(c.address)}</code></div>`).join('')}</div>`;
   }
   function invReceiptHtmlAdmin(inv, channel){
     const paid = inv.status==='paid', A = INV_BRAND.accent, total = inv.amount||0;
     return `<div id="admReceiptDoc" style="background:#fff;color:#1a1a1a;border-radius:10px;padding:34px 38px;font-family:'Inter',Arial,sans-serif;">
       <div style="text-align:center;margin-bottom:16px;"><img src="${INV_BRAND.logoUrl}" style="max-height:120px;max-width:380px;width:auto;object-fit:contain;" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div style="display:none;font-size:22px;font-weight:900;color:${A};">${esc(INV_BRAND.name)}</div></div>
-      <div style="text-align:center;border-top:2px solid ${A};padding-top:14px;"><div style="font-size:26px;font-weight:900;letter-spacing:1px;">${paid?'PAYMENT RECEIPT':'INVOICE'}</div><div style="font-weight:800;margin-top:4px;color:${paid?'#159a4a':'#d64545'};">${paid?'PAID IN FULL':(inv.paymentSubmitted?'PAYMENT SUBMITTED — AWAITING CONFIRMATION':'NOT PAID YET')}</div></div>
+      <div style="text-align:center;border-top:2px solid ${A};padding-top:14px;"><div style="font-size:26px;font-weight:900;letter-spacing:1px;">${paid?'PAYMENT RECEIPT':'INVOICE'}</div><div style="font-weight:800;margin-top:4px;color:${paid?'#159a4a':'#d64545'};">${paid?'PAID IN FULL':(inv.paymentSubmitted?'PAYMENT SUBMITTED, AWAITING CONFIRMATION':'NOT PAID YET')}</div></div>
       <div style="display:flex;justify-content:space-between;margin:18px 0;font-size:13px;"><div><b>Invoice #:</b> ${esc(inv.number||'—')}<br><b>Date:</b> ${invDate(inv.createdAt)}${inv.dueAt?`<br><b>Due:</b> ${invDate(inv.dueAt)}`:''}</div><div style="text-align:right;"><b>From:</b> ${esc(INV_BRAND.name)}<br><b>Billed To:</b> ${esc(inv.billedTo||channel||'—')}</div></div>
       <table style="width:100%;border-collapse:collapse;font-size:14px;"><thead><tr style="background:${A};"><th style="text-align:left;padding:10px 12px;color:#fff;font-weight:800;">Description</th><th style="text-align:right;padding:10px 12px;color:#fff;font-weight:800;">Amount</th></tr></thead><tbody><tr style="border-bottom:1px solid #eee;"><td style="padding:10px 12px;color:#1a1a1a;">${esc(inv.description||'')}</td><td style="padding:10px 12px;text-align:right;color:#1a1a1a;">${invMoney(total)}</td></tr><tr><td style="padding:12px;font-weight:800;color:#111;border-top:2px solid #111;">Total</td><td style="padding:12px;text-align:right;font-weight:800;color:#111;border-top:2px solid #111;">${invMoney(total)}</td></tr></tbody></table>
-      ${paid?`<div style="margin-top:16px;background:#eef9f0;border:1px solid #bfe6c8;border-radius:8px;padding:12px 14px;color:#159a4a;font-weight:700;">✅ Payment received — thank you!${inv.paidAt?' Paid '+invDate(inv.paidAt):''}</div>`:`<div style="margin-top:16px;font-size:13px;"><b>Amount Due:</b> ${invMoney(total)} · <b>Status:</b> <span style="color:#d64545;font-weight:700;">Not Paid Yet</span></div>${invCryptoBoxAdmin()}`}
+      ${paid?`<div style="margin-top:16px;background:#eef9f0;border:1px solid #bfe6c8;border-radius:8px;padding:12px 14px;color:#159a4a;font-weight:700;">✅ Payment received, thank you!${inv.paidAt?' Paid '+invDate(inv.paidAt):''}</div>`:`<div style="margin-top:16px;font-size:13px;"><b>Amount Due:</b> ${invMoney(total)} · <b>Status:</b> <span style="color:#d64545;font-weight:700;">Not Paid Yet</span></div>${invCryptoBoxAdmin()}`}
       <div style="text-align:center;margin-top:22px;padding-top:14px;border-top:1px solid #eee;font-size:11px;color:#777;">Thank you for your business! · ${esc(INV_BRAND.site)} · ${esc(INV_BRAND.email)} · ${esc(INV_BRAND.discord)}</div>
     </div>`;
   }
@@ -596,7 +596,7 @@
     const paidAt      = paidVal ? new Date(paidVal + 'T12:00:00').getTime() : (markPaid ? Date.now() : null);
     if (!amount || amount <= 0) return alert('Enter a valid amount');
     if (!description)           return alert('Enter a description');
-    if (markPaid && !paidVal && !confirm('No paid date set — use today?')) return;
+    if (markPaid && !paidVal && !confirm('No paid date set, use today?')) return;
     try {
       const r = await authedPost('/api/admin-create-invoice', { uid, amount, description, method, dueAt, recurring, markPaid, paidAt });
       const d = await r.json();
@@ -631,9 +631,9 @@
     try { await streamerAction(uid, 'unarchive'); } catch (e) { alert('Failed: ' + e.message); }
   };
   window.deleteStreamer = async function (uid, channel) {
-    const typed = prompt(`PERMANENTLY delete "${channel}" — removes all their data AND their login. This cannot be undone.\n\nType the channel name to confirm:`);
+    const typed = prompt(`PERMANENTLY delete "${channel}", removes all their data AND their login. This cannot be undone.\n\nType the channel name to confirm:`);
     if (typed === null) return;
-    if (typed.trim() !== channel) { alert('Name did not match — cancelled.'); return; }
+    if (typed.trim() !== channel) { alert('Name did not match, cancelled.'); return; }
     try { await streamerAction(uid, 'delete'); alert(`"${channel}" deleted.`); } catch (e) { alert('Failed: ' + e.message); }
   };
 
@@ -641,7 +641,7 @@
   // a temporary delegatedFor claim (reusing the moderator mechanism), then opens
   // their dashboard — the "Managing" banner + Exit there returns you. Audit-logged.
   window.manageStreamer = async function (uid, channel) {
-    if (!confirm(`Switch into "${channel}"'s account to manage their settings?\n\nYou'll see a "Managing ${channel}" banner — click Exit there to return to your own account. This action is audit-logged.`)) return;
+    if (!confirm(`Switch into "${channel}"'s account to manage their settings?\n\nYou'll see a "Managing ${channel}" banner, click Exit there to return to your own account. This action is audit-logged.`)) return;
     try {
       const r = await authedPost('/api/admin-manage-user', { uid, action: 'grant' });
       const d = await r.json();
@@ -777,7 +777,7 @@
   // Build the "update slot catalog from Stake" bookmarklet (carries the admin
   // ingest key, fetched admin-gated). Drag to bookmarks → click on stake.com.
   function _slotPullCode(key) {
-    return `(async()=>{const KEY=${JSON.stringify(key)};const P=['pragmatic-play','hacksaw-gaming','nolimit','playngo','relax','bgaming','elk','big-time-gaming','redtiger','netent','thunderkick','quickspin','avatarux','booming','blueprint','push-gaming','pgsoft','3-oaks','wazdan','endorphina'];const L=50,s=ms=>new Promise(r=>setTimeout(r,ms));async function g(sl,mx){const o=[];let f=0;while(f<mx){const q='{slugKuratorGroup(slug:"'+sl+'"){groupGamesList(limit:'+L+',offset:'+f+'){game{name slug thumbnailUrl provider{name}}}}}';let r;try{r=await fetch('/_api/graphql',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})})}catch(e){break}if(!r.ok)break;const j=await r.json();const l=j.data&&j.data.slugKuratorGroup&&j.data.slugKuratorGroup.groupGamesList;if(!l)break;o.push(...l.map(i=>i.game).filter(Boolean));if(l.length<L)break;f+=L;await s(200)}return o}const a=[];for(const x of P){a.push(...await g(x,5000))}a.push(...await g('slots',200));const seen=new Set(),sl=[];for(const z of a){if(!z||!z.slug||!z.name||seen.has(z.slug))continue;seen.add(z.slug);sl.push({name:z.name,slug:z.slug,thumbnailUrl:z.thumbnailUrl,provider:z.provider&&z.provider.name})}if(!sl.length){alert('WenBot: pulled 0 games — are you logged in to Stake?');return}let rp;try{rp=await fetch('https://wenbot.gg/api/admin-slots-ingest',{method:'POST',headers:{'Content-Type':'application/json','X-Ingest-Key':KEY},body:JSON.stringify({slots:sl})})}catch(e){alert('WenBot upload failed: '+e.message);return}const d=await rp.json().catch(()=>({}));alert(rp.ok?('WenBot ✓ pulled '+sl.length+', added '+d.added+', filled '+d.backfilled+'. Total now '+d.total+'.'):'WenBot error: '+(d.error||rp.status))})()`;
+    return `(async()=>{const KEY=${JSON.stringify(key)};const P=['pragmatic-play','hacksaw-gaming','nolimit','playngo','relax','bgaming','elk','big-time-gaming','redtiger','netent','thunderkick','quickspin','avatarux','booming','blueprint','push-gaming','pgsoft','3-oaks','wazdan','endorphina'];const L=50,s=ms=>new Promise(r=>setTimeout(r,ms));async function g(sl,mx){const o=[];let f=0;while(f<mx){const q='{slugKuratorGroup(slug:"'+sl+'"){groupGamesList(limit:'+L+',offset:'+f+'){game{name slug thumbnailUrl provider{name}}}}}';let r;try{r=await fetch('/_api/graphql',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})})}catch(e){break}if(!r.ok)break;const j=await r.json();const l=j.data&&j.data.slugKuratorGroup&&j.data.slugKuratorGroup.groupGamesList;if(!l)break;o.push(...l.map(i=>i.game).filter(Boolean));if(l.length<L)break;f+=L;await s(200)}return o}const a=[];for(const x of P){a.push(...await g(x,5000))}a.push(...await g('slots',200));const seen=new Set(),sl=[];for(const z of a){if(!z||!z.slug||!z.name||seen.has(z.slug))continue;seen.add(z.slug);sl.push({name:z.name,slug:z.slug,thumbnailUrl:z.thumbnailUrl,provider:z.provider&&z.provider.name})}if(!sl.length){alert('WenBot: pulled 0 games, are you logged in to Stake?');return}let rp;try{rp=await fetch('https://wenbot.gg/api/admin-slots-ingest',{method:'POST',headers:{'Content-Type':'application/json','X-Ingest-Key':KEY},body:JSON.stringify({slots:sl})})}catch(e){alert('WenBot upload failed: '+e.message);return}const d=await rp.json().catch(()=>({}));alert(rp.ok?('WenBot ✓ pulled '+sl.length+', added '+d.added+', filled '+d.backfilled+'. Total now '+d.total+'.'):'WenBot error: '+(d.error||rp.status))})()`;
   }
 
   let _bmLoaded = false;
@@ -796,11 +796,11 @@
       a.textContent = '⟳ Update WenBot Slots';
       a.draggable = true;
       a.style.cssText = 'display:inline-block;background:#3b82f6;color:#fff;font-weight:800;text-decoration:none;padding:9px 16px;border-radius:8px;margin-right:10px;cursor:grab;';
-      a.onclick = (e) => { e.preventDefault(); alert('Drag this button up to your bookmarks bar, then click it while on stake.com. Clicking it here does nothing — it has to run on Stake.'); };
+      a.onclick = (e) => { e.preventDefault(); alert('Drag this button up to your bookmarks bar, then click it while on stake.com. Clicking it here does nothing, it has to run on Stake.'); };
       area.appendChild(a);
       const btn = document.createElement('button');
       btn.className = 'btn-ghost'; btn.textContent = '📋 Copy console version';
-      btn.onclick = async () => { try { await navigator.clipboard.writeText(code); btn.textContent = '✓ Copied — paste in the Stake console'; } catch { btn.textContent = 'Copy failed'; } };
+      btn.onclick = async () => { try { await navigator.clipboard.writeText(code); btn.textContent = '✓ Copied, paste in the Stake console'; } catch { btn.textContent = 'Copy failed'; } };
       area.appendChild(btn);
       const note = document.createElement('div');
       note.className = 'sub'; note.style.cssText = 'margin-top:10px;line-height:1.5;';
@@ -858,7 +858,7 @@
   }
 
   window.setPlan = async function (uid, plan) {
-    const reason = prompt(`Set this streamer to "${plan}" (comp — overrides Stripe). Optional audit note:`, '');
+    const reason = prompt(`Set this streamer to "${plan}" (comp, overrides Stripe). Optional audit note:`, '');
     if (reason === null) { renderTable(); return; } // cancelled → reset the select
     try {
       const r = await authedPost('/api/admin-set-plan', { uid, plan, manual: true, reason });
@@ -892,7 +892,7 @@
   window.giveTrial = async function (uid, tier) {
     tier = (tier === 'pro') ? 'pro' : 'elite';
     const label = tier.charAt(0).toUpperCase() + tier.slice(1);
-    const daysStr = prompt(`Give a FREE ${label} trial for how many days?\n(Auto-drops to Starter after — they must subscribe to keep ${label}.)`, '30');
+    const daysStr = prompt(`Give a FREE ${label} trial for how many days?\n(Auto-drops to Starter after, they must subscribe to keep ${label}.)`, '30');
     if (daysStr === null) { renderTable(); return; }
     const days = Math.max(1, Math.min(365, parseInt(daysStr, 10) || 30));
     const reason = prompt('Optional audit note:', `First month ${label} free`);
@@ -903,7 +903,7 @@
       if (!r.ok) throw new Error(d.error || 'Failed');
       await loadUsers();
       await refreshDetail(uid);          // re-fetch so the new trial fields show
-      alert(`✅ ${label} trial granted — expires in ${days} day(s).`);
+      alert(`✅ ${label} trial granted, expires in ${days} day(s).`);
     } catch (e) { alert('Failed: ' + e.message); }
   };
 
@@ -961,7 +961,7 @@
     }
     h += '</tbody></table>';
     if (!committed) h += `<button onclick="mvCommit()" style="margin-top:12px;">Confirm move →</button>`;
-    else h += `<div class="sub" style="margin-top:10px;">Old account flagged <code>migratedTo</code> (points preserved as <code>migratedPoints</code>) — recoverable.</div>`;
+    else h += `<div class="sub" style="margin-top:10px;">Old account flagged <code>migratedTo</code> (points preserved as <code>migratedPoints</code>), recoverable.</div>`;
     out.innerHTML = h;
   }
   async function mvCall(action) {

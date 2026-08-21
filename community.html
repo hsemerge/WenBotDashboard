@@ -210,7 +210,7 @@
     <button data-v="guide" onclick="setView('guide')">👋 New here?</button>
   </div>
   <div class="spacer"></div>
-  <span class="wp-chip" id="wpChip" title="WenPoints — earned by chatting on any WenBot creator's live stream">⚡ 0 WP</span>
+  <span class="wp-chip" id="wpChip" title="WenPoints, earned by chatting on any WenBot creator's live stream">⚡ 0 WP</span>
   <span id="navAuth"></span>
 </div></div>
 
@@ -222,7 +222,7 @@
       <div style="font-size:26px;">🪪</div>
       <div style="flex:1;min-width:220px;">
         <div style="font-family:'Exo 2',sans-serif;font-weight:900;font-size:16px;color:var(--bright);">Get your WenBot Passport</div>
-        <div style="font-size:12px;color:var(--dim);margin-top:3px;">Sign in with Kick to see your points, wins &amp; raffle tickets across every channel — and start earning ⚡ WenPoints just by watching.</div>
+        <div style="font-size:12px;color:var(--dim);margin-top:3px;">Sign in with Kick to see your points, wins &amp; raffle tickets across every channel, and start earning ⚡ WenPoints just by watching.</div>
       </div>
       <button class="kick-btn" onclick="initiateKickAuth('viewer', 'wenbot')">
         <svg width="14" height="14" viewBox="0 0 512 512" fill="currentColor"><path d="M37 .036h164.448v113.621h54.71V56.845h54.731V.036h164.448v170.777h-54.73v56.81h-54.711v56.788h54.71v56.81h54.731v170.743H310.889v-56.81h-54.71v-56.788h-54.731v113.598H37V.036z"/></svg>
@@ -299,7 +299,7 @@
 
   <!-- ════ PULSE ════ -->
   <div class="view" id="view-pulse">
-    <div class="sec-h"><h2>📈 Community Pulse</h2><span class="sub">the whole platform, in numbers — counting since July 2026</span></div>
+    <div class="sec-h"><h2>📈 Community Pulse</h2><span class="sub">the whole platform, in numbers, counting since July 2026</span></div>
     <div class="grid" id="pulseGrid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr));"><div class="empty">The counters are warming up…</div></div>
   </div>
 
@@ -308,7 +308,7 @@
     <div class="sec-h"><h2>👋 New here?</h2><span class="sub">how the community works</span></div>
     <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr));">
       <div class="gcard"><div style="font-size:22px;">🤖</div><div class="t">What is WenBot?</div>
-        <p>The bot behind your favorite Kick gambling streams — giveaways, points, raffles, leaderboards, all automated.</p>
+        <p>The bot behind your favorite Kick gambling streams, giveaways, points, raffles, leaderboards, all automated.</p>
         <div class="soon">🎬 Video coming soon</div></div>
       <div class="gcard"><div style="font-size:22px;">⚡</div><div class="t">What are WenPoints?</div>
         <p><strong>The community's own currency, and it works everywhere.</strong> Channel points belong to one streamer. WenPoints belong to you, across every WenBot creator you watch.</p>
@@ -321,7 +321,7 @@
         <p>Type the keyword to join giveaways, buy raffle tickets with points, and use !verify to unlock code-only drops.</p>
         <div class="soon">🎬 Video coming soon</div></div>
       <div class="gcard"><div style="font-size:22px;">🛟</div><div class="t">Need help?</div>
-        <p>Our support team solves everything — open a ticket in the WenBot Discord or ask in your streamer's chat.</p>
+        <p>Our support team solves everything, open a ticket in the WenBot Discord or ask in your streamer's chat.</p>
         <div class="soon">💬 Support via Discord</div></div>
     </div>
   </div>
@@ -329,7 +329,7 @@
   <footer>
     Powered by <a href="/">WenBot</a> — the all-in-one streamer bot for Kick ·
     <a href="/updates">Updates</a> · <a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a><br>
-    18+ · Gambling happens on third-party licensed platforms — play responsibly.
+    18+ · Gambling happens on third-party licensed platforms, play responsibly.
   </footer>
 </div>
 
@@ -443,7 +443,7 @@ function cardHtml(c, mine, isNew) {
 
 function renderHome() {
   const area = document.getElementById('creatorArea');
-  if (!CREATORS.length) { area.innerHTML = '<div class="empty">The community is warming up — check back soon.</div>'; return; }
+  if (!CREATORS.length) { area.innerHTML = '<div class="empty">The community is warming up, check back soon.</div>'; return; }
 
   const f = favs();
   const sortFn = (a, b) => (b.isLive - a.isLive) || ((mineFor(b.channel)?.points || 0) - (mineFor(a.channel)?.points || 0)) || (b.viewers - a.viewers);
@@ -452,7 +452,7 @@ function renderHome() {
   const signedIn = !!SESSION && !!PASS;
 
   document.getElementById('yourHdr').textContent = signedIn && yours.length ? '⭐ Your creators' : '🌐 The network';
-  document.getElementById('yourSub').textContent = signedIn && yours.length ? 'where you watch & earn — live first' : 'every creator running WenBot';
+  document.getElementById('yourSub').textContent = signedIn && yours.length ? 'where you watch & earn, live first' : 'every creator running WenBot';
 
   const mk = (c) => {
     const mine  = mineFor(c.channel);
@@ -465,7 +465,7 @@ function renderHome() {
   if (signedIn && yours.length) {
     html += wrapCards(yours.map(mk).join(''));
     if (discover.length) {
-      html += `<div class="lsep-h">🌐 Discover the network — creators you haven't earned with yet</div>`;
+      html += `<div class="lsep-h">🌐 Discover the network, creators you haven't earned with yet</div>`;
       html += wrapCards(discover.map(mk).join(''));
     }
   } else {
@@ -485,7 +485,7 @@ function renderRailToday() {
     `<a class="srow" href="https://kick.com/${esc(c.channel)}" target="_blank" rel="noopener">${avaHtml(c, 24, 'sav')}<span class="nm">${esc(c.name)}</span><span class="livetag">LIVE NOW</span><span class="tm">${(c.viewers || 0).toLocaleString()} 👁</span></a>`));
   CREATORS.filter(c => !c.isLive && c.schedule && c.schedule[today]).forEach(c => rows.push(
     `<a class="srow" href="https://kick.com/${esc(c.channel)}" target="_blank" rel="noopener">${avaHtml(c, 24, 'sav')}<span class="nm">${esc(c.name)}</span><span class="tm">${esc(c.schedule[today])}</span></a>`));
-  el.innerHTML = rows.length ? rows.join('') : '<div style="font-size:11px;color:var(--dim);">Nothing scheduled today — creators set their week from the dashboard.</div>';
+  el.innerHTML = rows.length ? rows.join('') : '<div style="font-size:11px;color:var(--dim);">Nothing scheduled today, creators set their week from the dashboard.</div>';
 }
 function renderRailWins() {
   const el = document.getElementById('railWins');
@@ -496,7 +496,7 @@ function renderRailWins() {
       <div class="win-slot">${esc(w.slot)} · ${esc(w.name)}</div></div>
       ${w.ts ? `<span class="tm">${ago(w.ts)}</span>` : ''}
     </div>`).join('')
-  : '<div style="font-size:11px;color:var(--dim);">No wins posted yet — the next 500x is loading… 🎰</div>';
+  : '<div style="font-size:11px;color:var(--dim);">No wins posted yet, the next 500x is loading… 🎰</div>';
 }
 function renderRailPulse() {
   const el = document.getElementById('railPulse');
@@ -527,13 +527,13 @@ function renderWinsView() {
       </div>
       <div style="font-size:11.5px;color:var(--text);font-weight:700;margin-top:5px;">🎰 ${esc(w.slot)}</div>
     </div>`).join('')
-  : '<div class="empty">No wins posted yet — creators share their biggest hits here. The next 500x is loading… 🎰</div>';
+  : '<div class="empty">No wins posted yet, creators share their biggest hits here. The next 500x is loading… 🎰</div>';
 }
 function renderSchedView() {
   const withSched = CREATORS.filter(c => c.schedule && Object.keys(c.schedule).length);
   const grid = document.getElementById('schedGrid');
   if (!withSched.length) {
-    grid.innerHTML = '<div class="empty" style="grid-column:1/-1;">The weekly lineup is coming together — creators are setting their schedules now. Check back soon!</div>';
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1;">The weekly lineup is coming together, creators are setting their schedules now. Check back soon!</div>';
     return;
   }
   const today = DAYS[(new Date().getDay() + 6) % 7][0];
@@ -562,7 +562,7 @@ function renderPulseView() {
       <div style="font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;color:var(--bright);font-variant-numeric:tabular-nums;">${Number(n).toLocaleString()}</div>
       <div style="font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;">${label}</div>
     </div>`).join('')
-  : '<div class="empty">The counters are warming up — the whole platform\'s numbers land here shortly.</div>';
+  : '<div class="empty">The counters are warming up, the whole platform\'s numbers land here shortly.</div>';
 }
 
 /* ── Data loads ── */
@@ -826,7 +826,7 @@ async function openBox(tier, btn) {
   if (p.kind === 'badge') {
     art  = `/img/mysterybox/${p.id}.png`;
     t    = label(p.name) + ' badge!';
-    s2   = 'Added to your collection — click it below to wear it.';
+    s2   = 'Added to your collection, click it below to wear it.';
     // The two brand marks are the chase items, so they get the gold treatment.
     tint = (p.name === 'wenbot' || p.name === 'gg') ? 'rgba(245,197,24,.55)' : 'rgba(0,229,255,.45)';
   } else if (p.kind === 'voucher') {
