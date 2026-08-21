@@ -97,6 +97,15 @@ async function detectAnomalies(db, uid, v) {
           `**Renamed on Kick.** Same Kick account verified as **${o.kickName || k}**${when}. ` +
           `Their points, tickets and verification are still under that name - merge them (Admin → Merge viewer) so nothing is lost.`
         );
+        // Durable trail under the NEW name, so /lookup shows the rename even after
+        // the channel alert has scrolled away. Deduped, so re-verifying is a no-op.
+        try {
+          const { recordViewerEvent } = require("./viewer-history");
+          await recordViewerEvent(db, uid, v.kickUsername, {
+            type: "renamed",
+            text: `Renamed on Kick — same account was verified as ${o.kickName || k}${when}`,
+          });
+        } catch (e) { /* history is best-effort, never break detection */ }
       }
     }
   } catch { /* non-fatal */ }

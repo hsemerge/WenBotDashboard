@@ -88,6 +88,25 @@ async function handleDiscordMove(db, streamerUid, discordUserId, previousKick, n
     clearedOld = true;
   }
 
+  const who = discordUsername ? `@${discordUsername}` : discordUserId;
+
+  // Durable trail on BOTH accounts, so a mod who looks up either one later sees
+  // the hop - the persistent counterpart to the channel alert below.
+  try {
+    const { recordViewerEvent } = require("./viewer-history");
+    await recordViewerEvent(db, streamerUid, newKick, {
+      type: "discord_in",
+      text: `Discord ${who} linked here (moved from ${previousKick})`,
+    });
+    await recordViewerEvent(db, streamerUid, previousKick, {
+      type: "discord_out",
+      text: `Discord ${who} unlinked (moved to ${newKick})` +
+            (clearedOld ? " — Discord-verified removed" : " — still verified via another Discord"),
+    });
+  } catch (err) {
+    console.warn("[discord-link] history record failed:", err.message);
+  }
+
   // Real-time note to the verification channel so a mod sees the move happen.
   try {
     const { postDiscordMoveAlert } = require("./verify-log");

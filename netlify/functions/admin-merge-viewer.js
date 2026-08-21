@@ -5,6 +5,7 @@
 //   • viewers/{key}            → points (summed) + all other fields
 //   • kick_profiles            → moved
 //   • mod_strikes              → moved
+//   • viewer_history           → moved (the mod trail follows the merged name)
 //   • verified_users           → re-keyed to the new name (keeps under-code status)
 //   • store_redemptions        → tickets MOVED to the right doc id, purchases relabelled
 //   • slot_requests            → relabelled
@@ -41,6 +42,7 @@ const VIEWER_DATA = [
   { name: "viewers",            byDocId: true },
   { name: "kick_profiles",      byDocId: true },
   { name: "mod_strikes",        byDocId: true },
+  { name: "viewer_history",     byDocId: true },
   { name: "verified_users",     field: "kickName_lower" },
   { name: "winners_log",        field: "kickKey" },
   { name: "store_redemptions",  field: "kickUsernameKey" },

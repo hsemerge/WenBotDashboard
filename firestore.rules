@@ -265,6 +265,15 @@ service cloud.firestore {
       // and read by the public through /api/draw-proof. A proof a streamer could
       // edit after the fact would be worth nothing, so nothing client-side may
       // touch these — not even the owner.
+      // Moderation history (Discord hops, renames). Read by owner/mod so it could
+      // back a future dashboard view; NEVER client-writable - it is an integrity
+      // trail written only by server functions, and a mod who could edit it could
+      // erase evidence of their own alt. Excluded from the catch-all below.
+      match /viewer_history/{doc} {
+        allow read:  if isOwnerOrMod(uid);
+        allow write: if false;
+      }
+
       match /giveaway_draws/{drawId} {
         allow read, write: if false;
       }
@@ -286,7 +295,7 @@ service cloud.firestore {
           && !(subcollection in [
             'referrals', 'payments', 'verified_users', 'discord_links', 'audit_logs',
             'bot_status', 'bb_votes', 'store_redemptions', 'bot_locks', 'invoices',
-            'mod_actions', 'mod_strikes', 'giveaway_draws'
+            'mod_actions', 'mod_strikes', 'giveaway_draws', 'viewer_history'
           ]);
       }
     }
