@@ -226,4 +226,46 @@ async function postVerifyLog(db, uid, streamerData, v) {
   }
 }
 
-module.exports = { postVerifyLog, detectAnomalies };
+/**
+ * Tell the mod team a Discord account was moved from one Kick name to another.
+ *
+ * Posts to the same verification log channel postVerifyLog uses, and respects the
+ * same on/off switch. Reads the streamer doc itself for the channel (one read),
+ * because the move is detected deep in the link path where streamerData isn't in
+ * hand - a rare event, so the read is cheap. Best-effort: a failed post must
+ * never fail the link.
+ *
+ * @param {object} m { discordUsername, discordUserId, fromKick, toKick, clearedOld }
+ */
+async function postDiscordMoveAlert(db, uid, m) {
+  try {
+    const streamerDoc = await db.collection("streamers").doc(uid).get();
+    const cfg = (streamerDoc.data() && streamerDoc.data().discordConfig && streamerDoc.data().discordConfig.verify) || {};
+    const channelId = cfg.logChannelId;
+    if (!channelId || cfg.logEnabled === false) return;
+    if (!process.env.DISCORD_BOT_TOKEN) return;
+
+    const who = m.discordUsername ? `@${m.discordUsername}` : `\`${m.discordUserId}\``;
+    await discordPost(channelId, {
+      embeds: [{
+        title: "🔁 Discord moved to a different Kick account",
+        color: AMBER,
+        description: `Discord **${who}** was linked to **${m.fromKick}**, and is now linked to **${m.toKick}**.`,
+        fields: [
+          { name: "Now linked to", value: m.toKick,  inline: true },
+          { name: "Was linked to", value: m.fromKick, inline: true },
+          { name: "Effect", value: m.clearedOld
+              ? `Discord-verified was **removed from ${m.fromKick}** — no other Discord is linked to it, so it no longer passes a Discord-verify gate.`
+              : `${m.fromKick} stays Discord-verified — another Discord is still linked to it.`,
+            inline: false },
+        ],
+        footer:    { text: "WenBot • one Discord verifies only one Kick account at a time" },
+        timestamp: new Date().toISOString(),
+      }],
+    });
+  } catch (err) {
+    console.warn("[verify-log] discord-move alert failed:", err.message);
+  }
+}
+
+module.exports = { postVerifyLog, detectAnomalies, postDiscordMoveAlert };
