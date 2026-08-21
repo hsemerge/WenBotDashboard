@@ -173,6 +173,7 @@ exports.handler = async (event) => {
         provider: "none", providerUsername: null, providerUid: null,
         underAffiliate: false, wagerAmount: 0,
         discordUserId, discordUsername, roleResult,
+      connHash: fp ? fp.hash : null, connLabel: fp ? fp.label : null,
         casinoSkipped: true,
         source: dtoken ? "Discord" : "Kick or web link",
       });
@@ -445,6 +446,7 @@ exports.handler = async (event) => {
       provider, providerUsername: resultUsername, providerUid,
       underAffiliate, wagerAmount,
       discordUserId, discordUsername, roleResult,
+      connHash: fp ? fp.hash : null, connLabel: fp ? fp.label : null,
       previousProviderUsername,
       source: dtoken ? "Discord" : "Kick or web link",
     });

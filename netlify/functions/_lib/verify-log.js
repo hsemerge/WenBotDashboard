@@ -139,6 +139,57 @@ async function detectAnomalies(db, uid, v) {
     notes.push(`Changed their ${CASINO_NAMES[v.provider] || v.provider} name from **${v.previousProviderUsername}** to **${v.providerUsername}**.`);
   }
 
+  // ── Same connection as another account (possible alt) ──────────────────────
+  // The connection fingerprint is a salted hash of the IP this account verified
+  // from - never the raw IP. Another account on this channel with the SAME hash
+  // verified from the same connection. That ALONE could be a shared home network
+  // or a mobile/CGNAT coincidence (siblings, dorms), so a lone match is the
+  // gentle "shared connection" flag. But if that other account ALSO shares this
+  // one's Discord or casino account, it is almost certainly the same person -
+  // one signal is a coincidence, two is a pattern - so it escalates to "likely
+  // alt". Matched on the full hash, never the display label.
+  try {
+    if (v.connHash) {
+      const snap = await col.where("connHash", "==", v.connHash).get();
+      const others = new Map();  // otherKickLower -> { name, sharesDiscord, sharesCasino }
+      snap.forEach((d) => {
+        const o = d.data();
+        const k = (o.kickName_lower || o.kickName || "").toLowerCase();
+        if (!k || k === kickKey) return;
+        const rec = others.get(k) || { name: o.kickName || k, sharesDiscord: false, sharesCasino: false };
+        if (v.discordUserId && o.discordUserId && String(o.discordUserId) === String(v.discordUserId)) rec.sharesDiscord = true;
+        const sameName = o.providerUsername_lower && v.providerUsername &&
+          o.providerUsername_lower === String(v.providerUsername).toLowerCase();
+        const sameUid  = o.providerUid && v.providerUid && String(o.providerUid) === String(v.providerUid);
+        if (sameName || sameUid) rec.sharesCasino = true;
+        others.set(k, rec);
+      });
+
+      if (others.size) {
+        const names       = [...others.values()].map((r) => r.name);
+        const corroborated = [...others.values()].some((r) => r.sharesDiscord || r.sharesCasino);
+        const also = [...others.values()].some((r) => r.sharesDiscord) ? "Discord account"
+                   : [...others.values()].some((r) => r.sharesCasino)  ? "casino account" : null;
+        const label = v.connLabel ? ` (\`${v.connLabel}\`)` : "";
+        const list  = names.map((n) => `**${n}**`).join(", ");
+
+        notes.push(corroborated
+          ? `Likely alt: same connection${label} as ${list} — and the same ${also}. One signal is a coincidence; two is a pattern.`
+          : `Shared connection${label} with ${list}. Could be a shared home/network or an alt — worth a look.`);
+
+        try {
+          const { recordViewerEvent } = require("./viewer-history");
+          await recordViewerEvent(db, uid, v.kickUsername, {
+            type: corroborated ? "conn_alt" : "conn_shared",
+            text: corroborated
+              ? `Likely alt — same connection${label} as ${names.join(", ")}, plus the same ${also}`
+              : `Shared connection${label} with ${names.join(", ")}`,
+          });
+        } catch (e) { /* history is best-effort */ }
+      }
+    }
+  } catch { /* non-fatal */ }
+
   return notes;
 }
 
