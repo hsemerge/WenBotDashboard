@@ -11,3 +11,7 @@ MegWebsite/
 # serves belong in /img/ or /games/ and are committed individually; the source
 # archives are not — they would bloat every Netlify deploy.
 Games/
+
+# Firebase emulator / debug logs
+firestore-debug.log
+*-debug.log
