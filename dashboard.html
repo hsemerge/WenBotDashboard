@@ -631,7 +631,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.31.2</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.32.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3506,9 +3506,21 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.31.2</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.32.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.32.0 &middot; Trivia keeps going, and GTB keeps its guesses</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 21, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#129504; <strong>Ask as many trivia questions as you like.</strong> The button stays live and turns into <strong>Next question</strong> while one is running, so you can fire off questions back to back for as long as you want. Skipping one that nobody got reveals its answer in chat before moving on, and the session scoreboard keeps tallying across all of them.</li>
+            <li>&#128218; <strong>Three times the trivia questions.</strong> The built-in bank went from 36 to 115, filled out across every category and difficulty, so a long session no longer runs dry or repeats.</li>
+            <li>&#127922; <strong>Closing a Guess the Balance no longer wipes the guesses.</strong> Close it and reopen it and the same session continues, with new guesses adding to the ones already in. A true fresh start now comes only from <strong>Clear Session</strong>.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -11109,13 +11121,16 @@ async function bhGtbStop()  { await stopGTB();  }
 
 async function startGTB() {
   gtbActive = true;
-  gtbSessionId = 'gtb_' + Date.now();
+  // Reopening a closed GTB CONTINUES the same session so the guesses already in
+  // are kept and new ones append. A brand-new session id is only minted when
+  // there is none yet — a genuine fresh start comes from Clear Session.
+  if (!gtbSessionId) gtbSessionId = 'gtb_' + Date.now();
   document.getElementById('gtbStartBtn').disabled = true;
   document.getElementById('gtbStopBtn').disabled = false;
   document.getElementById('gtbStatusText').textContent = '🟢 OPEN';
   document.getElementById('gtbStatusText').style.color = 'var(--green)';
   document.getElementById('gtbSessionId').textContent = gtbSessionId;
-  document.getElementById('gtbGuessCount').textContent = '0';
+  document.getElementById('gtbGuessCount').textContent = String(activeGuesses.length);
   await saveStreamerProfile({
     gtbActive: true,
     gtbSessionId,
@@ -11258,10 +11273,18 @@ async function postGTBAnnounce() {
 }
 
 async function clearGTBSession() {
-  if (!confirm('Clear all guesses for this session?')) return;
+  if (!confirm('Clear all guesses and start a fresh GTB session? Reopening after this will begin empty.')) return;
+  // The true restart: mint a fresh session so the bot writes new guesses to an
+  // empty one, persist it, and re-point the live listener at it. Closing and
+  // reopening does NOT do this — only Clear Session.
+  gtbSessionId = 'gtb_' + Date.now();
   activeGuesses = [];
+  document.getElementById('gtbSessionId').textContent = gtbSessionId;
+  document.getElementById('gtbGuessCount').textContent = '0';
+  try { await saveStreamerProfile({ gtbSessionId }); if (profile) profile.gtbSessionId = gtbSessionId; } catch {}
+  listenGTBGuesses();   // re-attach to the new, empty session
   renderGTBGuesses();
-  flash('GTB session cleared.');
+  flash('GTB session cleared, fresh session started.');
 }
 
 // ── SCOPED SHARE LINKS ───────────────────────────────────────────────────────
@@ -11571,12 +11594,25 @@ async function trivTimeUp() {
   await trivPublishState();
 }
 
+let _trivStarting = false;
 async function trivStart() {
-  if (trivActive) return;
+  if (_trivStarting) return;          // absorb a double-click
+  _trivStarting = true;
+  try { await _trivStart(); } finally { _trivStarting = false; }
+}
+
+// The streamer can keep asking as long as they like — this runs whether or not a
+// question is already live. If one is still live and unanswered, the click means
+// "next question", so reveal the current answer before moving on.
+async function _trivStart() {
   const customQ = (document.getElementById('trivCustomQ')?.value || '').trim();
   const customA = (document.getElementById('trivCustomA')?.value || '').trim();
 
   if (customQ && !customA) { flash('Give your question an answer too.', 'error'); return; }
+  if (trivActive && trivQuestion && !trivWinner) {
+    await trivSay('Moving on! That answer was "' + trivQuestion.a + '".');
+  }
+  trivStopTimer();
   if (customQ) {
     const alts = (document.getElementById('trivCustomAlts')?.value || '')
       .split(',').map(t => t.trim()).filter(Boolean);
@@ -11659,9 +11695,10 @@ function trivUpdateUI() {
     badge.style.background = trivActive ? 'rgba(0,255,136,0.12)' : 'rgba(255,71,87,0.12)';
     badge.style.color      = trivActive ? 'var(--green)' : 'var(--red)';
   }
-  const start = document.getElementById('trivStartBtn');  if (start) start.disabled = trivActive;
+  const start = document.getElementById('trivStartBtn');
+  if (start) { start.disabled = false; start.textContent = trivActive ? '⏭ Next question' : '▶ Ask a question'; }
   const stop  = document.getElementById('trivStopBtn');   if (stop)  stop.disabled  = !trivActive;
-  const rev   = document.getElementById('trivRevealBtn'); if (rev)   rev.disabled   = !trivQuestion;
+  const rev   = document.getElementById('trivRevealBtn'); if (rev)   rev.disabled   = !trivActive;
   const live  = document.getElementById('trivLiveCard');  if (live)  live.style.display = trivQuestion ? '' : 'none';
 }
 
