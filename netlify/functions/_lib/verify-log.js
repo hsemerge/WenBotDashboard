@@ -236,13 +236,31 @@ async function postVerifyLog(db, uid, streamerData, v) {
   try {
     const cfg = (streamerData.discordConfig && streamerData.discordConfig.verify) || {};
     const channelId = cfg.logChannelId;
-    // Off unless a channel is chosen. No channel means the streamer never asked
-    // for this, so silence is the correct behaviour.
-    if (!channelId || cfg.logEnabled === false) return;
-    if (!process.env.DISCORD_BOT_TOKEN) return;
 
+    // Detection + history run REGARDLESS of the log channel: /lookup and the
+    // durable trail are how a mod tracks a multi-accounter across re-verifies
+    // and switches, and that must work even for a streamer who never set up a
+    // verify-log channel. The channel gate below governs only the chat POST.
     const notes = await detectAnomalies(db, uid, v);
     const casino = CASINO_NAMES[v.provider] || v.provider || "casino";
+
+    // Leave a durable "verified" mark in the viewer's history, so /lookup shows
+    // the whole trail of verifications - the pattern a multi-accounter leaves as
+    // they re-verify and switch names/casinos. Deduped on the exact text, so a
+    // viewer re-verifying the SAME name just refreshes one line, while a SWITCH
+    // to a different casino name adds a new line the mod can see.
+    try {
+      const { recordViewerEvent } = require("./viewer-history");
+      const what = v.casinoSkipped || !v.providerUsername
+        ? "Verified (Kick only, no casino)"
+        : `Verified on ${casino} as ${v.providerUsername}${v.underAffiliate ? " (under code)" : ""}`;
+      await recordViewerEvent(db, uid, v.kickUsername, { type: "verified", text: what });
+    } catch (e) { /* history is best-effort, never block the post */ }
+
+    // Off unless a channel is chosen. No channel means the streamer never asked
+    // for the chat post - but the history above was still kept.
+    if (!channelId || cfg.logEnabled === false) return;
+    if (!process.env.DISCORD_BOT_TOKEN) return;
 
     // Status line carries the two things a mod judges at a glance: is this
     // person actually under the code, and how much have they wagered.

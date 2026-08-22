@@ -168,7 +168,7 @@ exports.handler = async (event) => {
       // Kick-only verifications go to the mod feed too. They are the ones most
       // worth seeing, in fact: no casino account means none of the casino-side
       // checks can run, so a human is the only thing looking.
-      postVerifyLog(db, streamerUid, streamerData, {
+      await postVerifyLog(db, streamerUid, streamerData, {
         kickUsername, kickUserId: kickUserIdStr,
         provider: "none", providerUsername: null, providerUid: null,
         underAffiliate: false, wagerAmount: 0,
@@ -441,7 +441,7 @@ exports.handler = async (event) => {
     // Moderator feed. After the commit so it can never announce a verification
     // that failed to save, and awaited only so errors are logged, never thrown:
     // the viewer's verification is already done and must not depend on Discord.
-    postVerifyLog(db, streamerUid, streamerData, {
+    await postVerifyLog(db, streamerUid, streamerData, {
       kickUsername, kickUserId: kickUserIdStr,
       provider, providerUsername: resultUsername, providerUid,
       underAffiliate, wagerAmount,
