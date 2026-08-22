@@ -631,7 +631,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.33.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.34.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -2795,6 +2795,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
               <option value="bcgame">BC.Game</option>
               <option value="500casino">500 Casino</option>
               <option value="gamdom">Gamdom</option>
+              <option value="gamba">Gamba</option>
               <option value="duelbits">Duelbits</option>
               <option value="rollbit">Rollbit</option>
               <option value="chipsgg">Chips.gg</option>
@@ -3512,9 +3513,21 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.33.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.34.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.34.0 &middot; Gamba leaderboards</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 22, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#127942; <strong>Gamba is now a supported leaderboard.</strong> Pick <strong>Gamba</strong> as your casino (or add it as an extra board) and paste your exclusive-leaderboard link &mdash; WenBot pulls the standings, prize pool and dates straight from your race and shows them on your portal and in Discord. No API key needed; the race is public.</li>
+            <li>&#9203; <strong>Light on everyone.</strong> The board refreshes about once an hour and is cached, so it stays fresh without hammering Gamba no matter how many viewers are watching.</li>
+            <li>&#128274; <strong>One thing to know.</strong> Viewers who hide their name on Gamba show as &ldquo;Hidden&rdquo; on the board &mdash; that&rsquo;s their Gamba privacy setting, not something WenBot can change. Verification for Gamba stays on the honour system for now.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -13775,6 +13788,9 @@ const BOARD_PROVIDERS = [
     hint: 'Your CSGOBig referral code.' },
   { id: 'clash',    name: 'Clash.gg',  cred: 'apiToken',
     hint: 'Your Clash.gg affiliate API token. Clash races need a start date; wager is reported in Clash site units, not dollars.' },
+  { id: 'gamba',    name: 'Gamba',    cred: 'refCode',
+    credLabel: 'Race link or ID', credPlaceholder: 'paste your Gamba race link',
+    hint: 'Paste your Gamba exclusive-leaderboard link (or just its number). The race is public — no API key needed — and it sets its own dates and prizes.' },
 ];
 
 // Fill the Wager Rankings board selector. Hidden unless the streamer runs more
@@ -13917,12 +13933,12 @@ function renderExtraBoards() {
                      style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;color-scheme:dark;">
             </label>`}
           <label style="font-size:11px;color:var(--text-dim);display:flex;flex-direction:column;gap:3px;">
-            ${credKind === 'apiKey' ? 'API key' : 'Referral code'}
+            ${credKind === 'apiKey' ? 'API key' : ((meta && meta.credLabel) || 'Referral code')}
             <input type="${credKind === 'apiKey' ? 'password' : 'text'}" id="ebRef_${esc(b.id)}"
                    value="${credKind === 'apiKey' ? '' : esc(credVal)}"
                    placeholder="${credKind === 'apiKey'
                      ? (hasCred ? 'saved, type to replace' : 'using your saved key')
-                     : 'e.g. YOURCODE'}"
+                     : ((meta && meta.credPlaceholder) || 'e.g. YOURCODE')}"
                    autocomplete="off"
                    style="width:210px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;">
           </label>
@@ -14023,9 +14039,10 @@ function renderAddBoardFields() {
   const meta = BOARD_PROVIDERS.find(p => p.id === pid) || BOARD_PROVIDERS[0];
   const mode = document.getElementById('abMode').value;
 
-  document.getElementById('abCredLabel').textContent = meta.cred === 'refCode' ? 'Referral Code' : 'API Key';
+  const isKey = meta.cred === 'apiKey' || meta.cred === 'apiToken';
+  document.getElementById('abCredLabel').textContent = meta.credLabel || (isKey ? 'API Key' : 'Referral Code');
   document.getElementById('abCredHint').textContent  = meta.hint;
-  document.getElementById('abCred').placeholder      = meta.cred === 'refCode' ? 'e.g. YOURCODE' : 'paste your key';
+  document.getElementById('abCred').placeholder      = meta.credPlaceholder || (isKey ? 'paste your key' : 'e.g. YOURCODE');
   document.getElementById('abCycleField').style.display  = mode === 'cycle' ? '' : 'none';
   document.getElementById('abFixedFields').style.display = mode === 'fixed' ? '' : 'none';
 }

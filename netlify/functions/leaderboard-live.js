@@ -11,6 +11,7 @@ const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards
 const { fetchRainbetRange, fetchRainbetForPeriod, applyRainbetExclusions } = require("./_lib/rainbet");
 const { fetchDuelbits, fetchDuelbitsForPeriod, fetchDuelbitsDayBaseline, applyDuelbitsPeriod, ymdNext } = require("./_lib/duelbits");
 const { fetchClashBoard } = require("./_lib/clash");
+const { fetchGambaRace }  = require("./_lib/gamba");
 const res = (s, b) => _res(s, b, "*");
 
 async function fetchGambulls(apiKey) {
@@ -71,6 +72,10 @@ async function fetchGambullsPeriod(apiKey, type, period) {
 const LB_CACHE_TTL_MS = 45 * 1000;
 // Clash build their leaderboard response on request and asked us not to hammer it.
 const CLASH_CACHE_TTL_MS = 5 * 60 * 1000;
+// Gamba is an unofficial scrape of a low-cadence affiliate race, so refresh it
+// sparingly: a monthly race barely moves inside an hour, and a long TTL keeps us
+// well clear of Gamba's WAF no matter how many viewers hit the portal.
+const GAMBA_CACHE_TTL_MS = 60 * 60 * 1000;
 async function getCachedStandings(db, channelKey, provider, apiKey) {
   const ref = db.collection("_cache").doc(`lb_${channelKey}_${provider}`);
   let cached = null;
@@ -233,6 +238,59 @@ exports.handler = async (event) => {
         success: true, casino: provider, casinoName: CASINO_NAMES[provider] || "Clash.gg",
         period: { active: data.status === "LIVE", startAt: data.startAt, endAt: data.endAt },
         raceName: data.name || null,
+        rankings: data.rankings.map((r) => ({
+          rank: r.rank, username: r.username, wagered: r.wagered,
+          avatarUrl: r.avatarUrl, prize: prizeFor(r.rank),
+        })),
+        totalWagered: data.totalWagered,
+        totalUsers:   data.totalUsers,
+      });
+    }
+
+    // Gamba: an unofficial public race API (no key/login). The race id is in the
+    // streamer's leaderboard URL and is not a secret, so it lives on the board doc
+    // like a referral code rather than in providers/. The race owns its window and
+    // prize ladder, so — like Degen/Clash — there are no baselines or carryover.
+    if (provider === "gamba") {
+      const bSnap = await db.collection("streamers").doc(streamerDoc.id).collection("leaderboards").get();
+      const board = sortBoards(bSnap.docs.map((d) => normalizeBoard(d.data(), d.id)))
+        .find((b) => b.provider === "gamba");
+      // The race id can arrive on the board credential (what the board editor
+      // writes) or in providers/gamba, and either a bare id or the full URL.
+      const provDoc = await db.collection("streamers").doc(streamerDoc.id)
+        .collection("providers").doc("gamba").get();
+      const raceId = (board && board.credential && (board.credential.refCode || board.credential.raceId || board.credential.leaderboardId))
+        || (provDoc.exists ? (provDoc.data().referralCode || provDoc.data().raceId) : null);
+      if (!raceId) return res(400, { error: "Streamer hasn't set up their Gamba race link yet." });
+
+      // One document per channel; the race identifies itself. Long TTL (see const).
+      const cacheRef = db.collection("_cache").doc(`lb_${channel.toLowerCase()}_gamba`);
+      let data = null, cached = null;
+      try {
+        const doc = await cacheRef.get();
+        if (doc.exists) {
+          cached = doc.data();
+          if (cached.data && cached.cachedAt && (Date.now() - cached.cachedAt) < GAMBA_CACHE_TTL_MS) data = cached.data;
+        }
+      } catch { /* fall through to a live fetch */ }
+
+      if (!data) {
+        data = await fetchGambaRace(raceId);
+        if (data) { try { await cacheRef.set({ cachedAt: Date.now(), data }); } catch {} }
+        else if (cached?.data) data = cached.data;   // serve stale rather than blank the board
+      }
+      if (!data) return res(502, { error: "Failed to fetch from Gamba." });
+
+      // Prizes come from the race, but a ladder set on the WenBot board still wins
+      // so a streamer topping the pot from their own pocket can say so.
+      const own    = Array.isArray(board?.prizes) && board.prizes.length ? board.prizes : null;
+      const prizes = own || data.prizes || [];
+      const prizeFor = (rank) => (Number(prizes[rank - 1]) > 0 ? Number(prizes[rank - 1]) : 0);
+
+      return res(200, {
+        success: true, casino: provider, casinoName: CASINO_NAMES[provider] || "Gamba",
+        period: { active: data.active, startAt: data.startAt, endAt: data.endAt },
+        raceName: data.raceName || null,
         rankings: data.rankings.map((r) => ({
           rank: r.rank, username: r.username, wagered: r.wagered,
           avatarUrl: r.avatarUrl, prize: prizeFor(r.rank),

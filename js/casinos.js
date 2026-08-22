@@ -65,4 +65,13 @@ const CASINO_CREDENTIALS = {
     placeholder: "e.g. meg",
     hint:        "Your Degen streamer code — this powers your race leaderboard.",
   },
+  gamba: {
+    // The race is public and keyless — the "credential" is just the race's page
+    // link (or its id). Stored under referralCode like Degen; the backend Gamba
+    // fetcher pulls the number out of whatever's saved, URL or bare id.
+    field:       "referralCode",
+    label:       "Gamba Race Link or ID",
+    placeholder: "https://gamba.com/promotions/exclusive-leaderboards/…",
+    hint:        "Paste your Gamba exclusive-leaderboard link (or just its number). The race is public, so no API key is needed.",
+  },
 };

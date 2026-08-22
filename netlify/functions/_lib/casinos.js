@@ -15,7 +15,8 @@ const CASINO_NAMES = {
   bcgame:     "BC.Game",
   "500casino":"500 Casino",
   gamdom:     "Gamdom",
-  // No affiliate API, so verification is honour-system: the viewer's name is
+  // Has a live LEADERBOARD (unofficial race API, see _lib/gamba.js) but no
+  // affiliate lookup, so VERIFICATION stays honour-system: the viewer's name is
   // stored but never matched against a race. Deliberately NOT in API_CASINOS.
   gamba:      "Gamba",
   duelbits:   "Duelbits",
