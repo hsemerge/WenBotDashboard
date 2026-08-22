@@ -65,7 +65,15 @@ async function detectAnomalies(db, uid, v) {
     }
     for (const [k, o] of others) {
       const when = o.verifiedAt ? ` on ${new Date(o.verifiedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : "";
-      notes.push(`This ${CASINO_NAMES[v.provider] || v.provider} account is also verified to Kick user **${o.kickName || k}**${when}.`);
+      const casinoLbl = CASINO_NAMES[v.provider] || v.provider;
+      notes.push(`This ${casinoLbl} account is also verified to Kick user **${o.kickName || k}**${when}.`);
+      try {
+        const { recordViewerEvent } = require("./viewer-history");
+        await recordViewerEvent(db, uid, v.kickUsername, {
+          type: "casino_shared",
+          text: `Shares its ${casinoLbl} account with Kick user ${o.kickName || k}`,
+        });
+      } catch (e) { /* best-effort */ }
     }
   } catch { /* non-fatal */ }
 
@@ -122,6 +130,13 @@ async function detectAnomalies(db, uid, v) {
         .filter((d) => (d.kickUsername || "").toLowerCase() !== kickKey);
       for (const p of prior) {
         notes.push(`This Discord was previously linked to Kick user **${p.kickUsername}**.`);
+        try {
+          const { recordViewerEvent } = require("./viewer-history");
+          await recordViewerEvent(db, uid, v.kickUsername, {
+            type: "discord_reused",
+            text: `This Discord was previously linked to Kick user ${p.kickUsername}`,
+          });
+        } catch (e) { /* best-effort */ }
       }
     }
   } catch { /* non-fatal */ }
@@ -136,7 +151,18 @@ async function detectAnomalies(db, uid, v) {
   const oldName = (v.previousProviderUsername || "").toLowerCase();
   const newName = (v.providerUsername || "").toLowerCase();
   if (oldName && newName && oldName !== newName) {
-    notes.push(`Changed their ${CASINO_NAMES[v.provider] || v.provider} name from **${v.previousProviderUsername}** to **${v.providerUsername}**.`);
+    const casinoLabel = CASINO_NAMES[v.provider] || v.provider;
+    notes.push(`Changed their ${casinoLabel} name from **${v.previousProviderUsername}** to **${v.providerUsername}**.`);
+    // Persist the switch to history so /lookup shows it later, not just the
+    // ephemeral post. This is the multi-account tell - swapping the casino name
+    // on a record a streamer may have paid out to. Deduped on the exact text.
+    try {
+      const { recordViewerEvent } = require("./viewer-history");
+      await recordViewerEvent(db, uid, v.kickUsername, {
+        type: "casino_rename",
+        text: `Changed ${casinoLabel} name from ${v.previousProviderUsername} to ${v.providerUsername}`,
+      });
+    } catch (e) { /* history is best-effort */ }
   }
 
   // ── Same connection as another account (possible alt) ──────────────────────
