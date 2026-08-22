@@ -72,10 +72,12 @@ async function fetchGambullsPeriod(apiKey, type, period) {
 const LB_CACHE_TTL_MS = 45 * 1000;
 // Clash build their leaderboard response on request and asked us not to hammer it.
 const CLASH_CACHE_TTL_MS = 5 * 60 * 1000;
-// Gamba is an unofficial scrape of a low-cadence affiliate race, so refresh it
-// sparingly: a monthly race barely moves inside an hour, and a long TTL keeps us
-// well clear of Gamba's WAF no matter how many viewers hit the portal.
-const GAMBA_CACHE_TTL_MS = 60 * 60 * 1000;
+// Gamba is an unofficial call to the race API their own page uses, so one shared
+// fetch per channel per interval serves every viewer. The interval only gates
+// that external fetch + a single cache write (the per-poll reads are the same at
+// any TTL), so 5 min keeps the board feeling live at negligible cost and still
+// well clear of Gamba's WAF however busy the portal gets.
+const GAMBA_CACHE_TTL_MS = 5 * 60 * 1000;
 async function getCachedStandings(db, channelKey, provider, apiKey) {
   const ref = db.collection("_cache").doc(`lb_${channelKey}_${provider}`);
   let cached = null;
