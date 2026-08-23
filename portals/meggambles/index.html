@@ -134,25 +134,21 @@
   .bonus { display:inline-block; margin-top:4px; padding:10px 24px; border-radius:30px; font-weight:800; font-size:14px;
     color:#06121a; background:linear-gradient(90deg,var(--accent2),#7be4c9); box-shadow:0 0 26px rgba(63,189,245,.4); }
 
-  /* Front-page offer card — what a viewer gets signing up under the code. Driven
-     by the active board's `offer` config; hidden for boards without one. */
-  .hero-offer { max-width:560px; margin:18px auto 6px; padding:16px 18px 15px; text-align:left;
-    background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.09); border-radius:16px;
-    box-shadow:0 10px 40px rgba(0,0,0,.35); }
-  .hero-offer-h { font-family:'Exo 2',sans-serif; font-weight:800; font-size:14px; letter-spacing:.02em;
-    color:var(--bright); text-align:center; margin-bottom:13px; }
-  .hero-offer-h b { color:var(--gold); }
-  .hero-offer ul { list-style:none; margin:0 0 15px; padding:0; display:flex; flex-direction:column; gap:9px; }
-  .hero-offer li { display:flex; gap:9px; align-items:flex-start; font-size:13.5px; color:var(--text); line-height:1.45; }
-  .hero-offer li::before { content:'✓'; color:var(--gold); font-weight:900; flex-shrink:0; line-height:1.45; }
-  .offer-cta-row { display:flex; gap:10px; flex-wrap:wrap; }
-  .offer-cta { flex:1; min-width:150px; display:inline-block; text-decoration:none; text-align:center;
-    font-family:'Exo 2',sans-serif; font-weight:800; font-size:13px; letter-spacing:.02em;
-    padding:11px 18px; border-radius:999px; transition:filter .15s, background .15s; }
-  .offer-cta.primary { color:#06121a; background:linear-gradient(90deg,var(--accent2),var(--gold)); }
-  .offer-cta.primary:hover { filter:brightness(1.08); }
-  .offer-cta.ghost { color:var(--bright); background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.15); }
-  .offer-cta.ghost:hover { background:rgba(255,255,255,.1); }
+  /* Room-card perks — what a viewer gets signing up under the code, listed
+     right on that room's card. Driven by the casino's `offer` config; a room
+     without one simply renders the plain card, so the grid mixes both. */
+  .lp-room-perks { list-style:none; margin:0 0 13px; padding:12px 0 0; border-top:1px solid rgba(255,255,255,.07);
+    display:flex; flex-direction:column; gap:8px; }
+  .lp-room-perks li { display:flex; gap:8px; align-items:flex-start; font-size:12.5px;
+    color:var(--text); line-height:1.45; }
+  .lp-room-perks li::before { content:'✓'; color:var(--gold); font-weight:900; flex-shrink:0; line-height:1.45; }
+  /* Two CTAs on an offer card (sign-up + leaderboard) sit side by side and push
+     to the right the way the single Play pill does on the other cards. */
+  .lp-room-btns { margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; }
+  .lp-go-lb { color:var(--bright); background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.16);
+    text-decoration:none; cursor:pointer; }
+  .lp-go-lb:hover { background:rgba(255,255,255,.11); }
+  a.lp-go-live { text-decoration:none; }
 
   /* COUNTDOWN */
   .countdown { display:flex; gap:14px; justify-content:center; margin:30px 0 8px; flex-wrap:wrap; }
@@ -414,7 +410,9 @@
   .lp-daily.is-claimed .lp-daily-go { color:var(--dim); text-decoration:none; cursor:default; }
 
   /* Room cards: the four sites, each in its own colours. */
-  .lp-rooms { display:grid; gap:16px; grid-template-columns:repeat(2,1fr); margin-bottom:34px; }
+  /* align-items:start so a card carrying its offer perks is simply taller than
+     its row-mate instead of stretching the shorter card to match it. */
+  .lp-rooms { display:grid; gap:16px; grid-template-columns:repeat(2,1fr); align-items:start; margin-bottom:34px; }
   .lp-room {
     position:relative; display:block; text-decoration:none; overflow:hidden;
     border-radius:18px; border:1px solid var(--border); background:#0b0710;
@@ -877,7 +875,6 @@
     <h1 id="heroTitle"><span class="h-emoji">👑</span> MEGREWARDS</h1>
     <div class="prize" id="heroPrize"></div>
     <div id="heroCtaWrap"></div>
-    <div id="heroOffer" style="display:none;"></div>
     <div class="countdown" id="countdown" style="display:none;">
       <div class="cd-cell"><div class="cd-num" id="cdD">00</div><div class="cd-lab">Days</div></div>
       <div class="cd-cell"><div class="cd-num" id="cdH">00</div><div class="cd-lab">Hours</div></div>
@@ -1449,11 +1446,12 @@
                banner:'/portals/meggambles/assets/megnew4.png', logo:'/portals/meggambles/assets/megnew4.png', theme:'theme-degen', live:true,
                blurb:'Her main board. Slots, originals and the biggest monthly prize pool.',
                // Front-page offer: what viewers get signing up under code MEG.
+               // (The $12,500 prize pool isn't listed here — it's already the
+               //  Play button's "$12,500 race" label, so repeating it is noise.)
                offer: { benefits: [
                  '15% instant rakeback',
                  '100% deposit match up to $1,500 (min $20 deposit, max bet $10, 30× rollover)',
                  'VIP transfers up to 100,000 on wager rewards',
-                 'Up to $12,500 in rewards',
                ] } },
     csgobig: { name:'CSGOBig',  tag:'Cases and coins',     code:'Meg', url:'https://csgobig.com/r/Meg',
                banner:'/portals/meggambles/assets/megnew2.png', logo:'/portals/meggambles/assets/megnew2.png',
@@ -1462,7 +1460,14 @@
     clash:   { name:'Clash.gg', tag:'Case opening',        code:'MEG', url:'https://clash.gg/r/meg',
                banner:'/portals/meggambles/assets/megnew1.png', logo:'/portals/meggambles/assets/megnew1.png',
                theme:'theme-clash', live:true,
-               blurb:'Cases, upgrades and battles, with her Clash.gg wager race.' },
+               blurb:'Cases, upgrades and battles, with her Clash.gg wager race.',
+               // Front-page offer: what viewers get signing up under code MEG on Clash.gg.
+               offer: { benefits: [
+                 'Sign up, get 3 free cases',
+                 'Daily community free battle',
+                 'Bi-weekly leaderboard',
+                 'Weekly giveaway',
+               ] } },
     // No url: EthBet has not opened, so nothing links out to it yet. `url` is
     // what the room card and the opening-soon panel link to, and an empty one
     // makes both render as plain "Coming soon" instead. The domain is .gg.
@@ -1500,6 +1505,32 @@
       // Without a destination it renders as a card, not a link, so nobody
       // clicks through to a site that is not open.
       const tag = href ? 'a' : 'div';
+
+      // A room with a sign-up offer lists its perks on the card and splits the
+      // foot into two buttons: Play (sign up under the code) and Leaderboard.
+      // Two links can't live inside one wrapping <a>, so the offer card is a
+      // <div>. Its extra height is absorbed by the grid's align-items:start,
+      // leaving the other cards untouched.
+      const offer = c.offer;
+      if (offer && Array.isArray(offer.benefits) && offer.benefits.length && href) {
+        const perks = offer.benefits.map(function (bft) { return '<li>' + esc(bft) + '</li>'; }).join('');
+        return '<div class="lp-room lp-room-offer" style="border-color:' + tint + '33">'
+          + '<img src="' + c.banner + '" alt="' + esc(c.name) + '" loading="lazy">'
+          + '<div class="lp-room-body">'
+          +   '<div class="lp-room-top"><span class="lp-room-name">' + esc(c.name) + '</span>'
+          +     '<span class="lp-room-tag">' + esc(c.tag) + '</span></div>'
+          +   '<div class="lp-room-blurb">' + esc(c.blurb) + '</div>'
+          +   '<ul class="lp-room-perks">' + perks + '</ul>'
+          +   '<div class="lp-room-foot">'
+          +     '<span class="lp-code">Code <b>' + esc(c.code) + '</b></span>'
+          +     '<div class="lp-room-btns">'
+          +       '<a class="lp-go lp-go-live" href="' + href + '" target="_blank" rel="noopener" style="background:' + tint + '">' + cta + '</a>'
+          +       (c.live ? '<a class="lp-go lp-go-lb" href="#' + k + '" onclick="return goTo(\'#' + k + '\')">Leaderboard</a>' : '')
+          +     '</div>'
+          +   '</div>'
+          + '</div></div>';
+      }
+
       return '<' + tag + ' class="lp-room"' + (href ? ' href="' + href + '" target="_blank" rel="noopener"' : '')
         + ' style="border-color:' + tint + '33">'
         + '<img src="' + c.banner + '" alt="' + esc(c.name) + '" loading="lazy">'
@@ -1617,29 +1648,6 @@
       const ctaHref  = isCsgobig ? 'https://csgobig.com/r/meg' : (hero.ctaHref || '');
       const ctaLabel = isCsgobig ? 'Play on CSGOBig with code MEG' : (hero.ctaLabel || 'Play now');
       ctaWrap.innerHTML = ctaHref ? `<a class="bonus" href="${esc(ctaHref)}" target="_blank" rel="noopener">${esc(ctaLabel)}</a>` : '';
-    }
-
-    // Offer card — the board's own sign-up perks with a sign-up link on one side
-    // and a leaderboard link on the other. Shown only for a board that has an
-    // `offer` and a sign-up url; it carries its own sign-up button, so the plain
-    // Play CTA above is cleared to avoid two sign-up buttons stacked together.
-    const offerEl = document.getElementById('heroOffer');
-    if (offerEl) {
-      const offer = cfg.offer;
-      if (offer && Array.isArray(offer.benefits) && offer.benefits.length && cfg.url) {
-        if (ctaWrap) ctaWrap.innerHTML = '';
-        offerEl.innerHTML =
-          '<div class="hero-offer-h">Sign up under code <b>' + esc((cfg.code || 'MEG').toUpperCase()) + '</b></div>'
-          + '<ul>' + offer.benefits.map(b => '<li>' + esc(b) + '</li>').join('') + '</ul>'
-          + '<div class="offer-cta-row">'
-          +   '<a class="offer-cta primary" href="' + esc(cfg.url) + '" target="_blank" rel="noopener">Sign up on ' + esc(cfg.name || '') + ' &rarr;</a>'
-          +   '<a class="offer-cta ghost" href="#leaderboard">View leaderboard &rarr;</a>'
-          + '</div>';
-        offerEl.style.display = '';
-      } else {
-        offerEl.innerHTML = '';
-        offerEl.style.display = 'none';
-      }
     }
 
     // Countdown + hero prize follow the active board's race window.
