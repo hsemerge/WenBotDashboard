@@ -2068,7 +2068,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           <button class="btn btn-ghost btn-sm" onclick="wbPopOut()">⧉ Pop out window</button>
           <button class="btn btn-ghost btn-sm" onclick="wbReload()">↻ Reload</button>
           <button class="btn btn-ghost btn-sm" onclick="wbPlay(true)" title="Run a race with simulated chatters — never pays out points">🤖 Demo race</button>
-          <div style="flex:1;min-width:200px;font-size:11.5px;color:var(--text-dim);line-height:1.5;text-align:right;">Everything else — map, race time, players, winners, chat votes and the how-to — lives in <strong style="color:var(--bright);">SETTINGS</strong> inside the game. Keep this tab visible while racing (browsers pause background tabs); <strong style="color:var(--bright);">pop out</strong> to run one while you work elsewhere.</div>
+          <div style="flex:1;min-width:200px;font-size:11.5px;color:var(--text-dim);line-height:1.5;text-align:right;">Map, race time, players, winners and chat votes live in <strong style="color:var(--bright);">SETTINGS</strong> inside the game. Keep this tab visible while racing (browsers pause background tabs); <strong style="color:var(--bright);">pop out</strong> to run one while you work elsewhere.</div>
         </div>
       </div>
 
@@ -2099,6 +2099,38 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <button class="btn btn-ghost btn-sm" onclick="wbCopyUrl()">Copy</button>
           </div>
           <div class="hint">The secret in this link is what lets a race pay out points, so it stays masked — safe to have on screen while you stream. <strong>Copy</strong> copies the real link. <a href="#" onclick="wbResetToken(); return false;" style="color:var(--text-dim);text-decoration:underline;">Reset it</a> if it ever leaks (your OBS source stops paying until you paste the new one).</div>
+        </div>
+      </div>
+
+      <!-- The how-to lives out here, not in the game: the in-game panel is a
+           fixed 420px column pinned to the screen, and long-form text swamped
+           it. This page has room to actually read it. -->
+      <div class="card" style="margin-top:16px;">
+        <div class="card-title">📖 How a Race Works</div>
+        <div style="font-size:12.5px;color:var(--text-dim);line-height:1.7;margin-bottom:14px;">
+          <strong style="color:var(--bright);">1. Lobby</strong> — chat joins with <code style="color:var(--accent);">!wenballjoin</code> (one ball each). If chat voting is on in the game's settings panel, chat votes on the map and race length.<br>
+          <strong style="color:var(--bright);">2. Start</strong> — press <strong>START RACE</strong> in the game (or SPACE, or <code style="color:var(--accent);">!wenballstart</code> as broadcaster/mod). The floor drops and every ball races down at once — identical physics for everyone, so it's pure luck.<br>
+          <strong style="color:var(--bright);">3. Results</strong> — the podium shows the winners; if payouts are on, points land automatically and the podium confirms "Points sent to wenbot.gg".
+        </div>
+
+        <div style="font-weight:700;font-size:13px;color:var(--bright);margin-bottom:6px;">Chat commands</div>
+        <div class="cmd-list" style="font-size:12.5px;margin-bottom:16px;">
+          <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:200px;">!wenballjoin</code><span style="color:var(--text-dim);">viewers: take a ball (lobby only)</span></div>
+          <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:200px;">!vote gauntlet long</code><span style="color:var(--text-dim);">viewers: vote on map + race time while a vote is open</span></div>
+          <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:200px;">!wenballstart</code><span style="color:var(--text-dim);">you / mods: start the race</span></div>
+          <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:200px;">!wenballrematch</code><span style="color:var(--text-dim);">you / mods: same racers, another go</span></div>
+          <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:200px;">!wenballreset</code><span style="color:var(--text-dim);">you / mods: back to a fresh lobby</span></div>
+          <div style="display:flex;gap:10px;padding:6px 0;"><code style="color:var(--accent);min-width:200px;">!wenballmap 1-4</code><span style="color:var(--text-dim);">you / mods: switch map (lobby only)</span></div>
+        </div>
+
+        <div style="font-weight:700;font-size:13px;color:var(--bright);margin-bottom:6px;">Good to know</div>
+        <div style="font-size:12.5px;color:var(--text-dim);line-height:1.7;">
+          • The bottom-right of the game must say <strong style="color:var(--green);">LIVE: kick.com/your-channel</strong>. If it says DEMO MODE, it isn't reading your real chat — hit Reload above.<br>
+          • Every gameplay setting (map, race length, players per race, number of winners, voting, sound) lives in the game's own <strong style="color:var(--bright);">SETTINGS</strong> panel and saves automatically. Only the payout amounts live up here.<br>
+          • Every ball is identical — same size, mass and bounce, lanes shuffled. Join order and cosmetics change nothing.<br>
+          • Racers' balls are dressed by their WenPoints cosmetics (passport theme, flair, Mystery Box badges) automatically.<br>
+          • Click any ball, a name in LEADERS, or a dot on the minimap to follow that racer; SPACE returns to the leader.<br>
+          • More WenBot Games will land in this section — WenBall is the first.
         </div>
       </div>
     </div>
@@ -11333,9 +11365,17 @@ function wbCopyUrl() {
 // follows the account rather than the browser; a write failure just means they
 // might see it again, which is why nothing here blocks or throws.
 const WB_LAUNCH_KEY = 'wenballLaunch_v1';
+// TEMPORARY (testing): owner accounts (emergeonkick / the owner emails) get the
+// flyer on EVERY dashboard load, ignoring the seen-flag, so the launch moment
+// can be re-checked without clearing Firestore. Delete this constant and the
+// `|| WB_LAUNCH_ALWAYS_FOR_OWNER && isOwnerAcct` below before release, and it
+// reverts to strictly once-per-account for everyone.
+const WB_LAUNCH_ALWAYS_FOR_OWNER = true;
 
 function showWenballLaunchIfNeeded() {
-  if (!profile || profile[WB_LAUNCH_KEY]) return;
+  if (!profile) return;
+  const forceForTesting = WB_LAUNCH_ALWAYS_FOR_OWNER && isOwnerAcct;
+  if (profile[WB_LAUNCH_KEY] && !forceForTesting) return;
   const modal = document.getElementById('wbLaunchModal');
   if (!modal) return;
   // Say what the button will actually do for THIS streamer's plan, so nobody
