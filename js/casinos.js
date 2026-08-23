@@ -19,6 +19,7 @@ const CASINO_NAMES = {
   duelbits:   "Duelbits",
   rollbit:    "Rollbit",
   chipsgg:    "Chips.gg",
+  hypebet:    "Hype.bet",
   // Display name only. The casino PICKER is hardcoded <option> markup, not built
   // from this map, so listing csgobig here cannot make it selectable as a primary
   // casino — it only stops second-board rows rendering as lowercase "csgobig".

@@ -22,6 +22,11 @@ const CASINO_NAMES = {
   duelbits:   "Duelbits",
   rollbit:    "Rollbit",
   chipsgg:    "Chips.gg",
+  // Honour-system for now: hype.bet issue affiliate API keys but publish no
+  // docs, and their edge 403s every request from a datacenter IP (a
+  // jurisdiction blacklist, not a bot check), so a server-side leaderboard
+  // fetch is unproven. Names are stored and shown; nothing is matched.
+  hypebet:    "Hype.bet",
   // Deliberately NOT in the browser copy (/js/casinos.js). That list populates the
   // dashboard's primary-casino picker, and CSGOBig is only supported as an
   // ADDITIONAL board (no verification or affiliate-matching flow behind it) — so
