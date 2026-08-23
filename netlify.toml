@@ -571,7 +571,9 @@
 
 # WenBot Games (WenBall). The result endpoint settles a race (token-checked,
 # idempotent per raceId); the loadout endpoint dresses balls from WenPoints
-# cosmetics. Both must sit BEFORE the /:streamer catch-alls below.
+# cosmetics; the announce endpoint relays a lobby-open shout to the Kick bot,
+# which is the only thing that can post in chat. All must sit BEFORE the
+# /:streamer catch-alls below.
 [[redirects]]
   from   = "/api/wenball-result"
   to     = "/.netlify/functions/wenball-result"
@@ -580,6 +582,11 @@
 [[redirects]]
   from   = "/api/wenball-loadout"
   to     = "/.netlify/functions/wenball-loadout"
+  status = 200
+
+[[redirects]]
+  from   = "/api/wenball-announce"
+  to     = "/.netlify/functions/wenball-announce"
   status = 200
 
 # Bare /wenball would otherwise fall through to the /:streamer portal catch-all

@@ -615,7 +615,11 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
       <div class="sidebar-section" style="margin-top:8px;" data-sec="settings">
         <div class="sidebar-label sb-toggle" onclick="sbToggleSection('settings')">Settings &amp; Account <span class="sb-chev">▾</span></div>
         <div class="nav-item" onclick="showPage('channel',this)"><span class="icon">🎰</span> Channel &amp; Casino Setup</div>
-        <div class="nav-item owner-only" onclick="showPage('kickbot',this)"><span class="icon">🤖</span> Kick Chat Bot</div>
+        <!-- NOT owner-only: a mod managing this streamer needs to reach Automod
+             (it lives on this page). The one owner-only thing here — the bot
+             connect/disconnect + follow-alert card (#botControlCard) — is gated
+             on its own, so managers see Automod but not the connection controls. -->
+        <div class="nav-item" onclick="showPage('kickbot',this)"><span class="icon">🤖</span> Kick Chat Bot</div>
         <div class="nav-item" onclick="showPage('discordsetup',this)"><span class="icon"><img src="/img/discord.png" alt=""></span> Discord &amp; Verification</div>
         <div class="nav-item owner-only" onclick="showPage('team',this)"><span class="icon">👥</span> Team Moderation</div>
         <div class="nav-sep">Account</div>
@@ -638,7 +642,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.35.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.35.1</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -2103,14 +2107,14 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div class="card-title">📖 How a Race Works</div>
           <div style="font-size:12.5px;color:var(--text-dim);line-height:1.7;margin-bottom:14px;">
-            <strong style="color:var(--bright);">1. Lobby</strong> — chat joins with <code style="color:var(--accent);">!wenballjoin</code> (one ball each). If chat voting is on in the game&rsquo;s settings panel, chat votes on the map and race length.<br>
+            <strong style="color:var(--bright);">1. Open the lobby</strong> — press <strong>OPEN LOBBY</strong> in the game. WenBot announces it in your chat (&ldquo;a new WenBall match is starting&rdquo;, with the map), and viewers join with <code style="color:var(--accent);">!play</code> — one ball each. If chat voting is on, chat votes on the map and race length.<br>
             <strong style="color:var(--bright);">2. Start</strong> — press <strong>START RACE</strong> in the game (or SPACE, or <code style="color:var(--accent);">!wenballstart</code> as broadcaster/mod). The floor drops and every ball races down at once — identical physics for everyone, so it&rsquo;s pure luck.<br>
             <strong style="color:var(--bright);">3. Results</strong> — the podium shows the winners; if payouts are on, points land automatically and the podium confirms &ldquo;Points sent to wenbot.gg&rdquo;.
           </div>
 
           <div style="font-weight:700;font-size:13px;color:var(--bright);margin-bottom:6px;">Chat commands</div>
           <div class="cmd-list" style="font-size:12.5px;margin-bottom:16px;">
-            <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:170px;">!wenballjoin</code><span style="color:var(--text-dim);">viewers: take a ball (lobby only)</span></div>
+            <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:170px;">!play</code><span style="color:var(--text-dim);">viewers: take a ball (once the lobby is open)</span></div>
             <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:170px;">!vote gauntlet long</code><span style="color:var(--text-dim);">viewers: vote on map + race time</span></div>
             <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:170px;">!wenballstart</code><span style="color:var(--text-dim);">you / mods: start the race</span></div>
             <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:170px;">!wenballrematch</code><span style="color:var(--text-dim);">you / mods: same racers, another go</span></div>
@@ -3612,9 +3616,21 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.35.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.35.1</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.35.1 &middot; Your mods can save your settings</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 23, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#128737;&#65039; <strong>Moderators can now manage your Automod.</strong> Automod lived on a page only the account owner could open, so a mod helping run your channel couldn&rsquo;t reach it and their saves went nowhere. It&rsquo;s now available to the mods you&rsquo;ve added &mdash; your bot connect/disconnect controls stay owner-only.</li>
+            <li>&#9989; <strong>Require Verification (and Subscribers / Followers Only) now save right away.</strong> These only saved while a giveaway was actually running, so turning one on beforehand quietly did nothing and reset on reload. Toggle them any time now &mdash; they save immediately and stick for your next giveaway.</li>
+            <li>&#128172; <strong>Clearer save errors.</strong> If a setting ever fails to save, the message now tells you why instead of a generic notice.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -3623,7 +3639,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <span style="font-size:12px;color:var(--text-dim);">August 22, 2026</span>
           </div>
           <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
-            <li>&#128057; <strong>WenBall — a live marble race for your whole chat.</strong> Viewers type <code>!wenballjoin</code>, their WenBot hops into a hamster ball, you hit START, and everyone plinkos down the course at once. Four maps (including an EXTREME mode with black holes, lasers and buzzsaws), chat votes on the map, spectating, a minimap — and it all runs as a single OBS browser source reading your Kick chat directly.</li>
+            <li>&#128057; <strong>WenBall — a live marble race for your whole chat.</strong> Viewers type <code>!play</code>, their WenBot hops into a hamster ball, you hit START, and everyone plinkos down the course at once. Four maps (including an EXTREME mode with black holes, lasers and buzzsaws), chat votes on the map, spectating, a minimap — and it all runs as a single OBS browser source reading your Kick chat directly.</li>
             <li>&#127942; <strong>Winners get paid automatically.</strong> Turn on point payouts and set your prize ladder — the winners' channel points land the moment the podium shows. Payouts settle on WenBot's servers with a secret per-streamer token, so the game itself can never invent points and no race can pay twice.</li>
             <li>&#127913;&#65039; <strong>Balls wear your viewers' WenPoints drip.</strong> Passport themes, flairs and Mystery Box badges dress each racer's ball automatically.</li>
             <li>&#127918; <strong>Play it right in your dashboard.</strong> Open WenBot Games and hit play — the game runs on the page, with fullscreen and a pop-out window for screen-sharing. Prefer OBS? The browser-source link is right there too. No setup either way: your game link builds itself.</li>
@@ -9177,7 +9193,13 @@ function gwEligibleEntries() {
 // above) — so a flip gates the next entry without a restart. No-op when nothing
 // is running: startGiveaway() writes the same fields itself.
 async function gwSaveLiveEligibility() {
-  if (!giveawayActive || !profile) return;
+  // Persist the eligibility settings whenever they change — even with no
+  // giveaway running — so a streamer (or a mod managing them) can turn on
+  // Require Verification / Sub-only / Follower-only up front and have it STICK.
+  // Previously this returned early unless a round was live, so toggling any of
+  // these outside a live giveaway silently saved nothing. The live-only
+  // re-grading below is the part that actually needs an active round.
+  if (!profile) return;
   const verifiedOn = document.getElementById('toggleVerified')?.classList.contains('on') || false;
   // The luck values ride along even though no luck control triggers this. A draw
   // run from a share link reads its weights off the profile, so leaving them at
@@ -9197,11 +9219,17 @@ async function gwSaveLiveEligibility() {
   try {
     await saveStreamerProfile(fields);
     Object.assign(profile, fields);
-    renderEntries();   // re-grade the pool against the new rule
-    const excluded = entries.length - gwEligibleEntries().length;
-    flash(excluded
-      ? `Requirement updated — ${excluded} of ${entries.length} ${excluded === 1 ? 'entry' : 'entries'} no longer qualify.`
-      : 'Requirement updated for the rest of this giveaway.');
+    if (giveawayActive) {
+      // A round is live: re-grade the entered pool and report who dropped out.
+      renderEntries();   // re-grade the pool against the new rule
+      const excluded = entries.length - gwEligibleEntries().length;
+      flash(excluded
+        ? `Requirement updated — ${excluded} of ${entries.length} ${excluded === 1 ? 'entry' : 'entries'} no longer qualify.`
+        : 'Requirement updated for the rest of this giveaway.');
+    } else {
+      // No round running: this was just saving the setting for next time.
+      flash('Giveaway requirements saved.');
+    }
   } catch (e) {
     flash('Could not update the requirement: ' + e.message, 'error');
   }
@@ -11281,7 +11309,14 @@ function wbGameUrl(demo) {
     url += '&demo=1';
   } else {
     url += `&channel=${encodeURIComponent(chan)}`;
-    if (token) url += `&results=${encodeURIComponent(base + '/api/wenball-result')}&token=${encodeURIComponent(token)}`;
+    // results = where a finished race settles points; announce = how the game
+    // asks the WenBot bot to post "a match is starting" in chat (the game can
+    // only READ chat). Both are token-gated, so neither is sent without one.
+    if (token) {
+      url += `&results=${encodeURIComponent(base + '/api/wenball-result')}`
+           + `&announce=${encodeURIComponent(base + '/api/wenball-announce')}`
+           + `&token=${encodeURIComponent(token)}`;
+    }
   }
   url += `&points=${!demo && points && token ? 1 : 0}`;
   if (prizes.length) url += `&prizes=${prizes.join(',')}`;
@@ -12875,7 +12910,9 @@ async function saveModeration() {
     flash('Moderation settings saved, live in chat within seconds.');
     logAction('moderation_settings_save', { enabled: cfg.enabled });
   } catch (e) {
-    flash('Save failed.', 'error');
+    // Surface the real reason — a permission-denied and a network blip used to
+    // look identical ('Save failed.'), which read as a silent no-op.
+    flash('Save failed: ' + (e.message || e.code || 'unknown error'), 'error');
   }
 }
 
@@ -21778,7 +21815,7 @@ document.addEventListener('visibilitychange', () => {
     </div>
     <div style="padding:20px 22px 22px;">
       <div style="font-family:'Exo 2',sans-serif;font-size:20px;font-weight:900;color:var(--bright);margin-bottom:6px;">WenBall is here</div>
-      <div style="font-size:13.5px;color:var(--text-dim);line-height:1.65;margin-bottom:16px;">A live marble race your whole chat plays at once. Viewers type <code style="color:var(--accent);">!wenballjoin</code>, you hit start, and every ball plinkos down the course together — winners can be paid channel points automatically. Play it right here in your dashboard or run it as an OBS source.</div>
+      <div style="font-size:13.5px;color:var(--text-dim);line-height:1.65;margin-bottom:16px;">A live marble race your whole chat plays at once. Viewers type <code style="color:var(--accent);">!play</code>, you hit start, and every ball plinkos down the course together — winners can be paid channel points automatically. Play it right here in your dashboard or run it as an OBS source.</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <button class="btn btn-accent" id="wbLaunchCta" onclick="wbLaunchGo()" style="flex:1;min-width:170px;">Try Now</button>
         <button class="btn btn-ghost" onclick="wbCloseLaunch()" style="min-width:110px;">Maybe later</button>
