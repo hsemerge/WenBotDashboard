@@ -365,6 +365,14 @@
             .concat(prov ? [{ provider: prov, label: CASINO_NAMES[prov] || prov }] : [])
             .concat((d.boards || []).map((b) => ({ provider: String(b.key || '').toLowerCase(), label: b.label || b.casinoName })))
             .filter((b) => b.provider && CASINO_NAMES[b.provider] && !seen.has(b.provider) && seen.add(b.provider));
+          // Verification must only ever offer a casino the streamer CURRENTLY has
+          // wired up — the active provider or a live board. A stale ?casino= in
+          // the URL (an old bookmark, or a link from before the streamer switched
+          // casinos, e.g. ?casino=gambulls after moving to gamba) would otherwise
+          // ask the viewer for a casino that's no longer configured. Drop it back
+          // to the current primary (or Kick-only if there is none).
+          const configured = new Set(ccBoards.map((b) => b.provider));
+          if (casino && !configured.has(casino)) casino = prov || '';
           renderCasinoChoice();
         }
       } catch {}
