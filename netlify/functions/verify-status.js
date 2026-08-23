@@ -38,11 +38,7 @@ exports.handler = async (event) => {
     // Streamer policy: when false, the verify page offers "skip the casino step"
     // (Kick-only verification). Default true — leaderboard/code streamers.
     const casinoRequired = streamerData.casinoRequired !== false;
-    // Never assume a casino — if none is set there's nothing to verify against.
-    const activeProvider = (streamerData.activeProvider || "").toLowerCase();
-    if (!activeProvider) {
-      return res(200, { kickUsername, verified: false, provider: null, noCasino: true, casinoRequired, discordLinkedAny: false });
-    }
+    let activeProvider = (streamerData.activeProvider || "").toLowerCase();
 
     // Every board this streamer runs, with the viewer's status on each. A
     // streamer can run more than one race (Meg: Degen + CSGOBig), and a viewer
@@ -50,9 +46,6 @@ exports.handler = async (event) => {
     // (`${kickKey}_${provider}`), so all of this is representable. Until now the
     // page only ever offered the ACTIVE provider, so a viewer who plays the second
     // casino had no way to verify against it.
-    //
-    // Additive: every field below this is unchanged, so the existing single-board
-    // page keeps working exactly as it does today.
     let boards = [];
     try {
       const bSnap = await db.collection("streamers").doc(uid).collection("leaderboards").get();
@@ -60,6 +53,12 @@ exports.handler = async (event) => {
         .map((d) => ({ id: d.id, ...(d.data() || {}) }))
         .filter((b) => b.enabled !== false && b.provider)
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+      // A casino can be wired up as a BOARD without a primary ever being set in
+      // Channel & Casino Setup (activeProvider empty). Rather than dead-ending
+      // verification with "no casino", treat the primary board as the effective
+      // active casino so the leaderboard and the verify page agree.
+      if (!activeProvider && enabled.length) activeProvider = String(enabled[0].provider).toLowerCase();
 
       boards = await Promise.all(enabled.map(async (b) => {
         const prov = String(b.provider).toLowerCase();
@@ -77,6 +76,11 @@ exports.handler = async (event) => {
       }));
     } catch (e) {
       console.warn("[verify-status] boards lookup failed:", e.message);
+    }
+
+    // Only truly no casino — no primary AND no board — has nothing to verify against.
+    if (!activeProvider) {
+      return res(200, { kickUsername, verified: false, provider: null, noCasino: true, casinoRequired, discordLinkedAny: false, boards });
     }
 
     // Direct lookups by the known doc ID format — `${kickKey}_${provider}`,

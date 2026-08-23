@@ -14096,7 +14096,15 @@ async function createBoard() {
     if (typeof logAction === 'function') logAction('leaderboard_board_create', { board: id, provider });
     closeAddBoard();
     await loadExtraBoards();
-    flash(`${label} added, it's live on your portal now.`);
+    // Nudge: a board with NO primary casino set (Channel & Casino Setup) leaves
+    // that screen blank and is the "half-wired" state to avoid. Verification now
+    // falls back to this board so nothing breaks, but the streamer should still
+    // set a primary so everything stays in sync — point them there.
+    if (!profile?.activeProvider) {
+      flash(`${label} added — but you haven't set a primary casino. Open Channel & Casino Setup and set one so verification and casino settings stay in sync.`, 'error');
+    } else {
+      flash(`${label} added, it's live on your portal now.`);
+    }
   } catch (e) {
     flash('Failed to create: ' + e.message, 'error');
   }

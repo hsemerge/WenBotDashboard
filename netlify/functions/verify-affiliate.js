@@ -230,30 +230,35 @@ exports.handler = async (event) => {
       });
     }
 
-    // Check the active casino matches what the streamer is currently streaming at.
-    // Never default — if the streamer hasn't set a casino, verification can't run.
-    const activeProvider = (streamerData.activeProvider || "").toLowerCase();
+    // The casinos this streamer actually RUNS — the primary (activeProvider) plus
+    // every enabled board. A viewer may play the second casino, so verification
+    // accepts any of them (stored per provider, `<kick>_<provider>`), not just the
+    // active one — otherwise the page offered a Link action the server refused.
+    let activeProvider = (streamerData.activeProvider || "").toLowerCase();
+    const allowed = new Set();
+    if (activeProvider) allowed.add(activeProvider);
+    let firstBoardProvider = null;
+    try {
+      const bSnap = await db.collection("streamers").doc(streamerUid).collection("leaderboards").get();
+      const enabled = bSnap.docs.map((d) => d.data() || {})
+        .filter((b) => b.enabled !== false && b.provider)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      enabled.forEach((b) => allowed.add(String(b.provider).toLowerCase()));
+      if (enabled.length) firstBoardProvider = String(enabled[0].provider).toLowerCase();
+    } catch (e) {
+      console.warn("[verify-affiliate] boards lookup failed:", e.message);
+    }
+
+    // A casino can be wired up as a BOARD without a primary ever being set in
+    // Channel & Casino Setup (activeProvider empty). Rather than dead-ending
+    // verification, treat the primary board as the effective active casino so the
+    // leaderboard and verification agree. Only a streamer with NO casino at all
+    // (no primary, no board) is refused.
+    if (!activeProvider && firstBoardProvider) activeProvider = firstBoardProvider;
     if (!activeProvider) {
       return res(400, { error: "This streamer hasn't set up a casino yet — verification isn't available until they do." });
     }
     if (!provider) provider = activeProvider; // client omitted casino → use the streamer's actual one
-
-    // Accept any board the streamer actually RUNS, not just the active one. A
-    // streamer can run several races at once and a viewer may play the second
-    // casino, so rejecting anything but activeProvider made second-board
-    // verification impossible — the page offered a Link action the server then
-    // refused. Verifications are stored per provider (`<kick>_<provider>`), so a
-    // second board adds a record rather than replacing the first.
-    const allowed = new Set([activeProvider]);
-    try {
-      const bSnap = await db.collection("streamers").doc(streamerUid).collection("leaderboards").get();
-      bSnap.docs.forEach((d) => {
-        const b = d.data() || {};
-        if (b.enabled !== false && b.provider) allowed.add(String(b.provider).toLowerCase());
-      });
-    } catch (e) {
-      console.warn("[verify-affiliate] boards lookup failed:", e.message);
-    }
 
     if (!allowed.has(provider)) {
       // Name what they CAN verify, rather than only the active casino — on a
