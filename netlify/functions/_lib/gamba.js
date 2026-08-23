@@ -140,4 +140,29 @@ async function fetchGambaRace(raceIdInput) {
   };
 }
 
-module.exports = { fetchGambaRace, parseRaceId };
+// Under-code lookup for verification. Gamba has no per-user affiliate API, but
+// the public race lists its competitors by display name, so — exactly like Degen
+// and CSGOBig — we match the claimed username against that list. Names come back
+// in full or hidden as "Hidden" (a privacy setting we cannot see through), so
+// there is no mask to unpick: a plain case-insensitive match, and "Hidden" rows
+// are unmatchable by design.
+//
+// Returns { found, username, wagered, place }; found:false on a genuine miss;
+// null when the race could not be fetched, so callers can tell "not under this
+// race" apart from "couldn't check". A miss means "no recorded play in this
+// race", not proof of nothing — someone signed up under the code who has not
+// wagered in the race won't appear, the same caveat Degen/Clash carry.
+async function lookupGamba(raceIdInput, username) {
+  const race = await fetchGambaRace(raceIdInput);
+  if (!race) return null;
+  const u = String(username || "").trim().toLowerCase();
+  if (!u || u === "hidden") return { found: false };
+  const hit = race.rankings.find(
+    (r) => r.username && r.username.toLowerCase() === u && r.username.toLowerCase() !== "hidden"
+  );
+  return hit
+    ? { found: true, username: hit.username, wagered: hit.wagered || 0, place: hit.rank }
+    : { found: false };
+}
+
+module.exports = { fetchGambaRace, lookupGamba, parseRaceId };

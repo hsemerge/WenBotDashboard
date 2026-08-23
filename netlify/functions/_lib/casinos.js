@@ -15,9 +15,9 @@ const CASINO_NAMES = {
   bcgame:     "BC.Game",
   "500casino":"500 Casino",
   gamdom:     "Gamdom",
-  // Has a live LEADERBOARD (unofficial race API, see _lib/gamba.js) but no
-  // affiliate lookup, so VERIFICATION stays honour-system: the viewer's name is
-  // stored but never matched against a race. Deliberately NOT in API_CASINOS.
+  // Live LEADERBOARD and race-based VERIFICATION (see _lib/gamba.js): no private
+  // affiliate API, so under-code is decided by matching the viewer's name against
+  // the public race, the same best-effort way as Degen/CSGOBig. In API_CASINOS.
   gamba:      "Gamba",
   duelbits:   "Duelbits",
   rollbit:    "Rollbit",
@@ -54,6 +54,12 @@ const CASINO_NAMES = {
 // Clash.gg checks against detailed-summary/v2, which lists every referred user
 // with recorded play, NOT the leaderboard endpoint (that one returns only a
 // race's top players, so absence from it would say nothing about the code).
-const API_CASINOS = new Set(["gambulls", "rainbet", "duelbits", "clash"]);
+//
+// Gamba is race-based: unlike the others it has no full referral list, only the
+// current race's competitors, so its check is "is this name in the race" — the
+// same best-effort match Degen/CSGOBig use. It's in this set (not a separate
+// verify-affiliate branch like those two) because its logic lives inside
+// lookupAffiliate, so every caller picks it up through the one dispatch.
+const API_CASINOS = new Set(["gambulls", "rainbet", "duelbits", "clash", "gamba"]);
 
 module.exports = { CASINO_NAMES, API_CASINOS };

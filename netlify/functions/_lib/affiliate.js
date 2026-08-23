@@ -121,6 +121,25 @@ async function lookupAffiliate(provider, credential, affiliateUsername, diagnost
     return null;
   }
 
+  // ── Gamba ────────────────────────────────────────────────────────────────
+  // No private affiliate API — matched against the public race's competitors,
+  // the same best-effort shape as Degen/CSGOBig. The "credential" is the race
+  // link (or id), stored under referralCode like Degen; a bare string works too.
+  // Names are full or "Hidden" (unmatchable), so no mask. A miss means "no
+  // recorded play in this race", not proof they're not under the code.
+  if (provider === "gamba") {
+    const { lookupGamba } = require("./gamba");
+    // Primary casino saves the link under referralCode; the extra-board editor
+    // saves it under refCode. Accept both (+ a bare string) so either setup works.
+    const raceRef = cred.referralCode || cred.refCode || cred.raceId || cred.leaderboardId || apiKey;
+    const hit = await lookupGamba(raceRef, affiliateUsername);
+    if (diagnostics) diagnostics.push({ provider, matched: !!(hit && hit.found), error: hit ? null : "gamba unreachable" });
+    if (hit && hit.found) {
+      return { username: hit.username, uid: null, wagerAmount: hit.wagered || 0, matchedViaMask: false };
+    }
+    return null;
+  }
+
   // ── Rainbet ────────────────────────────────────────────────────────────────
   // Real usernames + stable ids, so matching is exact (no masking to unpick).
   // We look back ~4 months (the API's max range) so someone who plays under the
