@@ -689,19 +689,41 @@
           // it with the existing value already typed in.
           document.getElementById('affiliateInput').value = sData.providerUsername;
         } else if (sData.verified && sData.casinoSkipped) {
-          // Kick-only verified (casino skipped earlier). Confirm re-runs the
-          // skip path (harmless rewrite; attaches Discord when dtoken present);
-          // the link below reveals the form to add a casino username.
+          // Verified Kick-only, but with NO record for the streamer's CURRENT
+          // casino. The skip record is casino-agnostic, so a skip made earlier —
+          // or before the streamer switched casinos (Gambulls -> Gamba) — would
+          // otherwise bury the casino behind a fine-print link forever, and a
+          // viewer who came here to add it is never actually asked. Prompt for it
+          // up front: keep the "you're verified" reassurance, then show the
+          // casino form as the main action, with a clear "add it later".
           vsSkipped = true;
-          document.getElementById('formSection').style.display = 'none';
+          // Show the casino as the CURRENT step, not "skipped" — the form is open
+          // and inviting it. vsSkipped still tracks the underlying state, and
+          // "add it later" below re-runs the skip path.
+          vfState.casinoSkipped = false;
           const line = document.getElementById('alreadyVerifiedCasino').parentElement;
-          if (line) line.innerHTML = `You're verified with <strong>${sData.discordLinkedAny ? 'Kick and Discord' : 'Kick only'}</strong>. No ${escHtml(casinoName || 'casino')} account linked.`;
-          const btn = document.getElementById('confirmExistingBtn');
-          if (dtoken) btn.textContent = 'Confirm & Link Discord';
-          else btn.textContent = 'Looks good';
+          if (line) line.innerHTML = `You're verified with <strong>${sData.discordLinkedAny ? 'Kick and Discord' : 'Kick only'}</strong>. Add your ${escHtml(casinoName || 'casino')} account below to qualify for code-based activities.`;
+          // The banner is reassurance only here; the form is the action.
+          const cbtn = document.getElementById('confirmExistingBtn');
+          if (cbtn) cbtn.style.display = 'none';
           const chg = document.getElementById('changeCasinoLink');
-          if (chg) chg.textContent = `or add your ${casinoName || 'casino'} username`;
+          if (chg) chg.style.display = 'none';
           document.getElementById('alreadyVerifiedSection').style.display = 'block';
+          // Reveal the casino form as the primary action.
+          document.getElementById('formSection').style.display = 'block';
+          const vb = document.getElementById('verifyBtn');
+          if (vb) { vb.disabled = false; vb.textContent = 'Verify Account'; vb.style.display = ''; }
+          const inp = document.getElementById('affiliateInput');
+          if (inp) inp.value = '';
+          // "Add it later" finalizes without a casino (and attaches Discord if a
+          // dtoken is present). Shown regardless of casinoRequired: they are
+          // ALREADY a verified Kick-only viewer, so this can't lower their access.
+          const skipWrap = document.getElementById('skipCasinoWrap');
+          if (skipWrap) {
+            skipWrap.style.display = 'block';
+            const sb = document.getElementById('skipCasinoBtn');
+            if (sb) sb.innerHTML = (dtoken && !sData.discordLinkedAny) ? 'Link Discord, add casino later' : "I'll add it later";
+          }
         }
       }
     } catch { /* silent — fall through to normal form */ }
