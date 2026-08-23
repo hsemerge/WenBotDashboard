@@ -579,7 +579,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
              flyout clones only .nav-item and .nav-sep, so this divider carries
              over into the Live Tools pop-out too. -->
         <div class="nav-sep">WenBot Games</div>
-        <div class="nav-item" onclick="showPage('wenbotgames',this)"><span class="icon">🐹</span> WenBall</div>
+        <div class="nav-item" onclick="showPage('wenbotgames',this)"><span class="icon"><img src="/img/wenball/ball.svg" alt=""></span> WenBall</div>
       </div>
       <div class="sidebar-section" style="margin-top:8px;" data-sec="manage">
         <div class="sidebar-label sb-toggle" onclick="sbToggleSection('manage')">Manage <span class="sb-chev">▾</span></div>
@@ -2045,76 +2045,60 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
          client's numbers. Distinct from #page-games (chat-command casino
          games). Elite-gated via PAGE_PLAN. -->
     <div class="page" id="page-wenbotgames">
+      <!-- The game IS the page: it auto-loads on arrival (there is no other
+           reason to be here — every gameplay setting and the instructions live
+           inside the game). The poster underneath only shows while the engine
+           boots, or when there's no Kick channel to connect to. -->
       <div class="card" style="margin-bottom:16px;">
-        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-          <div style="font-size:40px;line-height:1;">🐹</div>
-          <div style="flex:1;min-width:240px;">
-            <div style="font-family:'Exo 2',sans-serif;font-size:19px;font-weight:800;color:var(--bright);">WenBall <span style="font-size:10px;background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);padding:2px 8px;border-radius:999px;font-weight:800;vertical-align:middle;">NEW</span></div>
-            <div style="font-size:12.5px;color:var(--text-dim);line-height:1.6;margin-top:3px;">A live hamster-ball marble race for your whole chat. Viewers type <code style="color:var(--accent);">!wenballjoin</code>, their WenBot hops into a ball, you hit START, and everyone plinkos down the course together — first past the line wins. Four maps, chat map-votes, spectating, and an EXTREME mode with black holes and buzzsaws. Winners can be paid channel points automatically.</div>
+        <div id="wbStage" style="position:relative;width:100%;aspect-ratio:16/9;background:#05070d;border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+          <iframe id="wbFrame" src="about:blank" title="WenBall" allow="autoplay; fullscreen"
+                  style="position:absolute;inset:0;width:100%;height:100%;border:none;display:block;background:#05070d;"></iframe>
+          <div id="wbPoster" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px;background:radial-gradient(circle at 50% 38%, rgba(0,229,255,0.10), rgba(5,7,13,0.97) 70%);">
+            <img src="/img/wenball/ball.svg" alt="" style="width:74px;height:auto;opacity:.95;">
+            <div id="wbPosterMsg" style="font-family:'Exo 2',sans-serif;font-size:15px;font-weight:700;color:var(--bright);">Starting WenBall…</div>
+            <div id="wbPosterChan" style="font-size:12px;color:var(--text-dim);">—</div>
+            <div id="wbPosterActions" style="display:none;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;">
+              <button class="btn btn-accent" onclick="wbPlay(false)" style="font-size:14px;padding:10px 26px;">▶ Play WenBall</button>
+              <a href="#" onclick="wbPlay(true); return false;" style="font-size:12px;color:var(--text-dim);text-decoration:underline;">demo race</a>
+            </div>
           </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;">
+          <button class="btn btn-ghost btn-sm" onclick="wbFullscreen()">⛶ Fullscreen</button>
+          <button class="btn btn-ghost btn-sm" onclick="wbPopOut()">⧉ Pop out window</button>
+          <button class="btn btn-ghost btn-sm" onclick="wbReload()">↻ Reload</button>
+          <button class="btn btn-ghost btn-sm" onclick="wbPlay(true)" title="Run a race with simulated chatters — never pays out points">🤖 Demo race</button>
+          <div style="flex:1;min-width:200px;font-size:11.5px;color:var(--text-dim);line-height:1.5;text-align:right;">Everything else — map, race time, players, winners, chat votes and the how-to — lives in <strong style="color:var(--bright);">SETTINGS</strong> inside the game. Keep this tab visible while racing (browsers pause background tabs); <strong style="color:var(--bright);">pop out</strong> to run one while you work elsewhere.</div>
         </div>
       </div>
 
       <div class="grid-2" style="align-items:start;">
         <div class="card">
-          <div class="card-title">🎥 Add It to Your Stream</div>
-          <div style="font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:12px;">WenBall runs as an OBS <strong style="color:var(--bright);">browser source</strong> connected to your Kick chat. Add it at <strong style="color:var(--bright);">1920×1080</strong>, then drive it with the buttons on screen (right-click the source → <em>Interact</em>) or from chat.</div>
-
-          <div style="font-size:11px;font-weight:700;color:var(--text-dim);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;">Your game link</div>
-          <div style="display:flex;gap:8px;margin-bottom:6px;">
-            <input type="text" id="wbUrlInput" readonly onclick="this.select()" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 12px;font-size:12px;font-family:monospace;min-width:0;">
-            <button class="btn btn-accent btn-sm" onclick="wbCopyUrl()">Copy</button>
-            <a id="wbOpenLink" href="#" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="text-decoration:none;display:inline-flex;align-items:center;">Try demo ↗</a>
-          </div>
-          <div class="hint" style="margin-bottom:14px;">The link carries your channel and your secret game token — treat it like a password (it's what lets races pay out points). <strong>Try demo</strong> opens the game with simulated chatters so you can see a race without going live.</div>
-
-          <div style="font-size:11px;font-weight:700;color:var(--text-dim);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;">Point payouts</div>
+          <div class="card-title">💰 Payouts</div>
+          <div style="font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:12px;">The only WenBall setting that lives out here. Payouts settle on WenBot&rsquo;s servers from these amounts, so a browser page can never change what your race pays — everything else is in the game&rsquo;s own SETTINGS panel.</div>
           <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 13px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;">
             <input type="checkbox" id="wbAwardPoints" onchange="wbUpdateUrl()" style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;">
             <label for="wbAwardPoints" style="cursor:pointer;flex:1;">
               <div style="font-size:13px;color:var(--bright);font-weight:600;">Award channel points to winners</div>
-              <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Payouts settle on the server from the prize list below — the game itself can never write points, and each race can only pay out once.</div>
+              <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Each race can only pay out once, and only to the places you set below.</div>
             </label>
           </div>
           <div class="field" style="margin-bottom:14px;">
             <label>Prizes by place (1st, 2nd, 3rd, 4th, 5th)</label>
             <input type="text" id="wbPrizes" placeholder="500, 250, 100, 50, 25" oninput="wbUpdateUrl()">
-            <div class="hint">How many places pay is set in the game (1, 3 or 5 winners); this list is the amounts. Plain numbers separated by commas — write 1000, not 1,000.</div>
+            <div class="hint">How many places pay is set in the game (1, 3 or 5 winners); this is the amounts. Plain numbers separated by commas — write 1000, not 1,000.</div>
           </div>
-
-          <div style="font-size:11px;font-weight:700;color:var(--text-dim);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;">Game token</div>
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-            <div id="wbTokenStatus" style="flex:1;font-size:12.5px;color:var(--text-dim);">No token yet — generate one to enable payouts.</div>
-            <button class="btn btn-ghost btn-sm" id="wbTokenBtn" onclick="wbGenerateToken()">Generate token</button>
-          </div>
-
-          <button class="btn btn-accent" onclick="wbSaveSettings()" style="width:100%;">Save WenBall Settings</button>
+          <button class="btn btn-accent" onclick="wbSaveSettings()" style="width:100%;">Save Payouts</button>
         </div>
 
         <div class="card">
-          <div class="card-title">📖 How a Race Works</div>
-          <div style="font-size:12px;color:var(--text-dim);line-height:1.65;margin-bottom:12px;">
-            <strong style="color:var(--bright);">1. Lobby</strong> — chat joins with <code style="color:var(--accent);">!wenballjoin</code> (one ball each). If chat voting is on in the game's settings panel, chat votes on the map and race length.<br>
-            <strong style="color:var(--bright);">2. Start</strong> — press <strong>START RACE</strong> in the game (or SPACE, or <code style="color:var(--accent);">!wenballstart</code> as broadcaster/mod). The floor drops and every ball races down at once — identical physics for everyone, so it's pure luck.<br>
-            <strong style="color:var(--bright);">3. Results</strong> — the podium shows the winners; if payouts are on, points land automatically and the podium confirms "Points sent to wenbot.gg".
+          <div class="card-title">🎥 Capture in OBS</div>
+          <div style="font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:10px;">Playing it here and screen-sharing works fine. If you&rsquo;d rather have it as a proper OBS <strong style="color:var(--bright);">browser source</strong>, add this link at <strong style="color:var(--bright);">1920×1080</strong> and drive it with right-click → <em>Interact</em>, or from chat.</div>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="wbUrlInput" readonly onclick="wbRevealUrl(this)" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 12px;font-size:12px;font-family:monospace;min-width:0;">
+            <button class="btn btn-ghost btn-sm" onclick="wbCopyUrl()">Copy</button>
           </div>
-
-          <div style="font-weight:700;font-size:13px;color:var(--bright);margin-bottom:6px;">Chat commands</div>
-          <div class="cmd-list" style="font-size:12.5px;margin-bottom:14px;">
-            <div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:190px;">!wenballjoin</code><span style="color:var(--text-dim);">viewers: take a ball (lobby only)</span></div>
-            <div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:190px;">!vote gauntlet long</code><span style="color:var(--text-dim);">viewers: vote on map + race time while a vote is open</span></div>
-            <div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:190px;">!wenballstart</code><span style="color:var(--text-dim);">you / mods: start the race</span></div>
-            <div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:190px;">!wenballrematch</code><span style="color:var(--text-dim);">you / mods: same racers, another go</span></div>
-            <div style="display:flex;gap:10px;padding:5px 0;"><code style="color:var(--accent);min-width:190px;">!wenballmap 1-4</code><span style="color:var(--text-dim);">you / mods: switch map (lobby only)</span></div>
-          </div>
-
-          <div style="font-weight:700;font-size:13px;color:var(--bright);margin-bottom:6px;">Good to know</div>
-          <div style="font-size:12px;color:var(--text-dim);line-height:1.65;">
-            • The bottom-right of the game must say <strong style="color:var(--green);">LIVE: kick.com/your-channel</strong>. If it says DEMO MODE, it isn't reading your real chat — reload the source.<br>
-            • Everything else (map, race length, players per race, number of winners, voting, sound) lives in the game's own <strong style="color:var(--bright);">SETTINGS</strong> panel and saves automatically.<br>
-            • Racers' balls are dressed by their WenPoints cosmetics (passport theme, flair, Mystery Box badges) automatically.<br>
-            • More WenBot Games will land in this section — WenBall is the first.
-          </div>
+          <div class="hint">The secret in this link is what lets a race pay out points, so it stays masked — safe to have on screen while you stream. <strong>Copy</strong> copies the real link. <a href="#" onclick="wbResetToken(); return false;" style="color:var(--text-dim);text-decoration:underline;">Reset it</a> if it ever leaks (your OBS source stops paying until you paste the new one).</div>
         </div>
       </div>
     </div>
@@ -3614,6 +3598,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <li>&#128057; <strong>WenBall — a live marble race for your whole chat.</strong> Viewers type <code>!wenballjoin</code>, their WenBot hops into a hamster ball, you hit START, and everyone plinkos down the course at once. Four maps (including an EXTREME mode with black holes, lasers and buzzsaws), chat votes on the map, spectating, a minimap — and it all runs as a single OBS browser source reading your Kick chat directly.</li>
             <li>&#127942; <strong>Winners get paid automatically.</strong> Turn on point payouts and set your prize ladder — the winners' channel points land the moment the podium shows. Payouts settle on WenBot's servers with a secret per-streamer token, so the game itself can never invent points and no race can pay twice.</li>
             <li>&#127913;&#65039; <strong>Balls wear your viewers' WenPoints drip.</strong> Passport themes, flairs and Mystery Box badges dress each racer's ball automatically.</li>
+            <li>&#127918; <strong>Play it right in your dashboard.</strong> Open WenBot Games and hit play — the game runs on the page, with fullscreen and a pop-out window for screen-sharing. Prefer OBS? The browser-source link is right there too. No setup either way: your game link builds itself.</li>
             <li>&#10024; Find it in the sidebar under <strong>Live Tools &rarr; WenBot Games</strong> (Elite). More games will land in that section — WenBall is the first.</li>
           </ul>
         </div>
@@ -8017,6 +8002,7 @@ function onAuthReady(user) {
   gwSyncSpinnerFrame();
   _applyGiveawayComplianceHold();
   // showGiveawayPolicyNoticeIfNeeded(); // disabled: luck weighting re-enabled, "equal odds" notice no longer accurate
+  showWenballLaunchIfNeeded();
 
   // Subscribe to winners_log so the Giveaway right column + Overview Recent
   // Winners card stay populated across page refreshes (and pick up raffle
@@ -11155,24 +11141,81 @@ async function saveGamesSettings() {
 // it, ignoring the client's numbers). Everything display-side (map, players,
 // winners count, voting) lives in the game's own settings panel.
 
-function loadWenballSettings() {
+async function loadWenballSettings() {
   const w = profile?.wenball || {};
   const ap = document.getElementById('wbAwardPoints');
   if (ap) ap.checked = w.awardPoints !== false;
   const pz = document.getElementById('wbPrizes');
   if (pz) pz.value = Array.isArray(w.prizes) && w.prizes.length ? w.prizes.join(', ') : '500, 250, 100, 50, 25';
-  wbRenderToken();
+  const chan = profile?.kickChannel || '';
+  const pc = document.getElementById('wbPosterChan');
+  if (pc) pc.textContent = chan ? `reading chat from kick.com/${chan}` : '';
+
+  // AWAITED before the game boots: the token is what lets a race pay out, and a
+  // game launched a moment too early would run the whole race unable to settle.
+  // A streamer should never have to learn what a token is — it provisions
+  // itself here because the game is a logged-out browser page and the server
+  // needs proof a payout came from THEIR game.
+  await wbEnsureToken();
   wbUpdateUrl();
+  wbAutoLoad();
 }
 
-function wbRenderToken() {
-  const has = !!(profile?.wenball?.token);
-  const st  = document.getElementById('wbTokenStatus');
-  const btn = document.getElementById('wbTokenBtn');
-  if (st)  st.innerHTML = has
-    ? '<span style="color:var(--green);font-weight:600;">✓ Token active</span> — baked into your game link above.'
-    : 'No token yet — generate one to enable payouts.';
-  if (btn) btn.textContent = has ? '↻ Regenerate (revokes old link)' : 'Generate token';
+// Arriving on the page IS the intent to play — there is nothing else here.
+// Already-running games are left alone so a race survives a trip to another
+// dashboard page and back.
+function wbAutoLoad() {
+  const frame = document.getElementById('wbFrame');
+  if (!frame) return;
+  const running = frame.src && !/about:blank$/.test(frame.src);
+  if (running) { wbPosterHide(); return; }
+  if (!wbGameUrl(false)) {
+    wbPosterState('Set your Kick channel first', 'WenBall reads your chat — add your channel in Channel & Casino Setup, then come back.', false);
+    return;
+  }
+  wbPosterState('Starting WenBall…', null, false);
+  wbPlay(false);
+}
+
+function wbPosterHide() {
+  const p = document.getElementById('wbPoster');
+  if (p) p.style.display = 'none';
+}
+
+// msg + optional sub-line; showActions adds the manual play button (used after
+// a stop/failure so there is always a way back in).
+function wbPosterState(msg, sub, showActions) {
+  const p = document.getElementById('wbPoster');
+  if (p) p.style.display = 'flex';
+  const m = document.getElementById('wbPosterMsg');
+  if (m) m.textContent = msg;
+  if (sub != null) { const c = document.getElementById('wbPosterChan'); if (c) c.textContent = sub; }
+  const a = document.getElementById('wbPosterActions');
+  if (a) a.style.display = showActions ? 'flex' : 'none';
+}
+
+// Create the token on first visit, once, quietly. Failures stay silent: the
+// page still works, the link just can't pay out until a later attempt lands.
+let _wbTokenPending = false;
+async function wbEnsureToken() {
+  if (_wbTokenPending || !profile || profile?.wenball?.token) return;
+  _wbTokenPending = true;
+  try {
+    const wenball = { ...(profile.wenball || {}), token: wbNewToken() };
+    await saveStreamerProfile({ wenball });
+    profile.wenball = wenball;
+    wbUpdateUrl();
+  } catch (e) {
+    console.warn('[wenball] could not provision token:', e.message);
+  } finally {
+    _wbTokenPending = false;
+  }
+}
+
+function wbNewToken() {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
 }
 
 // Comma-separated whole numbers. STRICT on purpose: digit-stripping junk would
@@ -11190,36 +11233,93 @@ function wbParsePrizes() {
   return out;
 }
 
-// The OBS URL carries everything the game needs: the channel it reads chat
-// from (the ACTIVE profile's channel, so managing mode hands out the managed
-// streamer's link), the results endpoint + token that let a race settle, and
-// points/prizes so the in-game podium display matches what the server pays.
-function wbUpdateUrl() {
-  const input = document.getElementById('wbUrlInput');
-  if (!input) return;
+// One builder for every way the game is launched (stage, pop-out, OBS link).
+// The URL carries the channel it reads chat from (the ACTIVE profile's channel,
+// so managing mode launches the MANAGED streamer's game), the results endpoint
+// + token that let a race settle, and points/prizes so the in-game podium
+// matches what the server will actually pay.
+//
+// demo:true swaps the real chat for simulated chatters and drops the token
+// entirely, so a demo race can never reach the settlement endpoint.
+function wbGameUrl(demo) {
   const chan = profile?.kickChannel || '';
-  if (!chan) {
-    input.value = '(set your Kick channel in Settings first)';
-    const link0 = document.getElementById('wbOpenLink'); if (link0) link0.href = '#';
-    return;
-  }
+  if (!chan) return '';
   const base   = window.location.origin;
   const token  = profile?.wenball?.token || '';
   const points = document.getElementById('wbAwardPoints')?.checked !== false;
   const prizes = wbParsePrizes().prizes;
-  let url = `${base}/wenball/?channel=${encodeURIComponent(chan)}&streamer=${encodeURIComponent(chan)}`;
-  if (token) url += `&results=${encodeURIComponent(base + '/api/wenball-result')}&token=${encodeURIComponent(token)}`;
-  url += `&points=${points && token ? 1 : 0}`;
+  let url = `${base}/wenball/?streamer=${encodeURIComponent(chan)}`;
+  if (demo) {
+    url += '&demo=1';
+  } else {
+    url += `&channel=${encodeURIComponent(chan)}`;
+    if (token) url += `&results=${encodeURIComponent(base + '/api/wenball-result')}&token=${encodeURIComponent(token)}`;
+  }
+  url += `&points=${!demo && points && token ? 1 : 0}`;
   if (prizes.length) url += `&prizes=${prizes.join(',')}`;
-  input.value = url;
-  // Demo link: simulated chatters, no results/token, so nothing can pay out.
-  const link = document.getElementById('wbOpenLink');
-  if (link) link.href = `${base}/wenball/?demo=1&streamer=${encodeURIComponent(chan)}${prizes.length ? '&points=1&prizes=' + prizes.join(',') : ''}`;
+  return url;
+}
+
+// The OBS link is shown MASKED. Streamers screen-share this dashboard, and the
+// token in that URL is what authorizes point payouts — three seconds on stream
+// is enough for someone to copy it. Copy still copies the real thing.
+function wbMaskUrl(url) {
+  return url.replace(/([?&]token=)[^&]+/, '$1' + '•'.repeat(12));
+}
+
+function wbUpdateUrl() {
+  const input = document.getElementById('wbUrlInput');
+  if (!input) return;
+  const url = wbGameUrl(false);
+  input.dataset.real = url || '';
+  input.value = url ? wbMaskUrl(url) : '(set your Kick channel in Settings first)';
+}
+
+// Clicking the field selects the masked text, not the secret — deliberate, so a
+// stray click while live can't paste the real token into view.
+function wbRevealUrl(el) { el.select(); }
+
+// ── Stage controls ────────────────────────────────────────────────────────────
+// The iframe holds a ~40MB engine, so it only loads on demand. Once running it
+// is deliberately LEFT running when the streamer navigates to another dashboard
+// page — killing the frame would end a live race mid-flight.
+function wbPlay(demo) {
+  const url = wbGameUrl(!!demo);
+  if (!url) { flash('Set your Kick channel in Settings first', 'error'); return; }
+  const frame = document.getElementById('wbFrame');
+  if (frame) frame.src = url;
+  wbPosterHide();
+}
+
+function wbReload() {
+  const frame = document.getElementById('wbFrame');
+  if (!frame || frame.src === 'about:blank' || !frame.src) { wbPlay(false); return; }
+  // Reassigning the same src re-boots the engine (and reconnects chat).
+  frame.src = frame.src;
+}
+
+function wbFullscreen() {
+  const stage = document.getElementById('wbStage');
+  if (!stage) return;
+  if (document.fullscreenElement) { document.exitFullscreen(); return; }
+  (stage.requestFullscreen ? stage.requestFullscreen() : Promise.reject())
+    .catch(() => flash('Your browser blocked fullscreen — try the pop-out window.', 'error'));
+}
+
+// A separate visible window is the honest answer to background-tab throttling:
+// it keeps rendering while the streamer works in the dashboard, and OBS can
+// window-capture it.
+function wbPopOut() {
+  const url = wbGameUrl(false);
+  if (!url) { flash('Set your Kick channel in Settings first', 'error'); return; }
+  const w = window.open(url, 'wenball', 'width=1280,height=720,noopener');
+  if (!w) flash('Your browser blocked the pop-out — allow pop-ups for wenbot.gg.', 'error');
 }
 
 function wbCopyUrl() {
-  const val = document.getElementById('wbUrlInput')?.value || '';
-  if (!val || val.startsWith('(')) { flash('Set your Kick channel in Settings first', 'error'); return; }
+  // The real URL, not the masked display value.
+  const val = document.getElementById('wbUrlInput')?.dataset.real || '';
+  if (!val) { flash('Set your Kick channel in Settings first', 'error'); return; }
   navigator.clipboard.writeText(val).then(() => flash('Game link copied!')).catch(() => {
     const ta = document.createElement('textarea');
     ta.value = val; document.body.appendChild(ta); ta.select();
@@ -11228,18 +11328,55 @@ function wbCopyUrl() {
   });
 }
 
-async function wbGenerateToken() {
-  if (profile?.wenball?.token && !confirm('Generate a new token? The game link in your OBS will stop paying out until you replace it with the new one.')) return;
-  const bytes = new Uint8Array(24);
-  crypto.getRandomValues(bytes);
-  const token = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+// ── WenBall launch flyer ──────────────────────────────────────────────────────
+// Announces the feature once. The seen-flag is stored on the streamer doc so it
+// follows the account rather than the browser; a write failure just means they
+// might see it again, which is why nothing here blocks or throws.
+const WB_LAUNCH_KEY = 'wenballLaunch_v1';
+
+function showWenballLaunchIfNeeded() {
+  if (!profile || profile[WB_LAUNCH_KEY]) return;
+  const modal = document.getElementById('wbLaunchModal');
+  if (!modal) return;
+  // Say what the button will actually do for THIS streamer's plan, so nobody
+  // clicks "Try Now" and lands on a paywall they weren't told about.
+  const locked = typeof isPageLocked === 'function' && isPageLocked('wenbotgames');
+  const cta = document.getElementById('wbLaunchCta');
+  if (cta) cta.textContent = locked ? 'See what Elite includes' : 'Try Now';
+  modal.style.display = 'flex';
+}
+
+async function wbMarkLaunchSeen() {
+  if (!profile || profile[WB_LAUNCH_KEY]) return;
   try {
-    const wenball = { ...(profile?.wenball || {}), token };
+    await saveStreamerProfile({ [WB_LAUNCH_KEY]: true });
+    profile[WB_LAUNCH_KEY] = true;
+  } catch (e) { console.warn('[wenball] launch flag save failed:', e.message); }
+}
+
+function wbCloseLaunch() {
+  const m = document.getElementById('wbLaunchModal');
+  if (m) m.style.display = 'none';
+  wbMarkLaunchSeen();
+}
+
+// "Try Now" → the game (or the upgrade wall, which showPage handles for a
+// locked page). Either way the flyer is done.
+function wbLaunchGo() {
+  wbCloseLaunch();
+  const nav = document.querySelector('.nav-item[onclick*="wenbotgames"]');
+  showPage('wenbotgames', nav || null);
+}
+
+// Rotation, for a leaked link. Not part of setup — the token provisions itself.
+async function wbResetToken() {
+  if (!confirm('Reset your game link? Any OBS source using the old link will stop paying out points until you paste the new one.')) return;
+  try {
+    const wenball = { ...(profile?.wenball || {}), token: wbNewToken() };
     await saveStreamerProfile({ wenball });
     if (profile) profile.wenball = wenball;
-    wbRenderToken();
     wbUpdateUrl();
-    flash('Game token generated — copy the updated link into OBS.');
+    flash('Game link reset — paste the new one into OBS.');
   } catch (e) { flash('Failed: ' + e.message, 'error'); }
 }
 
@@ -21590,6 +21727,30 @@ document.addEventListener('visibilitychange', () => {
 </div>
 
 <!-- Giveaway Policy Notice (one-time) -->
+<!-- One-time launch flyer for WenBot Games. Shown once per account (the "seen"
+     flag lives on the streamer doc, not localStorage, so it doesn't reappear on
+     a second machine). Everyone sees it — it's labelled ELITE and the button
+     says the truth for the viewer's plan, so a Starter streamer gets an honest
+     upsell instead of a wall they didn't expect. Reserve this pattern for real
+     launches: a modal on every release trains people to dismiss on reflex. -->
+<div id="wbLaunchModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:1002;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)wbCloseLaunch()">
+  <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:16px;width:100%;max-width:620px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.6);">
+    <div style="position:relative;">
+      <img src="/img/wenball/announce.png" alt="WenBall — a live marble race for your Kick chat" style="width:100%;height:auto;display:block;">
+      <button onclick="wbCloseLaunch()" aria-label="Close" style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18);border-radius:8px;cursor:pointer;color:#fff;font-size:15px;line-height:1;padding:6px 10px;">✕</button>
+      <span style="position:absolute;top:10px;left:10px;background:rgba(255,215,0,.16);border:1px solid rgba(255,215,0,.5);color:#ffd700;font-size:10px;font-weight:800;letter-spacing:.08em;padding:4px 9px;border-radius:999px;">ELITE</span>
+    </div>
+    <div style="padding:20px 22px 22px;">
+      <div style="font-family:'Exo 2',sans-serif;font-size:20px;font-weight:900;color:var(--bright);margin-bottom:6px;">WenBall is here</div>
+      <div style="font-size:13.5px;color:var(--text-dim);line-height:1.65;margin-bottom:16px;">A live marble race your whole chat plays at once. Viewers type <code style="color:var(--accent);">!wenballjoin</code>, you hit start, and every ball plinkos down the course together — winners can be paid channel points automatically. Play it right here in your dashboard or run it as an OBS source.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-accent" id="wbLaunchCta" onclick="wbLaunchGo()" style="flex:1;min-width:170px;">Try Now</button>
+        <button class="btn btn-ghost" onclick="wbCloseLaunch()" style="min-width:110px;">Maybe later</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="giveawayPolicyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1001;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)closeGiveawayPolicyNotice()">
   <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:16px;width:100%;max-width:500px;padding:28px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">

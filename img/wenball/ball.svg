@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="120" viewBox="0 0 100 120">
+  <!-- Chibi WenBot, front-facing, arms up (bracing inside the hamster ball).
+       Chrome body via gradients; visor + eyes stay dark/cyan so the per-player
+       shell colour reads around it. No <text>/<filter>: Godot's SVG importer
+       (ThorVG) only handles shapes + gradients. -->
+  <defs>
+    <linearGradient id="chrome" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f4f7fb"/>
+      <stop offset="0.45" stop-color="#c9d2e0"/>
+      <stop offset="0.7" stop-color="#8e9bb0"/>
+      <stop offset="1" stop-color="#5d6a80"/>
+    </linearGradient>
+    <linearGradient id="chrome2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e3e9f2"/>
+      <stop offset="0.6" stop-color="#a4afc2"/>
+      <stop offset="1" stop-color="#6a7690"/>
+    </linearGradient>
+    <linearGradient id="visor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a2336"/>
+      <stop offset="1" stop-color="#070b14"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#9ff6ff"/>
+      <stop offset="0.55" stop-color="#00e5ff"/>
+      <stop offset="1" stop-color="#00e5ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- antenna -->
+  <rect x="48" y="8" width="4" height="10" rx="2" fill="#6a7690"/>
+  <circle cx="50" cy="7" r="7" fill="url(#glow)"/>
+  <circle cx="50" cy="7" r="3.5" fill="#cffcff"/>
+  <!-- arms raised (behind body) -->
+  <path d="M36 78 L14 56" stroke="url(#chrome2)" stroke-width="9" stroke-linecap="round" fill="none"/>
+  <path d="M64 78 L86 56" stroke="url(#chrome2)" stroke-width="9" stroke-linecap="round" fill="none"/>
+  <circle cx="13" cy="54" r="6" fill="#b6c0d1"/>
+  <circle cx="87" cy="54" r="6" fill="#b6c0d1"/>
+  <!-- ear pods -->
+  <circle cx="19" cy="44" r="8" fill="#8e9bb0"/>
+  <circle cx="19" cy="44" r="4" fill="#00e5ff"/>
+  <circle cx="81" cy="44" r="8" fill="#8e9bb0"/>
+  <circle cx="81" cy="44" r="4" fill="#00e5ff"/>
+  <!-- head -->
+  <circle cx="50" cy="44" r="30" fill="url(#chrome)" stroke="#3b4456" stroke-width="1.5"/>
+  <!-- visor -->
+  <rect x="27" y="30" width="46" height="27" rx="12" fill="url(#visor)" stroke="#2b3344" stroke-width="1.5"/>
+  <!-- eyes -->
+  <circle cx="40" cy="43.5" r="6.5" fill="url(#glow)"/>
+  <circle cx="60" cy="43.5" r="6.5" fill="url(#glow)"/>
+  <circle cx="40" cy="43.5" r="3.2" fill="#dffdff"/>
+  <circle cx="60" cy="43.5" r="3.2" fill="#dffdff"/>
+  <!-- smile -->
+  <path d="M44 51 Q50 55 56 51" stroke="#00e5ff" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <!-- visor reflection -->
+  <path d="M32 34 Q48 30 68 34" stroke="#ffffff" stroke-opacity="0.25" stroke-width="2" fill="none"/>
+  <!-- neck -->
+  <rect x="44" y="72" width="12" height="6" fill="#6a7690"/>
+  <!-- torso -->
+  <rect x="33" y="76" width="34" height="30" rx="11" fill="url(#chrome)" stroke="#3b4456" stroke-width="1.5"/>
+  <rect x="44" y="84" width="12" height="8" rx="3" fill="#0b1220"/>
+  <rect x="46.5" y="86" width="7" height="4" rx="1.5" fill="#00e5ff"/>
+  <!-- legs + feet -->
+  <rect x="37" y="104" width="9" height="9" rx="4" fill="#8e9bb0"/>
+  <rect x="54" y="104" width="9" height="9" rx="4" fill="#8e9bb0"/>
+  <ellipse cx="40" cy="114" rx="8" ry="4" fill="#b6c0d1"/>
+  <ellipse cx="60" cy="114" rx="8" ry="4" fill="#b6c0d1"/>
+</svg>
