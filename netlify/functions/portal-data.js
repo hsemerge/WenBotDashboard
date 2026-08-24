@@ -13,6 +13,7 @@ const { fetchCsgobigRace }   = require("./_lib/csgobig");
 const { fetchDuelbitsForPeriod, applyDuelbitsPeriod } = require("./_lib/duelbits");
 const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards");
 const { fetchClashBoard } = require("./_lib/clash");
+const { fetchGambaRace } = require("./_lib/gamba");
 
 // NOT the shared API_CASINOS from _lib/casinos. This one gates a hardcoded
 // Gambulls board fetch below, so adding a casino here would send that provider to
@@ -950,6 +951,67 @@ exports.handler = async (event) => {
           }
         }
       }
+      // Gamba: same passthrough shape as Degen — the race owns its window and
+      // prize ladder, so no WenBot baselines/periods apply.
+      //
+      // This branch exists because portal-data resolves the main board ITSELF
+      // rather than calling leaderboard-live. Without it a Gamba streamer's
+      // portal showed no leaderboard at all, and Discord auto-post (which reads
+      // this payload) refused with "No leaderboard is running for this channel"
+      // even though /api/leaderboard-live was serving the race perfectly.
+      //
+      // Shares the `lb_<channel>_gamba` cache document with leaderboard-live so
+      // the two never double-fetch Gamba for the same channel.
+      else if (provider === "gamba") {
+        const gBoard = boardFor("gamba");
+        const gProv  = await db.collection("streamers").doc(uid)
+          .collection("providers").doc("gamba").get();
+        const raceRef = (gBoard && gBoard.credential &&
+                          (gBoard.credential.refCode || gBoard.credential.raceId || gBoard.credential.leaderboardId))
+          || (gProv.exists ? (gProv.data().referralCode || gProv.data().raceId) : null);
+        if (raceRef) {
+          try {
+            const cacheRef = db.collection("_cache").doc(`lb_${channel}_gamba`);
+            let race = null;
+            try {
+              const c = await cacheRef.get();
+              const cached = c.exists ? c.data() : null;
+              if (cached && cached.data && cached.cachedAt && (Date.now() - cached.cachedAt) < 5 * 60 * 1000) {
+                race = cached.data;
+              }
+            } catch { /* fall through to a live fetch */ }
+            if (!race) {
+              race = await fetchGambaRace(raceRef);
+              if (race) { try { await cacheRef.set({ cachedAt: Date.now(), data: race }); } catch {} }
+            }
+            if (race) {
+              // A prize ladder set on the WenBot board wins, so a streamer
+              // topping the pot from their own pocket can say so.
+              const own = gBoard && Array.isArray(gBoard.prizes) && gBoard.prizes.length ? gBoard.prizes : null;
+              const ladder = own || race.prizes || [];
+              leaderboard = {
+                period:       race.raceName || "Gamba Race",
+                casinoName:   "Gamba",
+                startAt:      race.startAt,
+                endAt:        race.endAt,
+                prizePool:    race.prizePool,
+                fiat:         race.currency || "USD",
+                rankings:     race.rankings.map((r) => ({
+                  rank:        r.rank,
+                  name:        r.username,
+                  wagerAmount: r.wagered,
+                  avatarUrl:   r.avatarUrl,
+                  prize:       Number(ladder[r.rank - 1]) > 0 ? Number(ladder[r.rank - 1]) : 0,
+                })),
+                totalUsers:   race.totalUsers,
+                totalWagered: race.totalWagered,
+              };
+            }
+          } catch (err) {
+            console.warn("[portal-data] gamba fetch failed:", err.message);
+          }
+        }
+      }
       // Rainbet: key + date range (the range IS the period, so no baselines /
       // carryover — only manual exclusions apply). Cached 45s per channel so a
       // busy portal can't hammer the streamer's key.
@@ -1270,6 +1332,15 @@ exports.handler = async (event) => {
                   rankings: (cg.rankings || []).map((r) => ({ rank: r.rank, username: r.username, wagered: r.wagered, avatarUrl: r.avatarUrl })),
                   totalUsers: cg.totalUsers, totalWagered: cg.totalWagered,
                   startAt: cg.startAt, endAt: cg.endAt, prizes: cg.prizes, raceName: cg.name,
+                };
+              } else if (b.provider === "gamba") {
+                // Same passthrough as Clash: the Gamba race carries its own
+                // window and prize ladder, so the board inherits them.
+                const gr = await fetchGambaRace(cred);
+                if (gr) data = {
+                  rankings: (gr.rankings || []).map((r) => ({ rank: r.rank, username: r.username, wagered: r.wagered, avatarUrl: r.avatarUrl })),
+                  totalUsers: gr.totalUsers, totalWagered: gr.totalWagered,
+                  startAt: gr.startAt, endAt: gr.endAt, prizes: gr.prizes, raceName: gr.raceName,
                 };
               } else if (b.provider === "gambulls") {
                 const resp = await fetch("https://api.gambulls.com/api/public/streamer/leaderboard?type=monthly&limit=100",
