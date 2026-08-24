@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="120" viewBox="0 0 100 120">
+  <!-- Jetpacks sidebar icon: the chibi WenBot (same bot as wenball's ball.svg)
+       with its twin-tank jetpack lit. Shapes + gradients only. -->
+  <defs>
+    <linearGradient id="chrome" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f4f7fb"/>
+      <stop offset="0.45" stop-color="#c9d2e0"/>
+      <stop offset="0.7" stop-color="#8e9bb0"/>
+      <stop offset="1" stop-color="#5d6a80"/>
+    </linearGradient>
+    <linearGradient id="visor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a2336"/>
+      <stop offset="1" stop-color="#070b14"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#9ff6ff"/>
+      <stop offset="0.55" stop-color="#00e5ff"/>
+      <stop offset="1" stop-color="#00e5ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="tank" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#123b46"/>
+      <stop offset="1" stop-color="#0b2530"/>
+    </linearGradient>
+  </defs>
+  <!-- jetpack tanks (behind the bot) -->
+  <g>
+    <rect x="2" y="38" width="20" height="52" rx="9" fill="url(#tank)" stroke="#00e5ff" stroke-width="2.5"/>
+    <rect x="78" y="38" width="20" height="52" rx="9" fill="url(#tank)" stroke="#00e5ff" stroke-width="2.5"/>
+    <rect x="4" y="40" width="16" height="8" rx="4" fill="#66f0ff"/>
+    <rect x="80" y="40" width="16" height="8" rx="4" fill="#66f0ff"/>
+    <!-- nozzles + flames -->
+    <path d="M6 90 L18 90 L15 98 L9 98 Z" fill="#2b3140"/>
+    <path d="M82 90 L94 90 L91 98 L85 98 Z" fill="#2b3140"/>
+    <path d="M7 99 L17 99 L12 116 Z" fill="#ffb347"/>
+    <path d="M83 99 L93 99 L88 116 Z" fill="#ffb347"/>
+    <path d="M9.5 99 L14.5 99 L12 109 Z" fill="#fff3d6"/>
+    <path d="M85.5 99 L90.5 99 L88 109 Z" fill="#fff3d6"/>
+  </g>
+  <!-- antenna -->
+  <rect x="48" y="9" width="4" height="9" rx="2" fill="#6a7690"/>
+  <circle cx="50" cy="8" r="6.5" fill="url(#glow)"/>
+  <circle cx="50" cy="8" r="3.2" fill="#cffcff"/>
+  <!-- ear pods -->
+  <circle cx="21" cy="44" r="7.5" fill="#8e9bb0"/>
+  <circle cx="21" cy="44" r="3.8" fill="#00e5ff"/>
+  <circle cx="79" cy="44" r="7.5" fill="#8e9bb0"/>
+  <circle cx="79" cy="44" r="3.8" fill="#00e5ff"/>
+  <!-- head -->
+  <circle cx="50" cy="44" r="28" fill="url(#chrome)" stroke="#3b4456" stroke-width="1.5"/>
+  <rect x="29" y="31" width="42" height="25" rx="11" fill="url(#visor)" stroke="#2b3344" stroke-width="1.5"/>
+  <circle cx="41" cy="43.5" r="6" fill="url(#glow)"/>
+  <circle cx="59" cy="43.5" r="6" fill="url(#glow)"/>
+  <circle cx="41" cy="43.5" r="3" fill="#dffdff"/>
+  <circle cx="59" cy="43.5" r="3" fill="#dffdff"/>
+  <path d="M45 50.5 Q50 54 55 50.5" stroke="#00e5ff" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <!-- torso + straps -->
+  <rect x="44" y="70" width="12" height="6" fill="#6a7690"/>
+  <rect x="34" y="74" width="32" height="28" rx="10" fill="url(#chrome)" stroke="#3b4456" stroke-width="1.5"/>
+  <rect x="44" y="82" width="12" height="8" rx="3" fill="#0b1220"/>
+  <rect x="46.5" y="84" width="7" height="4" rx="1.5" fill="#00e5ff"/>
+  <path d="M38 76 L44 100" stroke="#3b4456" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <path d="M62 76 L56 100" stroke="#3b4456" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <!-- little legs -->
+  <rect x="38" y="100" width="9" height="9" rx="4" fill="#8e9bb0"/>
+  <rect x="53" y="100" width="9" height="9" rx="4" fill="#8e9bb0"/>
+  <ellipse cx="41" cy="110" rx="7" ry="3.6" fill="#b6c0d1"/>
+  <ellipse cx="59" cy="110" rx="7" ry="3.6" fill="#b6c0d1"/>
+</svg>

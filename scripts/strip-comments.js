@@ -72,10 +72,11 @@ function walk(dir, out = []) {
   // 2. Strip comments from HTML/JS in dist (per-file tolerant).
   let html = 0, js = 0, errors = 0;
   for (const f of walk(DIST)) {
-    // Godot engine exports ship byte-identical: wenball/ holds a compiled
-    // .wasm loader whose .js/.html are machine-generated — terser "succeeding"
-    // on them silently rewrites engine code for zero size win.
+    // Godot engine exports ship byte-identical: wenball/ and jetpacks/ hold
+    // compiled .wasm loaders whose .js/.html are machine-generated — terser
+    // "succeeding" on them silently rewrites engine code for zero size win.
     if (f.includes(path.sep + "wenball" + path.sep)) continue;
+    if (f.includes(path.sep + "jetpacks" + path.sep)) continue;
     try {
       if (f.endsWith(".html")) {
         const out = await minifyHtml(fs.readFileSync(f, "utf8"), {

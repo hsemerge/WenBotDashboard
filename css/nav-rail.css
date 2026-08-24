@@ -281,6 +281,12 @@ html.nebula #railPop::before { border-color: rgba(0, 229, 255, 0.22); }
 #railPop .pop-item .icon { font-size: 26px; line-height: 1; }
 /* Image icons match the emoji's optical size on a tile. */
 #railPop .pop-item .icon img { width: 28px; height: 28px; border-radius: 7px; display: block; }
+/* Status line under a tile's name (Beta on the Games tiles). Tiny and dim so it
+   reads as a footnote, not a second label; the fixed tile height absorbs it. */
+#railPop .pop-sub {
+  font-size: 9.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-dim); opacity: .85; line-height: 1; margin-top: -2px;
+}
 /* Corner badge rather than a row under the label. In the flow it stretched the
    tile and pushed the icon off centre, so a menu of eleven items rippled
    wherever a plan lock happened to fall. Pinned to the corner, every tile keeps

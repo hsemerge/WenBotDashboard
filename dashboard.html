@@ -573,13 +573,16 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="nav-item" onclick="showPage('trivia',this)"><span class="icon">🧠</span> Trivia</div>
         <div class="nav-item" onclick="showPage('bonusbattle',this)"><span class="icon">⚔️</span> Bonus Battles <span class="nav-badge" id="bbLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
         <div class="nav-item" onclick="showPage('tournament',this)"><span class="icon">🏆</span> Tournaments <span class="nav-badge" id="tnLiveBadge" style="display:none;background:var(--red);">LIVE</span></div>
-        <!-- On-stream browser games (Godot web builds under /wenball/ etc.) —
-             a different animal from the chat-command Games page, hence a
-             labeled in-section break. .nav-sep on purpose: the FleetView
-             flyout clones only .nav-item and .nav-sep, so this divider carries
-             over into the Live Tools pop-out too. -->
-        <div class="nav-sep">WenBot Games</div>
-        <div class="nav-item" onclick="showPage('wenbotgames',this)"><span class="icon"><img src="/img/wenball/ball.svg" alt=""></span> WenBall</div>
+      </div>
+      <!-- On-stream browser games (Godot web builds under /wenball/, /jetpacks/)
+           — their own category now that there's more than one. A different
+           animal from Manage's chat-command Games page. data-sec is "wbgames"
+           (not "games") because #page-games already owns that id. data-sub is
+           the small status line the FleetView pop-out renders under the name. -->
+      <div class="sidebar-section" style="margin-top:8px;" data-sec="wbgames">
+        <div class="sidebar-label sb-toggle" onclick="sbToggleSection('wbgames')">Games <span class="sb-chev">▾</span></div>
+        <div class="nav-item" data-sub="Beta" onclick="showPage('wenbotgames',this)"><span class="icon"><img src="/img/wenball/ball.svg" alt=""></span> WenBall</div>
+        <div class="nav-item" data-sub="Beta" onclick="showPage('jetpacks',this)"><span class="icon"><img src="/img/jetpacks/jetpack.svg" alt=""></span> Jetpacks</div>
       </div>
       <div class="sidebar-section" style="margin-top:8px;" data-sec="manage">
         <div class="sidebar-label sb-toggle" onclick="sbToggleSection('manage')">Manage <span class="sb-chev">▾</span></div>
@@ -642,7 +645,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.35.1</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.36.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -953,7 +956,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         #page-channel > *, #page-kickbot > *, #page-discordsetup > *,
         #page-team > *, #page-yourdata > *, #page-portalsettings > *,
         #page-communitysettings > *,
-        #page-games > *, #page-wenbotgames > *
+        #page-games > *, #page-wenbotgames > *, #page-jetpacks > *
         { max-width: 1720px; margin-left: auto; margin-right: auto; }
         @keyframes ovAlertPulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.9); } }
         .gw-col { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; min-height: 420px; max-height: 82vh; }
@@ -2130,6 +2133,92 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             • Racers&rsquo; balls are dressed by their WenPoints cosmetics (passport theme, flair, Mystery Box badges) automatically.<br>
             • Click any ball, a name in LEADERS, or a dot on the minimap to follow that racer; SPACE returns to the leader.<br>
             • More WenBot Games will land in this section — WenBall is the first.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WenBot Games — Jetpacks (last-bot-flying survival). Same shape as
+         page-wenbotgames: the game IS the page, points settle server-side
+         through /api/jetpacks-result from streamers/{uid}.jetpacks, never from
+         the client's numbers. Elite-gated via PAGE_PLAN. -->
+    <div class="page" id="page-jetpacks">
+      <div class="card" style="margin-bottom:16px;">
+        <div id="jpStage" style="position:relative;width:100%;aspect-ratio:16/9;background:#05070d;border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+          <iframe id="jpFrame" src="about:blank" title="Jetpacks" allow="autoplay; fullscreen"
+                  style="position:absolute;inset:0;width:100%;height:100%;border:none;display:block;background:#05070d;"></iframe>
+          <div id="jpPoster" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px;background:radial-gradient(circle at 50% 38%, rgba(0,229,255,0.10), rgba(5,7,13,0.97) 70%);">
+            <img src="/img/jetpacks/jetpack.svg" alt="" style="width:74px;height:auto;opacity:.95;">
+            <div id="jpPosterMsg" style="font-family:'Exo 2',sans-serif;font-size:15px;font-weight:700;color:var(--bright);">Starting Jetpacks…</div>
+            <div id="jpPosterChan" style="font-size:12px;color:var(--text-dim);">—</div>
+            <div id="jpPosterActions" style="display:none;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;">
+              <button class="btn btn-accent" onclick="jpPlay(false)" style="font-size:14px;padding:10px 26px;">▶ Play Jetpacks</button>
+              <a href="#" onclick="jpPlay(true); return false;" style="font-size:12px;color:var(--text-dim);text-decoration:underline;">demo flight</a>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;">
+          <button class="btn btn-ghost btn-sm" onclick="jpFullscreen()">⛶ Fullscreen</button>
+          <button class="btn btn-ghost btn-sm" onclick="jpPopOut()">⧉ Pop out window</button>
+          <button class="btn btn-ghost btn-sm" onclick="jpReload()">↻ Reload</button>
+          <button class="btn btn-ghost btn-sm" onclick="jpPlay(true)" title="Run a flight with simulated chatters — never pays out points">🤖 Demo flight</button>
+          <div style="flex:1;min-width:200px;font-size:11.5px;color:var(--text-dim);line-height:1.5;text-align:right;">Flight time, pilots and winners live in <strong style="color:var(--bright);">SETTINGS</strong> inside the game. Keep this tab visible while flying (browsers pause background tabs); <strong style="color:var(--bright);">pop out</strong> to run one while you work elsewhere.</div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="align-items:start;">
+        <div class="card">
+          <div class="card-title">🎬 Points &amp; Capture</div>
+
+          <div style="font-size:11px;font-weight:700;color:var(--text-dim);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;">Point payouts</div>
+          <div style="display:flex;align-items:flex-start;gap:10px;padding:11px 13px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;">
+            <input type="checkbox" id="jpAwardPoints" onchange="jpUpdateUrl()" style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;">
+            <label for="jpAwardPoints" style="cursor:pointer;flex:1;">
+              <div style="font-size:13px;color:var(--bright);font-weight:600;">Award channel points to winners</div>
+              <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Payouts settle on WenBot&rsquo;s servers from the list below, so a browser page can never change what your flight pays. Each flight pays out once.</div>
+            </label>
+          </div>
+          <div class="field" style="margin-bottom:14px;">
+            <label>Prizes by place (1st, 2nd, 3rd, 4th, 5th)</label>
+            <input type="text" id="jpPrizes" placeholder="500, 250, 100, 50, 25" oninput="jpUpdateUrl()">
+            <div class="hint">How many places pay is set in the game (1, 3 or 5 winners); this is the amounts. Plain numbers separated by commas — write 1000, not 1,000.</div>
+          </div>
+          <button class="btn btn-accent" onclick="jpSaveSettings()" style="width:100%;margin-bottom:18px;">Save Payouts</button>
+
+          <div style="font-size:11px;font-weight:700;color:var(--text-dim);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;">Capture it in OBS instead</div>
+          <div style="font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:8px;">Playing it here and screen-sharing works fine. If you&rsquo;d rather run it as a proper browser source, add this at <strong style="color:var(--bright);">1920×1080</strong> and drive it with right-click → <em>Interact</em>, or from chat.</div>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="jpUrlInput" readonly onclick="jpRevealUrl(this)" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 12px;font-size:12px;font-family:monospace;min-width:0;">
+            <button class="btn btn-ghost btn-sm" onclick="jpCopyUrl()">Copy</button>
+          </div>
+          <div class="hint">The secret in this link is what lets a flight pay out points, so it stays masked — safe to have on screen while you stream. <strong>Copy</strong> copies the real link. <a href="#" onclick="jpResetToken(); return false;" style="color:var(--text-dim);text-decoration:underline;">Reset it</a> if it ever leaks (your OBS source stops paying until you paste the new one).</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📖 How a Flight Works</div>
+          <div style="font-size:12.5px;color:var(--text-dim);line-height:1.7;margin-bottom:14px;">
+            <strong style="color:var(--bright);">1. Open the hangar</strong> — press <strong>OPEN HANGAR</strong> in the game. WenBot announces it in your chat, and viewers board with <code style="color:var(--accent);">!play</code> — their WenBot marches in and gets a jetpack bolted on.<br>
+            <strong style="color:var(--bright);">2. Launch</strong> — press <strong>LAUNCH</strong> (or ENTER, or <code style="color:var(--accent);">!jetstart</code> as broadcaster/mod). Everyone lifts off at once and climbs through four altitude bands full of drones, saucers, debris, flak, lightning and meteors. Bots auto-fly and auto-shoot; kills refill fuel and level their guns up. <strong style="color:var(--bright);">Last bot flying wins.</strong><br>
+            <strong style="color:var(--bright);">3. Results</strong> — the podium shows the survivors; if payouts are on, points land automatically and the podium confirms it.
+          </div>
+
+          <div style="font-weight:700;font-size:13px;color:var(--bright);margin-bottom:6px;">Chat commands</div>
+          <div class="cmd-list" style="font-size:12.5px;margin-bottom:16px;">
+            <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:170px;">!play</code><span style="color:var(--text-dim);">viewers: grab a jetpack (once the hangar is open)</span></div>
+            <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:170px;">!jetstart</code><span style="color:var(--text-dim);">you / mods: launch the flight</span></div>
+            <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:170px;">!jetrematch</code><span style="color:var(--text-dim);">you / mods: same pilots, another go</span></div>
+            <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);"><code style="color:var(--accent);min-width:170px;">!jetreset</code><span style="color:var(--text-dim);">you / mods: back to a fresh hangar</span></div>
+            <div style="display:flex;gap:10px;padding:6px 0;"><code style="color:var(--accent);min-width:170px;">!jetlength long</code><span style="color:var(--text-dim);">you / mods: flight time — fast, regular or long</span></div>
+          </div>
+
+          <div style="font-weight:700;font-size:13px;color:var(--bright);margin-bottom:6px;">Good to know</div>
+          <div style="font-size:12.5px;color:var(--text-dim);line-height:1.7;">
+            • The bottom-right of the game must say <strong style="color:var(--green);">LIVE: kick.com/your-channel</strong>. If it says DEMO MODE, it isn&rsquo;t reading your real chat — hit Reload above.<br>
+            • Every gameplay setting (flight time, pilots, winners, sound) lives in the game&rsquo;s own <strong style="color:var(--bright);">SETTINGS</strong> panel and saves automatically. Only the payout amounts live out here.<br>
+            • Every jetpack is identical — same thrust, fuel, guns and HP. Levels, shields and OVERDRIVE are all earned in-flight; cosmetics change nothing.<br>
+            • Pilots are dressed by their WenPoints cosmetics (passport theme colors the jetpack, plus flair and Mystery Box badges) automatically.<br>
+            • Click any pilot or a name in STANDINGS to follow them; SPACE returns to the pack. The flight log and altitude bar live on the right.<br>
+            • Placings: last bot flying is 1st, then everyone in reverse order of going down.
           </div>
         </div>
       </div>
@@ -3617,9 +3706,22 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.35.1</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.36.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.36.0 &middot; WenBot Games: Jetpacks, and a Games home in the sidebar</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 23, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#128640; <strong>Jetpacks — last bot flying wins.</strong> Open the hangar and viewers type <code>!play</code>: their WenBot marches in and gets a jetpack bolted on. Hit LAUNCH and the whole lobby lifts off together, climbing through open sky, a lightning stratosphere, orbital debris and deep space while drones, saucers and meteor showers thin the field. Kills refill fuel and level guns up, shield and OVERDRIVE crates drift by, and past the target time a solar storm plus THE APEX boss guarantees a finale. The last pilot flying takes 1st.</li>
+            <li>&#127942; <strong>Same trusted payouts as WenBall.</strong> Set a prize ladder and winners' channel points land automatically when the podium shows — settled on WenBot's servers with a per-streamer secret, never from the browser, and no flight can pay twice.</li>
+            <li>&#127913;&#65039; <strong>Wardrobe carries over.</strong> Passport themes color the jetpack shell, and flair, badges and trails ride along from the same WenPoints cosmetics viewers already own.</li>
+            <li>&#128126; <strong>Games has its own home.</strong> WenBall and Jetpacks now live in a <strong>Games</strong> category in the sidebar (both marked Beta) instead of hiding at the bottom of Live Tools.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -6950,6 +7052,8 @@ function _syncThemeLabel() {}
 const RAIL_ICONS = {
   home:      '<svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-6h4v6"/></svg>',
   live:      '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.6"/><path d="M7.4 7.4a6.5 6.5 0 0 0 0 9.2M16.6 7.4a6.5 6.5 0 0 1 0 9.2"/><path d="M4.6 4.6a10.5 10.5 0 0 0 0 14.8M19.4 4.6a10.5 10.5 0 0 1 0 14.8"/></svg>',
+  // A jetpack: twin tanks with flames. On-stream games get their own tile.
+  wbgames:   '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="5.5" height="11" rx="2.4"/><rect x="14.5" y="4" width="5.5" height="11" rx="2.4"/><path d="M10 8h4"/><path d="M6.8 15v1.6M17.2 15v1.6"/><path d="M6.8 19.5c-.9-1-.9-1.9 0-2.9.9 1 .9 1.9 0 2.9zM17.2 19.5c-.9-1-.9-1.9 0-2.9.9 1 .9 1.9 0 2.9z"/></svg>',
   manage:    '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><path d="M7 7h.01M7 17h.01"/></svg>',
   community: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3"/><path d="M3.5 19.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15.5 15.2c2.7-.6 5 1.2 5 4.3"/></svg>',
   account:   '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.8 20c0-3.7 3.2-6.2 7.2-6.2s7.2 2.5 7.2 6.2"/></svg>',
@@ -6961,6 +7065,7 @@ const RAIL_ICONS = {
 // twelve characters fit on one line before it wraps.
 const RAIL_SECTIONS = [
   { key: 'live',      label: 'Live Tools' },
+  { key: 'wbgames',   label: 'Games' },
   { key: 'manage',    label: 'Manage' },
   { key: 'portal',    label: 'Portal' },
   { key: 'community', label: 'Social' },
@@ -7108,6 +7213,14 @@ function railOpen(key) {
     t.textContent = text;
     btn.appendChild(i);
     btn.appendChild(t);
+    // A status line under the name (the Games tiles carry "Beta"), declared on
+    // the real nav item so this menu stays a projection of the sidebar.
+    if (real.dataset.sub) {
+      const s = document.createElement('span');
+      s.className = 'pop-sub';
+      s.textContent = real.dataset.sub;
+      btn.appendChild(s);
+    }
 
     // A live badge or plan lock is often the reason you'd click, so carry it.
     // Checked via the inline style the app itself toggles, NOT offsetParent:
@@ -7443,6 +7556,7 @@ function showPage(id, el) {
   if (id === 'creators')    loadCreatorsPage();
   if (id === 'help')        renderHelpTutorials();
   if (id === 'wenbotgames') loadWenballSettings();
+  if (id === 'jetpacks') loadJetpacksSettings();
 }
 
 // ── Collapsible sidebar sections (persisted per browser) ──
@@ -7501,6 +7615,7 @@ const PAGE_PLAN = {
   bounties:    'elite',
   games:       'elite',
   wenbotgames: 'elite',
+  jetpacks:    'elite',
   leaderboard: 'elite',
   bonusbattle: 'pro',
   tournament:  'pro',
@@ -11489,6 +11604,196 @@ async function wbSaveSettings() {
     wbUpdateUrl();
     flash('WenBall settings saved.');
     if (typeof logAction === 'function') logAction('wenball_settings_save', { awardPoints: wenball.awardPoints, prizes: wenball.prizes });
+  } catch (e) { flash('Failed to save: ' + e.message, 'error'); }
+}
+
+// ── WenBot Games: Jetpacks (on-stream browser game) ───────────────────────────
+// Same shape as WenBall above: the game is a Godot web build served at
+// /jetpacks/. This page owns what the SERVER needs to trust a flight — the
+// per-streamer token and payout config (streamers/{uid}.jetpacks —
+// /api/jetpacks-result re-derives every payout from it, ignoring the client's
+// numbers). Everything display-side lives in the game's own settings panel.
+
+async function loadJetpacksSettings() {
+  const j = profile?.jetpacks || {};
+  const ap = document.getElementById('jpAwardPoints');
+  if (ap) ap.checked = j.awardPoints !== false;
+  const pz = document.getElementById('jpPrizes');
+  if (pz) pz.value = Array.isArray(j.prizes) && j.prizes.length ? j.prizes.join(', ') : '500, 250, 100, 50, 25';
+  const chan = profile?.kickChannel || '';
+  const pc = document.getElementById('jpPosterChan');
+  if (pc) pc.textContent = chan ? `reading chat from kick.com/${chan}` : '';
+  // AWAITED before the game boots, same as wenball: a game launched a moment
+  // too early would run the whole flight unable to settle.
+  await jpEnsureToken();
+  jpUpdateUrl();
+  jpAutoLoad();
+}
+
+function jpAutoLoad() {
+  const frame = document.getElementById('jpFrame');
+  if (!frame) return;
+  const running = frame.src && !/about:blank$/.test(frame.src);
+  if (running) { jpPosterHide(); return; }
+  if (!jpGameUrl(false)) {
+    jpPosterState('Set your Kick channel first', 'Jetpacks reads your chat — add your channel in Channel & Casino Setup, then come back.', false);
+    return;
+  }
+  jpPosterState('Starting Jetpacks…', null, false);
+  jpPlay(false);
+}
+
+function jpPosterHide() {
+  const p = document.getElementById('jpPoster');
+  if (p) p.style.display = 'none';
+}
+
+function jpPosterState(msg, sub, showActions) {
+  const p = document.getElementById('jpPoster');
+  if (p) p.style.display = 'flex';
+  const m = document.getElementById('jpPosterMsg');
+  if (m) m.textContent = msg;
+  if (sub != null) { const c = document.getElementById('jpPosterChan'); if (c) c.textContent = sub; }
+  const a = document.getElementById('jpPosterActions');
+  if (a) a.style.display = showActions ? 'flex' : 'none';
+}
+
+// Create the token on first visit, once, quietly (wbNewToken is the generator —
+// same client-side pattern, separate secret so one leak can't settle the other
+// game's results).
+let _jpTokenPending = false;
+async function jpEnsureToken() {
+  if (_jpTokenPending || !profile || profile?.jetpacks?.token) return;
+  _jpTokenPending = true;
+  try {
+    const jetpacks = { ...(profile.jetpacks || {}), token: wbNewToken() };
+    await saveStreamerProfile({ jetpacks });
+    profile.jetpacks = jetpacks;
+    jpUpdateUrl();
+  } catch (e) {
+    console.warn('[jetpacks] could not provision token:', e.message);
+  } finally {
+    _jpTokenPending = false;
+  }
+}
+
+function jpParsePrizes() {
+  const out = { prizes: [], bad: [] };
+  (document.getElementById('jpPrizes')?.value || '').split(',').forEach(tok => {
+    const t = tok.trim();
+    if (!t) return;
+    if (/^\d+$/.test(t) && Number(t) > 0) out.prizes.push(Number(t));
+    else out.bad.push(t);
+  });
+  out.prizes = out.prizes.slice(0, 5);
+  return out;
+}
+
+// One builder for every way the game is launched (stage, pop-out, OBS link).
+// demo:true swaps the real chat for simulated chatters and drops the token
+// entirely, so a demo flight can never reach the settlement endpoint.
+function jpGameUrl(demo) {
+  const chan = profile?.kickChannel || '';
+  if (!chan) return '';
+  const base   = window.location.origin;
+  const token  = profile?.jetpacks?.token || '';
+  const points = document.getElementById('jpAwardPoints')?.checked !== false;
+  const prizes = jpParsePrizes().prizes;
+  let url = `${base}/jetpacks/?streamer=${encodeURIComponent(chan)}`;
+  if (demo) {
+    url += '&demo=1';
+  } else {
+    url += `&channel=${encodeURIComponent(chan)}`;
+    if (token) {
+      url += `&results=${encodeURIComponent(base + '/api/jetpacks-result')}`
+           + `&announce=${encodeURIComponent(base + '/api/jetpacks-announce')}`
+           + `&token=${encodeURIComponent(token)}`;
+    }
+  }
+  url += `&points=${!demo && points && token ? 1 : 0}`;
+  if (prizes.length) url += `&prizes=${prizes.join(',')}`;
+  return url;
+}
+
+function jpUpdateUrl() {
+  const input = document.getElementById('jpUrlInput');
+  if (!input) return;
+  const url = jpGameUrl(false);
+  input.dataset.real = url || '';
+  input.value = url ? wbMaskUrl(url) : '(set your Kick channel in Settings first)';
+}
+
+function jpRevealUrl(el) { el.select(); }
+
+function jpPlay(demo) {
+  const url = jpGameUrl(!!demo);
+  if (!url) { flash('Set your Kick channel in Settings first', 'error'); return; }
+  const frame = document.getElementById('jpFrame');
+  if (frame) frame.src = url;
+  jpPosterHide();
+}
+
+function jpReload() {
+  const frame = document.getElementById('jpFrame');
+  if (!frame || frame.src === 'about:blank' || !frame.src) { jpPlay(false); return; }
+  frame.src = frame.src;
+}
+
+function jpFullscreen() {
+  const stage = document.getElementById('jpStage');
+  if (!stage) return;
+  if (document.fullscreenElement) { document.exitFullscreen(); return; }
+  (stage.requestFullscreen ? stage.requestFullscreen() : Promise.reject())
+    .catch(() => flash('Your browser blocked fullscreen — try the pop-out window.', 'error'));
+}
+
+function jpPopOut() {
+  const url = jpGameUrl(false);
+  if (!url) { flash('Set your Kick channel in Settings first', 'error'); return; }
+  const w = window.open(url, 'jetpacks', 'width=1280,height=720,noopener');
+  if (!w) flash('Your browser blocked the pop-out — allow pop-ups for wenbot.gg.', 'error');
+}
+
+function jpCopyUrl() {
+  const val = document.getElementById('jpUrlInput')?.dataset.real || '';
+  if (!val) { flash('Set your Kick channel in Settings first', 'error'); return; }
+  navigator.clipboard.writeText(val).then(() => flash('Game link copied!')).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = val; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    flash('Copied!');
+  });
+}
+
+async function jpResetToken() {
+  if (!confirm('Reset your game link? Any OBS source using the old link will stop paying out points until you paste the new one.')) return;
+  try {
+    const jetpacks = { ...(profile?.jetpacks || {}), token: wbNewToken() };
+    await saveStreamerProfile({ jetpacks });
+    if (profile) profile.jetpacks = jetpacks;
+    jpUpdateUrl();
+    flash('Game link reset — paste the new one into OBS.');
+  } catch (e) { flash('Failed: ' + e.message, 'error'); }
+}
+
+async function jpSaveSettings() {
+  const parsed = jpParsePrizes();
+  if (parsed.bad.length) {
+    flash(`Prizes must be plain whole numbers separated by commas — "${parsed.bad[0]}" isn't one (write 1000, not 1,000).`, 'error');
+    return;
+  }
+  if (!parsed.prizes.length) { flash('Enter at least one prize amount.', 'error'); return; }
+  const jetpacks = {
+    ...(profile?.jetpacks || {}),
+    awardPoints: document.getElementById('jpAwardPoints')?.checked !== false,
+    prizes: parsed.prizes,
+  };
+  try {
+    await saveStreamerProfile({ jetpacks });
+    if (profile) profile.jetpacks = jetpacks;
+    jpUpdateUrl();
+    flash('Jetpacks settings saved.');
+    if (typeof logAction === 'function') logAction('jetpacks_settings_save', { awardPoints: jetpacks.awardPoints, prizes: jetpacks.prizes });
   } catch (e) { flash('Failed to save: ' + e.message, 'error'); }
 }
 

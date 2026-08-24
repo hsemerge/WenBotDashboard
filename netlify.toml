@@ -589,12 +589,31 @@
   to     = "/.netlify/functions/wenball-announce"
   status = 200
 
+# WenBot Games (Jetpacks). Same trust model as WenBall: settlement re-derives
+# payouts server-side from streamers/{uid}.jetpacks; the announce relay is the
+# SAME function as wenball's (the payload's game field picks the wording), and
+# loadouts come from the shared wenball-loadout wardrobe store.
+[[redirects]]
+  from   = "/api/jetpacks-result"
+  to     = "/.netlify/functions/jetpacks-result"
+  status = 200
+
+[[redirects]]
+  from   = "/api/jetpacks-announce"
+  to     = "/.netlify/functions/wenball-announce"
+  status = 200
+
 # Bare /wenball would otherwise fall through to the /:streamer portal catch-all
 # (static files only win when the path matches a real file). Send it to the
 # game's index.
 [[redirects]]
   from   = "/wenball"
   to     = "/wenball/index.html"
+  status = 301
+
+[[redirects]]
+  from   = "/jetpacks"
+  to     = "/jetpacks/index.html"
   status = 301
 
 # Streamer portal — catch-all rewrites. wenbot.gg/<channel> shows that
