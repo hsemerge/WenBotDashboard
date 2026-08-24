@@ -8057,6 +8057,30 @@ function onAuthReady(user) {
   // Overview modular cards — apply saved layout + render news/account cards.
   ovInit();
 
+  // Eligibility + luck are PERSISTENT settings, not per-round state, so restore
+  // them from the profile whether or not a giveaway is currently live. Without
+  // this the toggles only came back inside the `giveawayActive` block below — so a
+  // streamer (or a mod configuring for them while they're offline) who turned on
+  // "Require Verification" saw it save but render blank on the next load, and it
+  // silently reverted when the next giveaway started (start reads these off the
+  // DOM). Setting a class / .checked programmatically does not fire the change
+  // handlers, so this restore never triggers a save of its own.
+  if (profile) {
+    if (profile.giveawaySubOnly) document.getElementById('toggleSubOnly')?.classList.add('on');
+    if (profile.giveawayFollowerOnly) document.getElementById('toggleFollowerOnly')?.classList.add('on');
+    const _slR = document.getElementById('subLuckSlider');
+    if (_slR && profile.giveawaySubLuck > 1) { _slR.value = profile.giveawaySubLuck; const _v = document.getElementById('subLuckVal'); if (_v) _v.textContent = profile.giveawaySubLuck + 'x'; }
+    const _clR = document.getElementById('codeLuckSlider');
+    if (_clR && profile.giveawayCodeLuck > 1) { _clR.value = profile.giveawayCodeLuck; const _v = document.getElementById('codeLuckVal'); if (_v) _v.textContent = profile.giveawayCodeLuck + 'x'; }
+    if (profile.giveawayVerifiedCasino || profile.giveawayVerifiedDiscord) {
+      document.getElementById('toggleVerified')?.classList.add('on');
+      const _vrf = document.getElementById('verifiedReqFields'); if (_vrf) _vrf.style.display = 'block';
+      const _vcc = document.getElementById('verifiedCasinoCheck'); if (_vcc) _vcc.checked = !!profile.giveawayVerifiedCasino;
+      const _vbR = document.getElementById('verifiedBoardSelect'); if (_vbR) _vbR.value = String(profile.giveawayVerifiedBoard || '');
+      const _vdc = document.getElementById('verifiedDiscordCheck'); if (_vdc) _vdc.checked = !!profile.giveawayVerifiedDiscord;
+    }
+  }
+
   // Restore giveaway state if it was active before refresh
   if (profile?.giveawayActive) {
     giveawayActive = true;
