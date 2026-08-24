@@ -11421,17 +11421,12 @@ function wbCopyUrl() {
 // follows the account rather than the browser; a write failure just means they
 // might see it again, which is why nothing here blocks or throws.
 const WB_LAUNCH_KEY = 'wenballLaunch_v1';
-// TEMPORARY (testing): owner accounts (emergeonkick / the owner emails) get the
-// flyer on EVERY dashboard load, ignoring the seen-flag, so the launch moment
-// can be re-checked without clearing Firestore. Delete this constant and the
-// `|| WB_LAUNCH_ALWAYS_FOR_OWNER && isOwnerAcct` below before release, and it
-// reverts to strictly once-per-account for everyone.
-const WB_LAUNCH_ALWAYS_FOR_OWNER = true;
 
 function showWenballLaunchIfNeeded() {
   if (!profile) return;
-  const forceForTesting = WB_LAUNCH_ALWAYS_FOR_OWNER && isOwnerAcct;
-  if (profile[WB_LAUNCH_KEY] && !forceForTesting) return;
+  // Once per account, owner included. The owner-always override that lived here
+  // was testing scaffolding for the launch and has served its purpose.
+  if (profile[WB_LAUNCH_KEY]) return;
   const modal = document.getElementById('wbLaunchModal');
   if (!modal) return;
   // Say what the button will actually do for THIS streamer's plan, so nobody
