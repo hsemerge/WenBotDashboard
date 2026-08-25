@@ -20,6 +20,7 @@ const CASINO_NAMES = {
   rollbit:    "Rollbit",
   chipsgg:    "Chips.gg",
   hypebet:    "Hype.bet",
+  winovo:     "Winovo",
   // Display name only. The casino PICKER is hardcoded <option> markup, not built
   // from this map, so listing csgobig here cannot make it selectable as a primary
   // casino — it only stops second-board rows rendering as lowercase "csgobig".
@@ -65,6 +66,12 @@ const CASINO_CREDENTIALS = {
     label:       "Degen Streamer Code",
     placeholder: "e.g. meg",
     hint:        "Your Degen streamer code — this powers your race leaderboard.",
+  },
+  winovo: {
+    field:       "apiKey",
+    label:       "Winovo Creator API Key",
+    placeholder: "e.g. 52e755f...",
+    hint:        "From your Winovo creator dashboard. Powers your live leaderboard and under-code verification.",
   },
   gamba: {
     // The race is public and keyless — the "credential" is just the race's page

@@ -121,6 +121,20 @@ async function lookupAffiliate(provider, credential, affiliateUsername, diagnost
     return null;
   }
 
+  // -- Winovo --------------------------------------------------------------
+  // One keyed call returns every referred player with recorded wager, so this
+  // answers "under the code" directly rather than off a race window. Real
+  // usernames, no masking; Winovo expose no per-player id, so the name is the key.
+  if (provider === "winovo") {
+    const { lookupWinovoAffiliate } = require("./winovo");
+    const hit = await lookupWinovoAffiliate(cred.apiKey || apiKey, affiliateUsername);
+    if (diagnostics) diagnostics.push({ provider, matched: !!(hit && hit.found), error: hit ? null : "winovo api unreachable" });
+    if (hit && hit.found) {
+      return { username: hit.username, uid: null, wagerAmount: hit.wagered || 0, matchedViaMask: false };
+    }
+    return null;
+  }
+
   // ── Gamba ────────────────────────────────────────────────────────────────
   // No private affiliate API — matched against the public race's competitors,
   // the same best-effort shape as Degen/CSGOBig. The "credential" is the race

@@ -27,6 +27,10 @@ const CASINO_NAMES = {
   // jurisdiction blacklist, not a bot check), so a server-side leaderboard
   // fetch is unproven. Names are stored and shown; nothing is matched.
   hypebet:    "Hype.bet",
+  // Creator-leaderboard API (github.com/winovo-io/Creator-Leaderboard-API):
+  // one keyed endpoint returns every referred player with their cumulative
+  // wager, so both the board and under-code verification work. In API_CASINOS.
+  winovo:     "Winovo",
   // Deliberately NOT in the browser copy (/js/casinos.js). That list populates the
   // dashboard's primary-casino picker, and CSGOBig is only supported as an
   // ADDITIONAL board (no verification or affiliate-matching flow behind it) — so
@@ -65,6 +69,6 @@ const CASINO_NAMES = {
 // same best-effort match Degen/CSGOBig use. It's in this set (not a separate
 // verify-affiliate branch like those two) because its logic lives inside
 // lookupAffiliate, so every caller picks it up through the one dispatch.
-const API_CASINOS = new Set(["gambulls", "rainbet", "duelbits", "clash", "gamba"]);
+const API_CASINOS = new Set(["gambulls", "rainbet", "duelbits", "clash", "gamba", "winovo"]);
 
 module.exports = { CASINO_NAMES, API_CASINOS };

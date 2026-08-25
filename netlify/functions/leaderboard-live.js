@@ -12,6 +12,7 @@ const { fetchRainbetRange, fetchRainbetForPeriod, applyRainbetExclusions } = req
 const { fetchDuelbits, fetchDuelbitsForPeriod, fetchDuelbitsDayBaseline, applyDuelbitsPeriod, ymdNext } = require("./_lib/duelbits");
 const { fetchClashBoard } = require("./_lib/clash");
 const { fetchGambaRace }  = require("./_lib/gamba");
+const { fetchWinovoBoard } = require("./_lib/winovo");
 const res = (s, b) => _res(s, b, "*");
 
 async function fetchGambulls(apiKey) {
@@ -246,6 +247,51 @@ exports.handler = async (event) => {
         })),
         totalWagered: data.totalWagered,
         totalUsers:   data.totalUsers,
+      });
+    }
+
+    // Winovo: one keyed endpoint returning every referred player's CUMULATIVE
+    // wager (no date range exists), so the period is expressed the Gambulls way
+    // — applyPeriod subtracts the baseline taken when the race started. Winovo's
+    // own /api/creator/clear would also "reset" the board, but it zeroes the
+    // casino's numbers for everyone irreversibly, so WenBot never calls it.
+    if (provider === "winovo") {
+      const provDoc = await db.collection("streamers").doc(streamerDoc.id)
+        .collection("providers").doc("winovo").get();
+      let apiKey = provDoc.exists ? (provDoc.data().apiKey || "") : "";
+      if (!apiKey) {
+        // Only the PRIMARY casino is guaranteed a providers/ doc; an extra board
+        // keeps its key on the board document (that is what the editor writes).
+        const bSnap = await db.collection("streamers").doc(streamerDoc.id).collection("leaderboards").get();
+        const board = sortBoards(bSnap.docs.map((d) => normalizeBoard(d.data(), d.id)))
+          .find((b) => b.provider === "winovo");
+        apiKey = (board && board.credential && (board.credential.apiKey || board.credential.refCode)) || "";
+      }
+      if (!apiKey) return res(400, { error: "Streamer hasn't configured their Winovo API key yet." });
+
+      const cacheRef = db.collection("_cache").doc(`lb_${channel.toLowerCase()}_winovo`);
+      let data = null, cached = null;
+      try {
+        const doc = await cacheRef.get();
+        if (doc.exists) {
+          cached = doc.data();
+          if (cached.data && cached.cachedAt && (Date.now() - cached.cachedAt) < LB_CACHE_TTL_MS) data = cached.data;
+        }
+      } catch { /* fall through to a live fetch */ }
+
+      if (!data) {
+        data = await fetchWinovoBoard(apiKey);
+        if (data) { try { await cacheRef.set({ cachedAt: Date.now(), data }); } catch {} }
+        else if (cached?.data) data = cached.data;   // serve stale rather than blank the board
+      }
+      if (!data) return res(502, { error: "Failed to fetch from Winovo." });
+
+      // raw=1 returns the unbaselined totals (the wager raffle applies its own).
+      const raw = event.queryStringParameters?.raw === "1";
+      const out = raw ? data : applyPeriod(data, period);
+      return res(200, {
+        success: true, casino: provider, casinoName: CASINO_NAMES[provider] || "Winovo", period,
+        rankings: out.rankings, totalWagered: out.totalWagered, totalUsers: out.totalUsers,
       });
     }
 

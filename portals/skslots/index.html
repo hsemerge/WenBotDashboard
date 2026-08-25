@@ -360,6 +360,24 @@
     </div>
   </div>
 
+  <!-- Winovo race — its own routed view (#winovo). A second, independent
+       leaderboard: skslots run Gambulls and Winovo side by side, each with its
+       own race and prize ladder, so this gets a full page rather than a toggle
+       squeezed onto the main board. -->
+  <div id="winovoView" class="hidden">
+    <div class="hero" style="padding:8px 0 4px;">
+      <h1><span class="h-emoji">🏆</span> <span id="wvTitle">WINOVO WAGER RACE</span></h1>
+      <p id="wvIntro" style="color:var(--dim);max-width:680px;margin:14px auto 0;line-height:1.6;"></p>
+      <div id="wvPool" class="prize" style="margin-top:14px;"></div>
+    </div>
+    <div class="podium" id="wvPodium"></div>
+    <div id="wvTableWrap">
+      <h2 class="section-title" id="winovo-board">🏆 <span id="wvHeading">Winovo Leaderboard</span></h2>
+      <div class="lb" id="wvTable"><div class="loading">Loading leaderboard…</div></div>
+    </div>
+    <div class="rw-footnote" id="wvNote"></div>
+  </div>
+
   <!-- Wager Rewards — separate routed view (#rewards) -->
   <div id="rewardsView" class="hidden">
     <div class="hero" style="padding:8px 0 4px;">
@@ -446,6 +464,9 @@
 
     // In-page section routes (emote + label).
     items.push(['🏆', 'Leaderboard', '#leaderboard', false]);
+    // Second race gets its own nav entry, but only once the board is configured
+    // and returned by portal-data - no dead link while it is being set up.
+    if (winovoBoard(s)) items.push(['🎰', 'Winovo Race', '#winovo', false]);
     if (s.features && s.features.store && (s.store?.items || []).length) items.push(['🛒', 'Store', '#store', false]);
     (s.portal?.pages || []).forEach(p => items.push(['🎁', p.label, '#' + p.id, false]));
     if (s.pastWinners && s.pastWinners.length) items.push(['👑', 'Winners', '#winners', false]);
@@ -475,7 +496,7 @@
   // in-page anchor on the main view that we smooth-scroll to. This is what makes
   // Store / Past Winners / Wager Rewards their OWN sections (like the wager page)
   // instead of stacking under the leaderboard.
-  const PAGE_VIEWS = { rewards: 'rewardsView', store: 'storeView', winners: 'winnersView' };
+  const PAGE_VIEWS = { rewards: 'rewardsView', store: 'storeView', winners: 'winnersView', winovo: 'winovoView' };
   const PAGE_IDS = new Set(Object.keys(PAGE_VIEWS));
   // Absolute paths, never a bare hash. replaceState resolves "#store" against the
   // CURRENT url, so navigating from /store to Winners produced /store#winners —
@@ -506,6 +527,56 @@
 
   // Wager Rewards page — a small section engine driven by portal.rewards so the
   // streamer's whole rewards doc renders without per-item code.
+  // The Winovo board out of portal-data's `boards` array. Matched on casino
+  // rather than board id, so renaming the board in the dashboard cannot break
+  // this page.
+  function winovoBoard(s) {
+    return (s.boards || []).find(b =>
+      String(b.casinoName || '').toLowerCase() === 'winovo' ||
+      String(b.key || '').toLowerCase().startsWith('winovo')) || null;
+  }
+
+  // Second full leaderboard page. Reuses the podium/table renderers with its own
+  // element ids so the two boards never fight over the DOM.
+  function renderWinovo(s) {
+    const b = winovoBoard(s);
+    const view = document.getElementById('winovoView');
+    if (!view) return;
+    if (!b) { view.classList.add('hidden'); return; }
+
+    const label = b.label || 'Winovo';
+    document.getElementById('wvTitle').textContent = (label + ' Wager Race').toUpperCase();
+    document.getElementById('wvHeading').textContent = label + ' Leaderboard';
+    document.getElementById('wvIntro').textContent =
+      'Wager under code ' + (s.portal?.hero?.code || 'SKSlots') + ' on Winovo to climb this board. ' +
+      'Standings update automatically while the race runs.';
+
+    const pool = Number(b.prizePool || 0);
+    const poolEl = document.getElementById('wvPool');
+    poolEl.textContent = pool > 0 ? money(pool) + ' PRIZE POOL' : '';
+    poolEl.style.display = pool > 0 ? '' : 'none';
+
+    // Winovo's payout condition, stated where the prize is claimed rather than
+    // buried in Discord: a placement prize is void if the player's deposit is
+    // smaller than the prize itself.
+    document.getElementById('wvNote').textContent =
+      'Prizes are paid by Winovo. A placement prize is void if your deposit is less than the prize amount.';
+
+    // Same shape normalisation the main board does: portal-data returns
+    // { rank, name, wagerAmount }.
+    const ranks = (b.rankings || []).map(r => ({
+      rank: r.rank, username: r.name || r.username,
+      wagered: r.wagerAmount != null ? r.wagerAmount : r.wagered,
+      avatarUrl: r.avatarUrl || null,
+    })).slice(0, 10);
+    const prizes = (b.rankings || []).map(r => r.prize).filter(p => Number(p) > 0).map(p => money(p));
+
+    const ids = { podium: 'wvPodium', table: 'wvTable', wrap: 'wvTableWrap' };
+    const hasPodium = ranks.length >= 3;
+    renderPodium(ranks, prizes, ids);
+    renderTable(hasPodium ? ranks.slice(3) : ranks, prizes, hasPodium, ids);
+  }
+
   function renderRewards(s) {
     const r = s.portal?.rewards;
     const host = document.getElementById('rewardGrid');
@@ -551,13 +622,16 @@
   // Prize for a given rank (1-based) from the prizes array, or '' if none.
   function prizeFor(rank, prizes) { return (prizes && prizes[rank - 1]) || ''; }
 
-  function renderPodium(ranks, prizes) {
+  // ids lets a SECOND board (the Winovo view) reuse these renderers; omitted,
+  // they target the main board exactly as before.
+  function renderPodium(ranks, prizes, ids) {
+    const podId = (ids && ids.podium) || 'podium';
     const top = ranks.slice(0, 3);
-    if (top.length < 3) { document.getElementById('podium').style.display = 'none'; return; }
-    document.getElementById('podium').style.display = '';
+    if (top.length < 3) { document.getElementById(podId).style.display = 'none'; return; }
+    document.getElementById(podId).style.display = '';
     const order = [top[1], top[0], top[2]]; // 2nd, 1st, 3rd visually
     const crowns = { 1: '👑', 2: '🥈', 3: '🥉' };
-    document.getElementById('podium').innerHTML = order.map(e => {
+    document.getElementById(podId).innerHTML = order.map(e => {
       const av = e.avatarUrl ? `<img src="${esc(e.avatarUrl)}" alt="" onerror="this.parentElement.textContent='${esc(initials(e.username))}'">` : esc(initials(e.username));
       const prize = prizeFor(e.rank, prizes);
       return `<div class="pod rank-${e.rank}">
@@ -576,9 +650,9 @@
     }).join('');
   }
 
-  function renderTable(ranks, prizes, belowPodium) {
-    const t = document.getElementById('lbTable');
-    const sec = document.getElementById('lbTableWrap');
+  function renderTable(ranks, prizes, belowPodium, ids) {
+    const t = document.getElementById((ids && ids.table) || 'lbTable');
+    const sec = document.getElementById((ids && ids.wrap) || 'lbTableWrap');
     if (!ranks.length) {
       // Empty because everyone's on the podium → hide the whole section.
       // Empty with no podium → genuinely no data, show a message.
@@ -919,6 +993,7 @@
     renderWinners(s);
     renderAbout(s);
     renderRewards(s);
+    renderWinovo(s);
 
     // Honor an initial #store/#winners/#rewards deep-link ONCE, on first load —
     // not on the 60s refresh (which would yank the viewer out of their current view).

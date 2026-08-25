@@ -14,6 +14,7 @@ const { fetchDuelbitsForPeriod, applyDuelbitsPeriod } = require("./_lib/duelbits
 const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards");
 const { fetchClashBoard } = require("./_lib/clash");
 const { fetchGambaRace } = require("./_lib/gamba");
+const { fetchWinovoBoard } = require("./_lib/winovo");
 
 // NOT the shared API_CASINOS from _lib/casinos. This one gates a hardcoded
 // Gambulls board fetch below, so adding a casino here would send that provider to
@@ -1110,6 +1111,38 @@ exports.handler = async (event) => {
         }
       }
       // Live leaderboard via the streamer's stored casino API key (server-side only)
+      // Winovo: one keyed call returns each referred player's CUMULATIVE wager
+      // (their API has no date range), so the race window comes from WenBot's
+      // baselines exactly as it does for Gambulls.
+      else if (provider === "winovo") {
+        const wProv = await db.collection("streamers").doc(uid)
+          .collection("providers").doc("winovo").get();
+        const wKey = wProv.exists ? (wProv.data().apiKey || "") : "";
+        if (wKey) {
+          try {
+            const raw = await fetchWinovoBoard(wKey);
+            if (raw) {
+              const applied  = applyPeriod(raw, mainPeriod);
+              const lbPrizes = Array.isArray(profile.leaderboardPrizes) ? profile.leaderboardPrizes : [];
+              leaderboard = {
+                period:      "Winovo",
+                casinoName:  "Winovo",
+                rankings:    applied.rankings.map((r) => ({
+                  rank:        r.rank,
+                  name:        r.username,
+                  wagerAmount: r.wagered || 0,
+                  avatarUrl:   r.avatarUrl || null,
+                  prize:       Number(lbPrizes[r.rank - 1]) > 0 ? Number(lbPrizes[r.rank - 1]) : 0,
+                })),
+                totalUsers:   applied.totalUsers,
+                totalWagered: applied.totalWagered,
+              };
+            }
+          } catch (err) {
+            console.warn("[portal-data] winovo fetch failed:", err.message);
+          }
+        }
+      }
       else if (GAMBULLS_BOARD_ONLY.has(provider)) {
         const provDoc = await db.collection("streamers").doc(uid)
           .collection("providers").doc(provider).get();
@@ -1333,6 +1366,14 @@ exports.handler = async (event) => {
                   totalUsers: cg.totalUsers, totalWagered: cg.totalWagered,
                   startAt: cg.startAt, endAt: cg.endAt, prizes: cg.prizes, raceName: cg.name,
                 };
+              } else if (b.provider === "winovo") {
+                // Cumulative totals; the board's own period baselines are applied
+                // by the shared code below, same as Gambulls.
+                const wv = await fetchWinovoBoard(cred);
+                if (wv) data = {
+                  rankings: (wv.rankings || []).map((r) => ({ rank: r.rank, username: r.username, wagered: r.wagered, avatarUrl: r.avatarUrl })),
+                  totalUsers: wv.totalUsers, totalWagered: wv.totalWagered,
+                };
               } else if (b.provider === "gamba") {
                 // Same passthrough as Clash: the Gamba race carries its own
                 // window and prize ladder, so the board inherits them.
@@ -1367,12 +1408,24 @@ exports.handler = async (event) => {
               const prizeAt = (rank) => (Number(own[rank - 1]) > 0 ? Number(own[rank - 1]) : 0);
               entry.prizePool = own.reduce((s, v) => s + (Number(v) || 0), 0);
 
-              entry.rankings     = (data.rankings || []).map((r) => ({
+              // Most providers here return numbers already scoped to the race
+              // window (Clash/Gamba/Degen own their window; Rainbet is queried by
+              // date). Winovo does NOT — its API has no date range and reports
+              // each player's total since the affiliate's last reset — so an
+              // un-baselined extra board would show lifetime wager and never
+              // reset. Apply the board's own baselines for those providers, the
+              // same way the main board does.
+              const CUMULATIVE = new Set(["winovo"]);
+              const scoped = CUMULATIVE.has(b.provider)
+                ? applyPeriod(data, periodOfBoard(b))
+                : data;
+
+              entry.rankings     = (scoped.rankings || []).map((r) => ({
                 rank: r.rank, name: r.username, wagerAmount: r.wagered || 0,
                 avatarUrl: r.avatarUrl || null, prize: prizeAt(r.rank),
               }));
-              entry.totalUsers   = data.totalUsers   || 0;
-              entry.totalWagered = data.totalWagered || 0;
+              entry.totalUsers   = scoped.totalUsers   || 0;
+              entry.totalWagered = scoped.totalWagered || 0;
             }
           } catch (e) {
             console.warn(`[portal-data] extra board ${b.id} failed:`, e.message);

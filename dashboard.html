@@ -2992,6 +2992,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
               <option value="rollbit">Rollbit</option>
               <option value="chipsgg">Chips.gg</option>
               <option value="hypebet">Hype.bet</option>
+              <option value="winovo">Winovo</option>
               <option value="notlisted">Not Listed</option>
             </select>
           </div>
@@ -14544,6 +14545,8 @@ const BOARD_PROVIDERS = [
   { id: 'gamba',    name: 'Gamba',    cred: 'refCode',
     credLabel: 'Race link or ID', credPlaceholder: 'paste your Gamba race link',
     hint: 'Paste your Gamba exclusive-leaderboard link (or just its number). The race is public — no API key needed — and it sets its own dates and prizes.' },
+  { id: 'winovo',   name: 'Winovo',   cred: 'apiKey',
+    hint: 'Your Winovo creator API key. Winovo report the total wager since their last reset, so give this board a schedule — WenBot takes a baseline when the race starts and counts from there.' },
 ];
 
 // Fill the Wager Rankings board selector. Hidden unless the streamer runs more
