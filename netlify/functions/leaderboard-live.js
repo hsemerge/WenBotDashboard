@@ -9,6 +9,7 @@ const { findStreamerByChannel } = require("./_lib/streamer");
 const { fetchDegenRace }   = require("./_lib/degen");
 const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards");
 const { fetchRainbetRange, fetchRainbetForPeriod, applyRainbetExclusions } = require("./_lib/rainbet");
+const { fetchHypebetRange, fetchHypebetForPeriod, applyHypebetExclusions } = require("./_lib/hypebet");
 const { fetchDuelbits, fetchDuelbitsForPeriod, fetchDuelbitsDayBaseline, applyDuelbitsPeriod, ymdNext } = require("./_lib/duelbits");
 const { fetchClashBoard } = require("./_lib/clash");
 const { fetchGambaRace }  = require("./_lib/gamba");
@@ -79,6 +80,10 @@ const CLASH_CACHE_TTL_MS = 5 * 60 * 1000;
 // any TTL), so 5 min keeps the board feeling live at negligible cost and still
 // well clear of Gamba's WAF however busy the portal gets.
 const GAMBA_CACHE_TTL_MS = 5 * 60 * 1000;
+// Hype.bet enforces a 5-MINUTE per-key cooldown, so the cache MUST outlast it or
+// back-to-back portal loads earn a RATE_LIMIT_EXCEEDED. 6 min keeps every real
+// fetch comfortably past the cooldown boundary.
+const HYPEBET_CACHE_TTL_MS = 6 * 60 * 1000;
 async function getCachedStandings(db, channelKey, provider, apiKey) {
   const ref = db.collection("_cache").doc(`lb_${channelKey}_${provider}`);
   let cached = null;
@@ -391,6 +396,55 @@ exports.handler = async (event) => {
       }
       // raw=1 skips exclusions (wager raffle applies its own logic).
       const out = event.queryStringParameters?.raw === "1" ? data : applyRainbetExclusions(data, period);
+      return res(200, {
+        success: true, casino: provider, casinoName: CASINO_NAMES[provider], period,
+        rankings: out.rankings, totalWagered: out.totalWagered, totalUsers: out.totalUsers,
+        rangeFrom: data.from, rangeTo: data.to, casinoUpdatedAt: data.cacheUpdatedAt || null,
+      });
+    }
+
+    // Hype.bet (Affilka): key + arbitrary date range, same shape as Rainbet — the
+    // range IS the period, so no baselines/carryover; only WenBot's manual
+    // exclusions apply on top. Cached 6 min per channel+range to respect the
+    // provider's 5-minute per-key cooldown.
+    if (provider === "hypebet") {
+      const provDoc = await db.collection("streamers").doc(streamerDoc.id)
+        .collection("providers").doc("hypebet").get();
+      const apiKey = provDoc.exists ? (provDoc.data().apiKey || "") : "";
+      if (!apiKey) return res(400, { error: "Streamer hasn't configured their Hype.bet API key yet." });
+
+      const fromParam = (event.queryStringParameters?.from || "").trim();
+      const toParam   = (event.queryStringParameters?.to   || "").trim();
+      const histRange = fromParam && toParam;
+
+      const cacheRef = db.collection("_cache")
+        .doc(`lb_${channel.toLowerCase()}_hypebet_${histRange ? `${fromParam}_${toParam}` : "live"}`);
+      let data = null, cached = null;
+      try {
+        const doc = await cacheRef.get();
+        if (doc.exists) {
+          cached = doc.data();
+          if (cached.data && cached.cachedAt && (Date.now() - cached.cachedAt) < HYPEBET_CACHE_TTL_MS) data = cached.data;
+        }
+      } catch { /* fall through to a live fetch */ }
+
+      if (!data) {
+        data = histRange
+          ? await fetchHypebetRange(apiKey, fromParam, toParam)
+          : await fetchHypebetForPeriod(apiKey, period);
+        if (data) { try { await cacheRef.set({ cachedAt: Date.now(), data }); } catch {} }
+        else if (cached?.data) data = cached.data;   // serve stale rather than fail
+      }
+      if (!data) return res(502, { error: "Failed to fetch from Hype.bet API." });
+
+      if (histRange) {
+        return res(200, {
+          success: true, casino: provider, casinoName: CASINO_NAMES[provider], historical: true,
+          period: { from: data.from, to: data.to },
+          rankings: data.rankings, totalWagered: data.totalWagered, totalUsers: data.totalUsers,
+        });
+      }
+      const out = event.queryStringParameters?.raw === "1" ? data : applyHypebetExclusions(data, period);
       return res(200, {
         success: true, casino: provider, casinoName: CASINO_NAMES[provider], period,
         rankings: out.rankings, totalWagered: out.totalWagered, totalUsers: out.totalUsers,

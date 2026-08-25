@@ -9,6 +9,7 @@ const { lookupAffiliate }    = require("./_lib/affiliate");
 const { normalizeGambulls, applyPeriod } = require("./_lib/leaderboard");
 const { fetchDegenRace }     = require("./_lib/degen");
 const { fetchRainbetForPeriod, fetchRainbetRange, applyRainbetExclusions, ymd: rbYmd } = require("./_lib/rainbet");
+const { fetchHypebetForPeriod, fetchHypebetRange, applyHypebetExclusions, ymd: hbYmd } = require("./_lib/hypebet");
 const { fetchCsgobigRace }   = require("./_lib/csgobig");
 const { fetchDuelbitsForPeriod, applyDuelbitsPeriod } = require("./_lib/duelbits");
 const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards");
@@ -1057,6 +1058,48 @@ exports.handler = async (event) => {
           }
         }
       }
+      else if (provider === "hypebet") {
+        const provDoc = await db.collection("streamers").doc(uid)
+          .collection("providers").doc("hypebet").get();
+        const hbKey = provDoc.exists ? (provDoc.data().apiKey || "") : "";
+        if (hbKey) {
+          try {
+            // 6-min cache to respect Hype.bet's 5-minute per-key cooldown.
+            const cacheRef = db.collection("_cache").doc(`lb_${channel}_hypebet_live`);
+            let data = null, cachedDoc = null;
+            try {
+              const c = await cacheRef.get();
+              if (c.exists) {
+                cachedDoc = c.data();
+                if (cachedDoc.data && cachedDoc.cachedAt && (Date.now() - cachedDoc.cachedAt) < 360_000) data = cachedDoc.data;
+              }
+            } catch {}
+            if (!data) {
+              data = await fetchHypebetForPeriod(hbKey, mainPeriod);
+              if (data) { try { await cacheRef.set({ cachedAt: Date.now(), data }); } catch {} }
+              else if (cachedDoc?.data) data = cachedDoc.data;
+            }
+            if (data) {
+              const applied  = applyHypebetExclusions(data, mainPeriod);
+              const lbPrizes = Array.isArray(profile.leaderboardPrizes) ? profile.leaderboardPrizes : [];
+              leaderboard = {
+                period:   { from: data.from, to: data.to },
+                rankings: applied.rankings.map((r) => ({
+                  rank:        r.rank,
+                  name:        r.username,
+                  wagerAmount: r.wagered || 0,
+                  avatarUrl:   r.avatarUrl || null,
+                  prize:       Number(lbPrizes[r.rank - 1]) > 0 ? Number(lbPrizes[r.rank - 1]) : 0,
+                })),
+                totalUsers:   applied.totalUsers,
+                totalWagered: applied.totalWagered,
+              };
+            }
+          } catch (err) {
+            console.warn("[portal-data] hypebet fetch failed:", err.message);
+          }
+        }
+      }
       else if (provider === "duelbits") {
         const provDoc = await db.collection("streamers").doc(uid)
           .collection("providers").doc("duelbits").get();
@@ -1356,6 +1399,10 @@ exports.handler = async (event) => {
                 // timestamps silently returns nothing.
                 const rb = await fetchRainbetRange(cred, rbYmd(from), rbYmd(to));
                 if (rb) data = { rankings: (rb.rankings || []).map((r) => ({ rank: r.rank, username: r.username, wagered: r.wagered, avatarUrl: null })), totalUsers: rb.totalUsers, totalWagered: rb.totalWagered };
+              } else if (b.provider === "hypebet" && from && to) {
+                // Hype.bet takes YYYY-MM-DD like Rainbet; pass the window as dates.
+                const hb = await fetchHypebetRange(cred, hbYmd(from), hbYmd(to));
+                if (hb) data = { rankings: (hb.rankings || []).map((r) => ({ rank: r.rank, username: r.username, wagered: r.wagered, avatarUrl: r.avatarUrl || null })), totalUsers: hb.totalUsers, totalWagered: hb.totalWagered };
               } else if (b.provider === "clash") {
                 // Clash owns the race: its period and prize ladder come back with
                 // the standings, so the board inherits them rather than needing

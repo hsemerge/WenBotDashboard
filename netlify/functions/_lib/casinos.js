@@ -22,10 +22,12 @@ const CASINO_NAMES = {
   duelbits:   "Duelbits",
   rollbit:    "Rollbit",
   chipsgg:    "Chips.gg",
-  // Honour-system for now: hype.bet issue affiliate API keys but publish no
-  // docs, and their edge 403s every request from a datacenter IP (a
-  // jurisdiction blacklist, not a bot check), so a server-side leaderboard
-  // fetch is unproven. Names are stored and shown; nothing is matched.
+  // Affilka affiliate-stats API (see _lib/hypebet.js): a POST to get-stats
+  // returns every referred player's wager for a date range, so the live board
+  // AND under-code verification both work. Real usernames + avatars, but the API
+  // returns no user id, so matching is username-only (no masking). The datacenter
+  // 403 that once kept this honour-system is gone — Lambda reaches it now (probed
+  // Aug 2026). In API_CASINOS.
   hypebet:    "Hype.bet",
   // Creator-leaderboard API (github.com/winovo-io/Creator-Leaderboard-API):
   // one keyed endpoint returns every referred player with their cumulative
@@ -69,6 +71,6 @@ const CASINO_NAMES = {
 // same best-effort match Degen/CSGOBig use. It's in this set (not a separate
 // verify-affiliate branch like those two) because its logic lives inside
 // lookupAffiliate, so every caller picks it up through the one dispatch.
-const API_CASINOS = new Set(["gambulls", "rainbet", "duelbits", "clash", "gamba", "winovo"]);
+const API_CASINOS = new Set(["gambulls", "rainbet", "duelbits", "clash", "gamba", "winovo", "hypebet"]);
 
 module.exports = { CASINO_NAMES, API_CASINOS };

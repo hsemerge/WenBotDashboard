@@ -191,6 +191,44 @@ async function lookupAffiliate(provider, credential, affiliateUsername, diagnost
     }
   }
 
+  // ── Hype.bet (Affilka) ──────────────────────────────────────────────────────
+  // Real usernames, but the API returns no user id and no masking, so matching is
+  // a straight username compare (like Gamba). get-stats lists every referred
+  // player with recorded wager in the window, so we look back the widest window
+  // the API allows — someone under the code who hasn't played this week still
+  // resolves as under-code. A miss means "no recorded play in that window".
+  if (provider === "hypebet") {
+    const diag = { type: "hypebet", target, knownUid };
+    try {
+      const { fetchHypebetRange, clampRange } = require("./hypebet");
+      const range = clampRange(0, Date.now());   // widest window ending today
+      const board = await fetchHypebetRange(apiKey, range.from, range.to);
+      if (!board) {
+        diag.error = "fetch failed (bad key, cooldown, or API error)";
+        if (diagnostics) diagnostics.push(diag);
+        return null;
+      }
+      diag.totalEntries = board.rankings.length;
+      diag.totalWagered = board.totalWagered;
+      diag.sample       = board.rankings.slice(0, 5).map((r) => r.username);
+      const hit = board.rankings.find((r) => (r.username || "").toLowerCase().trim() === target);
+      diag.matched = !!hit;
+      if (diagnostics) diagnostics.push(diag);
+      if (!hit) return null;
+      return {
+        uid:             null,                       // API exposes no stable id
+        username:        hit.username,
+        wagerAmount:     hit.wagered || 0,
+        leaderboardType: "hypebet",
+        matchedViaMask:  false,
+      };
+    } catch (err) {
+      diag.error = err.message;
+      if (diagnostics) diagnostics.push(diag);
+      return null;
+    }
+  }
+
   // ── Duelbits ───────────────────────────────────────────────────────────────
   // Masked names (first2 *** last1, same as Gambulls) but flat rows with stable
   // ids (like Rainbet), so it reuses findMatch for the masking while mapping the

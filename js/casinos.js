@@ -73,6 +73,12 @@ const CASINO_CREDENTIALS = {
     placeholder: "e.g. 52e755f...",
     hint:        "From your Winovo creator dashboard. Powers your live leaderboard and under-code verification.",
   },
+  hypebet: {
+    field:       "apiKey",
+    label:       "Hype.bet Affiliate API Key",
+    placeholder: "paste your Hype.bet (Affilka) affiliate API key",
+    hint:        "From your Hype.bet affiliate dashboard. Powers your live leaderboard and under-code verification.",
+  },
   gamba: {
     // The race is public and keyless — the "credential" is just the race's page
     // link (or its id). Stored under referralCode like Degen; the backend Gamba
