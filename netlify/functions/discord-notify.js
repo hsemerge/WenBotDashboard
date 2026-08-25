@@ -55,6 +55,15 @@ function buildGiveawayStartEmbed(data, profile) {
   const provider     = (profile?.activeProvider || "").toLowerCase();
   const platformName = provider ? (CASINO_NAMES[provider] || provider) : null;
 
+  // A DISCORD-type giveaway is entered with the Join button on this card. A KICK
+  // (stream) giveaway is entered IN KICK CHAT — its Discord post is only a
+  // heads-up, with NO button (which would let a Discord tap skip the Kick-side
+  // eligibility rules), just the keyword and a link to the stream.
+  const isDiscord  = data.target === "discord";
+  const howToEnter = isDiscord
+    ? "Click the **Join Giveaway** button below."
+    : `Head to Kick chat and type \`${keyword}\` to enter.${watchLine(profile)}`;
+
   return {
     color:       0x00e5ff,
     title:       "🎉 Giveaway is LIVE!",
@@ -62,7 +71,7 @@ function buildGiveawayStartEmbed(data, profile) {
     fields: [
       { name: "Eligibility", value: typeLabel, inline: true },
       ...(platformName ? [{ name: "Platform", value: platformName, inline: true }] : []),
-      { name: "How to enter", value: `Click the **Join Giveaway** button below, or type \`${keyword}\` in Kick chat`, inline: false },
+      { name: "How to enter", value: howToEnter, inline: false },
     ],
     footer:    { text: "WenBot • Giveaway" },
     timestamp: new Date().toISOString(),
@@ -207,7 +216,10 @@ exports.handler = async (event) => {
   if (!route.enabled) return res(200, { skipped: route.reason });
 
   const payload = { embeds: [build(data, profile)] };
-  if (type === "giveaway_start") {
+  // The Join button belongs ONLY on a Discord-type giveaway. A Kick giveaway's
+  // Discord post is a heads-up; entry must happen in Kick chat where the
+  // eligibility rules (follow date, subs-only, verified, wager) can be enforced.
+  if (type === "giveaway_start" && data.target === "discord") {
     payload.components = [{
       type:       1,
       components: [{

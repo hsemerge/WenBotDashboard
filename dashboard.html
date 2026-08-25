@@ -8708,9 +8708,12 @@ async function startGiveaway() {
   await gwCommitFairness();
   gwUpdateUI();
   flash('🎉 Giveaway started! WenBot is announcing in chat.');
-  if (gwTarget === 'discord') {
-    discordNotify('giveaway_start', { type: currentGiveawayType, keyword });
-  }
+  // Announce to Discord for BOTH giveaway types whenever the streamer has routed
+  // the giveaway_start event (the server skips it if unrouted). `target` tells the
+  // server how to render it: a Kick giveaway gets a "join in Kick chat" heads-up
+  // with NO Join button — so a Discord tap can't skip the Kick-side eligibility
+  // rules — while a Discord giveaway gets the Join-button card.
+  discordNotify('giveaway_start', { type: currentGiveawayType, keyword, target: gwTarget });
 }
 
 let gwTarget = 'kick';
@@ -10100,9 +10103,9 @@ window.addEventListener('message', (e) => {
   addRecentWinner(pickedWinner);
   showWinnerActionPopup(pickedWinner);
   gwSetPeopleTab('w');   // surface the Winners tab the moment a draw lands
-  if (gwTarget === 'discord') {
-    discordNotify('giveaway_winner', { winner: pickedWinner.username, totalEntries: entries.length });
-  }
+  // Winner posts to Discord for both giveaway types when routed (an announcement,
+  // no Join button either way).
+  discordNotify('giveaway_winner', { winner: pickedWinner.username, totalEntries: entries.length, target: gwTarget });
 
   // The dashboard's reveal does NOT auto-hide — the preview iframe runs in
   // hold mode, and gwClearOverlay() takes it down when the streamer acts on
