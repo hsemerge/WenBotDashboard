@@ -557,8 +557,17 @@
     const id = hash.replace(/^#/, '');
     if (PAGE_IDS.has(id)) { showView(id); history.replaceState(null, '', '/' + id); return false; }
     showView('main');
-    // In-page anchors belong to the main view, so anchor off the root.
-    history.replaceState(null, '', id ? '/#' + id : '/');
+    // The board's own nav link means "show me this race", so it lands at the TOP
+    // of the page — hero, countdown, podium, then the table. It used to scroll to
+    // the #leaderboard HEADING, which sits below all of that, so choosing the
+    // board dropped the viewer into the middle of the page.
+    if (!id || id === 'leaderboard') {
+      history.replaceState(null, '', '/');
+      window.scrollTo(0, 0);   // instant, not smooth — this is a view switch, not a jump within one
+      return false;
+    }
+    // Any other in-page anchor still scrolls to its section.
+    history.replaceState(null, '', '/#' + id);
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return false;
