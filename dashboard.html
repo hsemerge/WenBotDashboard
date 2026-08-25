@@ -13539,42 +13539,44 @@ async function loadVerifiedCount() {
 }
 
 async function removeVerified(docId) {
-  const uid = fb.activeUid;
-  // Look up the verified_users doc first to find the kickName,
-  // so we can cascade-delete matching discord_links rows.
-  const verifiedRef  = fb.db.collection('streamers').doc(uid).collection('verified_users').doc(docId);
-  const verifiedSnap = await verifiedRef.get();
-  const kickName     = verifiedSnap.exists ? verifiedSnap.data().kickName : null;
-
-  // Find matching discord_links and queue for deletion
-  let discordUsernames = [];
-  let linkDocs = [];
-  if (kickName) {
-    const linksSnap = await fb.db.collection('streamers').doc(uid)
-      .collection('discord_links')
-      .where('kickUsername', '==', kickName)
-      .get();
-    linkDocs = linksSnap.docs;
-    discordUsernames = linkDocs.map(d => d.data().discordUsername).filter(Boolean);
+  if (!fb.currentUser) return;
+  // Goes through /api/verified-remove rather than deleting from the browser:
+  // taking back the Discord verified role needs the bot token, which is
+  // server-side only. Deleting here left removed viewers holding the role — and
+  // whatever access it opens — until someone noticed.
+  let out;
+  try {
+    const idToken = await fb.currentUser.getIdToken();
+    const resp = await fetch('/api/verified-remove', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ docId, uid: fb.activeUid }),
+    });
+    out = await resp.json();
+    if (!resp.ok) throw new Error(out.error || 'Failed');
+  } catch (e) {
+    flash('Could not remove: ' + e.message, 'error');
+    return;
   }
 
-  // Atomically delete the verified user + any matching Discord links
-  const batch = fb.db.batch();
-  batch.delete(verifiedRef);
-  linkDocs.forEach(d => batch.delete(d.ref));
-  await batch.commit();
+  // Drop the row locally and re-render instead of re-fetching. The list is a
+  // one-shot read on purpose (the bot writes to verified_users constantly via
+  // the wager sync, so a live listener would bill reads all day), and the
+  // filter/search already render from this same cache.
+  verifiedCache = verifiedCache.filter(r => r.id !== docId);
+  renderVerifiedFromCache();
+  const countEl = document.getElementById('statVerified');
+  if (countEl) countEl.textContent = Math.max(0, (parseInt(countEl.textContent, 10) || 1) - 1);
 
-  logAction('verified_user_removed', {
-    docId,
-    kickName,
-    discordLinksRemoved: linkDocs.length,
-    discordUsernames,
-  });
-
-  if (linkDocs.length > 0) {
-    flash(`Removed @${kickName} and unlinked Discord (${discordUsernames.join(', ') || linkDocs.length + ' link(s)'}).`);
+  const who = out.kickName ? '@' + out.kickName : 'User';
+  if (out.stillVerifiedElsewhere) {
+    flash(`${who} removed from this casino. They are still verified on another board, so their Discord role stays.`);
+  } else if (out.roleRevoked) {
+    flash(`${who} removed, Discord unlinked and their verified role taken back.`);
+  } else if (out.linksRemoved) {
+    flash(`${who} removed and Discord unlinked.`);
   } else {
-    flash(kickName ? `Removed @${kickName}.` : 'User removed.');
+    flash(`${who} removed.`);
   }
 }
 

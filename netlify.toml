@@ -260,6 +260,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/verified-remove"
+  to     = "/.netlify/functions/verified-remove"
+  status = 200
+
+[[redirects]]
   from   = "/api/set-undercode"
   to     = "/.netlify/functions/set-undercode"
   status = 200
