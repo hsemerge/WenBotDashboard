@@ -18,7 +18,14 @@ const DISCORD_EVENTS = [
     key:    'giveaway_winner',
     label:  'Giveaway winner',
     bucket: 'giveaway',
-    hint:   'Posted when you draw, from the dashboard or !winner.',
+    hint:   'The simple public "we have a winner!" card.',
+  },
+  {
+    key:       'giveaway_winner_mod',
+    label:     'Giveaway winner — mod log',
+    bucket:    null,
+    mustRoute: true,
+    hint:      'Detailed winner card for staff (alt / bot / shared-connection flags + a Show more button). Posts ONLY to the channel you pick here — never a default channel — so it stays out of viewer channels.',
   },
   {
     key:    'hunt_start',

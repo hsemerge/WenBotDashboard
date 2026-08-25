@@ -661,7 +661,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.39.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.41.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3714,9 +3714,22 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.40.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.41.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.41.0 &middot; Giveaway winners get a staff mod-log, and Channel setup in one place</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 25, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#128270; <strong>Every giveaway winner now drops a staff mod-log card.</strong> Add the new <strong>Giveaway winner &mdash; mod log</strong> Discord route and each winner you draw posts a detailed card there &mdash; verified status, casino and code, points, plus automatic <strong>red-flag alerts</strong> when the account looks like an alt, a bot, or shares a connection with other accounts. A <strong>Show more</strong> button runs the full lookup for the whole mod team to read.</li>
+            <li>&#128274; <strong>The mod-log stays out of your public channels.</strong> This route only ever posts to a channel you pick for it &mdash; it never falls back to your giveaway or announcements channel &mdash; so winner flags and lookups can&rsquo;t leak to viewers. Want winners shown to chat too? The plain <strong>Giveaway winner</strong> route still does that.</li>
+            <li>&#129517; <strong>Channel setup, in one place.</strong> A single <strong>Channel setup</strong> panel now holds your Announcements and Giveaway channels alongside per-event routing, with the advanced <code>/giveall</code> control tucked at the bottom. And your saved channels fill in the moment the page loads instead of sitting blank until you hit refresh.</li>
+            <li>&#128173; <strong>Dropped the <code>!winner</code> chat command.</strong> Winners are drawn from your dashboard (with the spinner and the winner card), so the redundant Kick-chat command is gone.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -8245,10 +8258,19 @@ function onAuthReady(user) {
     if (_slR && profile.giveawaySubLuck > 1) { _slR.value = profile.giveawaySubLuck; const _v = document.getElementById('subLuckVal'); if (_v) _v.textContent = profile.giveawaySubLuck + 'x'; }
     const _clR = document.getElementById('codeLuckSlider');
     if (_clR && profile.giveawayCodeLuck > 1) { _clR.value = profile.giveawayCodeLuck; const _v = document.getElementById('codeLuckVal'); if (_v) _v.textContent = profile.giveawayCodeLuck + 'x'; }
-    if (profile.giveawayVerifiedCasino || profile.giveawayVerifiedDiscord) {
+    // A per-streamer opt-in (giveawayDefaultCasinoVerified, set only on that
+    // streamer's doc) makes Casino Verified come up ON for every NEW giveaway, so
+    // a streamer who always wants it can stop having to remember. It applies only
+    // while idle (!giveawayActive) — a live round a mod deliberately ran without
+    // verification still shows its real state — and the box is left ENABLED, so she
+    // or a mod can still untick it for a specific round (that round is honoured;
+    // the next new giveaway defaults back on). Absent the flag, behaviour is
+    // unchanged for every other streamer.
+    const _casinoDefault = profile.giveawayDefaultCasinoVerified && !profile.giveawayActive;
+    if (_casinoDefault || profile.giveawayVerifiedCasino || profile.giveawayVerifiedDiscord) {
       document.getElementById('toggleVerified')?.classList.add('on');
       const _vrf = document.getElementById('verifiedReqFields'); if (_vrf) _vrf.style.display = 'block';
-      const _vcc = document.getElementById('verifiedCasinoCheck'); if (_vcc) _vcc.checked = !!profile.giveawayVerifiedCasino;
+      const _vcc = document.getElementById('verifiedCasinoCheck'); if (_vcc) _vcc.checked = _casinoDefault ? true : !!profile.giveawayVerifiedCasino;
       const _vbR = document.getElementById('verifiedBoardSelect'); if (_vbR) _vbR.value = String(profile.giveawayVerifiedBoard || '');
       const _vdc = document.getElementById('verifiedDiscordCheck'); if (_vdc) _vdc.checked = !!profile.giveawayVerifiedDiscord;
     }
@@ -10139,6 +10161,10 @@ window.addEventListener('message', (e) => {
   // Winner posts to Discord for both giveaway types when routed (an announcement,
   // no Join button either way).
   discordNotify('giveaway_winner', { winner: pickedWinner.username, totalEntries: entries.length, target: gwTarget });
+  // Detailed staff card with red-flag detection → the mod-log channel, if the
+  // streamer routed one. Fires on every draw regardless of Kick/Discord target;
+  // the server skips it when no mod-log channel is configured.
+  discordNotify('giveaway_winner_mod', { winner: pickedWinner.username, totalEntries: entries.length });
 
   // The dashboard's reveal does NOT auto-hide — the preview iframe runs in
   // hold mode, and gwClearOverlay() takes it down when the streamer acts on
@@ -18617,16 +18643,22 @@ function renderDiscordRoutes() {
   wrap.innerHTML = DISCORD_EVENTS.map(ev => {
     const r        = routes[ev.key] || {};
     const on       = r.enabled !== false;   // absent = on
-    const bucketLbl = DISCORD_BUCKET_LABELS[ev.bucket] || 'default channel';
+    // A mustRoute event (the mod log) has no default channel — it posts only to a
+    // channel picked here — so its blank option reads "off" instead of a default,
+    // and the row is tinted so it clearly reads as a deliberate "pick a channel".
+    const firstOpt = ev.mustRoute
+      ? '<option value="">— off (pick a channel) —</option>'
+      : `<option value="">Default — ${escHtml(DISCORD_BUCKET_LABELS[ev.bucket] || 'default channel')}</option>`;
+    const rowBorder = ev.mustRoute ? 'var(--accent)' : 'var(--border)';
     return `
-      <div style="display:grid;grid-template-columns:20px 1fr minmax(180px,240px);gap:12px;align-items:center;padding:9px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;">
+      <div style="display:grid;grid-template-columns:20px 1fr minmax(180px,240px);gap:12px;align-items:center;padding:9px 12px;background:var(--bg-card);border:1px solid ${rowBorder};border-radius:8px;margin-bottom:6px;">
         <input type="checkbox" id="dre_on_${ev.key}" ${on ? 'checked' : ''} style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer;">
         <label for="dre_on_${ev.key}" style="cursor:pointer;min-width:0;">
           <div style="font-size:12px;font-weight:600;color:var(--bright);">${escHtml(ev.label)}</div>
           <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">${escHtml(ev.hint)}</div>
         </label>
         <select id="dre_ch_${ev.key}" style="font-size:12px;">
-          <option value="">Default — ${escHtml(bucketLbl)}</option>
+          ${firstOpt}
           ${_discordChanOpts}
         </select>
       </div>`;

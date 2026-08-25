@@ -22,7 +22,14 @@ const DISCORD_EVENTS = [
     key:    "giveaway_winner",
     label:  "Giveaway winner",
     bucket: "giveaway",
-    hint:   "Posted when you draw, from the dashboard or !winner.",
+    hint:   "The simple public 'we have a winner!' card.",
+  },
+  {
+    key:       "giveaway_winner_mod",
+    label:     "Giveaway winner — mod log",
+    bucket:    null,        // NEVER falls back to a shared channel (see mustRoute)
+    mustRoute: true,
+    hint:      "A detailed winner card for your staff — alt / bot / shared-connection flags plus a Show-more button. Posts ONLY to a channel you pick here (never the giveaway/announcements default), so mod info can't leak to viewers.",
   },
   {
     key:    "hunt_start",
@@ -83,13 +90,19 @@ function resolveDiscordRoute(cfg, type) {
     return { enabled: false, channelId: null, reason: "Turned off for this streamer" };
   }
 
-  const bucketId = ev.bucket === "giveaway"
-    ? (cfg && cfg.giveawayChannelId)
+  // Sensitive events (the mod-log winner) must NEVER fall back to the shared
+  // giveaway/announcement channels, or they'd leak mod-only info to viewers — they
+  // post ONLY to a channel the streamer explicitly picks for them.
+  const bucketId = ev.mustRoute ? null
+    : ev.bucket === "giveaway" ? (cfg && cfg.giveawayChannelId)
     : (cfg && cfg.announcementChannelId);
 
   const channelId = route.channelId || bucketId || null;
   if (!channelId) {
-    return { enabled: false, channelId: null, reason: `No ${ev.bucket} channel configured` };
+    return {
+      enabled: false, channelId: null,
+      reason: ev.mustRoute ? "Needs its own channel (no default fallback)" : `No ${ev.bucket} channel configured`,
+    };
   }
   return { enabled: true, channelId, reason: null };
 }
