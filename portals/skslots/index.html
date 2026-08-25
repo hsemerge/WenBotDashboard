@@ -54,13 +54,32 @@
   .nav-links a:hover { color:var(--bright); }
 
   /* LINK BAR (socials + custom links) — items truly centered as a group */
-  .linkbar { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; align-items:center;
-    margin:8px 0 28px; background:rgba(255,255,255,.02); border:1px solid var(--border);
-    border-radius:14px; padding:12px 16px; }
-  .linkbar a { display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:8px 15px; border-radius:10px;
-    color:var(--text); text-decoration:none; font-size:13px; font-weight:600; border:1px solid var(--border); background:rgba(255,255,255,.02); transition:.15s; white-space:nowrap; }
-  .linkbar a:hover { border-color:var(--accent); background:rgba(168,85,247,.1); color:var(--bright); transform:translateY(-1px); }
-  .linkbar .lk-emote { font-size:15px; line-height:1; }
+  /* Two tiers, matching MegRewards: the site's own sections are plain uppercase
+     text links with an underline that lights up, and only the links that LEAVE
+     the site keep a button around them. Nine equal pills wrapped onto a second
+     row and left an orphan; this reads as navigation instead of a wall. */
+  .linkbar { display:flex; flex-wrap:wrap; gap:20px; justify-content:center; align-items:center;
+    margin:10px 0 26px; padding:0; background:none; border:0; }
+  .linkbar a { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:7px;
+    font-family:'Exo 2',sans-serif; font-weight:800; font-size:14px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--text); text-decoration:none; padding:4px 0 6px;
+    border:0; background:none; transition:color .15s; white-space:nowrap; }
+  .linkbar a::after { content:''; position:absolute; left:0; right:0; bottom:0; height:2px;
+    border-radius:2px; background:currentColor; opacity:.22; transition:opacity .15s, transform .15s;
+    transform:scaleX(.82); transform-origin:center; }
+  .linkbar a:hover { color:var(--bright); }
+  .linkbar a:hover::after { opacity:1; transform:scaleX(1); }
+  .linkbar a.lk-active { color:var(--accent); }
+  .linkbar a.lk-active::after { opacity:1; transform:scaleX(1); }
+  /* Buttons carry their own shape, so no underline on those. */
+  .linkbar a.lk-ext::after { display:none; }
+  .lk-buttons { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; }
+  .linkbar a.lk-ext { text-transform:none; letter-spacing:0; font-family:inherit; font-weight:600;
+    font-size:13px; color:var(--text); padding:9px 15px; border-radius:10px;
+    border:1px solid var(--border); background:rgba(255,255,255,.02); transition:.15s; }
+  .linkbar a.lk-ext:hover { border-color:var(--accent); background:rgba(168,85,247,.1); color:var(--bright); }
+  .lk-sep { width:1px; height:18px; background:var(--border); }
+  .linkbar .lk-emote { font-size:14px; line-height:1; }
 
   /* HERO */
   .hero { text-align:center; padding:18px 0 14px; position:relative; }
@@ -261,8 +280,9 @@
     .countdown { gap:8px; }
     .cd-cell { min-width:64px; padding:10px 12px; }
     .cd-num { font-size:28px; }
-    .linkbar { padding:10px; gap:8px; }
-    .linkbar a { padding:7px 12px; font-size:12px; }
+    .linkbar { gap:14px; }
+    .linkbar a { font-size:12.5px; }
+    .linkbar a.lk-ext { padding:8px 12px; font-size:12px; }
     .section-title { font-size:16px; margin:24px 0 12px; }
     /* Leaderboard rows: tighten and let long names ellipsis instead of pushing
        the wager/prize off-screen. */
@@ -452,6 +472,25 @@
     tick(); clearInterval(cdTimer); cdTimer = setInterval(tick, 1000);
   }
 
+  // Which section is on screen, in the same ids the nav hrefs use. The main
+  // view is the leaderboard, so it answers 'leaderboard'.
+  function currentViewId() {
+    for (const [id, viewId] of Object.entries(PAGE_VIEWS)) {
+      const el = document.getElementById(viewId);
+      if (el && !el.classList.contains('hidden')) return id;
+    }
+    return 'leaderboard';
+  }
+
+  // Underline the section you are actually looking at. Text links only —
+  // .lk-ext buttons leave the site, so they are never "current".
+  function markNav(name) {
+    const bar = document.getElementById('linkbar');
+    if (!bar) return;
+    bar.querySelectorAll('a:not(.lk-ext)').forEach((a) =>
+      a.classList.toggle('lk-active', a.getAttribute('href') === '#' + name));
+  }
+
   function renderLinks(s) {
     // ONE unified bar: in-page sections (with emotes) + external socials + the
     // streamer's custom links. Deduped — each destination appears exactly once.
@@ -463,10 +502,15 @@
     const items = []; // [emote, label, href, isExternal]
 
     // In-page section routes (emote + label).
-    items.push(['🏆', 'Leaderboard', '#leaderboard', false]);
-    // Second race gets its own nav entry, but only once the board is configured
-    // and returned by portal-data - no dead link while it is being set up.
-    if (winovoBoard(s)) items.push(['🎰', 'Winovo Race', '#winovo', false]);
+    // Two races run side by side, so the nav names them both rather than saying
+    // "Leaderboard" and leaving the viewer to guess which casino it means.
+    const mainName = (s.leaderboard && s.leaderboard.casinoName)
+      || (s.streamer && s.streamer.providerName) || 'Wager';
+    items.push(['🏆', mainName + ' LB', '#leaderboard', false]);
+    // The second board only appears once it is configured and returned by
+    // portal-data - no dead link while it is still being set up.
+    const wv = winovoBoard(s);
+    if (wv) items.push(['🎰', (wv.label || 'Winovo') + ' LB', '#winovo', false]);
     if (s.features && s.features.store && (s.store?.items || []).length) items.push(['🛒', 'Store', '#store', false]);
     (s.portal?.pages || []).forEach(p => items.push(['🎁', p.label, '#' + p.id, false]));
     if (s.pastWinners && s.pastWinners.length) items.push(['👑', 'Winners', '#winners', false]);
@@ -481,14 +525,22 @@
     // Dedupe by href so a page never shows twice (e.g. Wager Rewards).
     const seen = new Set();
     const bar = document.getElementById('linkbar');
-    bar.innerHTML = items.filter(([, , href]) => {
+    // Two groups: this site's own sections read as text links, everything that
+    // leaves the site keeps a button. Emotes stay on the buttons only — on the
+    // text links they fought with the uppercase lettering.
+    const groups = items.filter(([, , href]) => {
       const key = String(href).toLowerCase();
       if (seen.has(key)) return false; seen.add(key); return true;
-    }).map(([emote, label, href, ext]) =>
-      ext
-        ? `<a href="${esc(href)}" target="_blank" rel="noopener"><span class="lk-emote">${emote}</span>${esc(label)}</a>`
-        : `<a href="${esc(href)}" onclick="return goTo('${esc(href)}')"><span class="lk-emote">${emote}</span>${esc(label)}</a>`
-    ).join('');
+    }).reduce((acc, [emote, label, href, ext]) => {
+      acc[ext ? 'btn' : 'nav'] += ext
+        ? `<a class="lk-ext" href="${esc(href)}" target="_blank" rel="noopener"><span class="lk-emote">${emote}</span>${esc(label)}</a>`
+        : `<a href="${esc(href)}" data-view="${esc(String(href).replace(/^#/, ''))}" onclick="return goTo('${esc(href)}')">${esc(label)}</a>`;
+      return acc;
+    }, { nav: '', btn: '' });
+
+    bar.innerHTML = groups.nav
+      + (groups.btn ? '<span class="lk-sep"></span><span class="lk-buttons">' + groups.btn + '</span>' : '');
+    markNav(currentViewId());
   }
 
   // Hash router. Each id in PAGE_VIEWS is a standalone full-page view (its own
@@ -512,6 +564,7 @@
     return false;
   }
   function showView(name) {
+    markNav(name === 'main' ? 'leaderboard' : name);
     const main = document.getElementById('mainView');
     // Hide every standalone view first.
     Object.values(PAGE_VIEWS).forEach(vid => document.getElementById(vid)?.classList.add('hidden'));
