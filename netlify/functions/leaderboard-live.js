@@ -284,10 +284,17 @@ exports.handler = async (event) => {
         }
       } catch { /* fall through to a live fetch */ }
 
+      // Serving a stale copy is right for a VIEWER — a board that keeps showing
+      // last-known standings beats one that goes blank. It is wrong for the
+      // scheduler, which re-baselines from this response: baselining off an old
+      // snapshot silently moves wager from the race that just ended into the next
+      // one. So the staleness is reported rather than hidden, and the caller
+      // decides. Without this the response is a 200 that looks perfectly fresh.
+      let servedStale = false;
       if (!data) {
         data = await fetchWinovoBoard(apiKey);
         if (data) { try { await cacheRef.set({ cachedAt: Date.now(), data }); } catch {} }
-        else if (cached?.data) data = cached.data;   // serve stale rather than blank the board
+        else if (cached?.data) { data = cached.data; servedStale = true; }
       }
       if (!data) return res(502, { error: "Failed to fetch from Winovo." });
 
@@ -297,6 +304,8 @@ exports.handler = async (event) => {
       return res(200, {
         success: true, casino: provider, casinoName: CASINO_NAMES[provider] || "Winovo", period,
         rankings: out.rankings, totalWagered: out.totalWagered, totalUsers: out.totalUsers,
+        // Only present when the live call failed and this is a cached copy.
+        ...(servedStale ? { stale: true, cachedAt: cached?.cachedAt || null } : {}),
       });
     }
 
