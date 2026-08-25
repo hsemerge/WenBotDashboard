@@ -645,7 +645,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.37.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.39.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3281,11 +3281,14 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
               <div class="hint">Store redemptions and other notifications</div>
             </div>
           </div>
-          <div class="field" style="margin-top:12px;">
-            <label>/giveall, Authorized Discord ID</label>
-            <input type="text" id="discordGiveallAuthorId" placeholder="Your Discord user ID (e.g. 123456789012345678)">
-            <div class="hint">Only this exact Discord account can run <strong>/giveall</strong> in your server (drops points to every active chatter). In Discord, enable Developer Mode, then right-click your name → <em>Copy User ID</em>. Leave blank to keep the command disabled.</div>
-          </div>
+          <details style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:14px;">
+            <summary style="cursor:pointer;padding:12px 14px;font-size:13px;font-weight:600;color:var(--bright);">⚙️ Advanced</summary>
+            <div class="field" style="margin:0;padding:0 14px 14px;">
+              <label>/giveall, Authorized Discord ID</label>
+              <input type="text" id="discordGiveallAuthorId" placeholder="Your Discord user ID (e.g. 123456789012345678)">
+              <div class="hint">Only this exact Discord account can run <strong>/giveall</strong> in your server (drops points to every active chatter). In Discord, enable Developer Mode, then right-click your name → <em>Copy User ID</em>. Leave blank to keep the command disabled.</div>
+            </div>
+          </details>
           <!-- 🔴 Go-live announcement — bot posts when the Kick channel goes live -->
           <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px;">
             <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;">
@@ -3338,9 +3341,10 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         </div>
           <!-- /Connection & Channels (closed above) -->
 
-          <!-- Sub-section B: Verification & Roles (NOT Elite-gated — verification links Kick + casino and works without Discord) -->
-          <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
-          <div class="card-title" style="font-size:15px;">🛡️ Verification &amp; Roles</div>
+          <!-- Sub-section B: Verification & Roles — collapsible panel (collapsed by default) -->
+          <details style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:4px;">
+          <summary style="cursor:pointer;padding:14px 16px;font-family:'Exo 2',sans-serif;font-size:15px;font-weight:700;color:var(--bright);">🛡️ Verification &amp; Roles</summary>
+          <div style="padding:0 16px 16px;">
           <p style="font-size:12px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">WenBot verification links a viewer's Kick + casino and can grant them a role. It runs <strong>alongside</strong> your anti-bot gate (like Double Counter): WenBot handles the account linking, your gate bot keeps the bots out.</p>
 
           <!-- Toggle 1: role on verify -->
@@ -3383,7 +3387,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           </div>
           <div class="hint" style="margin-top:6px;">Save first, then post, the verify message uses your saved channel &amp; role.</div>
           <div id="dvCheckResult" style="display:none;margin-top:10px;border-radius:8px;padding:12px 14px;font-size:12.5px;line-height:1.65;"></div>
-        </div><!-- /Verification & Roles -->
+        </div></details><!-- /Verification & Roles -->
       </div><!-- /Discord & Verification card -->
 
       </div><!-- /discordSection -->
@@ -3685,9 +3689,21 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.38.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.39.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.39.0 &middot; Giveaways post to Discord, and a tidier Discord setup</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 25, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#128228; <strong>Your Kick giveaways now announce in Discord automatically.</strong> When you start a giveaway (or draw a winner), WenBot posts it to your routed Discord channel as well as Kick chat &mdash; a &ldquo;get in chat and enter&rdquo; heads-up, no Join button that could skip your entry rules. You no longer have to flip the toggle to DISCORD to get a Discord post; that toggle now just runs a Discord-native giveaway when you actually want one.</li>
+            <li>&#129529; <strong>Dropped WenBot&rsquo;s anti-bot gate.</strong> The captcha / account-age gate is gone &mdash; that job is better handled by a dedicated gate bot like Double Counter. WenBot verification is now purely clean account-linking (Kick + casino) with an optional role, made to run right alongside your gate.</li>
+            <li>&#129523; <strong>Tidied the Discord &amp; Verification page.</strong> Verification &amp; Roles and the <code>/giveall</code> control are collapsible now, so the page opens clean instead of one long wall of settings.</li>
+          </ul>
         </div>
 
         <div class="card">
