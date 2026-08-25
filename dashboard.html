@@ -168,6 +168,22 @@
       border-radius: 10px;
       padding: 20px;
     }
+    /* Collapsible section cards. The Leaderboard page had grown to five stacked
+       cards and reads as a wall; each one can now be folded away.
+
+       Everything EXCEPT the header is hidden, which is why the header carries its
+       own class rather than relying on .card-title: two of these cards wrap the
+       title in a flex row alongside their own controls, so hiding
+       "every child but .card-title" would have hidden those headers entirely. */
+    .card.wb-collapsed > *:not(.wb-head) { display: none; }
+    .card.wb-collapsed .wb-head { margin-bottom: 0; }
+    .wb-head { cursor: pointer; user-select: none; }
+    .wb-chev {
+      display: inline-block; font-size: 11px; color: var(--text-dim);
+      transition: transform .18s ease; margin-right: 2px;
+    }
+    .card.wb-collapsed .wb-chev { transform: rotate(-90deg); }
+
     .card-title {
       font-family: 'Exo 2', sans-serif;
       font-size: 14px; font-weight: 700;
@@ -2512,8 +2528,8 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
 
       <!-- Recurring standings post to Discord. A scheduled function ticks
            hourly and honours each streamer's own cadence. -->
-      <div class="card" style="margin-bottom:16px;">
-        <div class="card-title">📣 Post standings to Discord</div>
+      <div class="card" style="margin-bottom:16px;" id="lbDiscordCard" data-collapsible="open">
+        <div class="card-title wb-head" onclick="wbToggleCard('lbDiscordCard', event)"><span class="wb-chev">▾</span>📣 Post standings to Discord</div>
         <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.5;">
           WenBot posts your live wager standings to a Discord channel on a schedule. Connect Discord on the Settings page first.
         </div>
@@ -2557,9 +2573,9 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
       </div>
 
       <!-- Public Leaderboard (Pro feature) -->
-      <div class="card" style="margin-bottom:16px;" id="publicLbCard">
-        <div class="card-title" style="justify-content:space-between;">
-          <span>🌐 Public Viewer Leaderboard</span>
+      <div class="card" style="margin-bottom:16px;" id="publicLbCard" data-collapsible="open">
+        <div class="card-title wb-head" style="justify-content:space-between;" onclick="wbToggleCard('publicLbCard', event)">
+          <span><span class="wb-chev">▾</span>🥇 Main Leaderboard</span>
           <span style="font-size:10px;font-weight:700;background:linear-gradient(135deg,#00e5ff,#00b8d4);color:#0d1117;padding:3px 10px;border-radius:20px;letter-spacing:.06em;">PRO</span>
         </div>
         <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px;">Generate a public leaderboard page your viewers can access to see live wager rankings for your current casino.</div>
@@ -2625,9 +2641,9 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
       <!-- Additional leaderboards — boards beyond the main one above. Hidden
            entirely unless the streamer actually has one, so the common
            single-board setup sees no extra chrome. -->
-      <div class="card" id="extraBoardsCard" style="margin-bottom:16px;display:none;">
-        <div class="card-title" style="justify-content:space-between;">
-          <span>🏁 Additional Leaderboards</span>
+      <div class="card" id="extraBoardsCard" style="margin-bottom:16px;display:none;" data-collapsible="open">
+        <div class="card-title wb-head" style="justify-content:space-between;" onclick="wbToggleCard('extraBoardsCard', event)">
+          <span><span class="wb-chev">▾</span>🏁 Additional Leaderboards</span>
           <div style="display:flex;align-items:center;gap:10px;">
             <span id="extraBoardsCount" style="font-size:11px;color:var(--text-dim);font-weight:600;"></span>
             <span id="extraBoardsElite" style="display:none;font-size:10px;font-weight:700;background:linear-gradient(135deg,#f5c518,#e0a800);color:#0d1117;padding:3px 10px;border-radius:20px;letter-spacing:.06em;">ELITE</span>
@@ -2703,9 +2719,9 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
 
       <!-- Internal wager + points view -->
       <div class="grid-2">
-        <div class="card">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:8px;flex-wrap:wrap;">
-            <div class="card-title" style="margin-bottom:0;">🏆 Wager Rankings</div>
+        <div class="card" id="lbRankingsCard" data-collapsible="open">
+          <div class="wb-head" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:8px;flex-wrap:wrap;" onclick="wbToggleCard('lbRankingsCard', event)">
+            <div class="card-title" style="margin-bottom:0;"><span class="wb-chev">▾</span>🏆 Wager Rankings</div>
             <div style="display:flex;align-items:center;gap:6px;">
               <select id="lbBoardSelect" onchange="loadWagerRankings()" title="Which leaderboard" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:11px;padding:4px 6px;font-family:'Inter',sans-serif;cursor:pointer;"></select>
               <select id="lbPeriodSelect" onchange="loadWagerRankings()" title="View a past period" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:11px;padding:4px 6px;font-family:'Inter',sans-serif;cursor:pointer;"><option value="">Current</option></select>
@@ -2718,8 +2734,8 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Loading...</div>
           </div>
         </div>
-        <div class="card">
-          <div class="card-title">🪙 Points Leaderboard</div>
+        <div class="card" id="lbPointsCard" data-collapsible="open">
+          <div class="card-title wb-head" onclick="wbToggleCard('lbPointsCard', event)"><span class="wb-chev">▾</span>🪙 Points Leaderboard</div>
           <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Viewers ranked by earned points</div>
           <div id="pointsLeaderboard">
             <div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Loading...</div>
@@ -3255,13 +3271,6 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
               <input type="text" id="discordGuildId" placeholder="e.g. 123456789012345678">
               <div class="hint">Right-click your server icon → Copy Server ID (enable Developer Mode in Discord settings first)</div>
             </div>
-            <div class="field">
-              <label>Giveaway Channel</label>
-              <select id="discordGiveawayChannelId">
-                <option value="">— select a channel —</option>
-              </select>
-              <div class="hint">WenBot posts giveaway announcements + Join button here</div>
-            </div>
             <!-- Only meaningful when several streamers share one server, so it's
                  hidden until that's actually the case (see renderSharedGuildField). -->
             <div class="field" id="discordMyChannelsField" style="display:none;grid-column:1/-1;">
@@ -3273,22 +3282,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
                 Anywhere else, WenBot asks which streamer the viewer means. Ctrl/Cmd-click to select more than one.
               </div>
             </div>
-            <div class="field">
-              <label>Announcements Channel</label>
-              <select id="discordAnnouncementChannelId">
-                <option value="">— select a channel —</option>
-              </select>
-              <div class="hint">Store redemptions and other notifications</div>
-            </div>
           </div>
-          <details style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:14px;">
-            <summary style="cursor:pointer;padding:12px 14px;font-size:13px;font-weight:600;color:var(--bright);">⚙️ Advanced</summary>
-            <div class="field" style="margin:0;padding:0 14px 14px;">
-              <label>/giveall, Authorized Discord ID</label>
-              <input type="text" id="discordGiveallAuthorId" placeholder="Your Discord user ID (e.g. 123456789012345678)">
-              <div class="hint">Only this exact Discord account can run <strong>/giveall</strong> in your server (drops points to every active chatter). In Discord, enable Developer Mode, then right-click your name → <em>Copy User ID</em>. Leave blank to keep the command disabled.</div>
-            </div>
-          </details>
           <!-- 🔴 Go-live announcement — bot posts when the Kick channel goes live -->
           <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px;">
             <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;">
@@ -3321,18 +3315,38 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             </div>
           </div>
 
-          <!-- 📬 Event routing — which announcement goes where, per event -->
-          <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
-              <div style="font-size:13px;color:var(--bright);font-weight:600;">📬 Event routing</div>
-              <button class="btn btn-ghost btn-sm" type="button" onclick="dreToggle()" id="dreToggleBtn" style="font-size:11px;">Show</button>
+          <!-- 📬 Channel setup — THE place channels are configured: two default
+               channels (giveaway + everything-else) plus a per-event override row
+               for each announcement. A prominent, clearly-labelled collapsible so
+               it reads as an obvious step to open, not a hidden "Show" toggle. The
+               per-event rows (#dreRows) are always visible once open;
+               renderDiscordRoutes() populates them. -->
+          <details style="border:1px solid var(--accent);border-radius:10px;overflow:hidden;margin-top:16px;background:rgba(0,229,255,0.04);">
+            <summary style="cursor:pointer;padding:14px 16px;font-family:'Exo 2',sans-serif;font-size:15px;font-weight:700;color:var(--bright);">
+              📬 Channel setup <span style="font-size:11px;color:var(--text-dim);font-weight:400;">— pick where each announcement posts (click to open)</span>
+            </summary>
+            <div style="padding:0 16px 16px;">
+              <p style="font-size:12px;color:var(--text-dim);margin:2px 0 14px;line-height:1.6;">
+                Set a default channel for giveaways and one for everything else. Every announcement is on and uses these by default — use the rows below to switch one off or give it its own channel (store redemptions to <code>#store-redemptions</code>, say, so they stop burying your stream announcements).
+              </p>
+              <div class="grid-2" style="gap:12px;">
+                <div class="field">
+                  <label>Announcements channel</label>
+                  <select id="discordAnnouncementChannelId"><option value="">— select a channel —</option></select>
+                  <div class="hint">Default for store redemptions and everything else</div>
+                </div>
+                <div class="field">
+                  <label>Giveaway channel</label>
+                  <select id="discordGiveawayChannelId"><option value="">— select a channel —</option></select>
+                  <div class="hint">Default for giveaway announcements + the Join button</div>
+                </div>
+              </div>
+              <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:14px;">
+                <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Per-event routing</div>
+                <div id="dreRows"></div>
+              </div>
             </div>
-            <p style="font-size:11px;color:var(--text-dim);margin:0 0 4px;line-height:1.6;">
-              Every announcement is on and uses the two channels above. Open this to switch one off, or send it somewhere of its own,
-              store redemptions to <code>#store-redemptions</code>, say, so they stop burying your stream announcements.
-            </p>
-            <div id="dreRows" style="display:none;margin-top:10px;"></div>
-          </div>
+          </details>
 
           <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap;">
             <button class="btn btn-accent" onclick="saveDiscordSettings()">Save Discord Settings</button>
@@ -3388,6 +3402,17 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           <div class="hint" style="margin-top:6px;">Save first, then post, the verify message uses your saved channel &amp; role.</div>
           <div id="dvCheckResult" style="display:none;margin-top:10px;border-radius:8px;padding:12px 14px;font-size:12.5px;line-height:1.65;"></div>
         </div></details><!-- /Verification & Roles -->
+
+          <!-- ⚙️ Advanced — niche settings, tucked at the very bottom. Header sized
+               to match the Verification & Roles panel above it. -->
+          <details style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:12px;">
+            <summary style="cursor:pointer;padding:14px 16px;font-family:'Exo 2',sans-serif;font-size:15px;font-weight:700;color:var(--bright);">⚙️ Advanced</summary>
+            <div class="field" style="margin:0;padding:0 14px 14px;">
+              <label>/giveall, Authorized Discord ID</label>
+              <input type="text" id="discordGiveallAuthorId" placeholder="Your Discord user ID (e.g. 123456789012345678)">
+              <div class="hint">Only this exact Discord account can run <strong>/giveall</strong> in your server (drops points to every active chatter). In Discord, enable Developer Mode, then right-click your name → <em>Copy User ID</em>. Leave blank to keep the command disabled.</div>
+            </div>
+          </details>
       </div><!-- /Discord & Verification card -->
 
       </div><!-- /discordSection -->
@@ -3689,9 +3714,22 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.39.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.40.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.40.0 &middot; Additional leaderboards can repeat, and the Leaderboard page folds up</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 25, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#128260; <strong>Additional leaderboards can now repeat.</strong> Each extra board gets a <strong>Repeat</strong> setting &mdash; every week, every 2 weeks, or every month. When the race ends WenBot starts the next one for you and resets the board to 0, exactly like your main leaderboard has always done. Before this, a second board stopped dead on its end date and waited for you to retype the dates.</li>
+            <li>&#127937; <strong>A Reset now button on every extra board.</strong> Starts that race immediately and baselines everyone&rsquo;s current wager to 0. This matters most for casinos that report lifetime totals rather than per-race ones (Winovo) &mdash; without a baseline the board opens showing wagering from long before your race began.</li>
+            <li>&#128209; <strong>The Leaderboard page folds up.</strong> Every section &mdash; Post standings to Discord, Main Leaderboard, Additional Leaderboards, Wager Rankings and Points Leaderboard &mdash; collapses with a click on its header, and WenBot remembers which ones you keep closed. The page had grown to five stacked cards and read as a wall.</li>
+            <li>&#127942; <strong>&ldquo;Public Viewer Leaderboard&rdquo; is now &ldquo;Main Leaderboard&rdquo;,</strong> which is what it actually is now that you can run several.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -7534,6 +7572,7 @@ function showPage(id, el) {
   document.getElementById('topbarTitle').textContent = titles[id] || id;
   // Re-evaluate the top billing banners for this page (hidden on stream-shown pages).
   _activePage = id;
+  wbRestoreCards();
   applyTrialBanner();
   applyInvoiceBanner();
   // Tear down SR listeners when leaving their pages
@@ -14406,6 +14445,33 @@ function selectLbDuration(duration) {
   }
 }
 
+// ── Collapsible section cards ─────────────────────────────────────
+// Which cards a streamer keeps folded is remembered per streamer, so a mod who
+// manages several channels doesn't inherit someone else's layout. Storage
+// failures are swallowed: the fallback is every card open, i.e. the old page.
+function wbCardKey(id) {
+  let uid = 'anon';
+  try { if (typeof fb !== 'undefined' && fb && fb.activeUid) uid = fb.activeUid; } catch (e) {}
+  return 'wbCard_' + uid + '_' + id;
+}
+function wbToggleCard(id, ev) {
+  // These headers carry live controls — the Add Leaderboard button, the period
+  // and count selects. Clicking one of those must not also fold the card away.
+  if (ev && ev.target && ev.target.closest('button, a, input, select, label, .toggle')) return;
+  const el = document.getElementById(id);
+  if (!el) return;
+  const collapsed = el.classList.toggle('wb-collapsed');
+  try { localStorage.setItem(wbCardKey(id), collapsed ? '1' : '0'); } catch (e) {}
+}
+function wbRestoreCards() {
+  document.querySelectorAll('.card[data-collapsible]').forEach((el) => {
+    let saved = null;
+    try { saved = localStorage.getItem(wbCardKey(el.id)); } catch (e) {}
+    const startsClosed = el.dataset.collapsible === 'closed';
+    el.classList.toggle('wb-collapsed', saved === null ? startsClosed : saved === '1');
+  });
+}
+
 // Start a fresh leaderboard period. This BASELINES every viewer's current wager
 // to 0 (we snapshot the raw casino totals and store them as `baselines`), so the
 // public board only counts wagering from this moment until the period ends.
@@ -14605,6 +14671,23 @@ function renderBoardSelector() {
   }
 }
 
+// Repeat options for an additional board. A board that repeats is `rolling`
+// with a duration; anything else is a one-off that stops on its end date.
+// A board already set to a custom length keeps that choice rather than being
+// quietly downgraded to "doesn't repeat" the next time the card renders.
+function _ebRepeatOptions(p) {
+  const repeats = (p.mode === 'rolling' && p.autoRenew !== false && p.duration) ? p.duration : 'off';
+  const opts = [
+    ['off',      "Doesn't repeat"],
+    ['weekly',   'Every week'],
+    ['biweekly', 'Every 2 weeks'],
+    ['monthly',  'Every month'],
+  ];
+  if (repeats !== 'off' && !opts.some(o => o[0] === repeats)) opts.push([repeats, 'Same length each time']);
+  return opts.map(([v, label]) =>
+    `<option value="${v}"${v === repeats ? ' selected' : ''}>${label}</option>`).join('');
+}
+
 async function loadExtraBoards() {
   const card = document.getElementById('extraBoardsCard');
   if (!card || !fb?.activeUid) return;
@@ -14710,6 +14793,14 @@ function renderExtraBoards() {
               End
               <input type="datetime-local" id="ebEnd_${esc(b.id)}" value="${_toLocalInput(p.endAt)}"
                      style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;color-scheme:dark;">
+            </label>
+            <label style="font-size:11px;color:var(--text-dim);display:flex;flex-direction:column;gap:3px;"
+                   title="When this race ends, start the next one automatically and reset the board to 0. Without it the board stops on its end date.">
+              Repeat
+              <select id="ebRepeat_${esc(b.id)}"
+                      style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;cursor:pointer;">
+                ${_ebRepeatOptions(p)}
+              </select>
             </label>`}
           <label style="font-size:11px;color:var(--text-dim);display:flex;flex-direction:column;gap:3px;">
             ${credKind === 'apiKey' ? 'API key' : ((meta && meta.credLabel) || 'Referral code')}
@@ -14722,6 +14813,8 @@ function renderExtraBoards() {
                    style="width:210px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;">
           </label>
           <button class="btn btn-accent btn-sm" onclick="saveExtraBoard('${esc(b.id)}')">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="resetExtraBoardNow('${esc(b.id)}')"
+                  title="Start this race now and reset it to 0 — everyone's current wager becomes their baseline.">Reset now</button>
           <button onclick="openExtraBoardPrizes('${esc(b.id)}')" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:12px;font-weight:600;padding:0 0 6px;">💰 Prizes${prize.length ? ' (' + prize.length + ')' : ''}</button>
           <button onclick="deleteExtraBoard('${esc(b.id)}')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:12px;font-weight:600;padding:0 0 6px;margin-left:auto;">Delete</button>
         </div>
@@ -14933,12 +15026,32 @@ async function saveExtraBoard(id) {
   } else {
     const s = document.getElementById('ebStart_' + id)?.value;
     const e = document.getElementById('ebEnd_' + id)?.value;
-    const sMs = s ? new Date(s).getTime() : null;
-    const eMs = e ? new Date(e).getTime() : null;
+    const rep = document.getElementById('ebRepeat_' + id)?.value || 'off';
+    let sMs = s ? new Date(s).getTime() : null;
+    let eMs = e ? new Date(e).getTime() : null;
     if (sMs && eMs && eMs <= sMs) { flash('End must be after start.', 'error'); return; }
+
+    if (rep === 'off') {
+      // A one-off race: it stops on its end date and waits for the streamer.
+      if (sMs && eMs) fields['period.mode'] = 'fixed';
+      fields['period.autoRenew'] = false;
+    } else {
+      // Repeating: the bot rolls the window forward and re-baselines the board at
+      // each boundary (rollExpiredExtraBoards in WenBotServer).
+      //
+      // Picking a repeat without dates is taken to mean "start one now" — the
+      // alternative is a rolling board with no window, which never rolls.
+      if (!sMs || !eMs) {
+        sMs = sMs || Date.now();
+        eMs = computePeriodEnd(sMs, rep);
+      }
+      fields['period.mode']      = 'rolling';
+      fields['period.duration']  = rep;
+      fields['period.autoRenew'] = true;
+      fields['period.active']    = true;
+    }
     fields['period.startAt'] = sMs;
     fields['period.endAt']   = eMs;
-    if (sMs && eMs) fields['period.mode'] = 'fixed';
   }
 
   const metaS     = BOARD_PROVIDERS.find(x => x.id === b.provider) || null;
@@ -14964,6 +15077,72 @@ async function saveExtraBoard(id) {
     flash('Leaderboard updated.');
   } catch (e) {
     flash('Failed to save: ' + e.message, 'error');
+  }
+}
+
+// Start an additional board's race NOW and reset it to 0.
+//
+// The equivalent of Start on the main board, which additional boards never had.
+// It matters most for providers whose API reports lifetime totals with no date
+// range of their own (Winovo): without a baseline the board opens showing every
+// wager the affiliate has ever recorded, not this race's.
+async function resetExtraBoardNow(id) {
+  const b = _extraBoards.find(x => x.id === id);
+  if (!b) return;
+  const channel = profile?.kickChannel;
+  if (!channel) { flash('Set your Kick channel in Settings first.', 'error'); return; }
+
+  const rep = document.getElementById('ebRepeat_' + id)?.value || 'off';
+  const dur = rep === 'off' ? null : rep;
+  const name = b.label || b.provider;
+  if (!confirm(
+    `Start "${name}" now and reset it to 0?
+
+` +
+    `Everyone's current wager becomes their baseline, so only wagering from this ` +
+    `moment counts. The standings showing now are replaced.`
+  )) return;
+
+  flash('Capturing baselines…');
+  const baselines = {};
+  try {
+    const r = await fetch(`/api/leaderboard-live?channel=${encodeURIComponent(channel)}` +
+                          `&casino=${encodeURIComponent(b.provider)}&internal=1&raw=1`);
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'fetch failed');
+    // Keyed by the stable per-user id, never the display name — anonymous players
+    // all share one.
+    (d.rankings || []).forEach(e => { const k = _lbPeriodKey(e); if (k) baselines[k] = e.wagered || 0; });
+  } catch (e) {
+    flash('Failed to capture baselines: ' + e.message, 'error');
+    return;
+  }
+
+  const now   = Date.now();
+  const month = new Date(now).toISOString().slice(0, 7);
+  const fields = {
+    'period.startAt': now,
+    'period.active':  true,
+    baselines,
+    carryover:    {},
+    liveSnapshot: {},
+    anchorMonth:  month,
+    carryMonth:   month,
+  };
+  if (dur) {
+    fields['period.endAt']     = computePeriodEnd(now, dur);
+    fields['period.mode']      = 'rolling';
+    fields['period.duration']  = dur;
+    fields['period.autoRenew'] = true;
+  }
+
+  try {
+    await fb.db.collection('streamers').doc(fb.activeUid).collection('leaderboards').doc(id).update(fields);
+    if (typeof logAction === 'function') logAction('leaderboard_board_reset', { board: id, repeat: dur || 'off' });
+    await loadExtraBoards();
+    flash(`${name} reset to 0.` + (dur ? ' It will repeat automatically.' : ''));
+  } catch (e) {
+    flash('Failed to reset: ' + e.message, 'error');
   }
 }
 
