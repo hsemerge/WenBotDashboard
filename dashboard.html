@@ -3338,10 +3338,10 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         </div>
           <!-- /Connection & Channels (closed above) -->
 
-          <!-- Sub-section B: Verification & Roles (NOT Elite-gated — the captcha/age gate runs on the verify page and works without Discord) -->
+          <!-- Sub-section B: Verification & Roles (NOT Elite-gated — verification links Kick + casino and works without Discord) -->
           <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
           <div class="card-title" style="font-size:15px;">🛡️ Verification &amp; Roles</div>
-          <p style="font-size:12px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">Have WenBot assign a role when someone verifies, and optionally act as your server's verification gate. Both default off, works <strong>alongside</strong> other bots like Double Counter (leave the gate off and just use the role), or as your whole front door.</p>
+          <p style="font-size:12px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">WenBot verification links a viewer's Kick + casino and can grant them a role. It runs <strong>alongside</strong> your anti-bot gate (like Double Counter): WenBot handles the account linking, your gate bot keeps the bots out.</p>
 
           <!-- Toggle 1: role on verify -->
           <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin-bottom:12px;">
@@ -3373,28 +3373,6 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <label>Verification log channel <span style="color:var(--text-dim);font-weight:400;">(optional, mods only)</span></label>
             <select id="dvLogChannelId"><option value="">— off —</option></select>
             <div class="hint">Posts every verification here for your mods: who verified, whether they're under your code, how much they've wagered, and where they came from. It also flags things worth checking, like <strong>the same casino account being verified by two different Kick users</strong> or a Discord that's been attached to another name. Pick a channel your viewers can't see.</div>
-          </div>
-          <!-- Toggle 2: full anti-bot gate -->
-          <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin:16px 0 12px;">
-            <input type="checkbox" id="dvGatekeeper" onchange="dvToggleChanged()" style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;">
-            <label for="dvGatekeeper" style="cursor:pointer;flex:1;">
-              <div style="font-size:13px;color:var(--bright);font-weight:600;">Use WenBot as the anti-bot gate</div>
-              <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Adds account-age + captcha checks during verification, and the Verified role above becomes your unlock role (lock your channels behind it). Leave off if Double Counter handles your gate.</div>
-            </label>
-          </div>
-          <div id="dvGateOptions" style="display:none;">
-            <div class="field" style="max-width:280px;">
-              <label>Min Discord account age (days)</label>
-              <input type="number" id="dvMinAge" min="0" max="3650" placeholder="0">
-              <div class="hint">Reject accounts newer than this. 0 = no limit.</div>
-            </div>
-            <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin-bottom:12px;">
-              <input type="checkbox" id="dvCaptcha" style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;">
-              <label for="dvCaptcha" style="cursor:pointer;flex:1;">
-                <div style="font-size:13px;color:var(--bright);font-weight:600;">Require captcha</div>
-                <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Adds a Cloudflare Turnstile check on the verify page to block bots. (Requires Turnstile keys configured on the server.)</div>
-              </label>
-            </div>
           </div>
 
           <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
@@ -18483,39 +18461,35 @@ function collectDiscordRoutes() {
 // ── Discord Verification & Roles ──
 function dvToggleChanged() {
   const assign = document.getElementById('dvAssignRole')?.checked;
-  const gate   = document.getElementById('dvGatekeeper')?.checked;
   const roleField = document.getElementById('dvRoleField');
-  const gateOpts  = document.getElementById('dvGateOptions');
-  if (roleField) roleField.style.display = (assign || gate) ? '' : 'none';
-  if (gateOpts)  gateOpts.style.display  = gate ? '' : 'none';
+  if (roleField) roleField.style.display = assign ? '' : 'none';
 }
 
 function loadVerifySettings() {
   const v = (profile?.discordConfig?.verify) || {};
   const setChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
   setChk('dvAssignRole', v.assignRole);
-  setChk('dvGatekeeper', v.gatekeeper);
-  setChk('dvCaptcha',    v.requireCaptcha);
   const role = document.getElementById('dvRoleId');        if (role && v.roleId)        role.value = v.roleId;
   const gch  = document.getElementById('dvGateChannelId'); if (gch && v.gateChannelId)  gch.value  = v.gateChannelId;
   const lch  = document.getElementById('dvLogChannelId');  if (lch && v.logChannelId)   lch.value  = v.logChannelId;
-  const age  = document.getElementById('dvMinAge');        if (age)                     age.value  = v.minAccountAgeDays || 0;
   dvToggleChanged();
 }
 
 async function saveVerifySettings() {
   if (!fb.currentUser) return;
+  // The anti-bot gate (WenBot captcha / account-age lock) was removed — that job
+  // is left to a dedicated gate bot like Double Counter. Omitting gatekeeper /
+  // requireCaptcha / minAccountAgeDays here clears them from a streamer's config
+  // on their next save, so any lingering gate switches off. WenBot verification
+  // is now purely: link Kick + casino, optionally grant a role.
   const verify = {
     assignRole:        document.getElementById('dvAssignRole')?.checked || false,
     roleId:            document.getElementById('dvRoleId')?.value || '',
-    gatekeeper:        document.getElementById('dvGatekeeper')?.checked || false,
     gateChannelId:     document.getElementById('dvGateChannelId')?.value || '',
     // Empty string means off, which is what verify-log checks for.
     logChannelId:      document.getElementById('dvLogChannelId')?.value || '',
-    requireCaptcha:    document.getElementById('dvCaptcha')?.checked || false,
-    minAccountAgeDays: Math.max(0, parseInt(document.getElementById('dvMinAge')?.value, 10) || 0),
   };
-  if ((verify.assignRole || verify.gatekeeper) && !verify.roleId) {
+  if (verify.assignRole && !verify.roleId) {
     flash('Pick a Verified role first.', 'error'); return;
   }
   try {
