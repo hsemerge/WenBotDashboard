@@ -1273,22 +1273,73 @@
   }
 
   // -------- Load ----------
-  async function load() {
+
+  // ---- Instant paint from the last good payload -------------------------------
+  // A cold Netlify function costs ~2.5s, and until that fetch resolves these
+  // tables sit empty — that stall was "the page loads with nothing in it". The
+  // last payload is kept per channel in the viewer's OWN browser, so a returning
+  // viewer sees their board immediately and fresh numbers swap in behind a small
+  // "Updating" chip. Nothing is stored server-side; no extra reads are billed.
+  //
+  // load() is safe to run twice because it already re-runs every 60s — the
+  // render path has always had to be idempotent.
+  function portalCacheKey() { return 'wb_portal_' + channel; }
+  // Older than this, the cached board is not worth showing: the normal loading
+  // state is more honest than yesterday's standings.
+  const PORTAL_CACHE_MAX_AGE = 6 * 60 * 60 * 1000;
+  function readPortalCache() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(portalCacheKey()) || 'null');
+      if (!raw || !raw.data || (Date.now() - raw.at) > PORTAL_CACHE_MAX_AGE) return null;
+      return raw.data;
+    } catch (e) { return null; }   // private mode / storage off: just load normally
+  }
+  function writePortalCache(d) {
+    try { localStorage.setItem(portalCacheKey(), JSON.stringify({ at: Date.now(), data: d })); }
+    catch (e) {}                   // quota or storage off — the page still works
+  }
+  // Guards against load() ever being wired up as an event handler, which would
+  // otherwise hand it an Event object as the preloaded payload.
+  function asPayload(v) {
+    return (v && typeof v === 'object' && !(typeof Event !== 'undefined' && v instanceof Event)) ? v : null;
+  }
+  // Says plainly that this is the last known board, so stale standings are never
+  // mistaken for live ones. Built in JS so no portal needs new markup or CSS.
+  function showStaleChip(on) {
+    let el = document.getElementById('wbStaleChip');
+    if (!on) { if (el) el.remove(); return; }
+    if (el) return;
+    el = document.createElement('div');
+    el.id = 'wbStaleChip';
+    el.textContent = 'Updating\u2026';
+    el.style.cssText = 'position:fixed;bottom:14px;right:14px;z-index:60;padding:6px 12px;' +
+      'border-radius:999px;font:600 12px system-ui,-apple-system,sans-serif;color:#fff;' +
+      'background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.18);pointer-events:none;';
+    document.body.appendChild(el);
+  }
+
+  async function load(preloaded) {
     if (!channel) {
       showError('No channel specified', 'Add ?channel=USERNAME to the URL.');
       return;
     }
+    const cached = asPayload(preloaded);
     try {
-      const resp = await fetch(portalDataUrl(), FRESH ? { cache: 'no-store' } : undefined);
-      if (resp.status === 404) {
-        showError('Channel not found', `We couldn’t find a WenBot portal for "${channel}".`);
-        return;
+      let data = cached;
+      if (!data) {
+        const resp = await fetch(portalDataUrl(), FRESH ? { cache: 'no-store' } : undefined);
+        if (resp.status === 404) {
+          showError('Channel not found', `We couldn’t find a WenBot portal for "${channel}".`);
+          return;
+        }
+        if (!resp.ok) {
+          // Don't tear down a board already on screen for a failed refresh.
+          if (!window.__wbPainted) showError('Portal unavailable', 'Try refreshing in a moment.');
+          showStaleChip(false);
+          return;
+        }
+        data = await resp.json();
       }
-      if (!resp.ok) {
-        showError('Portal unavailable', 'Try refreshing in a moment.');
-        return;
-      }
-      const data = await resp.json();
       state = data;
 
       document.getElementById('loadingView').style.display = 'none';
@@ -1297,10 +1348,13 @@
       renderHero(state);
       renderActiveStrip(state);
       renderTabs(state);
+      window.__wbPainted = true;
+      if (!cached) { writePortalCache(state); showStaleChip(false); }
       // Now that we have the currency, refresh the balance label if signed in.
       if (viewer) fetchBalance();
     } catch (err) {
-      showError('Portal unavailable', 'Try refreshing in a moment.');
+      if (!window.__wbPainted) showError('Portal unavailable', 'Try refreshing in a moment.');
+      showStaleChip(false);
     }
   }
 
@@ -1325,7 +1379,14 @@
     refreshViewerUI();
   }
 
-  (async () => { await initViewer(); load(); })();
+  (async () => {
+    // Paint the last known board before initViewer's round-trip, not after it
+    // — otherwise the page sits empty for the session call too.
+    const __cached = readPortalCache();
+    if (__cached) { showStaleChip(true); try { load(__cached); } catch (e) { console.warn('cached paint failed', e); } }
+    await initViewer();
+    load();
+  })();
 
   // Light refresh: re-pull data every 60s so live banners/leaderboard stay fresh
   // without slamming the function. We re-render the current tab in place.
