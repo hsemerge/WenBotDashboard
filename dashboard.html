@@ -18541,8 +18541,8 @@ async function populateDiscordChannels(selectedGiveaway, selectedAnnouncement) {
     if (goR) goR.innerHTML = '<option value="">No ping</option><option value="everyone">@everyone</option>' +
       (roles || []).map(r => `<option value="${r.id}">@${escHtml(r.name)}</option>`).join('');
     { const g = (profile?.discordConfig?.goLive) || {};
-      if (goC && g.channelId)  goC.value = g.channelId;
-      if (goR && g.pingRoleId) goR.value = g.pingRoleId; }
+      if (goC && g.channelId)  { goC.value = g.channelId;  if (goC.selectedIndex < 0) goC.selectedIndex = 0; }
+      if (goR && g.pingRoleId) { goR.value = g.pingRoleId; if (goR.selectedIndex < 0) goR.selectedIndex = 0; } }
     // "Your channels" uses the same list; selections are restored below.
     const mySel = document.getElementById('discordMyChannels');
     // Only worth showing when the server genuinely has more than one streamer —
@@ -18554,12 +18554,16 @@ async function populateDiscordChannels(selectedGiveaway, selectedAnnouncement) {
       const mine = (profile?.discordConfig?.channelIds) || [];
       Array.from(mySel.options).forEach(o => { o.selected = mine.includes(o.value); });
     }
-    if (selectedGiveaway)    gSel.value = selectedGiveaway;
-    if (selectedAnnouncement) aSel.value = selectedAnnouncement;
+    // A saved channel that's no longer in the fetched list (deleted, or the bot
+    // can't see it — e.g. an empty list in a local preview) would set the select
+    // to a value with no matching <option>, which renders BLANK. Fall back to the
+    // "— select a channel —" placeholder (index 0) so it never looks empty.
+    if (selectedGiveaway)     { gSel.value = selectedGiveaway;     if (gSel.selectedIndex < 0) gSel.selectedIndex = 0; }
+    if (selectedAnnouncement) { aSel.value = selectedAnnouncement; if (aSel.selectedIndex < 0) aSel.selectedIndex = 0; }
     // Restore the verify-card selections too (their values come from the same lists).
     const v = (profile?.discordConfig?.verify) || {};
-    if (cSel && v.gateChannelId) cSel.value = v.gateChannelId;
-    if (rSel && v.roleId)        rSel.value = v.roleId;
+    if (cSel && v.gateChannelId) { cSel.value = v.gateChannelId; if (cSel.selectedIndex < 0) cSel.selectedIndex = 0; }
+    if (rSel && v.roleId)        { rSel.value = v.roleId;        if (rSel.selectedIndex < 0) rSel.selectedIndex = 0; }
     // Event-routing rows build their selects from the same channel list. Re-render
     // rather than patch, so a Refresh Channels picks up newly created channels.
     _discordChanOpts = chanOpts;
