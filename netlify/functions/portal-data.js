@@ -15,6 +15,7 @@ const { fetchDuelbitsForPeriod, applyDuelbitsPeriod } = require("./_lib/duelbits
 const { normalizeBoard, boardWindow, sortBoards } = require("./_lib/leaderboards");
 const { fetchClashBoard } = require("./_lib/clash");
 const { fetchGambaRace } = require("./_lib/gamba");
+const { fetchEthbetBoard } = require("./_lib/ethbet");
 const { fetchWinovoBoard } = require("./_lib/winovo");
 
 // NOT the shared API_CASINOS from _lib/casinos. This one gates a hardcoded
@@ -1014,6 +1015,58 @@ exports.handler = async (event) => {
           }
         }
       }
+
+      // ETHbet: one API key, one fixed board; passthrough like Gamba (the board
+      // carries its own window and prize ladder). Shares the lb_<channel>_ethbet
+      // cache with leaderboard-live so the two never double-fetch ETHbet.
+      else if (provider === "ethbet") {
+        const eBoard = boardFor("ethbet");
+        const eProv  = await db.collection("streamers").doc(uid)
+          .collection("providers").doc("ethbet").get();
+        const apiKey = (eProv.exists ? (eProv.data().apiKey || "") : "")
+          || (eBoard && eBoard.credential && eBoard.credential.apiKey) || "";
+        if (apiKey) {
+          try {
+            const cacheRef = db.collection("_cache").doc(`lb_${channel}_ethbet`);
+            let data = null;
+            try {
+              const c = await cacheRef.get();
+              const cached = c.exists ? c.data() : null;
+              if (cached && cached.data && cached.cachedAt && (Date.now() - cached.cachedAt) < 45 * 1000) {
+                data = cached.data;
+              }
+            } catch { /* fall through to a live fetch */ }
+            if (!data) {
+              data = await fetchEthbetBoard(apiKey);
+              if (data) { try { await cacheRef.set({ cachedAt: Date.now(), data }); } catch {} }
+            }
+            if (data) {
+              // A prize ladder set on the WenBot board wins over the board's own.
+              const own = eBoard && Array.isArray(eBoard.prizes) && eBoard.prizes.length ? eBoard.prizes : null;
+              const ladder = own || data.prizes || [];
+              leaderboard = {
+                period:       "ETHbet Race",
+                casinoName:   "ETHbet",
+                startAt:      data.startAt,
+                endAt:        data.endAt,
+                prizePool:    data.prizePool,
+                fiat:         data.currency || "USD",
+                rankings:     data.rankings.map((r) => ({
+                  rank:        r.rank,
+                  name:        r.username,
+                  wagerAmount: r.wagered,
+                  avatarUrl:   r.avatarUrl,
+                  prize:       Number(ladder[r.rank - 1]) > 0 ? Number(ladder[r.rank - 1]) : 0,
+                })),
+                totalUsers:   data.totalUsers,
+                totalWagered: data.totalWagered,
+              };
+            }
+          } catch (err) {
+            console.warn("[portal-data] ethbet fetch failed:", err.message);
+          }
+        }
+      }
       // Rainbet: key + date range (the range IS the period, so no baselines /
       // carryover — only manual exclusions apply). Cached 45s per channel so a
       // busy portal can't hammer the streamer's key.
@@ -1429,6 +1482,16 @@ exports.handler = async (event) => {
                   rankings: (gr.rankings || []).map((r) => ({ rank: r.rank, username: r.username, wagered: r.wagered, avatarUrl: r.avatarUrl })),
                   totalUsers: gr.totalUsers, totalWagered: gr.totalWagered,
                   startAt: gr.startAt, endAt: gr.endAt, prizes: gr.prizes, raceName: gr.raceName,
+                };
+              } else if (b.provider === "ethbet") {
+                // Same passthrough as Gamba: the ETHbet board carries its own
+                // window and prize ladder, so the board inherits them. `cred` is
+                // the board's ETHbet API key.
+                const er = await fetchEthbetBoard(cred);
+                if (er) data = {
+                  rankings: (er.rankings || []).map((r) => ({ rank: r.rank, username: r.username, wagered: r.wagered, avatarUrl: r.avatarUrl })),
+                  totalUsers: er.totalUsers, totalWagered: er.totalWagered,
+                  startAt: er.startAt, endAt: er.endAt, prizes: er.prizes, raceName: er.raceName,
                 };
               } else if (b.provider === "gambulls") {
                 const resp = await fetch("https://api.gambulls.com/api/public/streamer/leaderboard?type=monthly&limit=100",

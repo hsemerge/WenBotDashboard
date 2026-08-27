@@ -13,6 +13,7 @@ const { fetchHypebetRange, fetchHypebetForPeriod, applyHypebetExclusions } = req
 const { fetchDuelbits, fetchDuelbitsForPeriod, fetchDuelbitsDayBaseline, applyDuelbitsPeriod, ymdNext } = require("./_lib/duelbits");
 const { fetchClashBoard } = require("./_lib/clash");
 const { fetchGambaRace }  = require("./_lib/gamba");
+const { fetchEthbetBoard } = require("./_lib/ethbet");
 const { fetchWinovoBoard } = require("./_lib/winovo");
 const res = (s, b) => _res(s, b, "*");
 
@@ -351,6 +352,56 @@ exports.handler = async (event) => {
 
       return res(200, {
         success: true, casino: provider, casinoName: CASINO_NAMES[provider] || "Gamba",
+        period: { active: data.active, startAt: data.startAt, endAt: data.endAt },
+        raceName: data.raceName || null,
+        rankings: data.rankings.map((r) => ({
+          rank: r.rank, username: r.username, wagered: r.wagered,
+          avatarUrl: r.avatarUrl, prize: prizeFor(r.rank),
+        })),
+        totalWagered: data.totalWagered,
+        totalUsers:   data.totalUsers,
+      });
+    }
+
+    // ETHbet: one API key tied to a single pre-configured board (its own window
+    // and prize ladder). One authenticated GET returns standings — no date params
+    // — so, like Gamba, the board owns its window and there are no baselines or
+    // carryover. Cached briefly per channel to respect ETHbet's per-IP rate limit.
+    if (provider === "ethbet") {
+      const bSnap = await db.collection("streamers").doc(streamerDoc.id).collection("leaderboards").get();
+      const board = sortBoards(bSnap.docs.map((d) => normalizeBoard(d.data(), d.id)))
+        .find((b) => b.provider === "ethbet");
+      const provDoc = await db.collection("streamers").doc(streamerDoc.id)
+        .collection("providers").doc("ethbet").get();
+      const apiKey = (provDoc.exists ? (provDoc.data().apiKey || "") : "")
+        || (board && board.credential && board.credential.apiKey) || "";
+      if (!apiKey) return res(400, { error: "Streamer hasn't configured their ETHbet API key yet." });
+
+      // One document per channel; the key identifies the board. Live-board TTL.
+      const cacheRef = db.collection("_cache").doc(`lb_${channel.toLowerCase()}_ethbet`);
+      let data = null, cached = null;
+      try {
+        const doc = await cacheRef.get();
+        if (doc.exists) {
+          cached = doc.data();
+          if (cached.data && cached.cachedAt && (Date.now() - cached.cachedAt) < LB_CACHE_TTL_MS) data = cached.data;
+        }
+      } catch { /* fall through to a live fetch */ }
+
+      if (!data) {
+        data = await fetchEthbetBoard(apiKey);
+        if (data) { try { await cacheRef.set({ cachedAt: Date.now(), data }); } catch {} }
+        else if (cached?.data) data = cached.data;   // serve stale rather than blank the board
+      }
+      if (!data) return res(502, { error: "Failed to fetch from ETHbet." });
+
+      // A prize ladder set on the WenBot board still wins over the board's own.
+      const own    = Array.isArray(board?.prizes) && board.prizes.length ? board.prizes : null;
+      const prizes = own || data.prizes || [];
+      const prizeFor = (rank) => (Number(prizes[rank - 1]) > 0 ? Number(prizes[rank - 1]) : 0);
+
+      return res(200, {
+        success: true, casino: provider, casinoName: CASINO_NAMES[provider] || "ETHbet",
         period: { active: data.active, startAt: data.startAt, endAt: data.endAt },
         raceName: data.raceName || null,
         rankings: data.rankings.map((r) => ({

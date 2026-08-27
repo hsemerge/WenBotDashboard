@@ -21,6 +21,7 @@ const CASINO_NAMES = {
   chipsgg:    "Chips.gg",
   hypebet:    "Hype.bet",
   winovo:     "Winovo",
+  ethbet:     "ETHbet",
   // Display name only. The casino PICKER is hardcoded <option> markup, not built
   // from this map, so listing csgobig here cannot make it selectable as a primary
   // casino — it only stops second-board rows rendering as lowercase "csgobig".
@@ -78,6 +79,12 @@ const CASINO_CREDENTIALS = {
     label:       "Hype.bet Affiliate API Key",
     placeholder: "paste your Hype.bet (Affilka) affiliate API key",
     hint:        "From your Hype.bet affiliate dashboard. Powers your live leaderboard and under-code verification.",
+  },
+  ethbet: {
+    field:       "apiKey",
+    label:       "ETHbet API Key",
+    placeholder: "slbk_…",
+    hint:        "From your ETHbet streamer dashboard. Powers your live leaderboard and under-code verification. ETHbet sets your board's dates and prizes — verification matches viewers against the board's ranked players.",
   },
   gamba: {
     // The race is public and keyless — the "credential" is just the race's page

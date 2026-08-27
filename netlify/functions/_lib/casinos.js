@@ -33,6 +33,11 @@ const CASINO_NAMES = {
   // one keyed endpoint returns every referred player with their cumulative
   // wager, so both the board and under-code verification work. In API_CASINOS.
   winovo:     "Winovo",
+  // ETHbet streamer API (see _lib/ethbet.js): one API key tied to a single
+  // pre-configured board. Like Gamba it has no full referral list — only the
+  // board's standings — so under-code verification matches the viewer's name
+  // against the board (best-effort, top players only). In API_CASINOS.
+  ethbet:     "ETHbet",
   // Deliberately NOT in the browser copy (/js/casinos.js). That list populates the
   // dashboard's primary-casino picker, and CSGOBig is only supported as an
   // ADDITIONAL board (no verification or affiliate-matching flow behind it) — so
@@ -71,6 +76,6 @@ const CASINO_NAMES = {
 // same best-effort match Degen/CSGOBig use. It's in this set (not a separate
 // verify-affiliate branch like those two) because its logic lives inside
 // lookupAffiliate, so every caller picks it up through the one dispatch.
-const API_CASINOS = new Set(["gambulls", "rainbet", "duelbits", "clash", "gamba", "winovo", "hypebet"]);
+const API_CASINOS = new Set(["gambulls", "rainbet", "duelbits", "clash", "gamba", "winovo", "hypebet", "ethbet"]);
 
 module.exports = { CASINO_NAMES, API_CASINOS };

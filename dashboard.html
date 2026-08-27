@@ -661,7 +661,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.41.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.42.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3009,6 +3009,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
               <option value="chipsgg">Chips.gg</option>
               <option value="hypebet">Hype.bet</option>
               <option value="winovo">Winovo</option>
+              <option value="ethbet">ETHbet</option>
               <option value="notlisted">Not Listed</option>
             </select>
           </div>
@@ -3714,9 +3715,20 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.41.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.42.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.42.0 &middot; ETHbet leaderboards</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 27, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#128202; <strong>ETHbet is now a supported leaderboard.</strong> Pick <strong>ETHbet</strong> as your casino &mdash; or add it as an additional board &mdash; and paste your ETHbet API key. Your live leaderboard pulls straight from ETHbet, on your portal and in Discord, using the race dates and prize ladder you&rsquo;ve set on ETHbet.</li>
+            <li>&#9989; <strong>Under-code verification too.</strong> Viewers who play under your ETHbet code verify automatically when they appear on your ETHbet board, the same way your other race-based casinos work.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -14662,6 +14674,9 @@ const BOARD_PROVIDERS = [
     hint: 'Paste your Gamba exclusive-leaderboard link (or just its number). The race is public — no API key needed — and it sets its own dates and prizes.' },
   { id: 'winovo',   name: 'Winovo',   cred: 'apiKey',
     hint: 'Your Winovo creator API key. Winovo report the total wager since their last reset, so give this board a schedule — WenBot takes a baseline when the race starts and counts from there.' },
+  { id: 'ethbet',   name: 'ETHbet',   cred: 'apiKey',
+    credLabel: 'ETHbet API Key', credPlaceholder: 'slbk_…',
+    hint: 'Your ETHbet API key. ETHbet sets the board\'s own dates and prizes, so no start/end needed here.' },
 ];
 
 // Fill the Wager Rankings board selector. Hidden unless the streamer runs more

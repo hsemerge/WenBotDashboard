@@ -229,6 +229,43 @@ async function lookupAffiliate(provider, credential, affiliateUsername, diagnost
     }
   }
 
+  // ── ETHbet ───────────────────────────────────────────────────────────────────
+  // One API key, one fixed board. The API returns standings by username with no
+  // user id and no per-user endpoint, so — like Gamba/Hype.bet — verification is a
+  // straight username compare against the board's standings. ETHbet returns only
+  // the top standings, so a miss means "not among the board's ranked players",
+  // which for a small wagerer can happen even when they are under the code.
+  if (provider === "ethbet") {
+    const diag = { type: "ethbet", target, knownUid };
+    try {
+      const { fetchEthbetBoard } = require("./ethbet");
+      const board = await fetchEthbetBoard(apiKey);
+      if (!board) {
+        diag.error = "fetch failed (bad key, rate-limited, or API error)";
+        if (diagnostics) diagnostics.push(diag);
+        return null;
+      }
+      diag.totalEntries = board.rankings.length;
+      diag.totalWagered = board.totalWagered;
+      diag.sample       = board.rankings.slice(0, 5).map((r) => r.username);
+      const hit = board.rankings.find((r) => (r.username || "").toLowerCase().trim() === target);
+      diag.matched = !!hit;
+      if (diagnostics) diagnostics.push(diag);
+      if (!hit) return null;
+      return {
+        uid:             null,                       // API exposes no stable id
+        username:        hit.username,
+        wagerAmount:     hit.wagered || 0,
+        leaderboardType: "ethbet",
+        matchedViaMask:  false,
+      };
+    } catch (err) {
+      diag.error = err.message;
+      if (diagnostics) diagnostics.push(diag);
+      return null;
+    }
+  }
+
   // ── Duelbits ───────────────────────────────────────────────────────────────
   // Masked names (first2 *** last1, same as Gambulls) but flat rows with stable
   // ids (like Rainbet), so it reuses findMatch for the masking while mapping the
