@@ -661,7 +661,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.42.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.43.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3385,6 +3385,14 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
             <div class="hint">WenBot posts a clickable <strong>Verify</strong> button here. Works even if another bot (e.g. Double Counter) is your anti-bot gate, this just gives users a link to link Kick + casino.</div>
           </div>
 
+          <!-- Which casinos the verify message names. Populated from the casinos
+               the streamer runs (primary + enabled boards). Default: all. -->
+          <div class="field" id="dvVerifyCasinosField" style="margin-top:6px;">
+            <label>Casinos named in the verify message</label>
+            <div id="dvVerifyCasinos" style="display:flex;flex-direction:column;gap:7px;padding:6px 2px;"></div>
+            <div class="hint">The verify message tells viewers which casino username to enter. By default it names <strong>every</strong> casino you run; uncheck any to feature only the ones you want (e.g. show only Winovo). This changes the wording only — your verify page still accepts any casino you run. A single checked casino also opens the verify link on that casino.</div>
+          </div>
+
           <!-- Moderator feed. A private channel: it carries Kick IDs, casino
                usernames and duplicate-account flags, which is mod information
                rather than something to post where viewers can read it. -->
@@ -3715,9 +3723,20 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.42.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.43.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.43.0 &middot; Choose which casinos your verify message names</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 27, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#127920; <strong>Your Discord verify message now names every casino you run</strong> &mdash; so a viewer who plays your second casino is told they can link it, instead of only seeing the primary. Before, it named just your main casino.</li>
+            <li>&#9989; <strong>And you can narrow it.</strong> Under <strong>Discord &amp; Verification &rarr; Verification &amp; Roles</strong>, a new <strong>&ldquo;Casinos named in the verify message&rdquo;</strong> list lets you tick only the ones you want to feature (e.g. show just Winovo). It changes the wording only &mdash; your verify page still accepts any casino you run &mdash; and if you feature a single casino, the verify link opens straight on it.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -18738,6 +18757,40 @@ function dvToggleChanged() {
   if (roleField) roleField.style.display = assign ? '' : 'none';
 }
 
+// A checkbox per casino the streamer runs (primary + enabled boards), controlling
+// which the Discord verify message names. Saved as discordConfig.verify.casinos:
+// empty/absent = all (so a casino added later is named automatically), a subset =
+// only those. The bot honours the same list.
+async function renderVerifyCasinos() {
+  const wrap = document.getElementById('dvVerifyCasinos');
+  if (!wrap) return;
+  const nameOf = (p) => (typeof CASINO_NAMES !== 'undefined' && CASINO_NAMES[p]) || p;
+  const list = [], seen = new Set();
+  const push = (p, label) => { p = String(p || '').toLowerCase(); if (!p || seen.has(p)) return; seen.add(p); list.push({ provider: p, label: label || nameOf(p) }); };
+  const primary = (profile?.activeProvider || '').toLowerCase();
+  if (primary && primary !== 'notlisted') push(primary, nameOf(primary));
+  try {
+    const snap = await fb.db.collection('streamers').doc(fb.activeUid).collection('leaderboards').get();
+    snap.docs.map(d => d.data() || {})
+      .filter(b => b.enabled !== false && b.provider)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .forEach(b => push(b.provider, b.label || nameOf(String(b.provider).toLowerCase())));
+  } catch (e) { /* boards read is best-effort; primary alone is fine */ }
+
+  if (!list.length) {
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--text-dim);">Set your casino in Channel &amp; Casino Setup first, then this fills in.</div>';
+    return;
+  }
+  const saved   = (profile?.discordConfig?.verify?.casinos) || [];
+  const savedSet = new Set(saved.map(s => String(s).toLowerCase()));
+  const allOn   = savedSet.size === 0; // empty = all
+  wrap.innerHTML = list.map(c =>
+    `<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer;">`
+    + `<input type="checkbox" class="dvCasinoChk" value="${escHtml(c.provider)}" ${allOn || savedSet.has(c.provider) ? 'checked' : ''} style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">`
+    + `${escHtml(c.label)}</label>`
+  ).join('');
+}
+
 function loadVerifySettings() {
   const v = (profile?.discordConfig?.verify) || {};
   const setChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
@@ -18745,6 +18798,7 @@ function loadVerifySettings() {
   const role = document.getElementById('dvRoleId');        if (role && v.roleId)        role.value = v.roleId;
   const gch  = document.getElementById('dvGateChannelId'); if (gch && v.gateChannelId)  gch.value  = v.gateChannelId;
   const lch  = document.getElementById('dvLogChannelId');  if (lch && v.logChannelId)   lch.value  = v.logChannelId;
+  renderVerifyCasinos();
   dvToggleChanged();
 }
 
@@ -18755,12 +18809,28 @@ async function saveVerifySettings() {
   // requireCaptcha / minAccountAgeDays here clears them from a streamer's config
   // on their next save, so any lingering gate switches off. WenBot verification
   // is now purely: link Kick + casino, optionally grant a role.
+  // Which casinos the verify message names. All checked (or the control not yet
+  // rendered) = "all", stored as [] so a casino added later is auto-included; a
+  // subset is stored explicitly. Never save an empty selection — the message
+  // needs at least one casino to name.
+  const chks    = [...document.querySelectorAll('.dvCasinoChk')];
+  const checked = chks.filter(c => c.checked).map(c => c.value);
+  let verifyCasinos;
+  if (!chks.length) {
+    verifyCasinos = (profile?.discordConfig?.verify?.casinos) || []; // control not rendered — keep as-is
+  } else if (!checked.length) {
+    flash('Pick at least one casino for the verify message.', 'error'); return;
+  } else {
+    verifyCasinos = (checked.length === chks.length) ? [] : checked;
+  }
+
   const verify = {
     assignRole:        document.getElementById('dvAssignRole')?.checked || false,
     roleId:            document.getElementById('dvRoleId')?.value || '',
     gateChannelId:     document.getElementById('dvGateChannelId')?.value || '',
     // Empty string means off, which is what verify-log checks for.
     logChannelId:      document.getElementById('dvLogChannelId')?.value || '',
+    casinos:           verifyCasinos,
   };
   if (verify.assignRole && !verify.roleId) {
     flash('Pick a Verified role first.', 'error'); return;
