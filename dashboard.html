@@ -10054,6 +10054,12 @@ async function spinPicker() {
   if (spinningNow) return;
   spinningNow = true;
 
+  // A winner removal writes the block that keeps them out of the draw, but the
+  // remove popup fires it in the background for snappiness. Wait for any in-flight
+  // removal to land before rolling — otherwise "Remove, then Draw again" straight
+  // away rolls against a server pool that still contains the just-removed winner.
+  if (_gwPendingRemoval) { try { await _gwPendingRemoval; } catch {} }
+
   // Instant feedback. The draw is a server round-trip (300ms–2s, more on a cold
   // function), and without this the button just sits there looking unclicked for
   // the whole wait. Flip it to a spinning "Drawing…" the moment it is pressed,
@@ -11077,26 +11083,47 @@ async function gwRemoveParticipant(btn) {
 // giveaway snapshot doc — the bot rewrites the snapshot wholesale every 5s, so
 // anything the dashboard parks there gets wiped between flushes. The profile is
 // never bulk-overwritten, and the bot already listens to it.
+// Tracks an in-flight winner removal so a draw can't race ahead of the block
+// landing (see spinPicker). The block is the only thing that keeps a removed
+// winner out of the SERVER draw; a second roll fired before it commits would
+// draw them straight back in.
+let _gwPendingRemoval = null;
+
 async function _gwRemoveEntryByKey(key) {
   const uid = fb.activeUid;
   if (!uid || !key) return false;
   const k = key.toLowerCase();
-  try {
-    const ref = fb.db.collection('streamers').doc(uid).collection('giveaway_state').doc('snapshot');
-    await fb.db.runTransaction(async (txn) => {
-      const doc = await txn.get(ref);
-      const data = doc.data() || {};
-      const oldEntries = Array.isArray(data.entries) ? data.entries : [];
-      txn.update(ref, { entries: oldEntries.filter(e => (e.kickKey || '').toLowerCase() !== k) });
-    });
-    await fb.db.collection('streamers').doc(uid)
-      .update({ giveawayBlocked: firebase.firestore.FieldValue.arrayUnion(k) });
-    if (!gwBlockedKeys.includes(k)) gwBlockedKeys.push(k);
-    gwRenderBlocked();
+  const work = (async () => {
+    // Block FIRST — this is the integrity-critical write the server draw reads
+    // (giveawayBlocked). It used to run AFTER the snapshot transaction below, so
+    // when that transaction failed — and it contends with the bot rewriting the
+    // snapshot every ~5s, so on a busy giveaway it does — the block was never
+    // written and the "removed" winner could be drawn again. Independent now.
+    try {
+      await fb.db.collection('streamers').doc(uid)
+        .update({ giveawayBlocked: firebase.firestore.FieldValue.arrayUnion(k) });
+      if (!gwBlockedKeys.includes(k)) gwBlockedKeys.push(k);
+      gwRenderBlocked();
+    } catch (err) {
+      return false;   // the block itself failed — nothing is barred; report it
+    }
+    // Cosmetic: also drop them from the live snapshot so the participant list and
+    // count update at once. Best-effort — the block above already keeps them out
+    // of the draw even if the bot re-adds them to the snapshot on its next flush.
+    try {
+      const ref = fb.db.collection('streamers').doc(uid).collection('giveaway_state').doc('snapshot');
+      await fb.db.runTransaction(async (txn) => {
+        const doc = await txn.get(ref);
+        const data = doc.data() || {};
+        const oldEntries = Array.isArray(data.entries) ? data.entries : [];
+        txn.update(ref, { entries: oldEntries.filter(e => (e.kickKey || '').toLowerCase() !== k) });
+      });
+    } catch { /* snapshot cleanup is best-effort; the block is what matters */ }
     return true;
-  } catch (err) {
-    return false;
-  }
+  })();
+  _gwPendingRemoval = work;
+  try { return await work; }
+  finally { if (_gwPendingRemoval === work) _gwPendingRemoval = null; }
 }
 
 // "Allow back in" from the Blocked strip — they can type the keyword again to
