@@ -398,6 +398,73 @@
     <div class="rw-footnote" id="wvNote"></div>
   </div>
 
+  <!-- VIP & deposit bonuses. The streamer asked for Winovo's published offers to
+       live on HIS site rather than sending viewers off to the casino, with the
+       call to action being a support ticket he can see. So every button here
+       points at his Discord, and the page links to Winovo nowhere. -->
+  <div id="vipView" class="hidden">
+    <div class="hero" style="padding:8px 0 4px;">
+      <h1><span class="h-emoji">&#128142;</span> VIP &amp; DEPOSIT BONUSES</h1>
+      <p style="color:var(--dim);max-width:680px;margin:14px auto 0;line-height:1.6;">
+        Extra value on top of the wager race, for anyone playing under the
+        <strong style="color:var(--accent2);">SKSlots</strong> code. Claim any of it by opening a ticket.
+      </p>
+    </div>
+
+    <div class="rw-sec">
+      <div class="rw-head"><h3>Deposit Bonuses</h3><span>10% &ndash; 20% extra</span></div>
+      <div class="rw-prizes" style="margin-bottom:16px;">
+        <div class="rw-prize">
+          <span class="rw-place">$50 &ndash; $500</span>
+          <span style="font-size:30px;color:var(--gold);font-weight:900;">10%</span>
+        </div>
+        <div class="rw-prize">
+          <span class="rw-place">$500 &ndash; $2,500</span>
+          <span style="font-size:30px;color:var(--gold);font-weight:900;">15%</span>
+        </div>
+        <div class="rw-prize">
+          <span class="rw-place">$2,500 &ndash; $50,000</span>
+          <span style="font-size:30px;color:var(--gold);font-weight:900;">20%</span>
+        </div>
+      </div>
+      <ul class="rw-list">
+        <li>&#9888;&#65039; <strong>One single transaction.</strong> Split or multiple deposits do not qualify, so send it in one go.</li>
+        <li>&#9203; Paid within <strong>1&ndash;5 business days</strong> of your ticket.</li>
+        <li>&#128221; Open a ticket with proof of the deposit and your Winovo username.</li>
+      </ul>
+      <div style="margin-top:18px;" class="vip-cta"></div>
+    </div>
+
+    <div class="rw-sec">
+      <div class="rw-head"><h3>VIP Club</h3><span>$2,500 total deposited to qualify</span></div>
+      <div class="rw-cards">
+        <div class="rw-card"><div class="rw-card-t">10% Weekly Lossback</div><div style="font-size:13px;color:var(--dim);line-height:1.6;">Cashback on your net weekly losses, credited straight to your balance.</div></div>
+        <div class="rw-card"><div class="rw-card-t">Account Manager</div><div style="font-size:13px;color:var(--dim);line-height:1.6;">A dedicated manager for your account, plus priority 24/7 support.</div></div>
+        <div class="rw-card"><div class="rw-card-t">Monthly Rewards</div><div style="font-size:13px;color:var(--dim);line-height:1.6;">Tailored monthly incentives based on your tier and activity.</div></div>
+        <div class="rw-card"><div class="rw-card-t">Birthday Bonus</div><div style="font-size:13px;color:var(--dim);line-height:1.6;">A personalised bonus credit on your birthday.</div></div>
+        <div class="rw-card"><div class="rw-card-t">Bigger Deposit Bonuses</div><div style="font-size:13px;color:var(--dim);line-height:1.6;">Higher rates than the public tiers above, set by your tier.</div></div>
+        <div class="rw-card"><div class="rw-card-t">Early Access</div><div style="font-size:13px;color:var(--dim);line-height:1.6;">New releases and high-tier selections before everyone else.</div></div>
+        <div class="rw-card"><div class="rw-card-t">Private Channel</div><div style="font-size:13px;color:var(--dim);line-height:1.6;">A VIP-only channel for announcements and restricted offers.</div></div>
+        <div class="rw-card"><div class="rw-card-t">Events &amp; Badge</div><div style="font-size:13px;color:var(--dim);line-height:1.6;">Private platform events, and a VIP badge on your profile.</div></div>
+      </div>
+    </div>
+
+    <div class="rw-sec">
+      <div class="rw-head"><h3>How to apply</h3></div>
+      <ul class="rw-list">
+        <li><strong>1.</strong> Deposit a total of <strong>$2,500</strong> or more on Winovo under the SKSlots code.</li>
+        <li><strong>2.</strong> Open a ticket with your Winovo username and a screenshot of your total deposits and wager.</li>
+        <li><strong>3.</strong> <strong>Already VIP somewhere else?</strong> Say so in the ticket. It does not transfer automatically, but matching stats can get you approved.</li>
+      </ul>
+      <div style="margin-top:18px;" class="vip-cta"></div>
+    </div>
+
+    <div class="rw-footnote">
+      18+. Bonus terms are set by Winovo and can change at any time. Bonus abuse,
+      account sharing or fraudulent activity voids any payout. Please gamble responsibly.
+    </div>
+  </div>
+
   <!-- Wager Rewards — separate routed view (#rewards) -->
   <div id="rewardsView" class="hidden">
     <div class="hero" style="padding:8px 0 4px;">
@@ -511,6 +578,9 @@
     // portal-data - no dead link while it is still being set up.
     const wv = winovoBoard(s);
     if (wv) items.push(['🎰', (wv.label || 'Winovo') + ' LB', '#winovo', false]);
+    // Rides with the Winovo board: the offers on that page are Winovo's, so
+    // the link would point at nothing before the board is wired up.
+    if (wv) items.push(['💎', 'VIP & Bonuses', '#vip', false]);
     if (s.features && s.features.store && (s.store?.items || []).length) items.push(['🛒', 'Store', '#store', false]);
     (s.portal?.pages || []).forEach(p => items.push(['🎁', p.label, '#' + p.id, false]));
     if (s.pastWinners && s.pastWinners.length) items.push(['👑', 'Winners', '#winners', false]);
@@ -548,7 +618,7 @@
   // in-page anchor on the main view that we smooth-scroll to. This is what makes
   // Store / Past Winners / Wager Rewards their OWN sections (like the wager page)
   // instead of stacking under the leaderboard.
-  const PAGE_VIEWS = { rewards: 'rewardsView', store: 'storeView', winners: 'winnersView', winovo: 'winovoView' };
+  const PAGE_VIEWS = { rewards: 'rewardsView', store: 'storeView', winners: 'winnersView', winovo: 'winovoView', vip: 'vipView' };
   const PAGE_IDS = new Set(Object.keys(PAGE_VIEWS));
   // Absolute paths, never a bare hash. replaceState resolves "#store" against the
   // CURRENT url, so navigating from /store to Winners produced /store#winners —
@@ -600,6 +670,28 @@
 
   // Second full leaderboard page. Reuses the podium/table renderers with its own
   // element ids so the two boards never fight over the DOM.
+  // Every "open a ticket" button on the VIP page. The streamer asked NOT to
+  // send viewers to Winovo, so the destination is his own Discord, read from
+  // the socials he already configured rather than hardcoded here. With no
+  // Discord set the buttons would lead nowhere, so they become instructions.
+  function renderVip(s) {
+    // Two places hold a Discord invite and streamers use either: the socials
+    // block, and the custom links row on the portal. SKSlots has socials.discord
+    // null and the real invite sitting in portal.links, so checking only the
+    // first would have shown him the no-Discord fallback on his own page.
+    const soc   = (s.streamer && s.streamer.socials) || {};
+    const links = (s.portal && s.portal.links) || [];
+    const fromLinks = (links.find(l =>
+      /discord/i.test(String(l && l.label || '')) ||
+      /discord\.(gg|com)/i.test(String(l && l.href || ''))) || {}).href;
+    const href = soc.discord || fromLinks || '';
+    const btn  = "display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0b0714;font-weight:800;font-size:14px;padding:11px 22px;border-radius:10px;text-decoration:none;";
+    const html = href
+      ? '<a href="' + esc(href) + '" target="_blank" rel="noopener" style="' + btn + '">🎫 Open a ticket</a>'
+      : '<div style="font-size:13px;color:var(--dim);line-height:1.6;">Open a ticket in the Discord to claim &mdash; ask in chat for the link.</div>';
+    document.querySelectorAll('.vip-cta').forEach(el => { el.innerHTML = html; });
+  }
+
   function renderWinovo(s) {
     const b = winovoBoard(s);
     const view = document.getElementById('winovoView');
@@ -1112,6 +1204,7 @@
     renderAbout(s);
     renderRewards(s);
     renderWinovo(s);
+    renderVip(s);
 
     // Honor an initial #store/#winners/#rewards deep-link ONCE, on first load —
     // not on the 60s refresh (which would yank the viewer out of their current view).
