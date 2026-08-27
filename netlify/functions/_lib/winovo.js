@@ -69,14 +69,18 @@ async function fetchWinovoBoard(apiKey) {
 
   // Documented as wager-descending already; sorted again so a change on their
   // side can never silently mis-rank a payout.
-  const rankings = body.data
-    .map((p) => ({
-      username:  String(p.name || "").trim() || "Anonymous",
-      // Winovo expose no stable per-player id — the display name IS the key.
-      uid:       null,
-      wagered:   num(p.wagered),
-      avatarUrl: p.pic ? String(p.pic) : null,
-    }))
+  const referred = body.data.map((p) => ({
+    username:  String(p.name || "").trim() || "Anonymous",
+    // Winovo expose no stable per-player id — the display name IS the key.
+    uid:       null,
+    wagered:   num(p.wagered),
+    avatarUrl: p.pic ? String(p.pic) : null,
+  }));
+
+  // The BOARD drops anyone on zero — nobody wants a leaderboard padded with
+  // $0.00 rows. Verification must not reuse that filtered list: `referred` keeps
+  // every player the code has, wagered or not. See lookupWinovoAffiliate.
+  const rankings = referred
     .filter((p) => p.wagered > 0)
     .sort((a, b) => b.wagered - a.wagered)
     .map((p, i) => ({ rank: i + 1, ...p }));
@@ -84,6 +88,9 @@ async function fetchWinovoBoard(apiKey) {
   return {
     creator:      String(body.creator || ""),
     rankings,
+    // Everyone under the code, including zero-wager signups. Not used by the
+    // board; verification reads this one.
+    referred,
     totalUsers:   rankings.length,
     totalWagered: rankings.reduce((sum, p) => sum + p.wagered, 0),
   };
@@ -92,10 +99,14 @@ async function fetchWinovoBoard(apiKey) {
 /**
  * Under-code lookup for verification: is this viewer referred by the code?
  *
- * The endpoint returns EVERY referred player with recorded wager, so absence is
- * meaningful — with the same caveat Rainbet and Clash carry: someone who signed
- * up under the code but has never wagered does not appear, so a miss means "no
- * recorded play under this code", not proof of nothing.
+ * Unlike Rainbet and Clash, absence here really is meaningful. Winovo list every
+ * referred player INCLUDING those on zero wager, so a miss means "not under this
+ * code" rather than "under it but has not played yet".
+ *
+ * That only holds by reading `referred`. Matching the board's `rankings` instead
+ * silently required a viewer to have wagered before they could verify — on
+ * SKSlots' code that was 4 of the first 6 signups being told, wrongly, that they
+ * were not under it.
  *
  * Returns null when the API could not be reached, so callers can tell that apart
  * from a genuine miss.
@@ -107,10 +118,14 @@ async function lookupWinovoAffiliate(apiKey, username) {
   const board = await fetchWinovoBoard(apiKey);
   if (!board) return null;
 
-  const hit = board.rankings.find((r) => r.username.trim().toLowerCase() === name);
-  return hit
-    ? { found: true, username: hit.username, wagered: hit.wagered, place: hit.rank }
-    : { found: false };
+  const all = Array.isArray(board.referred) ? board.referred : board.rankings;
+  const hit = all.find((r) => r.username.trim().toLowerCase() === name);
+  if (!hit) return { found: false };
+
+  // `place` comes from the board, so someone under the code with no wager yet
+  // verifies with no place rather than a made-up one.
+  const ranked = board.rankings.find((r) => r.username.trim().toLowerCase() === name);
+  return { found: true, username: hit.username, wagered: hit.wagered, place: ranked ? ranked.rank : null };
 }
 
 module.exports = { fetchWinovoBoard, lookupWinovoAffiliate };
