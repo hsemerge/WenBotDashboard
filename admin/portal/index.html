@@ -1774,12 +1774,18 @@
     const A = activeUsers();
     // Headline tiles: the numbers worth knowing before picking a queue.
     const mrr = A.filter(isPaying).reduce((s, u) => s + (PLAN_PRICE[u.plan] || 0), 0);
+    // Revenue already committed to leaving. MRR alone reads healthy right up to
+    // the day a cancelling customer's period ends, which is the least useful
+    // moment to find out.
+    const atRisk = A.filter(u => u.stripeSubscribed && u.stripeAutoRenew === false && u.stripeStatus !== 'canceled')
+      .reduce((s, u) => s + (u.stripeAmount || PLAN_PRICE[u.plan] || 0), 0);
     const trialsOpen = A.filter(u => isTrial(u) && u.trialEndsAt > Date.now()).length;
     const converted  = A.filter(u => u.trialExpiredAt && isPaying(u)).length;
     const lapsed     = A.filter(u => u.trialExpiredAt && !isPaying(u) && !u.planTrial).length;
     const convRate   = (converted + lapsed) ? Math.round(100 * converted / (converted + lapsed)) : null;
     $('opsTiles').innerHTML = [
       ...(_role === 'owner' ? [[`${money(mrr)}`, 'MRR (approx)', '']] : []),
+      ...(_role === 'owner' && atRisk ? [[`${money(atRisk)}`, 'MRR at risk', 'bad']] : []),
       [A.filter(isPaying).length, 'Paying subs', ''],
       [trialsOpen, 'Trials running', trialsOpen ? 'warn' : ''],
       [convRate == null ? '—' : convRate + '%', 'Trial → paid', ''],

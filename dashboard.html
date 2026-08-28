@@ -7993,6 +7993,18 @@ function renderBillingPage() {
   const info     = PLAN_INFO[plan] || PLAN_INFO.starter;
   const isActive = p.stripeSubscriptionActive === true;
   const isFailed = p.stripePaymentFailed === true;
+  // A cancelled Stripe subscription keeps reporting "active" until the period
+  // ends, so without this the page told someone who had just cancelled that
+  // their NEXT BILLING DATE was coming — the one message guaranteed to make
+  // them cancel again or open a dispute.
+  const isCancelling = p.stripeSubscriptionId && p.stripeAutoRenew === false;
+  const accessEnd    = p.stripeCancelAt ? new Date(p.stripeCancelAt)
+                     : (p.stripePeriodEnd ? new Date(p.stripePeriodEnd) : null);
+  // Crypto/manual invoice customers had no branch at all here: the page keyed
+  // entirely off Stripe fields, so a streamer paying by invoice saw the same
+  // screen as someone with no subscription.
+  const isCrypto  = p.cryptoBilling === true || !!p.cryptoBillingNextDue;
+  const cryptoDue = p.cryptoBillingNextDue ? new Date(p.cryptoBillingNextDue) : null;
   const isStarter= plan === 'starter';
   // Free-trial state: comped plan with an expiry, not yet paid.
   const trialEnd    = trialEndMs(p);
@@ -8025,7 +8037,10 @@ function renderBillingPage() {
   } else if (isFailed) {
     badge.textContent = 'Past Due';
     badge.style.cssText = 'font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;margin-top:4px;background:rgba(255,71,87,0.12);color:var(--red);border:1px solid rgba(255,71,87,0.3);';
-  } else if (isActive) {
+  } else if (isCancelling) {
+    badge.textContent = 'Cancels soon';
+    badge.style.cssText = 'font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;margin-top:4px;background:rgba(255,179,71,0.12);color:var(--orange);border:1px solid rgba(255,179,71,0.3);';
+  } else if (isActive || isCrypto) {
     badge.textContent = 'Active';
     badge.style.cssText = 'font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;margin-top:4px;background:rgba(0,255,136,0.1);color:var(--green);border:1px solid rgba(0,255,136,0.25);';
   } else if (isStarter) {
@@ -8045,6 +8060,12 @@ function renderBillingPage() {
     nextBillEl.innerHTML = `<div style="font-size:10px;color:#ffd700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">Trial Ends</div><div style="font-size:15px;font-weight:700;color:#ffe07a;">${fmtTrialEnd}</div>`;
   } else if (isStarter && !isActive) {
     nextBillEl.innerHTML = '';
+  } else if (isCancelling && accessEnd) {
+    nextBillEl.innerHTML = `<div style="font-size:10px;color:var(--orange);letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">Access Until</div><div style="font-size:15px;font-weight:700;color:var(--orange);">${fmtDate(accessEnd)}</div><div style="font-size:11px;color:var(--text-dim);margin-top:3px;">Your subscription won't renew. Resubscribe any time to keep your tools.</div>`;
+  } else if (isCrypto) {
+    nextBillEl.innerHTML = cryptoDue
+      ? `<div style="font-size:10px;color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">Next Invoice Due</div><div style="font-size:15px;font-weight:700;color:var(--bright);">${fmtDate(cryptoDue)}</div><div style="font-size:11px;color:var(--text-dim);margin-top:3px;">Billed by invoice — we'll send it before the due date.</div>`
+      : `<div style="font-size:10px;color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">Billing</div><div style="font-size:15px;font-weight:700;color:var(--bright);">By invoice</div>`;
   } else if (isFailed && periodEnd) {
     nextBillEl.innerHTML = `<div style="font-size:10px;color:var(--red);letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">Grace Period Ends</div><div style="font-size:15px;font-weight:700;color:var(--red);">${fmtDate(periodEnd)}</div>`;
   } else if (isActive && periodEnd) {
