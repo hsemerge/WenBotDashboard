@@ -69,29 +69,62 @@ exports.handler = async (event) => {
   // channel where nobody can ask a follow-up question, so it has to answer what
   // verifying unlocks, what to have ready, and what actually happens, in the
   // message itself. Written without dashes.
-  const casinoLabel = CASINO_NAMES[casino] || casino;
+  // Which casinos this message names. Mirrors the dashboard's "Casinos named in
+  // the verify message" control (renderVerifyCasinos): the primary plus any
+  // enabled leaderboard providers, narrowed by discordConfig.verify.casinos —
+  // empty/absent = all, a subset = only those. This function previously named
+  // ONLY the primary (activeProvider), so unticking it in the dashboard changed
+  // nothing about the posted gate (e.g. a channel that features only Winovo was
+  // still told to verify with Gambulls).
+  const nameOf = (p) => CASINO_NAMES[p] || p;
+  const casList = [], seenCas = new Set();
+  const pushCas = (p, label) => {
+    p = String(p || "").toLowerCase();
+    if (!p || p === "notlisted" || seenCas.has(p)) return;
+    seenCas.add(p); casList.push({ provider: p, label: label || nameOf(p) });
+  };
+  pushCas(casino);
+  try {
+    const lbSnap = await db.collection("streamers").doc(uid).collection("leaderboards").get();
+    lbSnap.docs.map((d) => d.data() || {})
+      .filter((b) => b.enabled !== false && b.provider)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .forEach((b) => pushCas(b.provider, b.label));
+  } catch { /* boards read is best-effort; the primary alone is fine */ }
+  const sel    = (verify.casinos || []).map((s) => String(s).toLowerCase());
+  const chosen = sel.length ? casList.filter((c) => sel.includes(c.provider)) : casList;
+  const named  = (chosen.length ? chosen : casList).map((c) => c.label);
+  const multiCasino   = named.length > 1;
+  const casinosPhrase = named.length <= 1
+    ? (named[0] || (CASINO_NAMES[casino] || casino))
+    : named.slice(0, -1).join(", ") + " or " + named[named.length - 1];
+
   const casinoOptional = data.casinoRequired === false;
 
   const defaultGate = [
     "🛡️ **Verify to unlock the server**",
     "",
-    `Verification links your Kick account, your Discord, and your ${casinoLabel} account${casinoOptional ? " (optional)" : ""}. It unlocks the rest of the server and lets you enter giveaways, appear on the leaderboard, and earn points in chat.`,
+    `Verification links your Kick account, your Discord, and your ${multiCasino ? `casino account (${casinosPhrase})` : `${casinosPhrase} account`}${casinoOptional ? " (optional)" : ""}. It unlocks the rest of the server and lets you enter giveaways, appear on the leaderboard, and earn points in chat.`,
     "",
     "**Have ready**",
     "• Your Kick login",
     casinoOptional
-      ? `• Your ${casinoLabel} username if you have one. You can skip it and add it later.`
-      : `• Your ${casinoLabel} username, spelled exactly as it appears on your ${casinoLabel} profile`,
+      ? `• Your ${multiCasino ? `casino username (${casinosPhrase})` : `${casinosPhrase} username`} if you have one. You can skip it and add it later.`
+      : (multiCasino
+          ? `• Your username on the casino you play (${casinosPhrase}), spelled exactly as it appears on your profile there`
+          : `• Your ${casinosPhrase} username, spelled exactly as it appears on your ${casinosPhrase} profile`),
     "",
     "**What happens**",
     "**1.** Press **Verify** below, then **Continue verifying** in the private reply only you can see",
     "**2.** Sign in with Kick when it asks",
     casinoOptional
-      ? `**3.** Add your ${casinoLabel} username, or skip that step`
-      : `**3.** Enter your ${casinoLabel} username`,
+      ? `**3.** Add your ${multiCasino ? `casino username (${casinosPhrase})` : `${casinosPhrase} username`}, or skip that step`
+      : `**3.** Enter your ${multiCasino ? `casino username (${casinosPhrase})` : `${casinosPhrase} username`}`,
     "**4.** Your role is granted as soon as it goes through. Your Discord is attached automatically, so there is nothing else to press",
     "",
-    `**If your ${casinoLabel} username will not match**, paste your ${casinoLabel} User ID instead. It is under Profile, then Settings, then User ID, with a copy button beside it.`,
+    multiCasino
+      ? "**If your casino username will not match**, paste your casino User ID instead. It is under Profile, then Settings, then User ID, with a copy button beside it."
+      : `**If your ${casinosPhrase} username will not match**, paste your ${casinosPhrase} User ID instead. It is under Profile, then Settings, then User ID, with a copy button beside it.`,
     "",
     "Already verified? Pressing Verify again just updates your details, so nothing is lost.",
   ].join("\n");
