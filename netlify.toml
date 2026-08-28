@@ -252,6 +252,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/admin-team"
+  to     = "/.netlify/functions/admin-team"
+  status = 200
+
+[[redirects]]
   from   = "/api/send-agency-inquiry"
   to     = "/.netlify/functions/send-agency-inquiry"
   status = 200

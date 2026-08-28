@@ -257,6 +257,9 @@
               <div class="kicker" style="margin-top:18px;">Attention</div>
               <div class="panel-title">Needs a look</div>
               <div id="dashAttention" class="sub">—</div>
+              <div class="kicker" style="margin-top:18px;">Team</div>
+              <div class="panel-title">Portal access</div>
+              <div id="dashTeam" class="sub">—</div>
             </div>
             <div class="tablecard">
               <div style="padding:14px 14px 8px;">
@@ -635,10 +638,13 @@
       renderDash(d.stats || {});
       if (currentRoute() === 'ops') renderOps();   // keep the queues in step with ↻ Refresh
       loadActivity();
-      // Tickets + outreach drive dashboard tiles / the nav badge, so pull them
-      // up front rather than waiting for their routes to be opened.
-      loadTickets().catch(() => {});
-      loadOutreach().catch(() => {});
+      // The roster must land BEFORE the pickers build, or "assign to" is just
+      // your own name. Tickets + outreach drive dashboard tiles / the nav badge,
+      // so pull them up front rather than waiting for their routes to open.
+      loadTeam().then(() => {
+        loadTickets().catch(() => {});
+        loadOutreach().catch(() => {});
+      });
       if (_role === 'owner') {
         loadBillingOverview();
         if (typeof renderBilling === 'function') renderBilling();
@@ -751,6 +757,19 @@
     if (tkHot)  bits.push(`<a href="#/tickets">🎫 ${tkHot} high/urgent ticket${tkHot === 1 ? '' : 's'} open</a>`);
     if (tkMine) bits.push(`<a href="#/tickets" onclick="setTimeout(()=>{var m=document.getElementById('tkMineOnly');if(m){m.checked=true;renderTickets();}},50)">🙋 ${tkMine} ticket${tkMine === 1 ? '' : 's'} assigned to you</a>`);
     $('dashAttention').innerHTML = bits.length ? bits.map(b => `<div style="margin:5px 0;">${b}</div>`).join('') : '<span class="ok">Nothing urgent. 🎉</span>';
+
+    // Who can sign into this portal — the roster the pickers use.
+    const teamEl = $('dashTeam');
+    if (teamEl) {
+      teamEl.innerHTML = _team.length
+        ? _team.map(m => `<div style="margin:4px 0;display:flex;align-items:center;gap:8px;">
+            <b style="color:var(--bright);">${esc(m.name)}</b>
+            <span class="pill ${m.role === 'owner' ? 'agency' : 'pro'}">${esc(m.role)}</span>
+            <span class="muted" style="font-size:11px;">${esc(m.email)}</span>
+            <span class="muted" style="font-size:11px;margin-left:auto;" title="Two-factor authentication">${m.mfa ? '🔐 2FA' : ''}</span>
+          </div>`).join('')
+        : '<span class="muted">Roster unavailable.</span>';
+    }
   }
   window.setUserFilter = function (v) { const el = $('userFilter'); if (el) { el.value = v; } renderTable(); };
 
@@ -1181,11 +1200,11 @@
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       _outreach = d.cards || []; _outreachLoaded = true;
-      // Owner picker = the team (whoever already owns a card, plus me).
-      const owners = [...new Set([_me, ...(_outreach.map(c => c.owner).filter(Boolean))])];
+      // Owner picker = the real admin roster, plus anyone already owning a card.
+      const owners = tkTeam();
       const sel = $('orOwner');
       if (sel && !sel.dataset.filled) {
-        sel.innerHTML = owners.map(o => `<option value="${esc(o)}">${esc(String(o).split('@')[0])}</option>`).join('');
+        sel.innerHTML = owners.map(o => `<option value="${esc(o)}">${esc(teamLabel(o))}</option>`).join('');
         sel.dataset.filled = '1';
       }
       renderOutreach();
@@ -1348,12 +1367,31 @@
   const TK_LABEL  = { open:'open', in_progress:'in progress', blocked:'blocked', done:'done' };
   const TK_PRIOS  = ['low', 'normal', 'high', 'urgent'];
 
-  function tkTeam() {
-    // The team = whoever holds a ticket, owns outreach, or is signed in.
-    return [...new Set([_me,
-      ..._tickets.map(t => t.assignee).filter(Boolean),
-      ..._outreach.map(c => c.owner).filter(Boolean)])];
+  // The admin roster, from /api/admin-team (people with an adminRole claim or on
+  // the env allowlist). Building this from "whoever already holds a ticket" was
+  // circular — on an empty board only your own name appeared, so a teammate
+  // could never be assigned anything. Historic names are unioned in so a ticket
+  // assigned to someone since removed still shows their name.
+  let _team = [];
+  async function loadTeam() {
+    try {
+      const r = await authedFetch('/api/admin-team');
+      const d = await r.json();
+      if (r.ok) _team = d.team || [];
+    } catch { /* pickers fall back to known names */ }
   }
+  function tkTeam() {
+    return [...new Set([
+      ..._team.map(m => m.email).filter(Boolean),
+      _me,
+      ..._tickets.map(t => t.assignee).filter(Boolean),
+      ..._outreach.map(c => c.owner).filter(Boolean),
+    ].filter(Boolean))];
+  }
+  const teamLabel = (email) => {
+    const m = _team.find(x => x.email === email);
+    return m ? `${m.name}${m.role === 'owner' ? ' (owner)' : ''}` : String(email || '').split('@')[0];
+  };
 
   window.loadTickets = async function () {
     try {
@@ -1365,7 +1403,7 @@
       if (sel) {
         const keep = sel.value;
         sel.innerHTML = '<option value="">unassigned</option>'
-          + tkTeam().map(o => `<option value="${esc(o)}">${esc(String(o).split('@')[0])}</option>`).join('');
+          + tkTeam().map(o => `<option value="${esc(o)}">${esc(teamLabel(o))}</option>`).join('');
         sel.value = keep || _me;
       }
       renderTickets();
@@ -1439,7 +1477,7 @@
         <span class="muted">Assignee:</span>
         <select id="tk-as-${esc(t.id)}" onchange="tkSetField('${esc(t.id)}','assignee',this.value)" style="width:190px;font-size:12px;padding:4px 8px;">
           <option value="" ${!t.assignee ? 'selected' : ''}>unassigned</option>
-          ${tkTeam().map(o => `<option value="${esc(o)}" ${o === t.assignee ? 'selected' : ''}>${esc(String(o).split('@')[0])}</option>`).join('')}
+          ${tkTeam().map(o => `<option value="${esc(o)}" ${o === t.assignee ? 'selected' : ''}>${esc(teamLabel(o))}</option>`).join('')}
         </select>
         <span class="muted">Streamer:</span>
         <input id="tk-ch-${esc(t.id)}" value="${esc(t.relatedChannel || '')}" placeholder="channel" style="font-size:12px;padding:4px 8px;width:170px;">
