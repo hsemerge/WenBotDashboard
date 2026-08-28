@@ -1876,6 +1876,69 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         </div>
       </div>
 
+      <!-- Your own questions & categories: streamer-authored bank, merged into the
+           pick pool and the Category dropdown above. -->
+      <details class="card" id="trivCustomCard">
+        <summary style="cursor:pointer;font-weight:800;color:var(--bright);list-style:none;display:flex;align-items:center;gap:8px;">
+          ✍️ Your own questions &amp; categories
+          <span id="trivCustomCount" style="font-size:11px;font-weight:600;color:var(--text-dim);"></span>
+        </summary>
+        <p style="font-size:12px;color:var(--text-dim);margin:12px 0 16px;line-height:1.6;">
+          Build your own categories and fill them with your own questions. They show up in the <strong>Category</strong> dropdown above and get asked just like the built-in ones. Type them one at a time, or paste a whole batch.
+        </p>
+
+        <!-- Pick / create the category everything below goes into -->
+        <div class="field">
+          <label>Category to add to</label>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <select id="trivCustCatSel" style="flex:1;min-width:180px;"></select>
+            <input type="text" id="trivNewCat" maxlength="40" placeholder="or type a new category name" style="flex:1;min-width:180px;">
+            <button class="btn btn-ghost" onclick="trivAddCategory()" style="white-space:nowrap;">+ Add category</button>
+          </div>
+        </div>
+
+        <div style="height:1px;background:var(--border);margin:14px 0;"></div>
+
+        <!-- Type one question -->
+        <div class="field">
+          <label>Question</label>
+          <input type="text" id="trivQaQ" maxlength="200" placeholder="What is our Discord's mascot?">
+        </div>
+        <div class="grid-2" style="gap:12px;">
+          <div class="field">
+            <label>Answer</label>
+            <input type="text" id="trivQaA" maxlength="80" placeholder="The exact answer">
+          </div>
+          <div class="field">
+            <label>Also accept<span style="color:var(--text-dim);font-weight:400;font-size:11px;">, comma separated</span></label>
+            <input type="text" id="trivQaAlts" maxlength="200" placeholder="other spellings chat will type">
+          </div>
+        </div>
+        <div class="grid-2" style="gap:12px;align-items:end;">
+          <div class="field">
+            <label>Difficulty<span style="color:var(--text-dim);font-weight:400;font-size:11px;"> — also used for imports</span></label>
+            <select id="trivQaDiff">
+              <option value="easy">Easy</option>
+              <option value="medium" selected>Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+          <div class="field">
+            <button class="btn btn-green" onclick="trivAddQuestion()" style="width:100%;">+ Add question</button>
+          </div>
+        </div>
+
+        <!-- Or import a batch -->
+        <div class="field" style="margin-top:8px;">
+          <label>Or import a batch<span style="color:var(--text-dim);font-weight:400;font-size:11px;"> — one per line: <code>Question | Answer | alt1, alt2</code> (alts optional)</span></label>
+          <textarea id="trivImport" rows="5" placeholder="What year did we hit 1k followers? | 2024&#10;Who is our mod with the cat pfp? | luna | luna_, lunacat"></textarea>
+        </div>
+        <button class="btn btn-ghost" onclick="trivImportQuestions()">⬆ Import into selected category</button>
+
+        <!-- Review / delete -->
+        <div id="trivCustomList" style="margin-top:18px;"></div>
+      </details>
+
       <!-- Live round -->
       <div class="card" id="trivLiveCard" style="display:none;">
         <div class="card-title" style="justify-content:space-between;">
@@ -12749,14 +12812,192 @@ function trivUpdateUI() {
 }
 
 function openTriviaPage() {
-  const catSel = document.getElementById('trivCategory');
-  if (catSel && !catSel.options.length) {
-    catSel.innerHTML = TRIVIA_CATEGORIES
-      .map(c => '<option value="' + c.id + '">' + escHtml(c.label) + '</option>').join('');
-  }
+  trivPopulateCategories();   // built-ins right away so the dropdown is never empty
+  trivLoadCustom();           // async: the streamer's own categories + questions
   trivRenderScores();
   trivUpdateUI();
   trivConnectChat();
+}
+
+// ── Custom trivia: streamer-authored categories + questions ──────────────────
+// Stored in one doc (streamers/{uid}/config/trivia) as { categories:[{id,label}],
+// questions:[{cat,diff,q,a,alts}] }. The questions array is handed to the pick
+// pool via window.TRIVIA_EXTRA (see triviaPick in trivia-bank.js), and the
+// categories are added to the Category dropdown, so a custom category is asked
+// exactly like a built-in one.
+let _trivCustom = { categories: [], questions: [] };
+
+function _trivCustDoc() {
+  return fb.db.collection('streamers').doc(fb.activeUid).collection('config').doc('trivia');
+}
+
+async function trivLoadCustom() {
+  _trivCustom = { categories: [], questions: [] };
+  try {
+    const d = await _trivCustDoc().get();
+    if (d.exists) {
+      const data = d.data() || {};
+      if (Array.isArray(data.categories)) _trivCustom.categories = data.categories;
+      if (Array.isArray(data.questions))  _trivCustom.questions  = data.questions;
+    }
+  } catch (e) { /* best-effort; an empty custom bank is fine */ }
+  window.TRIVIA_EXTRA = _trivCustom.questions;   // feed the pick pool
+  trivPopulateCategories();
+  trivRenderCustom();
+}
+
+async function trivSaveCustom() {
+  window.TRIVIA_EXTRA = _trivCustom.questions;   // keep the live pool in sync
+  try {
+    await _trivCustDoc().set({
+      categories: _trivCustom.categories,
+      questions:  _trivCustom.questions,
+      updatedAt:  Date.now(),
+    });
+  } catch (e) { flash('Could not save your questions: ' + e.message, 'error'); }
+}
+
+// Rebuild both Category dropdowns: the run-a-round one (built-ins + a "Your
+// categories" group) and the manage-panel one (custom only). Preserves the
+// current selection where it still exists.
+function trivPopulateCategories() {
+  const cust = _trivCustom.categories || [];
+  const built = (typeof TRIVIA_CATEGORIES !== 'undefined' ? TRIVIA_CATEGORIES : []);
+  const runSel = document.getElementById('trivCategory');
+  if (runSel) {
+    const cur = runSel.value;
+    let html = built.map(c => `<option value="${escHtml(c.id)}">${escHtml(c.label)}</option>`).join('');
+    if (cust.length) {
+      html += '<optgroup label="Your categories">'
+        + cust.map(c => `<option value="${escHtml(c.id)}">${escHtml(c.label)}</option>`).join('')
+        + '</optgroup>';
+    }
+    runSel.innerHTML = html;
+    if (cur) runSel.value = cur;
+  }
+  const manageSel = document.getElementById('trivCustCatSel');
+  if (manageSel) {
+    const cur = manageSel.value;
+    manageSel.innerHTML = cust.length
+      ? cust.map(c => `<option value="${escHtml(c.id)}">${escHtml(c.label)}</option>`).join('')
+      : '<option value="">— add a category first —</option>';
+    if (cur) manageSel.value = cur;
+  }
+}
+
+function trivAddCategory() {
+  const inp   = document.getElementById('trivNewCat');
+  const label = (inp?.value || '').trim().slice(0, 40);
+  if (!label) { flash('Type a name for the new category first.', 'error'); return; }
+  if (_trivCustom.categories.some(c => (c.label || '').toLowerCase() === label.toLowerCase())) {
+    flash('You already have a category with that name.', 'error'); return;
+  }
+  // Slug id from the label, made unique against what exists.
+  let base = 'c_' + label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
+  if (base === 'c_') base = 'c_cat';
+  const existing = new Set(_trivCustom.categories.map(c => c.id));
+  let id = base, n = 2;
+  while (existing.has(id)) id = base + '-' + (n++);
+  _trivCustom.categories.push({ id, label });
+  if (inp) inp.value = '';
+  trivSaveCustom();
+  trivPopulateCategories();
+  const sel = document.getElementById('trivCustCatSel'); if (sel) sel.value = id;
+  trivRenderCustom();
+  flash('Category added.');
+}
+
+function trivAddQuestion() {
+  const catId = document.getElementById('trivCustCatSel')?.value || '';
+  if (!catId) { flash('Add or pick a category first.', 'error'); return; }
+  const q = (document.getElementById('trivQaQ')?.value || '').trim().slice(0, 200);
+  const a = (document.getElementById('trivQaA')?.value || '').trim().slice(0, 80);
+  if (!q || !a) { flash('A question needs both a question and an answer.', 'error'); return; }
+  const diff = document.getElementById('trivQaDiff')?.value || 'medium';
+  const alts = (document.getElementById('trivQaAlts')?.value || '')
+    .split(',').map(t => t.trim()).filter(Boolean).slice(0, 20);
+  _trivCustom.questions.push({ cat: catId, diff, q, a, alts });
+  ['trivQaQ', 'trivQaA', 'trivQaAlts'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  trivSaveCustom();
+  trivRenderCustom();
+  flash('Question added.');
+}
+
+function trivImportQuestions() {
+  const catId = document.getElementById('trivCustCatSel')?.value || '';
+  if (!catId) { flash('Add or pick a category first.', 'error'); return; }
+  const raw = (document.getElementById('trivImport')?.value || '').trim();
+  if (!raw) { flash('Paste some questions to import.', 'error'); return; }
+  const diff = document.getElementById('trivQaDiff')?.value || 'medium';
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  let added = 0, skipped = 0;
+  for (const line of lines) {
+    const parts = line.split('|').map(p => p.trim());
+    const q = (parts[0] || '').slice(0, 200);
+    const a = (parts[1] || '').slice(0, 80);
+    if (!q || !a) { skipped++; continue; }
+    const alts = (parts[2] || '').split(',').map(t => t.trim()).filter(Boolean).slice(0, 20);
+    _trivCustom.questions.push({ cat: catId, diff, q, a, alts });
+    added++;
+  }
+  if (!added) { flash('No valid lines. Use: Question | Answer | alt1, alt2', 'error'); return; }
+  const el = document.getElementById('trivImport'); if (el) el.value = '';
+  trivSaveCustom();
+  trivRenderCustom();
+  flash(`Imported ${added} question${added === 1 ? '' : 's'}${skipped ? ` — ${skipped} skipped (need Question | Answer)` : ''}.`);
+}
+
+function trivDeleteQuestion(idx) {
+  if (idx < 0 || idx >= _trivCustom.questions.length) return;
+  _trivCustom.questions.splice(idx, 1);
+  trivSaveCustom();
+  trivRenderCustom();
+}
+
+function trivDeleteCategory(id) {
+  const cat   = _trivCustom.categories.find(c => c.id === id);
+  const count = _trivCustom.questions.filter(q => q.cat === id).length;
+  if (!confirm(`Delete "${cat ? cat.label : id}"${count ? ` and its ${count} question${count === 1 ? '' : 's'}` : ''}?`)) return;
+  _trivCustom.categories = _trivCustom.categories.filter(c => c.id !== id);
+  _trivCustom.questions  = _trivCustom.questions.filter(q => q.cat !== id);
+  trivSaveCustom();
+  trivPopulateCategories();
+  trivRenderCustom();
+}
+
+function trivRenderCustom() {
+  const countEl = document.getElementById('trivCustomCount');
+  const wrap    = document.getElementById('trivCustomList');
+  const nCat = _trivCustom.categories.length, nQ = _trivCustom.questions.length;
+  if (countEl) countEl.textContent = nCat
+    ? `${nCat} categor${nCat === 1 ? 'y' : 'ies'} · ${nQ} question${nQ === 1 ? '' : 's'}`
+    : '';
+  if (!wrap) return;
+  if (!nCat) {
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--text-dim);">No custom categories yet. Add one above to get started.</div>';
+    return;
+  }
+  wrap.innerHTML = _trivCustom.categories.map(cat => {
+    const rows = _trivCustom.questions
+      .map((q, i) => ({ q, i }))
+      .filter(x => x.q.cat === cat.id);
+    const items = rows.length ? rows.map(x =>
+        '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:7px 0;border-top:1px solid var(--border);">'
+        + '<div style="flex:1;font-size:12.5px;line-height:1.5;">'
+        + `<span style="color:var(--bright);">${escHtml(x.q.q)}</span> `
+        + `<span style="color:var(--text-dim);">→ ${escHtml(x.q.a)}${x.q.alts && x.q.alts.length ? ' / ' + escHtml(x.q.alts.join(', ')) : ''}</span> `
+        + `<span style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.4px;">${escHtml(x.q.diff || '')}</span>`
+        + '</div>'
+        + `<button class="btn btn-ghost btn-sm" onclick="trivDeleteQuestion(${x.i})" title="Delete this question">✕</button>`
+        + '</div>'
+      ).join('')
+      : '<div style="font-size:11.5px;color:var(--text-dim);padding:7px 0;">No questions in here yet.</div>';
+    return '<div style="margin-bottom:16px;">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">'
+      + `<strong style="color:var(--bright);font-size:13px;">${escHtml(cat.label)} <span style="color:var(--text-dim);font-weight:400;">(${rows.length})</span></strong>`
+      + `<button class="btn btn-ghost btn-sm" onclick="trivDeleteCategory('${escHtml(cat.id)}')" title="Delete this whole category">🗑 Delete category</button>`
+      + '</div>' + items + '</div>';
+  }).join('');
 }
 
 // ── COMMANDS ──

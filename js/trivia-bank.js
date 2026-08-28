@@ -189,7 +189,11 @@ function triviaIsCorrect(message, question) {
 // this session so a round does not repeat itself.
 function triviaPick(category, difficulty, usedQuestions) {
   const used = new Set(usedQuestions || []);
-  let pool = TRIVIA_BANK.filter(q =>
+  // Built-in bank plus any custom questions the dashboard has loaded for this
+  // streamer (window.TRIVIA_EXTRA), so a streamer's own category is drawable just
+  // like a built-in one. Empty/absent when there are no custom questions.
+  const extra = (typeof window !== 'undefined' && Array.isArray(window.TRIVIA_EXTRA)) ? window.TRIVIA_EXTRA : [];
+  let pool = TRIVIA_BANK.concat(extra).filter(q =>
     (!category   || q.cat  === category) &&
     (!difficulty || q.diff === difficulty));
   const fresh = pool.filter(q => !used.has(q.q));
