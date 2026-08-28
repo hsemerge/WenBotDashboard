@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>WenBot Admin</title>
+<!--
+  The WenBot Admin portal — Triton's R3 control-room shell (Wenbot_Admin_Developer_Handoff)
+  wired to the real backend. The inner route markup + JS is ported from admin/index.html
+  with IDENTICAL element ids, so the battle-tested handlers work unchanged; only the
+  chassis (sidebar, topbar, routing, HUD styling) is new. admin/index.html stays live as
+  the fallback until this is proven, then swaps in.
+
+  Roles: body.role-staff (set after /api/admin-users returns the caller's role) hides every
+  .owner-only surface — cosmetic only, the server refuses staff regardless.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --bg-top:#071019; --bg-mid:#060b12; --bg-bot:#03060a;
+    --card:rgba(13,23,33,.86); --card2:rgba(17,29,41,.9);
+    --line:rgba(116,150,170,.18); --line2:rgba(126,170,195,.32);
+    --text:#ecf6fb; --dim:#8ca1ae; --bright:#ffffff;
+    --accent:#52d6ff; --accent-rgb:82,214,255;
+    --good:#55efb0; --warn:#f7c96b; --bad:#ff6f91; --purple:#8c7dff; --gold:#f5c518;
+    --mono:'JetBrains Mono',Consolas,monospace; --disp:'Space Grotesk','Inter',sans-serif;
+  }
+  body {
+    font-family:'Inter',system-ui,sans-serif; color:var(--text); min-height:100vh;
+    background:linear-gradient(180deg,var(--bg-top),var(--bg-mid) 42%,var(--bg-bot));
+    background-attachment:fixed;
+  }
+  body::before { /* faint grid, from the mock's Obsidian Grid theme */
+    content:''; position:fixed; inset:0; pointer-events:none; opacity:.5;
+    background-image:linear-gradient(rgba(var(--accent-rgb),.045) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(var(--accent-rgb),.045) 1px,transparent 1px);
+    background-size:44px 44px;
+  }
+  .hidden { display:none !important; }
+  .role-staff .owner-only { display:none !important; }
+  a { color:var(--accent); }
+
+  /* ── Login ── */
+  .login { position:relative; max-width:420px; margin:14vh auto; background:var(--card); border:1px solid var(--line2); border-radius:16px; padding:34px; box-shadow:0 30px 80px rgba(0,0,0,.6); }
+  .login h1 { font-family:var(--disp); font-size:22px; color:var(--bright); letter-spacing:.02em; }
+  .login .kicker { font-family:var(--mono); font-size:10.5px; letter-spacing:.22em; color:var(--accent); text-transform:uppercase; margin-bottom:8px; }
+  .login p { font-size:13px; color:var(--dim); margin:6px 0 16px; }
+  label { display:block; font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.14em; color:var(--dim); margin:13px 0 6px; }
+  input, select, textarea { width:100%; background:rgba(4,10,16,.85); border:1px solid var(--line2); border-radius:9px; padding:10px 12px; color:var(--bright); font-size:14px; font-family:inherit; transition:border-color .15s, box-shadow .15s; }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(var(--accent-rgb),.14); }
+  button { background:linear-gradient(180deg,rgba(var(--accent-rgb),.95),rgba(var(--accent-rgb),.75)); color:#03222e; font-weight:800; border:none; border-radius:9px; padding:9px 16px; cursor:pointer; font-size:13.5px; font-family:'Inter',sans-serif; transition:filter .15s, transform .05s; }
+  button:hover { filter:brightness(1.1); } button:active { transform:translateY(1px); } button:disabled { opacity:.5; cursor:not-allowed; }
+  .btn-ghost { background:rgba(255,255,255,.04); border:1px solid var(--line2); color:var(--text); font-weight:600; }
+  .btn-ghost:hover { background:rgba(var(--accent-rgb),.09); border-color:var(--accent); filter:none; }
+  .err { color:var(--bad); font-size:13px; margin-top:12px; min-height:18px; }
+
+  /* ── App shell ── */
+  .app { position:relative; display:grid; grid-template-columns:300px 1fr; min-height:100vh; }
+  .sidebar {
+    position:sticky; top:0; height:100vh; overflow-y:auto; padding:22px 18px;
+    background:linear-gradient(180deg,rgba(9,18,26,.96),rgba(5,10,16,.96));
+    border-right:1px solid var(--line);
+  }
+  .brand { display:flex; align-items:center; gap:12px; padding:4px 6px 18px; border-bottom:1px solid var(--line); margin-bottom:14px; }
+  .brand .glyph { width:40px; height:40px; border-radius:11px; display:grid; place-items:center; font-family:var(--disp); font-weight:700; color:#03222e; background:linear-gradient(160deg,var(--accent),#2b9cc4); box-shadow:0 0 22px rgba(var(--accent-rgb),.4); }
+  .brand .t1 { font-family:var(--disp); font-size:15.5px; font-weight:700; color:var(--bright); letter-spacing:.03em; }
+  .brand .t2 { font-family:var(--mono); font-size:9.5px; letter-spacing:.24em; color:var(--dim); text-transform:uppercase; margin-top:2px; }
+  .core { display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:10px; letter-spacing:.14em; color:var(--good); text-transform:uppercase; padding:8px 10px; border:1px solid rgba(85,239,176,.25); border-radius:9px; background:rgba(85,239,176,.05); margin-bottom:16px; }
+  .core .dot { width:7px; height:7px; border-radius:50%; background:var(--good); box-shadow:0 0 10px var(--good); animation:pulse 2.2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.35;} }
+  @media (prefers-reduced-motion: reduce){ .core .dot{ animation:none; } }
+  .navgroup { font-family:var(--mono); font-size:9.5px; letter-spacing:.22em; color:var(--dim); text-transform:uppercase; margin:16px 8px 7px; }
+  .nav a {
+    display:flex; align-items:center; gap:10px; padding:9px 12px; margin:2px 0; border-radius:9px;
+    color:var(--text); text-decoration:none; font-size:13.5px; font-weight:600; border:1px solid transparent;
+  }
+  .nav a:hover { background:rgba(var(--accent-rgb),.07); }
+  .nav a.active { background:rgba(var(--accent-rgb),.12); border-color:rgba(var(--accent-rgb),.35); color:var(--bright); box-shadow:inset 2px 0 0 var(--accent); }
+  .nav .ico { width:20px; text-align:center; }
+  .usercard { margin-top:22px; padding:12px; border:1px solid var(--line); border-radius:11px; background:rgba(255,255,255,.02); }
+  .usercard .em { font-size:12.5px; color:var(--bright); font-weight:600; word-break:break-all; }
+  .usercard .rl { font-family:var(--mono); font-size:9.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--accent); margin-top:3px; }
+
+  .workspace { min-width:0; }
+  .topbar {
+    position:sticky; top:0; z-index:40; height:72px; display:flex; align-items:center; gap:18px; padding:0 26px;
+    background:rgba(6,12,18,.82); backdrop-filter:blur(9px); border-bottom:1px solid var(--line);
+  }
+  .topbar .route-title { font-family:var(--disp); font-size:19px; font-weight:700; color:var(--bright); letter-spacing:.02em; }
+  .topbar .kick { font-family:var(--mono); font-size:10px; letter-spacing:.2em; color:var(--dim); text-transform:uppercase; }
+  .topbar .clock { margin-left:auto; font-family:var(--mono); font-size:12.5px; color:var(--accent); letter-spacing:.08em; }
+  .content { padding:24px 26px 90px; }
+
+  /* ── HUD cards / stats ── */
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(172px,1fr)); gap:14px; margin-bottom:20px; }
+  .stat { position:relative; background:linear-gradient(180deg,var(--card2),var(--card)); border:1px solid var(--line2); border-radius:13px; padding:15px 17px; overflow:hidden; }
+  .stat::after { content:''; position:absolute; inset:0 0 auto 0; height:2px; background:linear-gradient(90deg,transparent,rgba(var(--accent-rgb),.7),transparent); }
+  .stat .n { font-family:var(--disp); font-size:25px; font-weight:700; color:var(--bright); letter-spacing:-.01em; }
+  .stat .l { font-family:var(--mono); font-size:9.5px; color:var(--dim); text-transform:uppercase; letter-spacing:.16em; margin-top:4px; }
+  .stat .l small { text-transform:none; letter-spacing:0; font-family:'Inter',sans-serif; font-size:11px; }
+  .stat.good .n { color:var(--good); } .stat.warn .n { color:var(--warn); } .stat.bad .n { color:var(--bad); }
+
+  .tablecard { background:var(--card); border:1px solid var(--line2); border-radius:13px; overflow:hidden; box-shadow:0 14px 40px rgba(0,0,0,.35); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:11px 15px; border-bottom:1px solid rgba(126,170,195,.09); white-space:nowrap; }
+  th { font-family:var(--mono); font-size:9.5px; text-transform:uppercase; letter-spacing:.14em; color:var(--dim); position:sticky; top:0; background:rgba(10,19,28,.97); z-index:2; }
+  tr:hover td { background:rgba(var(--accent-rgb),.05); }
+  .pill { display:inline-block; font-size:11px; font-weight:700; padding:2px 9px; border-radius:20px; }
+  .pill.starter { background:rgba(140,161,174,.15); color:#a9bcC8; } .pill.pro { background:rgba(var(--accent-rgb),.14); color:var(--accent); }
+  .pill.elite { background:rgba(245,197,24,.14); color:var(--gold); } .pill.agency { background:rgba(85,239,176,.14); color:var(--good); }
+  .pill.comp { background:rgba(255,111,145,.15); color:#ffa9bc; margin-left:4px; }
+  .ok { color:var(--good); } .no { color:var(--dim); } .warn { color:var(--bad); }
+  .num { font-variant-numeric:tabular-nums; }
+  .muted { color:var(--dim); }
+  .sub { font-size:12px; color:var(--dim); }
+  .toolbar { display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap; align-items:center; }
+  .toolbar input { max-width:300px; }
+  .panel-title { font-family:var(--disp); font-size:15.5px; font-weight:700; color:var(--bright); margin-bottom:4px; }
+  .kicker { font-family:var(--mono); font-size:9.5px; letter-spacing:.2em; color:var(--accent); text-transform:uppercase; }
+
+  /* Dashboard layout */
+  .dashgrid { display:grid; grid-template-columns:1.5fr .9fr; gap:16px; }
+  @media (max-width:1080px){ .dashgrid { grid-template-columns:1fr; } }
+  .feed { max-height:520px; overflow-y:auto; }
+  .feed .ev { display:flex; gap:10px; padding:9px 14px; border-bottom:1px solid rgba(126,170,195,.08); font-size:12.5px; }
+  .feed .ev .t { font-family:var(--mono); font-size:10.5px; color:var(--dim); white-space:nowrap; padding-top:1px; }
+  .feed .ev b { color:var(--bright); font-weight:600; }
+  .planbar { display:flex; height:10px; border-radius:6px; overflow:hidden; border:1px solid var(--line2); margin:8px 0 6px; }
+  .planbar div { height:100%; }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:11.5px; color:var(--dim); }
+  .legend i { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; }
+
+  /* To-Do */
+  .todo-add { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .todo-add input { flex:1; min-width:200px; }
+  .todo-row { display:flex; align-items:center; gap:11px; padding:10px 14px; border-bottom:1px solid rgba(126,170,195,.08); cursor:pointer; }
+  .todo-row:hover { background:rgba(var(--accent-rgb),.05); }
+  .todo-row .box { width:17px; height:17px; border-radius:5px; border:1px solid var(--line2); display:grid; place-items:center; font-size:11px; color:#03222e; flex:0 0 auto; }
+  .todo-row.done .box { background:var(--good); border-color:var(--good); }
+  .todo-row.done .tx { text-decoration:line-through; color:var(--dim); }
+  .todo-row .tag { font-family:var(--mono); font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); border:1px solid rgba(var(--accent-rgb),.3); border-radius:5px; padding:1px 7px; }
+  .todo-row .meta { margin-left:auto; font-size:11px; color:var(--dim); white-space:nowrap; }
+  .todo-row .del { color:var(--dim); cursor:pointer; padding:0 4px; } .todo-row .del:hover { color:var(--bad); }
+
+  @media (max-width:900px){
+    .app { grid-template-columns:1fr; }
+    .sidebar { position:relative; height:auto; border-right:none; border-bottom:1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+  <!-- LOGIN -->
+  <div id="loginView" class="login">
+    <div class="kicker">Wenbot Admin · Control System</div>
+    <h1>Sign in</h1>
+    <p>Restricted. Authorized accounts only.</p>
+    <form id="loginForm">
+      <label>Email</label>
+      <input id="email" type="email" autocomplete="username" required>
+      <label>Password</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <label>Admin secret <span style="text-transform:none;letter-spacing:0;color:#5d7484;">(owners; staff leave blank)</span></label>
+      <input id="secret" type="password" autocomplete="off" placeholder="optional">
+      <label class="sub" style="display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:0;margin-top:8px;font-family:'Inter',sans-serif;">
+        <input type="checkbox" id="rememberSecret" style="width:auto;"> Remember the secret on this device
+      </label>
+      <div style="margin-top:18px;"><button id="loginBtn" type="submit">Sign in</button></div>
+      <div class="err" id="loginErr"></div>
+    </form>
+  </div>
+
+  <!-- APP -->
+  <div id="panelView" class="app hidden">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="glyph">W?</div>
+        <div><div class="t1">WENBOT ADMIN</div><div class="t2">Control System</div></div>
+      </div>
+      <div class="core"><span class="dot"></span> All systems nominal</div>
+      <nav class="nav">
+        <div class="navgroup">Operations</div>
+        <a href="#/dashboard"  data-route="dashboard"><span class="ico">◧</span> Dashboard</a>
+        <a href="#/streamers"  data-route="streamers"><span class="ico">👥</span> Streamers</a>
+        <a href="#/billing"    data-route="billing" class="owner-only"><span class="ico">💳</span> Billing</a>
+        <a href="#/slots"      data-route="slots"><span class="ico">🎰</span> Slots</a>
+        <div class="navgroup">Wenbot Team</div>
+        <a href="#/todo"       data-route="todo"><span class="ico">☑</span> To-Do List</a>
+      </nav>
+      <div class="usercard">
+        <div class="em" id="whoami">—</div>
+        <div class="rl" id="whoRole">—</div>
+        <button class="btn-ghost" style="margin-top:10px;width:100%;" onclick="adminSignOut()">Sign out</button>
+      </div>
+      <div class="sub" style="margin-top:14px;font-size:10.5px;line-height:1.6;">Classic panel: <a href="/admin/">/admin</a></div>
+    </aside>
+
+    <div class="workspace">
+      <div class="topbar">
+        <div>
+          <div class="route-title" id="routeTitle">Dashboard</div>
+          <div class="kick" id="routeKick">Global operations</div>
+        </div>
+        <div class="clock" id="hudClock">—</div>
+      </div>
+      <div class="content">
+
+        <!-- DASHBOARD -->
+        <div id="dashView">
+          <div class="stats" id="dashTiles"></div>
+          <div class="dashgrid">
+            <div class="tablecard" style="padding:16px;">
+              <div class="kicker">Plan mix</div>
+              <div class="panel-title">Accounts by plan</div>
+              <div id="planMix" class="sub">—</div>
+              <div class="kicker" style="margin-top:18px;">Attention</div>
+              <div class="panel-title">Needs a look</div>
+              <div id="dashAttention" class="sub">—</div>
+            </div>
+            <div class="tablecard">
+              <div style="padding:14px 14px 8px;">
+                <div class="kicker">Team activity</div>
+                <div class="panel-title">Recent admin actions</div>
+              </div>
+              <div class="feed" id="activityFeed"><div class="sub" style="padding:12px 14px;">Loading…</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STREAMERS (ported from admin/index.html — ids unchanged) -->
+        <div id="usersView" class="hidden">
+          <div class="tablecard" style="padding:16px;margin-bottom:16px;">
+            <div class="panel-title">🔁 Transfer Viewer</div>
+            <div class="sub" style="margin-bottom:11px;">Move a viewer's points, verification, raffle tickets &amp; purchases from an old Kick username to a new one, across every channel they're in. Preview is read-only; confirm migrates.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <input id="mvFrom" type="text" placeholder="Old username" style="min-width:150px;max-width:220px;">
+              <span class="sub">→</span>
+              <input id="mvTo" type="text" placeholder="New username" style="min-width:150px;max-width:220px;">
+              <button onclick="mvPreview()">Preview</button>
+            </div>
+            <div id="mvResult" style="margin-top:12px;"></div>
+          </div>
+          <div class="stats" id="statCards"></div>
+          <div class="toolbar">
+            <input id="search" type="text" placeholder="Search channel / name / email / plan / uid…" oninput="renderTable()">
+            <select id="userFilter" onchange="renderTable()" style="max-width:220px;">
+              <option value="">Everyone</option>
+              <option value="trial">🎁 On a trial</option>
+              <option value="trial3">⏳ Trial ends ≤ 3 days</option>
+              <option value="trial7">⏳ Trial ends ≤ 7 days</option>
+              <option value="trialended">⌛ Trial ended</option>
+              <option value="paid">💳 Paying</option>
+              <option value="failed">⚠️ Payment failed</option>
+              <option value="free">🆓 Starter / no sub</option>
+            </select>
+            <button class="btn-ghost" onclick="loadUsers()">↻ Refresh</button>
+            <label class="sub" style="display:flex;align-items:center;gap:6px;cursor:pointer;align-self:center;">
+              <input type="checkbox" id="showArchived" onchange="renderTable()" style="width:auto;"> Show archived
+            </label>
+            <span id="matchCount" class="sub" style="align-self:center;"></span>
+            <button class="btn-ghost owner-only" onclick="backfillNotes()" title="One-time: import each user's most recent comp reason from the audit log into their Notes field (skips users who already have a note)">🔄 Import old comp notes</button>
+          </div>
+          <div class="tablecard">
+            <div style="overflow-x:auto;">
+              <table>
+                <thead><tr id="usersHead">
+                  <th></th><th data-sort="channel">Channel</th><th data-sort="plan">Plan</th><th data-sort="sub">Sub</th><th data-sort="onboarded">Onboarded</th>
+                  <th data-sort="referrals">Referrals</th><th class="num owner-only" data-sort="paid">Total paid</th><th class="owner-only" data-sort="lastPayment">Last payment</th><th data-sort="lastLogin">Last login</th><th data-sort="email">Email</th>
+                </tr></thead>
+                <tbody id="usersTable"><tr><td colspan="10" class="muted" style="text-align:center;padding:24px;">…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="sub" id="footNote" style="margin-top:14px;"></div>
+        </div>
+
+        <!-- SLOTS (ported — ids unchanged) -->
+        <div id="slotsView" class="hidden">
+          <div class="stats" id="slotStatCards"></div>
+          <div class="toolbar">
+            <button class="btn-ghost" onclick="loadSlots()">↻ Reload</button>
+            <button id="slotRefreshBtn" onclick="refreshSlots()">⟳ Try live re-fetch</button>
+            <span class="sub" id="slotSourceNote" style="align-self:center;"></span>
+          </div>
+          <div class="tablecard" style="padding:16px;margin-bottom:14px;">
+            <div class="panel-title">⟳ Update slot catalog from Stake</div>
+            <div class="sub" style="margin-bottom:10px;line-height:1.5;">
+              Stake blocks our servers, so the pull runs in <b>your</b> browser. Drag the button to your bookmarks bar (once), then click it while on <b>stake.com</b>, it pulls the latest slots and uploads them. New slots + missing thumbnails appear in every streamer's picker within minutes (no deploy).
+            </div>
+            <div id="bm-area" class="sub">Loading updater…</div>
+          </div>
+          <div class="tablecard" style="padding:16px;margin-bottom:14px;">
+            <div class="panel-title">⟳ Pull Shuffle catalog (server-side)</div>
+            <div class="sub" style="margin-bottom:10px;line-height:1.5;">
+              Shuffle's catalog is public, so this runs <b>server-side, no bookmarklet</b>. Click to pull Shuffle's slots (including their exclusives) into the catalog. Live-casino games and Shuffle originals are filtered out automatically.
+            </div>
+            <button id="shufBtn" onclick="pullShuffle()">⟳ Pull Shuffle now</button>
+            <span class="sub" id="shufNote" style="margin-left:10px;"></span>
+          </div>
+          <div class="tablecard">
+            <div style="overflow-x:auto;">
+              <table>
+                <thead><tr><th>Slot (missing thumbnail)</th><th>Provider</th><th class="muted">ID</th></tr></thead>
+                <tbody id="slotsTable"><tr><td colspan="3" class="muted" style="text-align:center;padding:24px;">…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- BILLING (ported — ids unchanged; owner-only) -->
+        <div id="billingView" class="hidden owner-only">
+          <div id="billingErr" style="display:none;background:rgba(255,111,145,.1);border:1px solid var(--bad);color:#ffd7de;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;"></div>
+          <div class="stats" id="billingStatCards"></div>
+          <div class="toolbar">
+            <input id="billingSearch" type="text" placeholder="Search channel / plan…" oninput="renderBilling()">
+            <button class="btn-ghost" onclick="loadUsers()">↻ Refresh</button>
+            <label class="sub" style="display:flex;align-items:center;gap:6px;cursor:pointer;align-self:center;">
+              <input type="checkbox" id="billingDueOnly" onchange="renderBilling()" style="width:auto;"> Due soon / overdue only
+            </label>
+          </div>
+          <div class="tablecard">
+            <div style="overflow-x:auto;">
+              <table>
+                <thead><tr><th>Channel</th><th>Plan</th><th>Method</th><th>Next payment</th><th>Status</th><th></th></tr></thead>
+                <tbody id="billingTable"><tr><td colspan="6" class="muted" style="text-align:center;padding:24px;">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="sub" style="margin-top:14px;">💳 Stripe subscriptions auto-renew (dates come from Stripe). 🪙 Crypto subs are manual, send an invoice near the due date. Only streamers with an active billing cycle appear here.</div>
+        </div>
+
+        <!-- TEAM TO-DO (shared) -->
+        <div id="todoView" class="hidden">
+          <div class="stats" id="todoStats"></div>
+          <div class="tablecard" style="padding:16px;">
+            <div class="kicker">Wenbot Team</div>
+            <div class="panel-title">Shared To-Do</div>
+            <div class="sub" style="margin-bottom:12px;">One list for the whole team — everyone sees the same tasks, live from the server.</div>
+            <div class="todo-add">
+              <input id="todoText" type="text" maxlength="300" placeholder="Add a task…" onkeydown="if(event.key==='Enter')todoAdd()">
+              <input id="todoTag" type="text" maxlength="60" placeholder="Tag (optional)" style="max-width:170px;" onkeydown="if(event.key==='Enter')todoAdd()">
+              <button onclick="todoAdd()">＋ Add</button>
+              <button class="btn-ghost" onclick="loadTodos()">↻</button>
+            </div>
+            <div id="todoList"><div class="sub">Loading…</div></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+<!-- Invoice receipt preview (same branded document the streamer sees) -->
+<div id="admReceiptModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:600;align-items:flex-start;justify-content:center;padding:24px;overflow:auto;">
+  <div style="width:100%;max-width:660px;">
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;">
+      <button class="btn-ghost" onclick="printAdmReceipt()">🖨 Print / PDF</button>
+      <button class="btn-ghost" onclick="closeAdmReceipt()">✕ Close</button>
+    </div>
+    <div id="admReceiptBody"></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script src="/js/table-sort.js"></script>
+<script>
+(function () {
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  let _users = [], _adminSecret = '', _billingOverview = {}, _role = 'owner';
+
+  // Interim convenience until per-account TOTP MFA replaces the shared secret:
+  // remember it on this device (opt-in). The server still verifies every request.
+  try {
+    const saved = localStorage.getItem('wb_admin_secret');
+    if (saved) {
+      _adminSecret = saved;
+      const el = document.getElementById('secret'), cb = document.getElementById('rememberSecret');
+      if (el) el.value = saved;
+      if (cb) cb.checked = true;
+    }
+  } catch {}
+
+  let _billingOverviewErr = '';
+  async function loadBillingOverview() {
+    try {
+      const r = await authedFetch('/api/admin-billing-overview');
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { _billingOverviewErr = 'Billing lookup failed (' + r.status + '): ' + (d.error || 'unknown'); }
+      else { _billingOverview = d.billing || {}; _billingOverviewErr = ''; }
+    } catch (e) { _billingOverviewErr = 'Billing lookup error: ' + e.message; }
+    if (typeof renderBilling === 'function') renderBilling();
+  }
+  let _expanded = new Set(), _detail = {}, _slotsLoaded = false, _billingExpanded = new Set();
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const money = n => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const date = ms => ms ? new Date(ms).toLocaleDateString() : '—';
+  const rel  = ms => { if (!ms) return '—'; const d = Math.floor((Date.now() - ms) / 86400000); return d <= 0 ? 'today' : d === 1 ? '1d ago' : d < 30 ? d + 'd ago' : d < 365 ? Math.floor(d / 30) + 'mo ago' : Math.floor(d / 365) + 'y ago'; };
+
+  // HUD clock
+  setInterval(() => { const el = $('hudClock'); if (el) el.textContent = new Date().toLocaleString(); }, 1000);
+
+  $('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('loginErr').textContent = '';
+    $('loginBtn').disabled = true; $('loginBtn').textContent = 'Signing in…';
+    _adminSecret = $('secret').value || '';
+    try {
+      await auth.signInWithEmailAndPassword($('email').value.trim(), $('password').value);
+      // Persist only after a SUCCESSFUL sign-in; removing is deliberate-only
+      // (typed secret + unchecked box). An empty staff login leaves the owner's
+      // remembered secret alone on a shared machine.
+      try {
+        const cb = $('rememberSecret');
+        if (cb && cb.checked && _adminSecret) localStorage.setItem('wb_admin_secret', _adminSecret);
+        else if (_adminSecret) localStorage.removeItem('wb_admin_secret');
+      } catch {}
+    } catch (err) {
+      $('loginErr').textContent = 'Sign-in failed: ' + (err.code || err.message);
+      $('loginBtn').disabled = false; $('loginBtn').textContent = 'Sign in';
+    }
+  });
+
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) { show('login'); return; }
+    await loadUsers();
+  });
+
+  async function authedFetch(url) {
+    const token = await auth.currentUser.getIdToken();
+    const headers = { 'Authorization': 'Bearer ' + token };
+    if (_adminSecret) headers['x-admin-secret'] = _adminSecret;
+    return fetch(url, { headers });
+  }
+  async function authedPost(url, bodyObj) {
+    const token = await auth.currentUser.getIdToken();
+    const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+    if (_adminSecret) headers['x-admin-secret'] = _adminSecret;
+    return fetch(url, { method: 'POST', headers, body: JSON.stringify(bodyObj) });
+  }
+
+  window.loadUsers = async function () {
+    try {
+      const r = await authedFetch('/api/admin-users');
+      if (r.status === 403) { denied(); return; }
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      _users = d.users || [];
+      _role = d.role || 'owner';
+      document.body.classList.toggle('role-staff', _role !== 'owner');
+      // A staff session must not carry (or display) an owner secret remembered
+      // on a shared machine — stop sending it and blank the field; the stored
+      // copy is left for the owner.
+      if (_role !== 'owner') { _adminSecret = ''; const se = $('secret'); if (se) se.value = ''; }
+      $('whoami').textContent = d.admin || (auth.currentUser && auth.currentUser.email) || '';
+      $('whoRole').textContent = _role === 'owner' ? 'Owner access' : 'Staff access';
+      renderStats(d.stats || {});
+      renderTable();
+      renderDash(d.stats || {});
+      loadActivity();
+      if (_role === 'owner') {
+        loadBillingOverview();
+        if (typeof renderBilling === 'function') renderBilling();
+      }
+      $('footNote').textContent = `${_users.length} streamers · loaded ${new Date().toLocaleTimeString()}`;
+      show('panel');
+      routeTo(currentRoute(), true);
+    } catch (e) {
+      $('loginErr').textContent = 'Error: ' + e.message;
+      show('login');
+    }
+  };
+
+  function denied() {
+    $('loginErr').textContent = 'This account is not authorized for the admin panel.';
+    show('login');
+    auth.signOut();
+    $('loginBtn').disabled = false; $('loginBtn').textContent = 'Sign in';
+  }
+
+  // ── Router (hash-based, from the mock) ─────────────────────────────────────
+  const ROUTES = {
+    dashboard: { view: 'dashView',    title: 'Dashboard',   kick: 'Global operations' },
+    streamers: { view: 'usersView',   title: 'Streamers',   kick: 'Accounts & plans' },
+    billing:   { view: 'billingView', title: 'Billing',     kick: 'Owner only', ownerOnly: true },
+    slots:     { view: 'slotsView',   title: 'Slots',       kick: 'Catalog health' },
+    todo:      { view: 'todoView',    title: 'To-Do List',  kick: 'Wenbot team' },
+  };
+  function currentRoute() {
+    const m = (location.hash || '').match(/^#\/([a-z-]+)/);
+    return (m && ROUTES[m[1]]) ? m[1] : 'dashboard';
+  }
+  function routeTo(name, replace) {
+    const r = ROUTES[name] || ROUTES.dashboard;
+    if (r.ownerOnly && _role !== 'owner') { name = 'dashboard'; }
+    const conf = ROUTES[name];
+    Object.values(ROUTES).forEach(x => { const el = $(x.view); if (el) el.classList.add('hidden'); });
+    const el = $(conf.view); if (el) el.classList.remove('hidden');
+    document.querySelectorAll('.nav a').forEach(a => a.classList.toggle('active', a.dataset.route === name));
+    $('routeTitle').textContent = conf.title;
+    $('routeKick').textContent  = conf.kick;
+    const want = '#/' + name;
+    if (location.hash !== want) { if (replace) history.replaceState(null, '', want); else location.hash = want; }
+    if (name === 'slots' && !_slotsLoaded) loadSlots();
+    if (name === 'billing') renderBilling();
+    if (name === 'todo' && !_todosLoaded) loadTodos();
+  }
+  window.addEventListener('hashchange', () => routeTo(currentRoute(), true));
+  // Legacy shim: the ported code calls switchTab('billing') from gotoBilling.
+  window.switchTab = function (tab) { routeTo(tab === 'billing' ? 'billing' : tab, false); };
+
+  // ── Dashboard ──────────────────────────────────────────────────────────────
+  const PLAN_PRICE = { starter: 0, pro: 30, elite: 50, agency: 80 };
+  const PLAN_COLOR = { starter: '#5d7484', pro: 'var(--accent)', elite: 'var(--gold)', agency: 'var(--good)' };
+  function renderDash(stats) {
+    const now = Date.now(), DAY = 864e5;
+    const active = _users.filter(u => !u.archived);
+    const trialsSoon  = active.filter(u => u.planTrial && u.trialEndsAt && u.trialEndsAt > now && (u.trialEndsAt - now) <= 7 * DAY).length;
+    const failed      = active.filter(u => u.paymentFailed).length;
+    const notOnboard  = active.filter(u => !u.onboarded).length;
+    // MRR ≈ plan price × real (non-comp, non-trial) active subs — owner-only.
+    const mrr = active.filter(u => u.subscriptionActive && !u.planManual && !u.planTrial)
+      .reduce((s, u) => s + (PLAN_PRICE[u.plan] || 0), 0);
+    const tiles = [
+      ['Streamers', stats.total || 0, ''],
+      ['Active subs', stats.activeSubs || 0, '', 'good'],
+      ...(_role === 'owner' ? [['MRR (approx)', money(mrr), 'stripe subs × plan price', '']] : []),
+      ['Trials ending ≤7d', trialsSoon, '', trialsSoon ? 'warn' : ''],
+      ['Payment failed', failed, '', failed ? 'bad' : ''],
+      ['Not onboarded', notOnboard, '', ''],
+    ];
+    $('dashTiles').innerHTML = tiles.map(([l, n, sub, tone]) =>
+      `<div class="stat ${tone || ''}"><div class="n">${typeof n === 'number' ? n : esc(n)}</div><div class="l">${esc(l)}${sub ? ' · <small>' + esc(sub) + '</small>' : ''}</div></div>`).join('');
+
+    // Plan mix bar
+    const byPlan = stats.byPlan || {};
+    const order = ['starter', 'pro', 'elite', 'agency'];
+    const total = order.reduce((s, p) => s + (byPlan[p] || 0), 0) || 1;
+    $('planMix').innerHTML =
+      `<div class="planbar">${order.map(p => `<div style="width:${(100 * (byPlan[p] || 0) / total).toFixed(1)}%;background:${PLAN_COLOR[p]};"></div>`).join('')}</div>`
+      + `<div class="legend">${order.map(p => `<span><i style="background:${PLAN_COLOR[p]};"></i>${p} · ${byPlan[p] || 0}</span>`).join('')}</div>`;
+
+    // Attention list
+    const bits = [];
+    if (failed)     bits.push(`<a href="#/streamers" onclick="setUserFilter('failed')">⚠ ${failed} payment${failed === 1 ? '' : 's'} failed</a>`);
+    if (trialsSoon) bits.push(`<a href="#/streamers" onclick="setUserFilter('trial7')">⏳ ${trialsSoon} trial${trialsSoon === 1 ? '' : 's'} ending within 7 days</a>`);
+    if (notOnboard) bits.push(`<span class="muted">🚧 ${notOnboard} signed up but not onboarded</span>`);
+    $('dashAttention').innerHTML = bits.length ? bits.map(b => `<div style="margin:5px 0;">${b}</div>`).join('') : '<span class="ok">Nothing urgent. 🎉</span>';
+  }
+  window.setUserFilter = function (v) { const el = $('userFilter'); if (el) { el.value = v; } renderTable(); };
+
+  // Team activity feed (admin_audit_logs; staff get billing rows filtered server-side)
+  const ACTION_LABEL = {
+    set_plan: 'set a plan', admin_set_referrer: 'set a referrer', set_user_note: 'saved a note',
+    streamer_archive: 'archived', streamer_unarchive: 'unarchived', streamer_delete: 'deleted',
+    invoice_created: 'created an invoice', invoice_confirmed: 'confirmed an invoice',
+    invoice_unconfirmed: 'unmarked an invoice', invoice_deleted: 'deleted an invoice',
+    admin_manage_grant: 'switched into an account', admin_manage_revoke: 'exited managing',
+    todo_add: 'added a task', todo_delete: 'removed a task',
+    admin_users_view: null, backfill_notes: 'imported comp notes',
+    slots_pull_shuffle: 'pulled the Shuffle catalog',
+  };
+  async function loadActivity() {
+    const el = $('activityFeed'); if (!el) return;
+    try {
+      const r = await authedFetch('/api/admin-activity?limit=40');
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      const evs = (d.events || []).filter(e => ACTION_LABEL[e.action] !== null);
+      if (!evs.length) { el.innerHTML = '<div class="sub" style="padding:12px 14px;">No recent activity.</div>'; return; }
+      el.innerHTML = evs.map(e => {
+        const label = ACTION_LABEL[e.action] || e.action.replace(/_/g, ' ');
+        const who = esc(String(e.by || '?').split('@')[0]);
+        const det = e.details || {};
+        const target = det.channel || det.kickChannel || det.number || (det.text ? '“' + det.text + '”' : '') || '';
+        return `<div class="ev"><span class="t">${e.at ? new Date(e.at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}</span><span><b>${who}</b> ${esc(label)}${target ? ' · ' + esc(String(target)).slice(0, 60) : ''}</span></div>`;
+      }).join('');
+    } catch (e) { el.innerHTML = '<div class="sub" style="padding:12px 14px;">Feed unavailable: ' + esc(e.message) + '</div>'; }
+  }
+
+  // ── Shared Team To-Do ──────────────────────────────────────────────────────
+  let _todos = [], _todosLoaded = false;
+  window.loadTodos = async function () {
+    try {
+      const r = await authedFetch('/api/admin-team-todos');
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      _todos = d.todos || []; _todosLoaded = true;
+      renderTodos();
+    } catch (e) { $('todoList').innerHTML = '<div class="warn">' + esc(e.message) + '</div>'; }
+  };
+  function renderTodos() {
+    const open = _todos.filter(t => !t.done).length, done = _todos.length - open;
+    $('todoStats').innerHTML =
+      `<div class="stat"><div class="n">${open}</div><div class="l">Active tasks</div></div>`
+      + `<div class="stat good"><div class="n">${done}</div><div class="l">Completed</div></div>`
+      + `<div class="stat"><div class="n" style="font-size:15px;padding-top:6px;color:var(--good);">LIVE LINKED</div><div class="l">List sync</div></div>`;
+    $('todoList').innerHTML = _todos.length ? _todos.map(t =>
+      `<div class="todo-row ${t.done ? 'done' : ''}" onclick="todoToggle('${esc(t.id)}')">
+        <span class="box">${t.done ? '✓' : ''}</span>
+        <span class="tx">${esc(t.text)}</span>
+        ${t.tag ? `<span class="tag">${esc(t.tag)}</span>` : ''}
+        <span class="meta">${esc(String(t.createdBy || '').split('@')[0])}${t.done && t.doneBy ? ' → ✓ ' + esc(String(t.doneBy).split('@')[0]) : ''}</span>
+        <span class="del" title="Delete" onclick="event.stopPropagation();todoDelete('${esc(t.id)}')">✕</span>
+      </div>`).join('') : '<div class="sub" style="padding:8px 2px;">No tasks yet — add the first one above.</div>';
+  }
+  window.todoAdd = async function () {
+    const text = ($('todoText').value || '').trim(); if (!text) return;
+    const tag = ($('todoTag').value || '').trim();
+    $('todoText').value = '';
+    try {
+      const r = await authedPost('/api/admin-team-todos', { action: 'add', text, tag });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      await loadTodos();
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+  window.todoToggle = async function (id) {
+    const t = _todos.find(x => x.id === id); if (t) { t.done = !t.done; renderTodos(); }
+    try { await authedPost('/api/admin-team-todos', { action: 'toggle', id }); } catch {}
+    loadTodos();
+  };
+  window.todoDelete = async function (id) {
+    if (!confirm('Delete this task for the whole team?')) return;
+    try {
+      const r = await authedPost('/api/admin-team-todos', { action: 'delete', id });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      await loadTodos();
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  // ── Everything below is ported unchanged from admin/index.html ─────────────
+  function renderStats(s) {
+    const byPlan = s.byPlan || {};
+    const planLine = ['starter','pro','elite','agency'].filter(p => byPlan[p]).map(p => `${byPlan[p]} ${p}`).join(' · ') || '—';
+    const cards = [
+      ['Streamers', s.total || 0, ''],
+      ['Onboarded', s.onboarded || 0, ''],
+      ['Active subs', s.activeSubs || 0, ''],
+      ...(_role === 'owner' ? [['Total revenue', money(s.totalRevenue), '']] : []),
+      ['By plan', '', planLine],
+    ];
+    $('statCards').innerHTML = cards
+      .map(([l, n, sub]) => `<div class="stat"><div class="n">${typeof n === 'number' ? n : esc(n)}</div><div class="l">${esc(l)}${sub ? ' · <small>'+esc(sub)+'</small>' : ''}</div></div>`).join('');
+  }
+
+  const PLAN_RANK = { starter: 0, pro: 1, elite: 2, agency: 3 };
+  const usersSort = createTableSort({
+    storageKey: 'wb.admin.usersSort',
+    head:       '#usersHead',
+    onChange:   () => renderTable(),
+    columns: {
+      channel:     u => String(u.kickChannel || u.displayName || u.uid || '').toLowerCase(),
+      plan:        { get: u => PLAN_RANK[u.plan] ?? -1, dir: 'asc' },
+      sub:         u => (u.subscriptionActive ? 1 : 0),
+      onboarded:   u => (u.onboarded ? 1 : 0),
+      referrals:   u => Number(u.referralCount || 0),
+      paid:        u => Number(u.totalPaid || 0),
+      lastPayment: u => (u.lastPaymentAt || null),
+      lastLogin:   u => (u.lastLoginAt || null),
+      email:       u => String(u.email || '').toLowerCase(),
+    },
+  });
+
+  window.renderTable = function () {
+    const q = ($('search').value || '').toLowerCase().trim();
+    const showArch = $('showArchived').checked;
+    const filter = ($('userFilter') && $('userFilter').value) || '';
+    const now = Date.now();
+    const DAY = 86400000;
+
+    const matchesFilter = (u) => {
+      const onTrial    = u.planTrial && u.trialEndsAt && u.trialEndsAt > now;
+      const daysLeft   = onTrial ? (u.trialEndsAt - now) / DAY : null;
+      switch (filter) {
+        case 'trial':      return onTrial;
+        case 'trial3':     return onTrial && daysLeft <= 3;
+        case 'trial7':     return onTrial && daysLeft <= 7;
+        case 'trialended': return (u.planTrial && u.trialEndsAt && u.trialEndsAt <= now) || !!u.trialExpiredAt;
+        case 'paid':       return !!u.subscriptionActive;
+        case 'failed':     return !!u.paymentFailed;
+        case 'free':       return !u.subscriptionActive && !u.planTrial;
+        default:           return true;
+      }
+    };
+
+    let rows = _users.filter(u => (showArch || !u.archived) && matchesFilter(u) && (!q ||
+      String(u.kickChannel||'').toLowerCase().includes(q) ||
+      String(u.displayName||'').toLowerCase().includes(q) ||
+      String(u.email||'').toLowerCase().includes(q) ||
+      String(u.plan||'').toLowerCase().includes(q) ||
+      String(u.uid||'').toLowerCase().includes(q)));
+
+    rows = usersSort.apply(rows);
+    if (!usersSort.active() && filter.startsWith('trial') && filter !== 'trialended') {
+      rows = rows.slice().sort((a, b) => (a.trialEndsAt || Infinity) - (b.trialEndsAt || Infinity));
+    }
+
+    const countEl = $('matchCount');
+    if (countEl) {
+      countEl.textContent = (q || filter)
+        ? `${rows.length} of ${_users.length}`
+        : `${_users.length} streamer${_users.length === 1 ? '' : 's'}`;
+    }
+    if (!rows.length) { $('usersTable').innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center;padding:24px;">No matches.</td></tr>'; return; }
+    $('usersTable').innerHTML = rows.map(u => {
+      const sub = u.subscriptionActive
+        ? '<span class="ok">active</span>' + (u.paymentFailed ? ' <span class="warn">(failed)</span>' : '')
+        : '<span class="no">—</span>';
+      const onTrial    = u.planTrial && u.trialEndsAt && u.trialEndsAt > Date.now();
+      const trialEnded = u.planTrial && u.trialEndsAt && u.trialEndsAt <= Date.now();
+      const trialDays  = onTrial ? Math.max(0, Math.ceil((u.trialEndsAt - Date.now()) / 86400000)) : 0;
+      const _tp = u.trialPlan || 'elite';
+      const planSel = `<select onchange="onPlanSelect('${esc(u.uid)}', this.value)" style="width:150px;flex:0 0 auto;font-size:12px;padding:3px 6px;">`
+        + ['starter','pro','elite','agency'].map(p => {
+            const label = (onTrial && p === _tp) ? `${p} (trial)` : p;
+            return `<option value="${p}" ${p === u.plan ? 'selected' : ''}>${label}</option>`;
+          }).join('')
+        + `<option value="__trial_pro__">🎁 Pro trial…</option>`
+        + `<option value="__trial_elite__">🎁 Elite trial…</option>`
+        + `</select>`;
+      const ovp = _billingOverview[u.uid];
+      const cryptoPaying = u.planManual && ovp && ovp.paidCount > 0;
+      // Staff can't see billing, so they can't tell a comp from a crypto-payer
+      // (both are planManual): neutral "manual" pill, no release link for them.
+      const compTag = cryptoPaying
+        ? ` <span class="pill" style="background:rgba(85,239,176,.15);color:var(--good);margin-left:4px;" title="Paying via crypto, plan locked">crypto</span>`
+        : (u.planManual
+          ? (_role === 'owner'
+            ? ` <span class="pill comp" title="Comp, overrides Stripe">comp</span> <a href="#" onclick="clearManual('${esc(u.uid)}');return false;" class="muted" style="font-size:11px;">↺ auto</a>`
+            : ` <span class="pill comp" title="Manually managed plan">manual</span>`)
+          : '');
+      const expiredAgo = (u.trialExpiredAt && !onTrial) ? Math.floor((Date.now() - u.trialExpiredAt) / 86400000) : -1;
+      const recentlyExpired = expiredAgo >= 0 && expiredAgo <= 30;
+      const trialTag = onTrial
+        ? ` <span class="pill" style="background:rgba(245,197,24,.14);color:var(--gold);" title="Free ${esc(_tp)} trial, auto-drops to starter ${esc(date(u.trialEndsAt))}">🎁 ${esc(_tp)} trial · ${trialDays}d</span>`
+        : (trialEnded
+            ? ` <span class="pill" style="background:rgba(255,111,145,.15);color:#ffa9bc;" title="${esc(_tp)} trial expired ${esc(date(u.trialEndsAt))} — reverts to starter on the next daily sweep">⌛ ${esc(_tp)} trial ended</span>`
+            : (recentlyExpired
+                ? ` <span class="pill" style="background:rgba(255,111,145,.15);color:#ffa9bc;" title="Free ${esc(u.trialPlan || '')} trial ended ${esc(date(u.trialExpiredAt))} — now on ${esc(u.plan)}">⌛ trial ended · ${expiredAgo}d ago</span>`
+                : ''));
+      const noteRow = u.noteSnippet
+        ? `<div class="muted" title="${esc(u.noteSnippet)}" style="font-size:10px;line-height:1.35;margin-top:2px;white-space:normal;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">📝 ${esc(u.noteSnippet)}</div>` : '';
+      const open = _expanded.has(u.uid);
+      const archTag = u.archived ? ' <span class="pill" style="background:rgba(255,111,145,.12);color:#e2a1ad;">archived</span>' : '';
+      const main = `<tr${u.archived ? ' style="opacity:.55;"' : ''}>
+        <td><span onclick="toggleDetail('${esc(u.uid)}')" style="cursor:pointer;user-select:none;color:var(--accent);">${open ? '▾' : '▸'}</span></td>
+        <td>${esc(u.kickChannel || u.displayName || u.uid)}${archTag}${noteRow}</td>
+        <td><div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;max-width:250px;white-space:normal;">${planSel}${compTag}${trialTag}</div></td>
+        <td>${sub}</td>
+        <td>${u.onboarded ? '<span class="ok">yes</span>' : '<span class="no">no</span>'}</td>
+        <td class="num">${u.referralCount || 0}</td>
+        <td class="num owner-only">${money(u.totalPaid)}</td>
+        <td class="muted owner-only">${date(u.lastPaymentAt)}</td>
+        <td class="muted" title="${esc(date(u.lastLoginAt))}">${rel(u.lastLoginAt)}</td>
+        <td class="muted">${esc(u.email || '—')}</td>
+      </tr>`;
+      return main + (open ? `<tr><td colspan="10" style="background:rgba(4,10,16,.6);">${detailHtml(u.uid)}</td></tr>` : '');
+    }).join('');
+  };
+
+  function detailHtml(uid) {
+    const d = _detail[uid];
+    if (!d || d === 'loading') return '<div class="muted" style="padding:8px 4px;">Loading…</div>';
+    if (d.error) return `<div class="warn" style="padding:8px 4px;">${esc(d.error)}</div>`;
+    const refBy = d.referredByChannel ? `Referred by <b>${esc(d.referredByChannel)}</b> · ` : '';
+    const refList = (d.referrals && d.referrals.length)
+      ? d.referrals.map(r => `${esc(r.kickChannel||'—')} <span class="muted">(${esc(r.plan)}, ${esc(r.status)})</span>`).join(' · ')
+      : '<span class="muted">none</span>';
+    const u = _users.find(x => x.uid === uid) || {};
+    const ch = esc(u.kickChannel || uid);
+    const actions = `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;">`
+      + `<button class="btn-ghost owner-only" style="border-color:var(--accent);color:var(--accent);" onclick="manageStreamer('${esc(uid)}','${ch}')">🎛 Manage account (switch in)</button>`
+      + `<button class="btn-ghost" style="border-color:var(--purple);color:var(--purple);" onclick="giveTrial('${esc(uid)}','pro')">🎁 Give Pro trial</button>`
+      + `<button class="btn-ghost" style="border-color:var(--gold);color:var(--gold);" onclick="giveTrial('${esc(uid)}','elite')">🎁 Give Elite trial</button>`
+      + (u.archived
+          ? `<button class="btn-ghost" onclick="unarchiveStreamer('${esc(uid)}','${ch}')">♻ Unarchive</button>`
+          : `<button class="btn-ghost" onclick="archiveStreamer('${esc(uid)}','${ch}')">📦 Archive</button>`)
+      + `<button class="btn-ghost owner-only" style="border-color:var(--bad);color:var(--bad);" onclick="deleteStreamer('${esc(uid)}','${ch}')">🗑 Delete permanently</button>`
+      + `</div>`;
+
+    const _now = Date.now();
+    const trialActive = d.planTrial && d.trialEndsAt && d.trialEndsAt > _now;
+    const trialLine = trialActive
+      ? `<div style="margin-top:8px;padding:8px 12px;background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.3);border-radius:8px;color:#ffe07a;">`
+        + `<b>🎁 ${esc(d.trialPlan || 'elite')} trial</b> — ${Math.max(0, Math.ceil((d.trialEndsAt - _now) / 86400000))} day(s) left · auto-drops to starter ${esc(date(d.trialEndsAt))}</div>`
+      : '';
+
+    const noteMeta = d.adminNotesUpdatedBy
+      ? `<span class="muted" style="font-size:11px;">last edited by ${esc(d.adminNotesUpdatedBy)}${d.adminNotesUpdatedAt ? ' · ' + esc(date(d.adminNotesUpdatedAt)) : ''}</span>` : '';
+    const notesBlock = `<div style="margin-top:12px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;"><b style="color:var(--bright);">📝 Admin notes</b> ${noteMeta}</div>
+        <textarea id="note-${esc(uid)}" placeholder="Internal note, e.g. 'comped Elite for launch help, revisit Aug'…" style="min-height:58px;font-size:12px;resize:vertical;">${esc(d.adminNotes || '')}</textarea>
+        <button id="noteSave-${esc(uid)}" class="btn-ghost" style="margin-top:6px;" onclick="saveNote('${esc(uid)}')">Save note</button>
+      </div>`;
+    const billSummary = d.stripeSubscribed
+      ? `💳 Stripe${d.stripePeriodEnd ? ' · renews ' + date(d.stripePeriodEnd) : ''}`
+      : (d.cryptoBillingNextDue ? `🪙 Crypto · next due ${date(d.cryptoBillingNextDue)}` : 'no active billing cycle');
+    return `<div style="padding:10px 4px;font-size:12px;line-height:1.6;">
+      <div>${refBy}Invited <b>${d.referralCount||0}</b>: ${refList}</div>
+      <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span class="muted">Set referrer:</span>
+        <input id="refset-${esc(uid)}" placeholder="referrer channel" style="font-size:12px;padding:4px 8px;width:170px;">
+        <button class="btn-ghost" onclick="setReferrer('${esc(uid)}')">${d.referredByChannel ? 'Change' : 'Set'} referrer</button>
+      </div>
+      <div class="owner-only" style="margin-top:10px;padding:9px 13px;background:rgba(var(--accent-rgb),.05);border:1px solid var(--line);border-radius:9px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span><b style="color:var(--bright);">Billing:</b> <span class="muted">${billSummary} · ${money(d.totalPaid)} paid</span></span>
+        <button class="btn-ghost" style="border-color:var(--accent);color:var(--accent);margin-left:auto;" onclick="gotoBilling('${esc(uid)}')">💳 Manage billing →</button>
+      </div>
+      ${trialLine}
+      ${notesBlock}
+      ${actions}
+    </div>`;
+  }
+
+  function billingSectionHtml(uid, d) {
+    if (!d || d === 'loading') return '<div class="muted" style="padding:10px;">Loading…</div>';
+    if (d.error) return `<div class="warn" style="padding:10px;">${esc(d.error)}</div>`;
+    const IST = 'font-size:12px;padding:4px 8px;';
+    const PLAN_PRICE = { starter: 0, pro: 30, elite: 50, agency: 80 };
+    const PLAN_LABEL = { starter: 'Starter', pro: 'Pro', elite: 'Elite', agency: 'Agency' };
+    const plan = d.plan || 'starter';
+    const defAmt = PLAN_PRICE[plan] || '';
+    const defDesc = `WenBot ${PLAN_LABEL[plan] || 'Pro'} Plan, Monthly`;
+    const billLine = d.stripeSubscribed
+      ? `💳 <b style="color:var(--purple);">Stripe subscription</b>${d.stripePeriodEnd ? ' · renews ' + date(d.stripePeriodEnd) : ''} — auto-renews, receipts sent by Stripe. No manual invoice needed.`
+      : (d.cryptoBillingNextDue ? `🪙 <b style="color:var(--accent);">Crypto</b> · next payment due <b>${date(d.cryptoBillingNextDue)}</b>` : 'No active billing cycle yet, create a crypto invoice below to start one.');
+    const payRows = (d.payments || []).map(p => `<tr><td class="muted">${date(p.paidAt)}</td><td>💳 Stripe · ${esc(p.plan||'—')}</td><td>${esc((p.currency||'').toUpperCase())} ${Number(p.amount||0).toFixed(2)}</td><td><span style="color:var(--good);font-weight:700;">PAID</span></td><td>${p.hostedInvoiceUrl?`<a class="btn-ghost" style="text-decoration:none;" href="${esc(p.hostedInvoiceUrl)}" target="_blank" rel="noopener">Receipt ↗</a>`:''}</td></tr>`).join('');
+    const invR = (d.invoices || []).map(v => {
+      const st = v.status === 'paid' ? '<span style="color:var(--good);font-weight:700;">PAID</span>'
+               : (v.paymentSubmitted ? '<span style="color:var(--warn);font-weight:700;">CLAIMED, confirm?</span>' : '<span style="color:var(--bad);">UNPAID</span>');
+      const btn = v.status === 'paid'
+        ? `<button class="btn-ghost" onclick="invAction('${esc(uid)}','${esc(v.id)}','unconfirm')">Unmark</button>`
+        : `<button class="btn-ghost" style="border-color:var(--good);color:var(--good);" onclick="invAction('${esc(uid)}','${esc(v.id)}','confirm')">✓ Confirm paid</button>`;
+      const tx = v.txHash ? `<div class="muted" style="font-size:11px;word-break:break-all;">tx: ${esc(v.txHash)}</div>` : '';
+      return `<tr><td class="muted">${date(v.paidAt||v.createdAt)}</td><td>🪙 ${esc(v.number||'—')} · ${esc(v.description||'')}${tx}</td><td>$${Number(v.amount||0).toFixed(2)}</td><td>${st}</td><td style="white-space:nowrap;"><button class="btn-ghost" onclick="previewReceipt('${esc(uid)}','${esc(v.id)}')">👁 Preview</button> ${btn} <button class="btn-ghost" style="border-color:var(--bad);color:var(--bad);" onclick="invAction('${esc(uid)}','${esc(v.id)}','delete')">🗑</button></td></tr>`;
+    }).join('');
+    const rows = (payRows + invR) || '<tr><td colspan="5" class="muted" style="padding:14px;">No invoices or receipts yet.</td></tr>';
+    return `
+      <div style="margin:0 0 10px;font-size:12px;">${billLine}</div>
+      <table style="margin-top:2px;"><thead><tr><th>Date</th><th>Item</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--line2);display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        <span class="muted" style="width:100%;font-size:11px;">New crypto invoice (prefilled from their ${esc(PLAN_LABEL[plan] || plan)} plan):</span>
+        <input id="inv-amt-${esc(uid)}" type="number" value="${defAmt}" placeholder="Amount $" min="0.01" step="0.01" style="${IST}width:90px;">
+        <input id="inv-desc-${esc(uid)}" value="${esc(defDesc)}" placeholder="Description" style="${IST}width:250px;">
+        <input id="inv-due-${esc(uid)}" type="date" title="Due date" style="${IST}width:auto;">
+        <label class="muted" style="display:flex;gap:4px;align-items:center;cursor:pointer;"><input type="checkbox" id="inv-rec-${esc(uid)}" checked style="width:auto;"> monthly</label>
+        <label class="muted" style="display:flex;gap:4px;align-items:center;cursor:pointer;"><input type="checkbox" id="inv-paid-${esc(uid)}" style="width:auto;" onchange="var e=document.getElementById('inv-paiddate-${esc(uid)}');if(e)e.style.display=this.checked?'':'none';"> already paid</label>
+        <input id="inv-paiddate-${esc(uid)}" type="date" title="Paid date (for historical receipts)" style="${IST}width:auto;display:none;">
+        <button class="btn-ghost" style="border-color:var(--accent);color:var(--accent);" onclick="createInvoice('${esc(uid)}')">+ Create invoice</button>
+      </div>`;
+  }
+
+  const INV_BRAND = { name:'LogicPlayStudios', site:'logicplaystudios.com', email:'info@logicplaystudios.com', discord:'discord.gg/logicplay', logoUrl:'/img/lps-logo.png', accent:'#F26B1F' };
+  const INV_CRYPTO = [
+    { coin:'BTC', network:'Bitcoin', address:'bc1q7zjyfrrttk9phrwe8prj60n88quzvtuhw6z40u' },
+    { coin:'ETH', network:'Ethereum (ERC-20)', address:'0xc33537A3B0eaD6475888ee7255170d056B4aF652' },
+    { coin:'USDT / USDC', network:'Ethereum (ERC-20)', address:'0xc33537A3B0eaD6475888ee7255170d056B4aF652' },
+    { coin:'SOL / USDT / USDC', network:'Solana', address:'M4bhurDJ3PCyxiKCidaDxpaQDgYWwxiHG9HVj9JtGjF' },
+  ];
+  const invMoney = n => '$' + Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const invDate  = ms => { if(!ms) return '—'; try { return new Date(ms).toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'}); } catch { return '—'; } };
+  function invCryptoBoxAdmin(){
+    return `<div style="margin-top:12px;background:#fff7f0;border:1px solid #ffd9bd;border-radius:8px;padding:14px 16px;font-size:12px;color:#7a4a1f;"><div style="font-weight:800;margin-bottom:8px;">Pay by crypto, send the exact USD amount (in coin) to any of these:</div>${INV_CRYPTO.map(c=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #ffe6d1;flex-wrap:wrap;"><span style="font-weight:700;min-width:150px;">${esc(c.coin)} <span style="font-weight:400;color:#a86a3a;">(${esc(c.network)})</span></span><code style="flex:1;min-width:180px;font-family:monospace;word-break:break-all;background:#fff;border:1px solid #ffe0c8;border-radius:5px;padding:5px 8px;">${esc(c.address)}</code></div>`).join('')}</div>`;
+  }
+  function invReceiptHtmlAdmin(inv, channel){
+    const paid = inv.status==='paid', A = INV_BRAND.accent, total = inv.amount||0;
+    return `<div id="admReceiptDoc" style="background:#fff;color:#1a1a1a;border-radius:10px;padding:34px 38px;font-family:'Inter',Arial,sans-serif;">
+      <div style="text-align:center;margin-bottom:16px;"><img src="${INV_BRAND.logoUrl}" style="max-height:120px;max-width:380px;width:auto;object-fit:contain;" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><div style="display:none;font-size:22px;font-weight:900;color:${A};">${esc(INV_BRAND.name)}</div></div>
+      <div style="text-align:center;border-top:2px solid ${A};padding-top:14px;"><div style="font-size:26px;font-weight:900;letter-spacing:1px;">${paid?'PAYMENT RECEIPT':'INVOICE'}</div><div style="font-weight:800;margin-top:4px;color:${paid?'#159a4a':'#d64545'};">${paid?'PAID IN FULL':(inv.paymentSubmitted?'PAYMENT SUBMITTED, AWAITING CONFIRMATION':'NOT PAID YET')}</div></div>
+      <div style="display:flex;justify-content:space-between;margin:18px 0;font-size:13px;"><div><b>Invoice #:</b> ${esc(inv.number||'—')}<br><b>Date:</b> ${invDate(inv.createdAt)}${inv.dueAt?`<br><b>Due:</b> ${invDate(inv.dueAt)}`:''}</div><div style="text-align:right;"><b>From:</b> ${esc(INV_BRAND.name)}<br><b>Billed To:</b> ${esc(inv.billedTo||channel||'—')}</div></div>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;"><thead><tr style="background:${A};"><th style="text-align:left;padding:10px 12px;color:#fff;font-weight:800;">Description</th><th style="text-align:right;padding:10px 12px;color:#fff;font-weight:800;">Amount</th></tr></thead><tbody><tr style="border-bottom:1px solid #eee;"><td style="padding:10px 12px;color:#1a1a1a;">${esc(inv.description||'')}</td><td style="padding:10px 12px;text-align:right;color:#1a1a1a;">${invMoney(total)}</td></tr><tr><td style="padding:12px;font-weight:800;color:#111;border-top:2px solid #111;">Total</td><td style="padding:12px;text-align:right;font-weight:800;color:#111;border-top:2px solid #111;">${invMoney(total)}</td></tr></tbody></table>
+      ${paid?`<div style="margin-top:16px;background:#eef9f0;border:1px solid #bfe6c8;border-radius:8px;padding:12px 14px;color:#159a4a;font-weight:700;">✅ Payment received, thank you!${inv.paidAt?' Paid '+invDate(inv.paidAt):''}</div>`:`<div style="margin-top:16px;font-size:13px;"><b>Amount Due:</b> ${invMoney(total)} · <b>Status:</b> <span style="color:#d64545;font-weight:700;">Not Paid Yet</span></div>${invCryptoBoxAdmin()}`}
+      <div style="text-align:center;margin-top:22px;padding-top:14px;border-top:1px solid #eee;font-size:11px;color:#777;">Thank you for your business! · ${esc(INV_BRAND.site)} · ${esc(INV_BRAND.email)} · ${esc(INV_BRAND.discord)}</div>
+    </div>`;
+  }
+  window.previewReceipt = function(uid, invoiceId){
+    const d = _detail[uid]; if(!d||!d.invoices) return;
+    const inv = d.invoices.find(v=>v.id===invoiceId); if(!inv) return;
+    const u = (_users||[]).find(x=>x.uid===uid)||{};
+    $('admReceiptBody').innerHTML = invReceiptHtmlAdmin(inv, u.kickChannel||uid);
+    $('admReceiptModal').style.display = 'flex';
+  };
+  window.closeAdmReceipt = function(){ $('admReceiptModal').style.display = 'none'; };
+  window.printAdmReceipt = function(){ const doc=$('admReceiptDoc'); if(!doc)return; const w=window.open('','_blank'); if(!w)return; w.document.write('<html><head><title>Receipt — WenBot</title></head><body style="margin:20px;">'+doc.outerHTML+'</body></html>'); w.document.close(); w.focus(); setTimeout(()=>w.print(),300); };
+
+  async function fetchDetail(uid) {
+    try {
+      const r = await authedFetch('/api/admin-user-detail?uid=' + encodeURIComponent(uid));
+      const d = await r.json();
+      _detail[uid] = r.ok ? d : { error: d.error || 'Failed' };
+    } catch (e) { _detail[uid] = { error: e.message }; }
+  }
+  async function refreshDetail(uid) { await fetchDetail(uid); renderTable(); renderBilling(); }
+  window.toggleBillingDetail = async function (uid) {
+    if (_billingExpanded.has(uid)) { _billingExpanded.delete(uid); renderBilling(); return; }
+    _billingExpanded.add(uid);
+    if (!_detail[uid] || _detail[uid] === 'loading') { _detail[uid] = 'loading'; renderBilling(); await fetchDetail(uid); }
+    renderBilling();
+  };
+  window.gotoBilling = function (uid) {
+    if (_role !== 'owner') return;
+    switchTab('billing');
+    _billingExpanded.add(uid);
+    if (!_detail[uid]) { _detail[uid] = 'loading'; renderBilling(); fetchDetail(uid).then(renderBilling); }
+    else renderBilling();
+    setTimeout(() => { const el = document.getElementById('bill-row-' + uid); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 150);
+  };
+  window.createInvoice = async function (uid) {
+    const amount      = parseFloat(($('inv-amt-' + uid) || {}).value);
+    const description = (($('inv-desc-' + uid) || {}).value || '').trim();
+    const method      = 'crypto';
+    const dueVal      = ($('inv-due-' + uid) || {}).value || '';
+    const recurring   = !!(($('inv-rec-' + uid) || {}).checked);
+    const dueAt       = dueVal ? new Date(dueVal + 'T12:00:00').getTime() : null;
+    const markPaid    = !!(($('inv-paid-' + uid) || {}).checked);
+    const paidVal     = (($('inv-paiddate-' + uid) || {}).value) || '';
+    const paidAt      = paidVal ? new Date(paidVal + 'T12:00:00').getTime() : (markPaid ? Date.now() : null);
+    if (!amount || amount <= 0) return alert('Enter a valid amount');
+    if (!description)           return alert('Enter a description');
+    if (markPaid && !paidVal && !confirm('No paid date set, use today?')) return;
+    try {
+      const r = await authedPost('/api/admin-create-invoice', { uid, amount, description, method, dueAt, recurring, markPaid, paidAt });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      await refreshDetail(uid);
+      alert('Invoice ' + d.number + ' sent.');
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+  window.invAction = async function (uid, invoiceId, action) {
+    if (action === 'delete' && !confirm('Delete this invoice permanently?')) return;
+    try {
+      const r = await authedPost('/api/admin-confirm-invoice', { uid, invoiceId, action });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      await refreshDetail(uid);
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  async function streamerAction(uid, action, reason) {
+    const r = await authedPost('/api/admin-streamer-action', { uid, action, reason: reason || '' });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Failed');
+    _expanded.delete(uid); delete _detail[uid];
+    await loadUsers();
+  }
+  window.archiveStreamer = async function (uid, channel) {
+    if (!confirm(`Archive "${channel}"? This disconnects their bot and hides them from the list. Reversible.`)) return;
+    try { await streamerAction(uid, 'archive'); } catch (e) { alert('Failed: ' + e.message); }
+  };
+  window.unarchiveStreamer = async function (uid, channel) {
+    if (!confirm(`Unarchive "${channel}"? Restores their previous state.`)) return;
+    try { await streamerAction(uid, 'unarchive'); } catch (e) { alert('Failed: ' + e.message); }
+  };
+  window.deleteStreamer = async function (uid, channel) {
+    const typed = prompt(`PERMANENTLY delete "${channel}", removes all their data AND their login. This cannot be undone.\n\nType the channel name to confirm:`);
+    if (typed === null) return;
+    if (typed.trim() !== channel) { alert('Name did not match, cancelled.'); return; }
+    try { await streamerAction(uid, 'delete'); alert(`"${channel}" deleted.`); } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  window.manageStreamer = async function (uid, channel) {
+    if (!confirm(`Switch into "${channel}"'s account to manage their settings?\n\nYou'll see a "Managing ${channel}" banner, click Exit there to return to your own account. This action is audit-logged.`)) return;
+    try {
+      const r = await authedPost('/api/admin-manage-user', { uid, action: 'grant' });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      await auth.currentUser.getIdToken(true);
+      try { localStorage.setItem('wb_active_uid', uid); } catch {}
+      window.location.href = '/dashboard.html';
+    } catch (e) { alert('Could not switch in: ' + e.message); }
+  };
+
+  window.setReferrer = async function (uid) {
+    const el = document.getElementById('refset-' + uid);
+    const referrer = (el && el.value || '').trim();
+    if (!referrer) { alert("Enter the referrer's channel."); return; }
+    const u   = _users.find(x => x.uid === uid) || {};
+    const cur = _detail[uid] && _detail[uid].referredByChannel;
+    if (!confirm(`Attribute "${u.kickChannel || uid}" as referred by "${referrer}"?` + (cur ? `\n\nThis CHANGES their current referrer "${cur}".` : ''))) return;
+    try {
+      const r = await authedPost('/api/admin-set-referrer', { uid, referrer, override: true });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      delete _detail[uid]; _expanded.delete(uid);
+      await loadUsers();
+      alert('Referrer set → ' + (d.referrerChannel || referrer));
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  window.toggleDetail = async function (uid) {
+    if (_expanded.has(uid)) { _expanded.delete(uid); renderTable(); return; }
+    _expanded.add(uid);
+    if (!_detail[uid]) {
+      _detail[uid] = 'loading'; renderTable();
+      try {
+        const r = await authedFetch('/api/admin-user-detail?uid=' + encodeURIComponent(uid));
+        const d = await r.json();
+        _detail[uid] = r.ok ? d : { error: d.error || 'Failed to load' };
+      } catch (e) { _detail[uid] = { error: e.message }; }
+    }
+    renderTable();
+  };
+
+  window.renderBilling = function () {
+    const tbody = $('billingTable'); if (!tbody) return;
+    if (_role !== 'owner') { tbody.innerHTML = ''; return; }
+    const q = ($('billingSearch') && $('billingSearch').value || '').toLowerCase().trim();
+    const dueOnly = !!($('billingDueOnly') && $('billingDueOnly').checked);
+    const now = Date.now(), DAY = 864e5;
+    const PAID_PLANS = new Set(['pro', 'elite', 'agency']);
+    let rows = (_users || []).map(u => {
+      const ov = _billingOverview[u.uid];
+      const hasCrypto = !!ov || !!u.cryptoNextDue || !!u.cryptoBilling;
+      const paidPlan  = PAID_PLANS.has(String(u.plan || '').toLowerCase());
+      let method = null, nextDue = null;
+      if (u.stripeSubscribed) { method = 'stripe'; nextDue = u.stripePeriodEnd; }
+      else if (hasCrypto)     { method = 'crypto'; nextDue = ov ? ov.nextDue : (u.cryptoNextDue || null); }
+      else if (paidPlan)      { method = 'none';   nextDue = null; }
+      return { u, method, nextDue, ov };
+    }).filter(r => r.method);
+    if (q) rows = rows.filter(r => ((r.u.kickChannel || r.u.uid) + ' ' + r.u.plan).toLowerCase().includes(q));
+    if (dueOnly) rows = rows.filter(r => r.nextDue && (r.nextDue - now) <= 7 * DAY);
+    rows.sort((a, b) => (a.nextDue || Infinity) - (b.nextDue || Infinity));
+
+    const overdue = rows.filter(r => r.nextDue && r.nextDue < now).length;
+    const soon    = rows.filter(r => r.nextDue && r.nextDue >= now && (r.nextDue - now) <= 7 * DAY).length;
+    const crypto  = rows.filter(r => r.method === 'crypto').length;
+    const eb = $('billingErr');
+    if (eb) { eb.style.display = _billingOverviewErr ? 'block' : 'none'; eb.textContent = _billingOverviewErr; }
+    const sc = $('billingStatCards');
+    if (sc) sc.innerHTML =
+      `<div class="stat"><div class="n">${rows.length}</div><div class="l">Billing accounts</div></div>`
+      + `<div class="stat ${overdue ? 'bad' : ''}"><div class="n">${overdue}</div><div class="l">Overdue</div></div>`
+      + `<div class="stat ${soon ? 'warn' : ''}"><div class="n">${soon}</div><div class="l">Due within 7 days</div></div>`
+      + `<div class="stat"><div class="n">${crypto}</div><div class="l">Crypto (manual)</div></div>`;
+
+    const inList = new Set(rows.map(r => r.u.uid));
+    _billingExpanded.forEach(uid => { if (!inList.has(uid)) { const u = (_users || []).find(x => x.uid === uid); if (u) rows.push({ u, method: null, nextDue: null }); } });
+
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:24px;">No active billing cycles yet.</td></tr>'; return; }
+    tbody.innerHTML = rows.map(r => {
+      const uid = r.u.uid, ch = esc(r.u.kickChannel || uid), open = _billingExpanded.has(uid);
+      let method = '<span class="muted">—</span>', nextCell = '<span class="muted">—</span>', state = '<span class="muted">—</span>', action = '';
+      if (r.method === 'none') {
+        if (r.u.planManual) { method = '🎁 Comped'; state = '<span class="muted">free / comped</span>'; action = '<span class="muted">no billing</span>'; }
+        else { method = '<span class="muted">—</span>'; state = '<span class="warn">⚠ No invoice yet</span>'; action = '<span style="color:var(--gold);">send one →</span>'; }
+      } else if (r.method) {
+        method = r.method === 'stripe' ? '💳 Stripe' : '🪙 Crypto';
+        action = r.method === 'stripe' ? '<span class="muted">auto-renews</span>' : '<span class="muted">manual</span>';
+        const unpaid = r.method === 'crypto' && r.ov && r.ov.hasUnpaid && !(r.ov.paidCount > 0);
+        if (unpaid) {
+          const sub = r.ov.submittedCount > 0 ? ' · ✋ paid, needs confirm' : '';
+          state  = `<span class="warn">⚠ Unpaid invoice${sub}</span>`;
+          nextCell = r.nextDue ? date(r.nextDue) : '<span class="muted">—</span>';
+        } else if (r.nextDue) {
+          const days = Math.ceil((r.nextDue - now) / DAY);
+          state  = days < 0 ? `<span class="warn">⚠ Overdue ${-days}d</span>` : days <= 7 ? `<span style="color:var(--gold);">Due in ${days}d</span>` : `<span class="ok">in ${days}d</span>`;
+          nextCell = date(r.nextDue);
+        } else { state = '<span class="muted">no confirmed cycle</span>'; }
+      }
+      const head = `<tr id="bill-row-${esc(uid)}" style="cursor:pointer;" onclick="toggleBillingDetail('${esc(uid)}')">
+        <td><span class="muted" style="display:inline-block;width:12px;">${open ? '▾' : '▸'}</span> ${ch}</td>
+        <td><span class="pill ${esc(r.u.plan)}">${esc(r.u.plan)}</span></td>
+        <td>${method}</td><td class="num">${nextCell}</td><td>${state}</td><td>${action}</td></tr>`;
+      const detail = open ? `<tr><td colspan="6" style="background:rgba(4,10,16,.6);padding:16px 20px;border-bottom:2px solid var(--accent);">${billingSectionHtml(uid, _detail[uid])}</td></tr>` : '';
+      return head + detail;
+    }).join('');
+  };
+
+  window.loadSlots = async function () {
+    try {
+      const r = await authedFetch('/api/admin-slots');
+      const d = await r.json();
+      if (r.status === 403) { denied(); return; }
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      _slotsLoaded = true;
+      renderSlots(d);
+      loadBookmarklet();
+    } catch (e) { $('slotsTable').innerHTML = `<tr><td colspan="3" class="warn" style="text-align:center;padding:24px;">${esc(e.message)}</td></tr>`; }
+  };
+
+  function _slotPullCode(key) {
+    return `(async()=>{const KEY=${JSON.stringify(key)};const P=['pragmatic-play','hacksaw-gaming','nolimit','playngo','relax','bgaming','elk','big-time-gaming','redtiger','netent','thunderkick','quickspin','avatarux','booming','blueprint','push-gaming','pgsoft','3-oaks','wazdan','endorphina'];const L=50,s=ms=>new Promise(r=>setTimeout(r,ms));async function g(sl,mx){const o=[];let f=0;while(f<mx){const q='{slugKuratorGroup(slug:"'+sl+'"){groupGamesList(limit:'+L+',offset:'+f+'){game{name slug thumbnailUrl provider{name}}}}}';let r;try{r=await fetch('/_api/graphql',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})})}catch(e){break}if(!r.ok)break;const j=await r.json();const l=j.data&&j.data.slugKuratorGroup&&j.data.slugKuratorGroup.groupGamesList;if(!l)break;o.push(...l.map(i=>i.game).filter(Boolean));if(l.length<L)break;f+=L;await s(200)}return o}const a=[];for(const x of P){a.push(...await g(x,5000))}a.push(...await g('slots',200));const seen=new Set(),sl=[];for(const z of a){if(!z||!z.slug||!z.name||seen.has(z.slug))continue;seen.add(z.slug);sl.push({name:z.name,slug:z.slug,thumbnailUrl:z.thumbnailUrl,provider:z.provider&&z.provider.name})}if(!sl.length){alert('WenBot: pulled 0 games, are you logged in to Stake?');return}let rp;try{rp=await fetch('https://wenbot.gg/api/admin-slots-ingest',{method:'POST',headers:{'Content-Type':'application/json','X-Ingest-Key':KEY},body:JSON.stringify({slots:sl})})}catch(e){alert('WenBot upload failed: '+e.message);return}const d=await rp.json().catch(()=>({}));alert(rp.ok?('WenBot ✓ pulled '+sl.length+', added '+d.added+', filled '+d.backfilled+'. Total now '+d.total+'.'):'WenBot error: '+(d.error||rp.status))})()`;
+  }
+
+  let _bmLoaded = false;
+  async function loadBookmarklet() {
+    const area = $('bm-area');
+    if (!area || _bmLoaded) return;
+    try {
+      const r = await authedFetch('/api/admin-slots?bookmarklet=1');
+      const d = await r.json();
+      if (!r.ok || !d.key) throw new Error(d.error || 'no key');
+      _bmLoaded = true;
+      const code = _slotPullCode(d.key);
+      area.innerHTML = '';
+      const a = document.createElement('a');
+      a.href = 'javascript:' + encodeURIComponent(code);
+      a.textContent = '⟳ Update WenBot Slots';
+      a.draggable = true;
+      a.style.cssText = 'display:inline-block;background:#2b9cc4;color:#fff;font-weight:800;text-decoration:none;padding:9px 16px;border-radius:8px;margin-right:10px;cursor:grab;';
+      a.onclick = (e) => { e.preventDefault(); alert('Drag this button up to your bookmarks bar, then click it while on stake.com. Clicking it here does nothing, it has to run on Stake.'); };
+      area.appendChild(a);
+      const btn = document.createElement('button');
+      btn.className = 'btn-ghost'; btn.textContent = '📋 Copy console version';
+      btn.onclick = async () => { try { await navigator.clipboard.writeText(code); btn.textContent = '✓ Copied, paste in the Stake console'; } catch { btn.textContent = 'Copy failed'; } };
+      area.appendChild(btn);
+      const note = document.createElement('div');
+      note.className = 'sub'; note.style.cssText = 'margin-top:10px;line-height:1.5;';
+      note.innerHTML = 'Drag the blue button to your bookmarks bar → on <b>stake.com</b>, click it (takes ~1–2 min, then shows a result popup). If Stake blocks the bookmarklet, use <b>Copy console version</b> → on stake.com press F12 → Console → paste → Enter.';
+      area.appendChild(note);
+    } catch (e) {
+      area.innerHTML = '<span class="warn">Couldn\'t load updater: ' + esc(e.message) + '</span>';
+    }
+  }
+
+  window.pullShuffle = async function () {
+    const btn = $('shufBtn'), note = $('shufNote');
+    btn.disabled = true; const o = btn.textContent; btn.textContent = 'Pulling Shuffle…'; note.textContent = '';
+    try {
+      const r = await authedFetch('/api/admin-slots-pull-shuffle');
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      note.textContent = '✓ added ' + d.added + ', filled ' + d.backfilled + ', total ' + d.total + ' (live skipped ' + d.skippedLive + ')';
+      loadSlots();
+    } catch (e) { note.textContent = '⚠ ' + e.message; }
+    btn.disabled = false; btn.textContent = o;
+  };
+
+  window.refreshSlots = async function () {
+    const btn = $('slotRefreshBtn'); btn.disabled = true; const o = btn.textContent; btn.textContent = 'Re-fetching…';
+    try {
+      const r = await authedFetch('/api/admin-slots?refresh=1');
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      renderSlots(d);
+    } catch (e) { alert('Refresh failed: ' + e.message); }
+    btn.disabled = false; btn.textContent = o;
+  };
+
+  function renderSlots(d) {
+    const age = d.cachedAt ? new Date(d.cachedAt).toLocaleString() : '—';
+    $('slotStatCards').innerHTML = [
+      ['Total slots', d.total || 0, ''],
+      ['With thumbnail', d.withThumbnail || 0, ''],
+      ['Missing thumbnail', d.missingThumbnail || 0, ''],
+      ['Providers', d.providers || 0, ''],
+    ].map(([l, n]) => `<div class="stat"><div class="n">${n}</div><div class="l">${esc(l)}</div></div>`).join('');
+    $('slotSourceNote').textContent = `Source: ${d.source || '—'} · updated ${age}`;
+    const rows = d.missing || [];
+    $('slotsTable').innerHTML = rows.length
+      ? rows.map(s => `<tr><td>${esc(s.name||s.id)}</td><td class="muted">${esc(s.provider||'—')}</td><td class="muted">${esc(s.id)}</td></tr>`).join('')
+      : '<tr><td colspan="3" class="ok" style="text-align:center;padding:24px;">All slots have thumbnails 🎉</td></tr>';
+  }
+
+  window.setPlan = async function (uid, plan) {
+    const reason = prompt(`Set this streamer to "${plan}" (comp, overrides Stripe). Optional audit note:`, '');
+    if (reason === null) { renderTable(); return; }
+    try {
+      const r = await authedPost('/api/admin-set-plan', { uid, plan, manual: true, reason });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      await loadUsers();
+    } catch (e) { alert('Failed: ' + e.message); renderTable(); }
+  };
+
+  window.clearManual = async function (uid) {
+    if (!confirm('Release this plan back to Stripe control?')) return;
+    try {
+      const r = await authedPost('/api/admin-set-plan', { uid, manual: false });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      await loadUsers();
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  window.onPlanSelect = function (uid, value) {
+    if (value === '__trial_pro__')   { giveTrial(uid, 'pro');   return; }
+    if (value === '__trial_elite__') { giveTrial(uid, 'elite'); return; }
+    setPlan(uid, value);
+  };
+
+  window.giveTrial = async function (uid, tier) {
+    tier = (tier === 'pro') ? 'pro' : 'elite';
+    const label = tier.charAt(0).toUpperCase() + tier.slice(1);
+    const daysStr = prompt(`Give a FREE ${label} trial for how many days?\n(Auto-drops to Starter after, they must subscribe to keep ${label}.)`, '30');
+    if (daysStr === null) { renderTable(); return; }
+    const days = Math.max(1, Math.min(365, parseInt(daysStr, 10) || 30));
+    const reason = prompt('Optional audit note:', `First month ${label} free`);
+    if (reason === null) { renderTable(); return; }
+    try {
+      const r = await authedPost('/api/admin-set-plan', { uid, plan: tier, manual: true, trial: true, trialDays: days, reason });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      await loadUsers();
+      await refreshDetail(uid);
+      alert(`✅ ${label} trial granted, expires in ${days} day(s).`);
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  window.backfillNotes = async function () {
+    if (!confirm('Import each user\'s most recent comp reason (from the audit log) into their Notes?\n\nUsers who already have a note are left untouched.')) return;
+    try {
+      const r = await authedPost('/api/admin-backfill-notes', {});
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      await loadUsers();
+      alert(`✅ Imported ${d.imported} note(s). ${d.skipped} skipped (already had a note or no reason on file).`);
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  window.saveNote = async function (uid) {
+    const ta = document.getElementById('note-' + uid);
+    if (!ta) return;
+    const note = ta.value;
+    const btn = document.getElementById('noteSave-' + uid);
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    try {
+      const r = await authedPost('/api/admin-user-note', { uid, note });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      if (_detail[uid] && typeof _detail[uid] === 'object') {
+        _detail[uid].adminNotes = note;
+        _detail[uid].adminNotesUpdatedBy = d.adminNotesUpdatedBy;
+        _detail[uid].adminNotesUpdatedAt = d.adminNotesUpdatedAt;
+      }
+      const uu = _users.find(x => x.uid === uid);
+      if (uu) { uu.hasNote = !!note.trim(); uu.noteSnippet = note ? note.replace(/\s+/g, ' ').trim().slice(0, 80) : null; }
+      renderTable();
+      const b2 = document.getElementById('noteSave-' + uid);
+      if (b2) { b2.textContent = '✓ Saved'; setTimeout(() => { const b3 = document.getElementById('noteSave-' + uid); if (b3) b3.textContent = 'Save note'; }, 1500); }
+    } catch (e) {
+      alert('Failed: ' + e.message);
+      if (btn) { btn.textContent = 'Save note'; btn.disabled = false; }
+    }
+  };
+
+  window.adminSignOut = function () { auth.signOut(); _users = []; _adminSecret = ''; };
+
+  // ---- Transfer Viewer ----
+  function mvEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+  function mvRender(d, committed) {
+    const out = $('mvResult');
+    if (!d.channelCount) { out.innerHTML = `<span class="muted">No data found for "${mvEsc(d.fromUsername)}" on any channel.</span>`; return; }
+    let h = `<div style="margin-bottom:8px;">${committed ? '✅ Migrated' : '🔍 Preview'}: <b>${mvEsc(d.fromUsername)}</b> → <b>${mvEsc(d.toUsername)}</b> · ${d.channelCount} channel(s) · ${d.totalPoints.toLocaleString()} pts · ${d.totalRedemptions} tickets/buys</div>`;
+    h += '<table style="width:100%;font-size:13px;"><thead><tr><th>Channel</th><th class="num">Points</th><th>Verified</th><th class="num">Tickets/buys</th><th class="num">New acct has</th></tr></thead><tbody>';
+    for (const c of d.channels) {
+      h += `<tr><td>${mvEsc(c.channel)}</td><td class="num">${(c.fromPoints||0).toLocaleString()}</td><td>${c.verified.length ? mvEsc(c.verified.join(', ')) : '—'}</td><td class="num">${c.redemptions}</td><td class="num">${(c.toPointsExisting||0).toLocaleString()}</td></tr>`;
+    }
+    h += '</tbody></table>';
+    if (!committed) h += `<button onclick="mvCommit()" style="margin-top:12px;">Confirm move →</button>`;
+    else h += `<div class="sub" style="margin-top:10px;">Old account flagged <code>migratedTo</code> (points preserved as <code>migratedPoints</code>), recoverable.</div>`;
+    out.innerHTML = h;
+  }
+  async function mvCall(action) {
+    const from = $('mvFrom').value.trim(), to = $('mvTo').value.trim();
+    const out = $('mvResult');
+    if (!from || !to) { out.innerHTML = '<span class="warn">Enter both usernames.</span>'; return null; }
+    out.innerHTML = action === 'commit' ? 'Migrating…' : 'Checking all channels…';
+    try {
+      const r = await authedPost('/api/admin-merge-viewer', { fromUsername: from, toUsername: to, action });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      return d;
+    } catch (e) { out.innerHTML = '<span class="warn">' + mvEsc(e.message) + '</span>'; return null; }
+  }
+  window.mvPreview = async function () { const d = await mvCall('preview'); if (d) mvRender(d, false); };
+  window.mvCommit = async function () {
+    const from = $('mvFrom').value.trim(), to = $('mvTo').value.trim();
+    if (!confirm(`Move ${from} → ${to} across all channels?\n\nThe old account keeps a recoverable record.`)) return;
+    const d = await mvCall('commit'); if (d) mvRender(d, true);
+  };
+
+  function show(which) {
+    $('loginView').classList.toggle('hidden', which !== 'login');
+    $('panelView').classList.toggle('hidden', which !== 'panel');
+  }
+})();
+</script>
+</body>
+</html>

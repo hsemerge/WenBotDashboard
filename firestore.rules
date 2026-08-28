@@ -410,6 +410,13 @@ service cloud.firestore {
     // Admin panel audit trail — admin SDK only (read via server functions).
     match /admin_audit_logs/{doc} { allow read, write: if false; }
 
+    // Admin portal team data (shared to-do now; outreach + tickets to follow) —
+    // admin SDK only, every access mediated by the admin-* functions. Recursive
+    // wildcard so future subcollections (notes, comments) are locked too.
+    match /team_todos/{doc=**} { allow read, write: if false; }
+    match /outreach/{doc=**}   { allow read, write: if false; }
+    match /tickets/{doc=**}    { allow read, write: if false; }
+
     // Discord verify tokens, rate limits, etc — admin SDK only
     match /discord_verify_tokens/{doc} { allow read, write: if false; }
     match /discord_guilds/{doc}        { allow read, write: if false; }
