@@ -1055,10 +1055,14 @@
           String(u.email || '').toLowerCase().includes(q) ||
           String(u.displayName || '').toLowerCase().includes(q))
       : pool.slice().sort((a, b) => (b.lastLoginAt || 0) - (a.lastLoginAt || 0))
-      ).slice(0, 12);
+      // Browsing (empty box) lists EVERYONE — the panel scrolls. Capping the
+      // browse list at a dozen made it look like the portal only knew about a
+      // handful of streamers. A typed query still caps, since that's a shortlist.
+      ).slice(0, q ? 25 : 500);
     _c360Sel = -1;
     box.innerHTML = _c360Hits.length
-      ? _c360Hits.map((u, i) => `<div data-i="${i}" onmousedown="event.preventDefault();openCustomer('${esc(u.uid)}')">
+      ? (q ? '' : `<div class="muted" style="position:sticky;top:0;background:var(--card2);border-bottom:1px solid var(--line2);font-size:11px;">${_c360Hits.length} streamers · most recently active first</div>`)
+        + _c360Hits.map((u, i) => `<div data-i="${i}" onmousedown="event.preventDefault();openCustomer('${esc(u.uid)}')">
           <b>${esc(u.kickChannel || u.uid)}</b>
           <span class="muted" style="margin-left:8px;">${esc(u.plan)}${u.email ? ' · ' + esc(u.email) : ''}</span></div>`).join('')
       : '<div class="muted">No match.</div>';
@@ -1071,7 +1075,10 @@
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       _c360Sel = (_c360Sel + (e.key === 'ArrowDown' ? 1 : -1) + _c360Hits.length) % _c360Hits.length;
-      [...box.children].forEach((el, i) => el.classList.toggle('sel', i === _c360Sel));
+      // Select by data-i, not child index — the browse list carries a header row.
+      const rows = box.querySelectorAll('[data-i]');
+      rows.forEach((el) => el.classList.toggle('sel', Number(el.dataset.i) === _c360Sel));
+      rows[_c360Sel]?.scrollIntoView({ block: 'nearest' });
     } else if (e.key === 'Enter') {
       e.preventDefault();
       openCustomer((_c360Hits[_c360Sel >= 0 ? _c360Sel : 0] || {}).uid);
