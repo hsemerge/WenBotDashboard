@@ -7,11 +7,26 @@ const crypto           = require("crypto");
 
 // Map Stripe Price IDs → plan names (populated from env vars at runtime)
 function getPricePlanMap() {
-  return {
-    [process.env.STRIPE_PRICE_PRO]:    "pro",
-    [process.env.STRIPE_PRICE_ELITE]:  "elite",
-    [process.env.STRIPE_PRICE_AGENCY]: "agency",
-  };
+  // Only map price ids that are actually configured. Spreading an unset env var
+  // as a key produced a literal "undefined" entry, so ANY lookup that came back
+  // undefined resolved to whichever plan sat last in the object — every payment
+  // was being labelled "agency" because STRIPE_PRICE_AGENCY isn't set.
+  const map = {};
+  if (process.env.STRIPE_PRICE_PRO)    map[process.env.STRIPE_PRICE_PRO]    = "pro";
+  if (process.env.STRIPE_PRICE_ELITE)  map[process.env.STRIPE_PRICE_ELITE]  = "elite";
+  if (process.env.STRIPE_PRICE_AGENCY) map[process.env.STRIPE_PRICE_AGENCY] = "agency";
+  return map;
+}
+
+// Where the price id lives depends on the API version: newer invoice lines carry
+// it at pricing.price_details.price, older ones at price.id (and older still at
+// plan.id). Reading only the old path returned undefined on current invoices.
+function priceIdOf(lineOrItem) {
+  if (!lineOrItem) return null;
+  return (lineOrItem.pricing && lineOrItem.pricing.price_details && lineOrItem.pricing.price_details.price)
+    || (lineOrItem.price && lineOrItem.price.id)
+    || (lineOrItem.plan && lineOrItem.plan.id)
+    || null;
 }
 
 // Record one payment + maintain running totals. Idempotent by invoice id: the
@@ -158,7 +173,7 @@ exports.handler = async (event) => {
   // ── Subscription updated (upgrade/downgrade via portal) ────────────────────
   if (stripeEvent.type === "customer.subscription.updated") {
     const sub      = stripeEvent.data.object;
-    const priceId  = sub.items?.data?.[0]?.price?.id;
+    const priceId  = priceIdOf(sub.items?.data?.[0]);
     const planMap  = getPricePlanMap();
     const newPlan  = planMap[priceId];
     const isActive = sub.status === "active" || sub.status === "trialing";
@@ -222,7 +237,7 @@ exports.handler = async (event) => {
       // and future referral rewards). Idempotent by invoice id: the payment doc is
       // keyed on it, and the running totals only increment when the doc is new — so
       // Stripe redelivering the same event can't double-count.
-      const priceId  = invoice.lines?.data?.[0]?.price?.id;
+      const priceId  = priceIdOf(invoice.lines?.data?.[0]);
       const paidAtMs = (invoice.status_transitions?.paid_at || invoice.created || Math.floor(Date.now() / 1000)) * 1000;
       await recordPayment(db, ref, {
         invoiceId:        invoice.id,

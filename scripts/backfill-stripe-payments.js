@@ -36,11 +36,20 @@ function getDb() {
   return admin.firestore();
 }
 
-const PRICE_PLAN = {
-  [process.env.STRIPE_PRICE_PRO]:    "pro",
-  [process.env.STRIPE_PRICE_ELITE]:  "elite",
-  [process.env.STRIPE_PRICE_AGENCY]: "agency",
-};
+// Only map configured price ids — spreading an unset env var creates a literal
+// "undefined" key, so every unknown price resolved to the last plan listed.
+const PRICE_PLAN = {};
+if (process.env.STRIPE_PRICE_PRO)    PRICE_PLAN[process.env.STRIPE_PRICE_PRO]    = "pro";
+if (process.env.STRIPE_PRICE_ELITE)  PRICE_PLAN[process.env.STRIPE_PRICE_ELITE]  = "elite";
+if (process.env.STRIPE_PRICE_AGENCY) PRICE_PLAN[process.env.STRIPE_PRICE_AGENCY] = "agency";
+
+// Newer invoice lines carry the price at pricing.price_details.price; older ones
+// at price.id. Reading only the old path returns undefined on current invoices.
+function priceIdOf(line) {
+  if (!line) return null;
+  return (line.pricing && line.pricing.price_details && line.pricing.price_details.price)
+    || (line.price && line.price.id) || (line.plan && line.plan.id) || null;
+}
 
 async function stripeGet(path) {
   const auth = Buffer.from(STRIPE_KEY + ":").toString("base64");
@@ -81,7 +90,7 @@ async function stripeGet(path) {
       if (!doc) { unmatched++; continue; }
       const payRef = doc.ref.collection("payments").doc(inv.id);
       if ((await payRef.get()).exists) { already++; continue; }
-      const priceId = inv.lines?.data?.[0]?.price?.id;
+      const priceId = priceIdOf(inv.lines?.data?.[0]);
       toRecord.push({
         uid: doc.id, ref: doc.ref, payRef,
         invoiceId: inv.id, amount, currency: inv.currency || "usd",

@@ -1255,9 +1255,17 @@
       <div class="tablecard" style="padding:16px;">
         <div class="kicker">Billing</div>
         <div class="panel-title">Payments & invoices</div>
+        ${(() => { const bs = billingState(u); return `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:9px;margin:8px 0 12px;
+             border:1px solid ${bs.tone === 'bad' ? 'var(--bad)' : bs.tone === 'good' ? 'rgba(85,239,176,.4)' : 'var(--line2)'};
+             background:${bs.tone === 'bad' ? 'rgba(255,111,145,.07)' : bs.tone === 'good' ? 'rgba(85,239,176,.05)' : 'transparent'};">
+          <b style="color:var(--bright);">${esc(bs.method)}</b>
+          <span style="color:${bs.tone === 'bad' ? 'var(--bad)' : bs.tone === 'good' ? 'var(--good)' : 'var(--text)'};font-weight:600;">${esc(bs.label)}</span>
+          <span class="muted">${esc(bs.detail)}${bs.amt ? ' · ' + esc(bs.amt) : ''}</span>
+        </div>
+        ${bs.since ? `<div class="sub" style="margin:-6px 0 10px;">Cancelled on ${date(bs.since)} — still a paying customer until access ends.</div>` : ''}`; })()}
         <dl class="kv" style="margin:8px 0 10px;">
-          <dt>Method</dt><dd>${d.stripeSubscribed ? '💳 Stripe' + (d.stripePeriodEnd ? ' · renews ' + date(d.stripePeriodEnd) : '')
-                              : (d.cryptoBillingNextDue ? '🪙 Crypto · next due ' + date(d.cryptoBillingNextDue) : '<span class="muted">no active cycle</span>')}</dd>
+          <dt>Status</dt><dd>${u.stripeStatus ? esc(u.stripeStatus) : '<span class="muted">—</span>'}${u.paymentFailed ? ' <span class="warn">· payment failed</span>' : ''}</dd>
           <dt>Lifetime</dt><dd>${money(d.totalPaid)}${u.paymentCount ? ` <span class="muted">· ${u.paymentCount} payment${u.paymentCount === 1 ? '' : 's'}</span>` : ''}</dd>
         </dl>
         ${(d.payments || []).length || (d.invoices || []).length ? `
@@ -1431,6 +1439,32 @@
       const t = $('tkTitle'); if (t) { t.value = channel ? `${channel}: ` : ''; t.focus(); }
     }, 60);
   };
+
+  // How this customer pays, and whether it is going to continue. A cancelled
+  // Stripe subscription keeps reporting "active" until its period ends, so
+  // status alone hides the only window in which the customer can be saved.
+  function billingState(u) {
+    if (u.stripeSubscribed) {
+      const amt = u.stripeAmount ? `$${u.stripeAmount}/${u.stripeInterval || 'mo'}` : '';
+      if (u.stripeAutoRenew === false) {
+        return { method: '💳 Stripe', methodKey: 'stripe', renews: false,
+                 label: u.stripeStatus === 'canceled' ? 'Cancelled' : 'Cancelling',
+                 detail: u.stripeCancelAt ? `access ends ${date(u.stripeCancelAt)}` : (u.stripePeriodEnd ? `ends ${date(u.stripePeriodEnd)}` : ''),
+                 since: u.stripeCanceledAt, amt, tone: 'bad' };
+      }
+      return { method: '💳 Stripe', methodKey: 'stripe', renews: true, label: 'Auto-renews',
+               detail: u.stripePeriodEnd ? date(u.stripePeriodEnd) : 'date unknown', amt,
+               tone: u.paymentFailed ? 'bad' : 'good' };
+    }
+    if (u.cryptoBilling || u.cryptoNextDue) {
+      return { method: '🪙 Crypto', methodKey: 'crypto', renews: false, label: 'Manual invoice',
+               detail: u.cryptoNextDue ? `next due ${date(u.cryptoNextDue)}` : 'no cycle set',
+               amt: '', tone: (u.cryptoNextDue && u.cryptoNextDue < Date.now()) ? 'bad' : '' };
+    }
+    if (u.planManual) return { method: '🎁 Comped', methodKey: 'comp', renews: true, label: 'Comped', detail: 'no billing', amt: '', tone: '' };
+    if (u.planTrial)  return { method: '🎁 Trial',  methodKey: 'trial', renews: false, label: 'Trial', detail: u.trialEndsAt ? `ends ${date(u.trialEndsAt)}` : '', amt: '', tone: 'warn' };
+    return { method: '—', methodKey: 'none', renews: false, label: 'No billing', detail: '', amt: '', tone: '' };
+  }
 
   // ── Portals & Domains (owner) ──────────────────────────────────────────────
   // Custom domains used to live as a hardcoded map inside the edge router, so
@@ -1709,6 +1743,7 @@
   // minus the dollars — which is still the useful part: who to talk to).
   let _opsTab = 'arrears';
   const OPS_TABS = [
+    { id:'cancelling', label:'🚪 Cancelling', owner:true },
     { id:'arrears',  label:'💸 Arrears',    owner:true  },
     { id:'trials',   label:'🎁 Trials'                  },
     { id:'churn',    label:'⚠️ Churn risk'              },
@@ -1762,6 +1797,27 @@
   };
 
   const OPS_VIEWS = {
+    // Customers who have pressed cancel but are still paid up. They are the only
+    // churn you can still do something about, and nothing surfaced them before.
+    cancelling: (A) => {
+      const rows = A.filter(u => u.stripeSubscribed && u.stripeAutoRenew === false)
+        .sort((a, b) => (a.stripeCancelAt || a.stripePeriodEnd || 0) - (b.stripeCancelAt || b.stripePeriodEnd || 0));
+      return {
+        kicker: 'Save', title: 'Cancelling — access not expired yet',
+        why: 'They have cancelled but are still paying customers until their period ends. A Stripe subscription keeps reporting "active" the whole time, so this is the window nobody could see before.',
+        cols: ['Channel', 'Plan', 'Cancelled', 'Access ends', 'Days left', 'Email'],
+        empty: 'Nobody is cancelling. 🎉',
+        rows: rows.map(u => {
+          const ends = u.stripeCancelAt || u.stripePeriodEnd;
+          const left = ends ? Math.ceil((ends - Date.now()) / DAYMS) : null;
+          return `<tr><td>${chanCell(u)}</td><td><span class="pill ${esc(u.plan)}">${esc(u.plan)}</span></td>
+            <td class="muted">${u.stripeCanceledAt ? date(u.stripeCanceledAt) : '—'}</td>
+            <td>${ends ? date(ends) : '—'}</td>
+            <td class="${left != null && left <= 7 ? 'warn' : 'muted'}">${left != null ? (left < 0 ? 'expired' : left + 'd') : '—'}</td>
+            <td>${mailCell(u)}</td></tr>`;
+        }),
+      };
+    },
     // 1) Money we're owed or about to lose — the direct-recovery queue.
     arrears: (A) => {
       const rows = A.filter(u => u.paymentFailed || (u.cryptoNextDue && u.cryptoNextDue < Date.now()) ||
@@ -2438,6 +2494,8 @@
             ? ` <span class="pill comp" title="Comp, overrides Stripe">comp</span> <a href="#" onclick="clearManual('${esc(u.uid)}');return false;" class="muted" style="font-size:11px;">↺ auto</a>`
             : ` <span class="pill comp" title="Manually managed plan">manual</span>`)
           : '');
+      const cancelTag = (u.stripeSubscribed && u.stripeAutoRenew === false)
+        ? ` <span class="pill" style="background:rgba(255,111,145,.16);color:var(--bad);" title="Cancelled${u.stripeCanceledAt ? ' on ' + date(u.stripeCanceledAt) : ''}${u.stripeCancelAt ? ', access ends ' + date(u.stripeCancelAt) : ''}">🚪 cancelling</span>` : '';
       const expiredAgo = (u.trialExpiredAt && !onTrial) ? Math.floor((Date.now() - u.trialExpiredAt) / 86400000) : -1;
       const recentlyExpired = expiredAgo >= 0 && expiredAgo <= 30;
       const trialTag = onTrial
@@ -2466,7 +2524,7 @@
       const main = `<tr${u.archived ? ' style="opacity:.55;"' : ''}>
         <td><span onclick="toggleDetail('${esc(u.uid)}')" style="cursor:pointer;user-select:none;color:var(--accent);">${open ? '▾' : '▸'}</span></td>
         <td><span style="cursor:pointer;" title="Open Customer 360" onclick="openCustomer('${esc(u.uid)}')">${esc(u.kickChannel || u.displayName || u.uid)}</span>${typeTag}${modTag}${hasModsTag}${archTag}${noteRow}</td>
-        <td><div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;max-width:250px;white-space:normal;">${planSel}${compTag}${trialTag}</div></td>
+        <td><div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;max-width:250px;white-space:normal;">${planSel}${compTag}${trialTag}${cancelTag}</div></td>
         <td>${sub}</td>
         <td>${u.onboarded ? '<span class="ok">yes</span>' : '<span class="no">no</span>'}</td>
         <td class="num">${u.referralCount || 0}</td>
@@ -2766,8 +2824,15 @@
         if (r.u.planManual) { method = '🎁 Comped'; state = '<span class="muted">free / comped</span>'; action = '<span class="muted">no billing</span>'; }
         else { method = '<span class="muted">—</span>'; state = '<span class="warn">⚠ No invoice yet</span>'; action = '<span style="color:var(--gold);">send one →</span>'; }
       } else if (r.method) {
-        method = r.method === 'stripe' ? '💳 Stripe' : '🪙 Crypto';
-        action = r.method === 'stripe' ? '<span class="muted">auto-renews</span>' : '<span class="muted">manual</span>';
+        const bs = billingState(r.u);
+        method = bs.method;
+        // "auto-renews" was hardcoded for every Stripe row, which quietly lied
+        // about anyone who had cancelled.
+        action = r.method === 'stripe'
+          ? (r.u.stripeAutoRenew === false
+              ? `<span class="warn">⚠ ${esc(bs.label)}${bs.detail ? ' · ' + esc(bs.detail) : ''}</span>`
+              : `<span class="muted">auto-renews${bs.amt ? ' · ' + esc(bs.amt) : ''}</span>`)
+          : '<span class="muted">manual</span>';
         const unpaid = r.method === 'crypto' && r.ov && r.ov.hasUnpaid && !(r.ov.paidCount > 0);
         if (unpaid) {
           const sub = r.ov.submittedCount > 0 ? ' · ✋ paid, needs confirm' : '';

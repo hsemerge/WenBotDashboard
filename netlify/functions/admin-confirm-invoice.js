@@ -5,7 +5,7 @@
 //
 // Body: { uid, invoiceId, action?('confirm'|'unconfirm'|'delete') }
 
-const { getDb }                       = require("./_lib/firebase");
+const { getDb, admin }                = require("./_lib/firebase");
 const { res, checkRateLimit }         = require("./_lib/http");
 const { requireAdmin, logAdminAudit } = require("./_lib/admin");
 
@@ -40,17 +40,41 @@ exports.handler = async (event) => {
       logAdminAudit(db, adminUser.uid, "invoice_deleted", { uid, number: inv.number });
       return res(200, { success: true, deleted: true });
     }
+    // Crypto/manual invoices count toward lifetime revenue exactly like Stripe
+    // payments do. They never used to: totalPaid was only ever incremented by
+    // the Stripe webhook, so a crypto customer read as $0 no matter how much
+    // they had paid, and both the admin revenue figure and every per-customer
+    // total were understated. `countedInTotals` makes it idempotent — confirming
+    // twice can't double-count, and unconfirming gives the money back.
+    const streamerRef = db.collection("streamers").doc(uid);
+    const amount = Number(inv.amount) || 0;
+
     if (action === "unconfirm") {
-      await ref.update({ status: "unpaid", paidAt: null });
+      const upd = { status: "unpaid", paidAt: null };
+      if (inv.countedInTotals && amount > 0) {
+        upd.countedInTotals = false;
+        await streamerRef.set({
+          totalPaid:    admin.firestore.FieldValue.increment(-amount),
+          paymentCount: admin.firestore.FieldValue.increment(-1),
+        }, { merge: true });
+      }
+      await ref.update(upd);
       logAdminAudit(db, adminUser.uid, "invoice_unconfirmed", { uid, number: inv.number });
       return res(200, { success: true });
     }
     // confirm → paid
     const now = Date.now();
-    await ref.update({ status: "paid", paidAt: now, paidAmount: inv.amount || 0, confirmedBy: adminUser.uid });
+    const invUpd = { status: "paid", paidAt: now, paidAmount: amount, confirmedBy: adminUser.uid };
     const supd = { cryptoBilling: true };
     if (inv.recurring) supd.cryptoBillingNextDue = now + MONTH_MS;
-    await db.collection("streamers").doc(uid).set(supd, { merge: true });
+    if (!inv.countedInTotals && amount > 0) {
+      invUpd.countedInTotals = true;
+      supd.totalPaid     = admin.firestore.FieldValue.increment(amount);
+      supd.paymentCount  = admin.firestore.FieldValue.increment(1);
+      supd.lastPaymentAt = now;
+    }
+    await ref.update(invUpd);
+    await streamerRef.set(supd, { merge: true });
     logAdminAudit(db, adminUser.uid, "invoice_confirmed", { uid, number: inv.number, amount: inv.amount });
     return res(200, { success: true });
   } catch (e) {

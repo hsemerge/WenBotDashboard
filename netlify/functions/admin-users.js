@@ -76,6 +76,16 @@ exports.handler = async (event) => {
       // crypto subs advance on admin-confirm. Either drives the "Due Soon" view.
       stripeSubscribed:   !!s.stripeSubscriptionId,
       stripePeriodEnd:    ms(s.stripePeriodEnd),
+      // Real billing state from Stripe (scripts/sync-stripe-cycles.js + webhook).
+      // autoRenew is the one that matters: a cancelled subscription still reads
+      // as "active" right up until its period ends, so without this the only
+      // window to save that customer passes unnoticed.
+      stripeStatus:       s.stripeStatus || null,
+      stripeAutoRenew:    s.stripeAutoRenew === undefined ? null : !!s.stripeAutoRenew,
+      stripeCancelAt:     ms(s.stripeCancelAt),
+      stripeCanceledAt:   ms(s.stripeCanceledAt),
+      stripeAmount:       s.stripeAmount ?? null,
+      stripeInterval:     s.stripeInterval || null,
       cryptoNextDue:      ms(s.cryptoBillingNextDue),
       cryptoBilling:      !!s.cryptoBilling,
     };
