@@ -57,6 +57,18 @@ exports.handler = async (event) => {
       paymentCount:       s.paymentCount || 0,
       lastPaymentAt:      ms(s.lastPaymentAt),
       kickConnectedAt:    ms(s.kickConnectedAt),
+      // Channel health + platform usage. Cheap (already on the doc) and it powers
+      // the Channels support view and the Analytics rollup without a second read.
+      kickLive:           !!s.kickLive,
+      kickLiveAt:         ms(s.kickLiveAt),
+      botEnabled:         s.botEnabled !== false,
+      botDisabledReason:  s.botDisabledReason || null,
+      hasDiscord:         !!(s.discordConfig && s.discordConfig.guildId),
+      discordChannels:    !!(s.discordConfig && (s.discordConfig.giveawayChannelId || s.discordConfig.announcementChannelId)),
+      verifyRole:         !!(s.discordConfig && s.discordConfig.verify && s.discordConfig.verify.assignRole),
+      leaderboardEnabled: !!s.leaderboardEnabled,
+      communityStats:     s.communityStats || null,
+      liveStats:          s.liveStats || null,
       // Baseline "last login" from our own activity ping (dashboard load). The
       // Firebase lastSignInTime below is max'd in — whichever is newer wins.
       lastLoginAt:        ms(s.lastActiveAt),

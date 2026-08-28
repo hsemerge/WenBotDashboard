@@ -233,8 +233,10 @@
         <a href="#/streamers"  data-route="streamers"><span class="ico">👥</span> Streamers</a>
         <a href="#/customer"   data-route="customer"><span class="ico">🔍</span> Customer 360</a>
         <a href="#/billing"    data-route="billing" class="owner-only"><span class="ico">💳</span> Billing</a>
+        <a href="#/channels"   data-route="channels"><span class="ico">📡</span> Channels <span id="navLiveCount" class="navbadge hidden"></span></a>
         <a href="#/slots"      data-route="slots"><span class="ico">🎰</span> Slots</a>
         <div class="navgroup">Growth</div>
+        <a href="#/analytics"  data-route="analytics"><span class="ico">📊</span> Analytics</a>
         <a href="#/ops"        data-route="ops"><span class="ico">📈</span> Revenue Ops</a>
         <a href="#/outreach"   data-route="outreach"><span class="ico">📣</span> Outreach</a>
         <div class="navgroup">Wenbot Team</div>
@@ -402,6 +404,53 @@
             </div>
           </div>
           <div id="c360Body"><div class="sub" style="padding:8px 2px;">Pick a streamer above — or open one from the Streamers, Ops or Outreach lists.</div></div>
+        </div>
+
+        <!-- CHANNELS: live status + setup health -->
+        <div id="channelsView" class="hidden">
+          <div class="stats" id="chStats"></div>
+          <div class="toolbar">
+            <input id="chSearch" type="text" placeholder="Search channel…" oninput="renderChannels()">
+            <select id="chFilter" onchange="renderChannels()" style="max-width:220px;">
+              <option value="">All channels</option>
+              <option value="live">🔴 Live now</option>
+              <option value="issues">⚠️ Setup gaps</option>
+              <option value="quiet">💤 Not live in 30 days</option>
+              <option value="botoff">🤖 Bot disabled</option>
+            </select>
+            <button class="btn-ghost" onclick="loadUsers()">↻ Refresh</button>
+            <span id="chCount" class="sub" style="align-self:center;"></span>
+          </div>
+          <div class="tablecard">
+            <div style="overflow-x:auto;">
+              <table>
+                <thead><tr>
+                  <th>Channel</th><th>Live</th><th>Bot</th><th>Casino</th><th>Portal</th><th>Discord</th><th>Last live</th><th>Stream time</th>
+                </tr></thead>
+                <tbody id="chTable"><tr><td colspan="8" class="muted" style="text-align:center;padding:24px;">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="sub" style="margin-top:12px;">🔴 live now · ✅ wired up · — not set up. Click a channel to open its Customer 360.</div>
+        </div>
+
+        <!-- ANALYTICS: what streamers actually use -->
+        <div id="analyticsView" class="hidden">
+          <div class="stats" id="anStats"></div>
+          <div class="dashgrid">
+            <div class="tablecard" style="padding:16px;">
+              <div class="kicker">Adoption</div>
+              <div class="panel-title">Which features get used</div>
+              <div class="sub" style="margin-bottom:12px;">Totals across every channel, and how many channels have ever run each one — a feature nobody adopts is a feature to fix or drop.</div>
+              <div id="anFeatures"></div>
+            </div>
+            <div class="tablecard" style="padding:16px;">
+              <div class="kicker">Leaders</div>
+              <div class="panel-title">Most active channels</div>
+              <div class="sub" style="margin-bottom:12px;">By total feature activity — the people to ask for testimonials, and to keep happy.</div>
+              <div id="anLeaders"></div>
+            </div>
+          </div>
         </div>
 
         <!-- REVENUE OPS -->
@@ -690,7 +739,10 @@
       renderStats(d.stats || {});
       renderTable();
       renderDash(d.stats || {});
-      if (currentRoute() === 'ops') renderOps();   // keep the queues in step with ↻ Refresh
+      // Keep whichever data view is open in step with ↻ Refresh.
+      if (currentRoute() === 'ops') renderOps();
+      if (currentRoute() === 'channels') renderChannels();
+      if (currentRoute() === 'analytics') renderAnalytics();
       loadActivity();
       // The roster must land BEFORE the pickers build, or "assign to" is just
       // your own name. Tickets + outreach drive dashboard tiles / the nav badge,
@@ -726,6 +778,8 @@
     customer:  { view: 'c360View',    title: 'Customer 360',kick: 'One streamer, everything' },
     billing:   { view: 'billingView', title: 'Billing',     kick: 'Owner only', ownerOnly: true },
     slots:     { view: 'slotsView',   title: 'Slots',       kick: 'Catalog health' },
+    channels:  { view: 'channelsView',title: 'Channels',    kick: 'Live status & setup health' },
+    analytics: { view: 'analyticsView',title:'Analytics',   kick: 'What actually gets used' },
     ops:       { view: 'opsView',     title: 'Revenue Ops', kick: 'Money & retention' },
     outreach:  { view: 'outreachView',title: 'Outreach',    kick: 'Streamer pipeline' },
     tickets:   { view: 'ticketsView', title: 'Tickets',     kick: 'Team queue' },
@@ -755,6 +809,8 @@
     if (name === 'outreach' && !_outreachLoaded) loadOutreach();
     if (name === 'tickets' && !_ticketsLoaded) loadTickets();
     if (name === 'ops') renderOps();
+    if (name === 'channels') renderChannels();
+    if (name === 'analytics') renderAnalytics();
     if (name === 'security') renderSecurity();
     if (name === 'customer') {
       const cu = c360UidFromHash();
@@ -1247,6 +1303,134 @@
       const ch = $('tkChannel'); if (ch) ch.value = channel || '';
       const t = $('tkTitle'); if (t) { t.value = channel ? `${channel}: ` : ''; t.focus(); }
     }, 60);
+  };
+
+  // ── Channels: live status + setup health ───────────────────────────────────
+  // The support view. When a streamer says "it isn't working", this answers the
+  // first five questions in one row: is their bot on, casino set, portal on,
+  // Discord linked, and are they even streaming.
+  const chOk  = (on, label) => on
+    ? `<span class="ok" title="${esc(label)}">✅</span>`
+    : `<span class="muted" title="${esc(label)}">—</span>`;
+  const hoursFrom = (ms) => (ms ? Math.round(ms / 36e5) : 0);
+
+  function chGaps(u) {
+    // What's missing that a working channel needs. Bot-disabled is deliberate
+    // (an admin turned it off with a reason), so it's reported, not counted a gap.
+    const g = [];
+    if (!u.provider) g.push('no casino');
+    if (!u.leaderboardEnabled) g.push('leaderboard off');
+    if (!u.hasDiscord) g.push('no Discord');
+    return g;
+  }
+
+  window.renderChannels = function () {
+    const q = ($('chSearch')?.value || '').toLowerCase().trim();
+    const f = $('chFilter')?.value || '';
+    const A = _users.filter(u => !u.archived && u.accountType !== 'moderator');
+    const now = Date.now();
+
+    const liveNow = A.filter(u => u.kickLive);
+    const botOff  = A.filter(u => !u.botEnabled);
+    const quiet   = A.filter(u => !u.kickLive && (!u.kickLiveAt || (now - u.kickLiveAt) > 30 * DAYMS));
+    const gappy   = A.filter(u => chGaps(u).length);
+
+    $('chStats').innerHTML =
+      `<div class="stat ${liveNow.length ? 'good' : ''}"><div class="n">${liveNow.length}</div><div class="l">Live right now</div></div>`
+      + `<div class="stat"><div class="n">${A.filter(u => u.kickLiveAt).length}</div><div class="l">Have streamed</div></div>`
+      + `<div class="stat ${gappy.length ? 'warn' : ''}"><div class="n">${gappy.length}</div><div class="l">Setup gaps</div></div>`
+      + `<div class="stat ${botOff.length ? 'bad' : ''}"><div class="n">${botOff.length}</div><div class="l">Bot disabled</div></div>`
+      + `<div class="stat"><div class="n">${quiet.length}</div><div class="l">Quiet 30d+</div></div>`;
+
+    const badge = $('navLiveCount');
+    if (badge) { badge.textContent = liveNow.length || ''; badge.classList.toggle('hidden', !liveNow.length); }
+
+    let rows = A.filter(u => {
+      if (q && !String(u.kickChannel || u.uid).toLowerCase().includes(q)) return false;
+      if (f === 'live')   return u.kickLive;
+      if (f === 'botoff') return !u.botEnabled;
+      if (f === 'issues') return chGaps(u).length > 0;
+      if (f === 'quiet')  return !u.kickLive && (!u.kickLiveAt || (now - u.kickLiveAt) > 30 * DAYMS);
+      return true;
+    });
+    // Live first, then most recently live.
+    rows.sort((a, b) => (b.kickLive ? 1 : 0) - (a.kickLive ? 1 : 0) || (b.kickLiveAt || 0) - (a.kickLiveAt || 0));
+
+    const c = $('chCount'); if (c) c.textContent = `${rows.length} of ${A.length}`;
+    $('chTable').innerHTML = rows.length ? rows.map(u => {
+      const gaps = chGaps(u);
+      const bot = u.botEnabled
+        ? '<span class="ok">on</span>'
+        : `<span class="warn" title="${esc(u.botDisabledReason || 'disabled')}">off</span>`;
+      return `<tr${u.kickLive ? ' style="background:rgba(85,239,176,.05);"' : ''}>
+        <td><span style="cursor:pointer;" onclick="openCustomer('${esc(u.uid)}')" title="Open Customer 360"><b>${esc(u.kickChannel || u.uid)}</b></span>
+            ${gaps.length ? ` <span class="pill" style="background:rgba(245,197,24,.14);color:var(--gold);" title="${esc(gaps.join(', '))}">${gaps.length} gap${gaps.length === 1 ? '' : 's'}</span>` : ''}</td>
+        <td>${u.kickLive ? '<span style="color:var(--bad);font-weight:700;">🔴 LIVE</span>' : '<span class="muted">—</span>'}</td>
+        <td>${bot}</td>
+        <td>${u.provider ? `<span class="ok" title="${esc(u.provider)}">${esc(u.provider)}</span>` : '<span class="muted">—</span>'}</td>
+        <td>${chOk(u.leaderboardEnabled, 'Public leaderboard/portal enabled')}</td>
+        <td>${chOk(u.hasDiscord, u.hasDiscord ? 'Discord server linked' : 'No Discord server linked')}</td>
+        <td class="muted">${u.kickLiveAt ? rel(u.kickLiveAt) : '<span class="muted">never</span>'}</td>
+        <td class="muted num">${u.liveStats && u.liveStats.totalLiveMs ? hoursFrom(u.liveStats.totalLiveMs) + 'h' + (u.liveStats.sessions ? ` <span style="opacity:.6;">· ${u.liveStats.sessions} sessions</span>` : '') : '—'}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px;">No channels match.</td></tr>';
+  };
+
+  // ── Analytics: what streamers actually use ─────────────────────────────────
+  // Feature adoption across the whole platform, from communityStats. Answers the
+  // product question nobody could answer before: which features earn their keep?
+  const FEATURES = [
+    { key: 'giveawaysRun',   label: 'Giveaways',        icon: '🎁' },
+    { key: 'winnersDrawn',   label: 'Winners drawn',    icon: '🏆' },
+    { key: 'commandsUsed',   label: 'Chat commands',    icon: '💬' },
+    { key: 'huntsRun',       label: 'Bonus hunts',      icon: '🎰' },
+    { key: 'gtbRun',         label: 'Guess the Balance', icon: '🎯' },
+    { key: 'tournamentsRun', label: 'Tournaments',      icon: '⚔️' },
+    { key: 'triviaRun',      label: 'Trivia',           icon: '🧠' },
+  ];
+
+  window.renderAnalytics = function () {
+    const A = _users.filter(u => !u.archived && u.accountType !== 'moderator');
+    const withStats = A.filter(u => u.communityStats);
+    const totalFor = (k) => withStats.reduce((s, u) => s + (Number(u.communityStats[k]) || 0), 0);
+    const usersFor = (k) => withStats.filter(u => Number(u.communityStats[k]) > 0).length;
+
+    const liveHours = A.reduce((s, u) => s + (u.liveStats && u.liveStats.totalLiveMs ? u.liveStats.totalLiveMs : 0), 0) / 36e5;
+    const sessions  = A.reduce((s, u) => s + (u.liveStats && u.liveStats.sessions ? u.liveStats.sessions : 0), 0);
+
+    $('anStats').innerHTML =
+      `<div class="stat"><div class="n">${totalFor('giveawaysRun').toLocaleString()}</div><div class="l">Giveaways run</div></div>`
+      + `<div class="stat"><div class="n">${totalFor('commandsUsed').toLocaleString()}</div><div class="l">Chat commands</div></div>`
+      + `<div class="stat"><div class="n">${Math.round(liveHours).toLocaleString()}</div><div class="l">Hours streamed <small>· ${sessions.toLocaleString()} sessions</small></div></div>`
+      + `<div class="stat"><div class="n">${withStats.length}/${A.length}</div><div class="l">Channels with activity</div></div>`;
+
+    // Adoption bars — total volume plus how many channels ever touched it.
+    const rows = FEATURES.map(f => ({ ...f, total: totalFor(f.key), users: usersFor(f.key) }))
+      .sort((a, b) => b.total - a.total);
+    const max = Math.max(1, ...rows.map(r => r.total));
+    $('anFeatures').innerHTML = rows.map(r => `
+      <div style="margin-bottom:11px;">
+        <div style="display:flex;align-items:baseline;gap:8px;font-size:13px;">
+          <span>${r.icon}</span><b style="color:var(--bright);">${esc(r.label)}</b>
+          <span class="muted" style="margin-left:auto;font-variant-numeric:tabular-nums;">${r.total.toLocaleString()}</span>
+        </div>
+        <div class="planbar" style="margin:5px 0 2px;"><div style="width:${(100 * r.total / max).toFixed(1)}%;background:${r.total ? 'var(--accent)' : 'var(--line2)'};"></div></div>
+        <div class="sub" style="font-size:11px;">${r.users} of ${A.length} channels${r.users === 0 ? ' · <span class="warn">never used</span>' : ''}</div>
+      </div>`).join('');
+
+    // Most active channels by total activity across all features.
+    const score = (u) => FEATURES.reduce((s, f) => s + (Number(u.communityStats?.[f.key]) || 0), 0);
+    const top = withStats.map(u => ({ u, n: score(u) })).filter(x => x.n > 0).sort((a, b) => b.n - a.n).slice(0, 12);
+    const topMax = Math.max(1, ...top.map(t => t.n));
+    $('anLeaders').innerHTML = top.length ? top.map(({ u, n }) => `
+      <div style="margin-bottom:9px;">
+        <div style="display:flex;align-items:baseline;gap:8px;font-size:13px;">
+          <span style="cursor:pointer;color:var(--bright);font-weight:600;" onclick="openCustomer('${esc(u.uid)}')">${esc(u.kickChannel || u.uid)}</span>
+          <span class="pill ${esc(u.plan)}" style="font-size:10px;">${esc(u.plan)}</span>
+          <span class="muted" style="margin-left:auto;font-variant-numeric:tabular-nums;">${n.toLocaleString()}</span>
+        </div>
+        <div class="planbar" style="margin-top:4px;height:6px;"><div style="width:${(100 * n / topMax).toFixed(1)}%;background:var(--good);"></div></div>
+      </div>`).join('') : '<div class="muted">No activity recorded yet.</div>';
   };
 
   // ── Revenue Ops ────────────────────────────────────────────────────────────
