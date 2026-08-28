@@ -310,6 +310,8 @@
               <option value="paid">💳 Paying</option>
               <option value="failed">⚠️ Payment failed</option>
               <option value="free">🆓 Starter / no sub</option>
+              <option value="moderators">🛡 Moderators only</option>
+              <option value="streamers">🎥 Streamers only</option>
             </select>
             <button class="btn-ghost" onclick="loadUsers()">↻ Refresh</button>
             <label class="sub" style="display:flex;align-items:center;gap:6px;cursor:pointer;align-self:center;">
@@ -770,7 +772,7 @@
   function renderDash(stats) {
     _lastStats = stats;                       // so tickets/outreach can re-render the tiles
     const now = Date.now(), DAY = 864e5;
-    const active = _users.filter(u => !u.archived);
+    const active = _users.filter(u => !u.archived && u.accountType !== 'moderator');
     const trialsSoon  = active.filter(u => u.planTrial && u.trialEndsAt && u.trialEndsAt > now && (u.trialEndsAt - now) <= 7 * DAY).length;
     const failed      = active.filter(u => u.paymentFailed).length;
     const notOnboard  = active.filter(u => !u.onboarded).length;
@@ -1119,6 +1121,7 @@
     if (u.paymentFailed) chips.push('<span class="stat-chip blocked">payment failed</span>');
     if (!u.onboarded) chips.push('<span class="stat-chip in_progress">not onboarded</span>');
     if (u.archived) chips.push('<span class="pill" style="background:rgba(255,111,145,.12);color:#e2a1ad;">archived</span>');
+    if (u.accountType === 'moderator') chips.push('<span class="pill" style="background:rgba(140,125,255,.16);color:var(--purple);">🛡 moderator account</span>');
 
     const c = x.counts || {};
     const countsHtml = ['verified', 'viewers', 'boards', 'giveawayWinners', 'discordLinks']
@@ -1260,7 +1263,9 @@
     { id:'comps',    label:'🎟 Comps'                   },
   ];
   const DAYMS = 864e5;
-  const activeUsers = () => _users.filter(u => !u.archived);
+  // Moderator logins are not customers: counting them inflates the funnel and
+  // drags the conversion rate down. Every ops queue works off streamers only.
+  const activeUsers = () => _users.filter(u => !u.archived && u.accountType !== 'moderator');
   const isTrial   = (u) => u.planTrial && u.trialEndsAt;
   const isPaying  = (u) => u.subscriptionActive && !u.planManual && !u.planTrial;
   const daysTo    = (ms) => (ms ? Math.ceil((ms - Date.now()) / DAYMS) : null);
@@ -1875,6 +1880,8 @@
         case 'paid':       return !!u.subscriptionActive;
         case 'failed':     return !!u.paymentFailed;
         case 'free':       return !u.subscriptionActive && !u.planTrial;
+        case 'moderators': return u.accountType === 'moderator';
+        case 'streamers':  return u.accountType !== 'moderator';
         default:           return true;
       }
     };
@@ -1938,9 +1945,13 @@
         ? `<div class="muted" title="${esc(u.noteSnippet)}" style="font-size:10px;line-height:1.35;margin-top:2px;white-space:normal;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">📝 ${esc(u.noteSnippet)}</div>` : '';
       const open = _expanded.has(u.uid);
       const archTag = u.archived ? ' <span class="pill" style="background:rgba(255,111,145,.12);color:#e2a1ad;">archived</span>' : '';
+      // Only moderators get a chip — labelling all 50-odd streamers "streamer"
+      // is noise. A hollow chip means we inferred it rather than being told.
+      const typeTag = u.accountType === 'moderator'
+        ? ` <span class="pill" style="background:rgba(140,125,255,.16);color:var(--purple);" title="${u.accountTypeStated ? 'Chose moderator at signup' : 'Inferred'}">🛡 mod</span>` : '';
       const main = `<tr${u.archived ? ' style="opacity:.55;"' : ''}>
         <td><span onclick="toggleDetail('${esc(u.uid)}')" style="cursor:pointer;user-select:none;color:var(--accent);">${open ? '▾' : '▸'}</span></td>
-        <td><span style="cursor:pointer;" title="Open Customer 360" onclick="openCustomer('${esc(u.uid)}')">${esc(u.kickChannel || u.displayName || u.uid)}</span>${archTag}${noteRow}</td>
+        <td><span style="cursor:pointer;" title="Open Customer 360" onclick="openCustomer('${esc(u.uid)}')">${esc(u.kickChannel || u.displayName || u.uid)}</span>${typeTag}${archTag}${noteRow}</td>
         <td><div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;max-width:250px;white-space:normal;">${planSel}${compTag}${trialTag}</div></td>
         <td>${sub}</td>
         <td>${u.onboarded ? '<span class="ok">yes</span>' : '<span class="no">no</span>'}</td>

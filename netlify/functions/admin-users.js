@@ -42,6 +42,11 @@ exports.handler = async (event) => {
       hasNote:            !!(s.adminNotes && String(s.adminNotes).trim()),
       noteSnippet:        s.adminNotes ? String(s.adminNotes).replace(/\s+/g, " ").trim().slice(0, 80) : null,
       provider:           s.activeProvider || s.casino || null,
+      // What they said they were at signup. Older accounts predate the question,
+      // so fall back to what the record shows: a connected channel means they
+      // stream; anything else is unknown until someone says otherwise.
+      accountType:        s.accountType || (s.kickChannel ? "streamer" : null),
+      accountTypeStated:  !!s.accountType,
       subscriptionActive: !!s.stripeSubscriptionActive,
       paymentFailed:      !!s.stripePaymentFailed,
       onboarded:          !!s.onboarded,

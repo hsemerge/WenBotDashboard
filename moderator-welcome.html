@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>You're set — WenBot</title>
+<!--
+  Where a MODERATOR lands after signing up.
+
+  A mod needs a WenBot login before their streamer can add them (team-add-mod
+  looks them up by email), but they have no channel and no casino — so sending
+  them through streamer onboarding asks for things they don't have and files
+  them as a streamer in our own numbers. This page just tells them the one thing
+  they need to do next: give their streamer this email address.
+
+  Once the streamer adds them, the dashboard's own delegation handling takes
+  over (firebase-config.js switches a non-onboarded mod straight into the
+  channel they moderate), so they simply sign in and they're there.
+-->
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --bg:#0d1117; --bg-panel:#161b22; --bg-input:#0d1117; --border:#30363d;
+    --text:#c9d1d9; --text-dim:#8b949e; --bright:#f0f6fc; --accent:#00e5ff; --green:#00ff88;
+    --mono:'SFMono-Regular',Consolas,monospace;
+  }
+  body {
+    font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text);
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:28px 18px;
+    background-image:radial-gradient(900px 460px at 50% -10%, rgba(0,229,255,.08), transparent 60%);
+    line-height:1.6;
+  }
+  .card { width:100%; max-width:520px; background:var(--bg-panel); border:1px solid var(--border); border-radius:16px; padding:32px; }
+  .tick { width:46px; height:46px; border-radius:50%; display:grid; place-items:center; font-size:22px;
+          background:rgba(0,255,136,.1); border:1px solid rgba(0,255,136,.4); color:var(--green); margin-bottom:16px; }
+  h1 { font-family:'Exo 2',sans-serif; font-size:23px; color:var(--bright); font-weight:800; }
+  p { font-size:14px; color:var(--text-dim); margin-top:8px; }
+  .steps { margin-top:22px; display:grid; gap:14px; }
+  .step { display:flex; gap:12px; align-items:flex-start; }
+  .step .n { flex:0 0 24px; height:24px; border-radius:50%; display:grid; place-items:center;
+             background:rgba(0,229,255,.12); border:1px solid rgba(0,229,255,.35); color:var(--accent);
+             font-size:12px; font-weight:700; }
+  .step b { color:var(--bright); font-size:14px; font-weight:600; }
+  .step div > span { display:block; font-size:13px; color:var(--text-dim); margin-top:2px; }
+  .emailbox { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:9px; }
+  .emailbox code { flex:1; min-width:210px; font-family:var(--mono); font-size:14px; color:var(--bright);
+                   background:var(--bg-input); border:1px solid var(--border); border-radius:8px; padding:10px 12px; word-break:break-all; }
+  button { background:var(--accent); color:#052027; font-weight:800; border:none; border-radius:9px; padding:10px 16px; cursor:pointer; font-size:13.5px; font-family:inherit; }
+  .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text); font-weight:600; }
+  .btn-ghost:hover { border-color:var(--accent); color:var(--accent); }
+  .foot { margin-top:24px; padding-top:18px; border-top:1px solid var(--border); font-size:13px; color:var(--text-dim); display:flex; gap:14px; flex-wrap:wrap; }
+  a { color:var(--accent); }
+  .toast { position:fixed; right:20px; bottom:20px; background:rgba(0,255,136,.12); border:1px solid var(--green); color:var(--green); padding:11px 16px; border-radius:10px; font-size:13px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="tick">✓</div>
+    <h1>Your moderator account is ready</h1>
+    <p>There's nothing to set up on your side — no channel, no casino. Your streamer just needs to add you.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="n">1</div>
+        <div>
+          <b>Send your streamer this email address</b>
+          <span>They add it under <b>Team Moderation</b> in their WenBot dashboard.</span>
+          <div class="emailbox">
+            <code id="myEmail">…</code>
+            <button class="btn-ghost" id="copyBtn">Copy</button>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="n">2</div>
+        <div>
+          <b>Sign in again once they've added you</b>
+          <span>Their channel opens automatically — you'll be managing it from your own login, with a banner showing whose account you're in.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <a href="/dashboard.html">Check now →</a>
+      <a href="/account-security.html">🔐 Turn on 2FA</a>
+      <a href="#" id="signoutLink">Sign out</a>
+    </div>
+  </div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script>
+  initFirebase();
+  function onAuthReady(user) {
+    document.getElementById('myEmail').textContent = user.email || '—';
+    // If a streamer has already added them, don't leave them sitting here.
+    if (Array.isArray(fb.delegatedFor) && fb.delegatedFor.length) {
+      window.location.href = '/dashboard.html';
+    }
+  }
+  function onAuthNotLoggedIn() { window.location.href = '/login.html'; }
+  document.getElementById('copyBtn').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(document.getElementById('myEmail').textContent);
+      const t = document.createElement('div'); t.className = 'toast'; t.textContent = 'Email copied';
+      document.body.appendChild(t); setTimeout(() => t.remove(), 3000);
+    } catch {}
+  });
+  document.getElementById('signoutLink').addEventListener('click', (e) => {
+    e.preventDefault(); firebase.auth().signOut().then(() => window.location.href = '/login.html');
+  });
+</script>
+</body>
+</html>

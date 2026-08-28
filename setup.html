@@ -309,6 +309,15 @@
         window.location.href = "dashboard.html";
         return;
       }
+      // Moderators don't onboard: they have no channel and no casino, and every
+      // route into WenBot funnels through this page, so this is the one place to
+      // catch them. Once their streamer has added them (delegatedFor non-empty)
+      // the dashboard takes over and drops them straight into that channel.
+      if (fb.streamerProfile && fb.streamerProfile.accountType === 'moderator'
+          && !(Array.isArray(fb.delegatedFor) && fb.delegatedFor.length)) {
+        window.location.href = "moderator-welcome.html";
+        return;
+      }
       document.getElementById('authLoader').style.display  = 'none';
       document.getElementById('setupContainer').style.visibility = '';
       if (fb.streamerProfile) {
