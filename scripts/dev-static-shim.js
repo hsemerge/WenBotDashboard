@@ -38,9 +38,11 @@ const rules = `# DEV-ONLY shim written by scripts/dev-static-shim.js (dist/ is g
 // The self-target loop bug also bites /dashboard.html; route it through a copy.
 fs.copyFileSync(path.join(dist, "dashboard.html"), path.join(dist, "devdashboard.html"));
 fs.copyFileSync(path.join(dist, "login.html"), path.join(dist, "devlogin.html"));
+fs.copyFileSync(path.join(dist, "account-security.html"), path.join(dist, "devaccount-security.html"));
 fs.copyFileSync(path.join(dist, "admin", "wenbot-auth.html"), path.join(dist, "devwenbot-auth.html"));
 const finalRules = rules.replace("/admin/../dashboard.html", "/devdashboard.html")
   + `/login.html             /devlogin.html             200\n`
+  + `/account-security.html  /devaccount-security.html  200\n`
   + `/admin/wenbot-auth.html /devwenbot-auth.html       200\n`;
 fs.writeFileSync(path.join(dist, "_redirects"), finalRules);
 console.log("dev shim written: dist/_redirects + devjs/ devimg/ dev*.html copies");

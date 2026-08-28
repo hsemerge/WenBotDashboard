@@ -646,6 +646,9 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="nav-item" onclick="showPage('referrals',this)"><span class="icon">🤝</span> Invite &amp; Earn</div>
         <div class="nav-item" onclick="showPage('activity',this)"><span class="icon">📜</span> Activity Log</div>
         <div class="nav-item" onclick="openThemes()"><span class="icon">🎨</span> Themes</div>
+        <!-- Its own page, not a tab: two-factor needs the modular Firebase SDK,
+             and this dashboard runs the compat one across ~190 call sites. -->
+        <div class="nav-item" onclick="window.location.href='/account-security.html'"><span class="icon">🔐</span> Security &amp; 2FA</div>
         <div class="nav-item" onclick="showPage('help',this)"><span class="icon">❓</span> Help</div>
         <div class="nav-item owner-only" onclick="showPage('yourdata',this)"><span class="icon">📦</span> Your Data</div>
       </div>

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Account Security — WenBot</title>
+<!--
+  Optional two-factor authentication for STREAMERS.
+
+  Deliberately a standalone page rather than a dashboard tab: TOTP lives only in
+  the MODULAR Firebase SDK, while dashboard.html runs the COMPAT SDK across ~190
+  Firestore call sites. Mixing both bundles on one page means two auth instances
+  fighting over the same session; converting the dashboard wholesale is a large,
+  risky refactor for an opt-in feature. A separate page loads only the modular
+  SDK and picks up the existing session from Firebase's own persistence, so the
+  dashboard is untouched.
+-->
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --bg:#0d1117; --bg-panel:#161b22; --bg-card:#1a2030; --bg-input:#0d1117;
+    --border:#30363d; --text:#c9d1d9; --text-dim:#8b949e; --bright:#f0f6fc;
+    --accent:#00e5ff; --green:#00ff88; --gold:#ffd700; --red:#ff4757;
+    --mono:'SFMono-Regular',Consolas,'Liberation Mono',monospace;
+  }
+  body {
+    font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text);
+    min-height:100vh; padding:34px 18px 80px; line-height:1.6;
+    background-image:radial-gradient(900px 460px at 50% -10%, rgba(0,229,255,.07), transparent 60%);
+  }
+  .wrap { max-width:640px; margin:0 auto; }
+  h1 { font-family:'Exo 2',sans-serif; font-size:25px; color:var(--bright); font-weight:800; letter-spacing:-.01em; }
+  .lede { color:var(--text-dim); font-size:14px; margin-top:6px; }
+  .card { background:var(--bg-panel); border:1px solid var(--border); border-radius:14px; padding:22px; margin-top:18px; }
+  .card h2 { font-family:'Exo 2',sans-serif; font-size:17px; color:var(--bright); font-weight:700; margin-bottom:4px; }
+  .sub { font-size:13px; color:var(--text-dim); }
+  label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--text-dim); margin:14px 0 6px; }
+  input { width:100%; background:var(--bg-input); border:1px solid var(--border); border-radius:9px; padding:11px 13px; color:var(--bright); font-size:14px; font-family:inherit; }
+  input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,229,255,.13); }
+  button { background:var(--accent); color:#052027; font-weight:800; border:none; border-radius:9px; padding:10px 18px; cursor:pointer; font-size:14px; font-family:inherit; }
+  button:hover { filter:brightness(1.08); } button:disabled { opacity:.5; cursor:not-allowed; }
+  .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text); font-weight:600; }
+  .btn-ghost:hover { border-color:var(--accent); color:var(--accent); filter:none; }
+  .btn-danger { background:transparent; border:1px solid var(--red); color:var(--red); font-weight:600; }
+  .err { color:var(--red); font-size:13px; margin-top:10px; min-height:18px; }
+  .hidden { display:none !important; }
+  .banner { display:flex; align-items:center; gap:13px; padding:14px 16px; border-radius:11px; }
+  .banner.on  { border:1px solid rgba(0,255,136,.4);  background:rgba(0,255,136,.07); }
+  .banner.off { border:1px solid rgba(255,215,0,.35); background:rgba(255,215,0,.06); }
+  .banner .t { flex:1; }
+  .banner .t b { display:block; color:var(--bright); }
+  .step { margin-top:18px; }
+  .step .n { font-family:'Exo 2',sans-serif; font-weight:700; color:var(--accent); font-size:13px; letter-spacing:.06em; text-transform:uppercase; }
+  .keybox { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:7px; }
+  .keybox code { flex:1; min-width:230px; font-family:var(--mono); font-size:15px; letter-spacing:.1em; background:var(--bg-input); border:1px solid var(--border); border-radius:8px; padding:12px 14px; word-break:break-all; color:var(--bright); }
+  .code-in { max-width:180px; letter-spacing:.4em; font-family:var(--mono); font-size:18px; text-align:center; }
+  a { color:var(--accent); }
+  .back { display:inline-block; margin-bottom:16px; font-size:13px; color:var(--text-dim); text-decoration:none; }
+  .back:hover { color:var(--accent); }
+  .toast { position:fixed; right:20px; bottom:20px; background:rgba(0,255,136,.12); border:1px solid var(--green); color:var(--green); padding:12px 17px; border-radius:10px; font-size:13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/dashboard.html">← Back to dashboard</a>
+  <h1>Account security</h1>
+  <div class="lede">Add a second step to your WenBot login, so your account is safe even if your password leaks.</div>
+
+  <!-- Signed out -->
+  <div class="card hidden" id="signinCard">
+    <h2>Sign in</h2>
+    <div class="sub">Use the same details you use for the WenBot dashboard.</div>
+    <form id="signinForm">
+      <label>Email</label>
+      <input id="email" type="email" autocomplete="username" required>
+      <label>Password</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <div style="margin-top:16px;"><button id="signinBtn" type="submit">Sign in</button></div>
+      <div class="err" id="signinErr"></div>
+    </form>
+  </div>
+
+  <!-- 2FA challenge at sign-in -->
+  <div class="card hidden" id="challengeCard">
+    <h2>Two-factor code</h2>
+    <div class="sub">Enter the 6-digit code from your authenticator app.</div>
+    <form id="challengeForm">
+      <label>Code</label>
+      <input id="challengeCode" class="code-in" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+      <div style="margin-top:16px;display:flex;gap:8px;">
+        <button id="challengeBtn" type="submit">Verify</button>
+        <button type="button" class="btn-ghost" onclick="location.reload()">Cancel</button>
+      </div>
+      <div class="err" id="challengeErr"></div>
+    </form>
+  </div>
+
+  <!-- Main -->
+  <div class="card hidden" id="mainCard">
+    <h2>Two-factor authentication</h2>
+    <div class="sub" id="whoami" style="margin-bottom:14px;"></div>
+    <div id="body"><div class="sub">Loading…</div></div>
+  </div>
+
+  <div class="card hidden" id="helpCard">
+    <h2>What is this?</h2>
+    <div class="sub" style="margin-top:6px;">
+      With two-factor on, signing in needs your password <b>and</b> a 6-digit code that changes every 30 seconds
+      on your phone. Someone who steals your password still can't get in.
+      <br><br>
+      You'll need a free authenticator app — <b>Google Authenticator</b>, <b>Authy</b>, <b>1Password</b> or
+      <b>Bitwarden</b> all work. It's optional, and you can turn it off again whenever you like.
+    </div>
+  </div>
+</div>
+
+<script src="/js/firebase-config.js"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut,
+    multiFactor, TotpMultiFactorGenerator, getMultiFactorResolver,
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let resolver = null, secret = null;
+
+  function show(which) {
+    ['signinCard', 'challengeCard', 'mainCard', 'helpCard'].forEach(id => $(id).classList.add('hidden'));
+    if (which === 'signin')    { $('signinCard').classList.remove('hidden'); $('helpCard').classList.remove('hidden'); }
+    if (which === 'challenge') { $('challengeCard').classList.remove('hidden'); }
+    if (which === 'main')      { $('mainCard').classList.remove('hidden'); $('helpCard').classList.remove('hidden'); }
+  }
+  function toast(msg) {
+    const d = document.createElement('div'); d.className = 'toast'; d.textContent = msg;
+    document.body.appendChild(d); setTimeout(() => d.remove(), 4200);
+  }
+  // Firebase error codes turned into something a streamer can act on.
+  function niceError(e) {
+    const c = ((e && e.code) || '') + ' ' + ((e && e.message) || '');
+    if (/operation-not-allowed|admin-restricted|not-enabled|unsupported/i.test(c))
+      return "Two-factor isn't switched on for WenBot yet. Please try again later, or contact support.";
+    if (/invalid-verification-code|invalid-otp|argument-error/i.test(c))
+      return 'That code was not accepted. Check the time on your phone is correct and try the next code.';
+    if (/requires-recent-login/i.test(c))
+      return 'For security this needs a fresh sign-in. Sign out, sign back in, then try again.';
+    if (/wrong-password|invalid-credential|user-not-found/i.test(c)) return 'Wrong email or password.';
+    if (/too-many-requests/i.test(c)) return 'Too many attempts. Wait a minute and try again.';
+    return (e && e.message) || 'Something went wrong.';
+  }
+
+  onAuthStateChanged(auth, (user) => {
+    if (!user) { show('signin'); return; }
+    $('whoami').textContent = user.email || '';
+    show('main');
+    render();
+  });
+
+  $('signinForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('signinErr').textContent = '';
+    const btn = $('signinBtn'); btn.disabled = true; btn.textContent = 'Signing in…';
+    try {
+      await signInWithEmailAndPassword(auth, $('email').value.trim(), $('password').value);
+    } catch (err) {
+      if (err && err.code === 'auth/multi-factor-auth-required') {
+        resolver = getMultiFactorResolver(auth, err);
+        show('challenge'); $('challengeCode').focus();
+      } else {
+        $('signinErr').textContent = niceError(err);
+      }
+    }
+    btn.disabled = false; btn.textContent = 'Sign in';
+  });
+
+  $('challengeForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const code = ($('challengeCode').value || '').trim();
+    $('challengeErr').textContent = '';
+    if (!/^\d{6}$/.test(code)) { $('challengeErr').textContent = 'Enter the 6-digit code.'; return; }
+    const btn = $('challengeBtn'); btn.disabled = true; btn.textContent = 'Verifying…';
+    try {
+      const assertion = TotpMultiFactorGenerator.assertionForSignIn(resolver.hints[0].uid, code);
+      await resolver.resolveSignIn(assertion);
+    } catch (err) { $('challengeErr').textContent = niceError(err); }
+    btn.disabled = false; btn.textContent = 'Verify'; $('challengeCode').value = '';
+  });
+
+  function render() {
+    const user = auth.currentUser;
+    const factors = multiFactor(user).enrolledFactors || [];
+    $('body').innerHTML = factors.length
+      ? `<div class="banner on">
+           <span style="font-size:22px;">🔐</span>
+           <div class="t"><b>Two-factor is ON</b>
+             <span class="sub">${factors.map(f => esc(f.displayName || 'Authenticator app')).join(', ')}${factors[0].enrollmentTime ? ' · added ' + new Date(factors[0].enrollmentTime).toLocaleDateString() : ''}</span></div>
+           <button class="btn-danger" id="offBtn">Turn off</button>
+         </div>
+         <div class="sub" style="margin-top:12px;">You'll be asked for a code each time you sign in. If you lose your phone, contact WenBot support to have it removed.</div>`
+      : `<div class="banner off">
+           <span style="font-size:22px;">🔓</span>
+           <div class="t"><b>Two-factor is off</b><span class="sub">Your password is the only thing protecting your account.</span></div>
+           <button id="onBtn">Turn on</button>
+         </div>`;
+    $('offBtn')?.addEventListener('click', unenroll);
+    $('onBtn')?.addEventListener('click', start);
+  }
+
+  async function start() {
+    $('body').innerHTML = '<div class="sub">Setting up…</div>';
+    try {
+      const user = auth.currentUser;
+      const session = await multiFactor(user).getSession();
+      secret = await TotpMultiFactorGenerator.generateSecret(session);
+      const key = secret.secretKey;
+      $('body').innerHTML = `
+        <div class="step"><div class="n">Step 1 — open your authenticator app</div>
+          <div class="sub">Google Authenticator, Authy, 1Password or Bitwarden. Choose <b>Add account</b> → <b>Enter a setup key</b>.</div></div>
+        <div class="step"><div class="n">Step 2 — enter this key</div>
+          <div class="sub">Account name: <b>WenBot (${esc(user.email || '')})</b> · type: <b>time-based</b></div>
+          <div class="keybox"><code>${esc(key)}</code><button class="btn-ghost" id="copyBtn">Copy</button></div></div>
+        <div class="step"><div class="n">Step 3 — enter the 6-digit code it shows</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+            <input id="enrollCode" class="code-in" type="text" inputmode="numeric" maxlength="6" placeholder="000000">
+            <button id="finishBtn">Turn on two-factor</button>
+            <button class="btn-ghost" id="cancelBtn">Cancel</button>
+          </div>
+          <div class="err" id="enrollErr"></div></div>`;
+      $('copyBtn').addEventListener('click', async () => { try { await navigator.clipboard.writeText(key); toast('Setup key copied'); } catch {} });
+      $('cancelBtn').addEventListener('click', render);
+      $('finishBtn').addEventListener('click', finish);
+      $('enrollCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') finish(); });
+      $('enrollCode').focus();
+    } catch (e) {
+      $('body').innerHTML = `<div class="err">${esc(niceError(e))}</div>`;
+      const b = document.createElement('button'); b.className = 'btn-ghost'; b.textContent = 'Back';
+      b.addEventListener('click', render); $('body').appendChild(b);
+    }
+  }
+
+  async function finish() {
+    const code = ($('enrollCode').value || '').trim();
+    $('enrollErr').textContent = '';
+    if (!/^\d{6}$/.test(code)) { $('enrollErr').textContent = 'Enter the 6-digit code from the app.'; return; }
+    try {
+      const assertion = TotpMultiFactorGenerator.assertionForEnrollment(secret, code);
+      await multiFactor(auth.currentUser).enroll(assertion, 'Authenticator app');
+      secret = null;
+      render();
+      toast('Two-factor is on');
+    } catch (e) { $('enrollErr').textContent = niceError(e); }
+  }
+
+  async function unenroll() {
+    if (!confirm('Turn off two-factor? Your password becomes the only protection on your account.')) return;
+    try {
+      const f = multiFactor(auth.currentUser).enrolledFactors[0];
+      await multiFactor(auth.currentUser).unenroll(f.uid);
+      render();
+      toast('Two-factor turned off');
+    } catch (e) { alert(niceError(e)); }
+  }
+</script>
+</body>
+</html>
