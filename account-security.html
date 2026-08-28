@@ -117,6 +117,7 @@
 </div>
 
 <script src="/js/firebase-config.js"></script>
+<script src="/js/qr.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import {
@@ -218,12 +219,19 @@
       const session = await multiFactor(user).getSession();
       secret = await TotpMultiFactorGenerator.generateSecret(session);
       const key = secret.secretKey;
+      const otpUri = secret.generateQrCodeUrl(user.email || 'WenBot', 'WenBot');
       $('body').innerHTML = `
         <div class="step"><div class="n">Step 1 — open your authenticator app</div>
           <div class="sub">Google Authenticator, Authy, 1Password or Bitwarden. Choose <b>Add account</b> → <b>Enter a setup key</b>.</div></div>
-        <div class="step"><div class="n">Step 2 — enter this key</div>
-          <div class="sub">Account name: <b>WenBot (${esc(user.email || '')})</b> · type: <b>time-based</b></div>
-          <div class="keybox"><code>${esc(key)}</code><button class="btn-ghost" id="copyBtn">Copy</button></div></div>
+        <div class="step"><div class="n">Step 2 — scan this code</div>
+          <div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-top:8px;">
+            <div style="background:#fff;padding:10px;border-radius:10px;line-height:0;">${window.qrSvg(otpUri, { size: 190 })}</div>
+            <div style="flex:1;min-width:210px;">
+              <div class="sub">Point your authenticator app's camera at it — that's the whole step.</div>
+              <div class="sub" style="margin-top:12px;">Can't scan? Choose <b>“Enter a setup key”</b> in the app and type this key instead (account <b>WenBot</b>, type <b>time-based</b>):</div>
+              <div class="keybox"><code>${esc(key)}</code><button class="btn-ghost" id="copyBtn">Copy</button></div>
+            </div>
+          </div></div>
         <div class="step"><div class="n">Step 3 — enter the 6-digit code it shows</div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;">
             <input id="enrollCode" class="code-in" type="text" inputmode="numeric" maxlength="6" placeholder="000000">

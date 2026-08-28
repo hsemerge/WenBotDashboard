@@ -566,6 +566,7 @@
 
 <script src="/js/firebase-config.js"></script>
 <script src="/js/table-sort.js"></script>
+<script src="/js/qr.js"></script>
 <!--
   MODULAR Firebase SDK, deliberately: TOTP two-factor auth
   (TotpMultiFactorGenerator / getMultiFactorResolver) ships ONLY in the modular
@@ -944,6 +945,7 @@
       const session = await multiFactor(u).getSession();
       _totpSecret = await TotpMultiFactorGenerator.generateSecret(session);
       const key = _totpSecret.secretKey;
+      const otpUri = _totpSecret.generateQrCodeUrl(u.email || 'WenBot admin', 'WenBot');
       el.innerHTML = `
         <div style="display:grid;gap:14px;">
           <div>
@@ -951,13 +953,19 @@
             <div class="sub">Google Authenticator, Authy, 1Password, Bitwarden — any of them. Choose <b>“Add account”</b> → <b>“Enter a setup key”</b>.</div>
           </div>
           <div>
-            <div style="font-weight:700;color:var(--bright);margin-bottom:4px;">2 · Enter these</div>
-            <div class="sub" style="margin-bottom:6px;">Account name: <b>WenBot Admin (${esc(u.email || '')})</b></div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <div style="font-weight:700;color:var(--bright);margin-bottom:4px;">2 · Scan this</div>
+            <div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;">
+              <div style="background:#fff;padding:10px;border-radius:10px;line-height:0;">${qrSvg(otpUri, { size: 200 })}</div>
+              <div style="flex:1;min-width:220px;">
+                <div class="sub">Point your authenticator app's camera at this.</div>
+                <div class="sub" style="margin-top:10px;">Can't scan? Choose <b>“Enter a setup key”</b> and type this instead — account <b>WenBot Admin (${esc(u.email || '')})</b>, type <b>time-based</b>:</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;">
               <code style="flex:1;min-width:240px;font-family:var(--mono);font-size:15px;letter-spacing:.12em;background:rgba(4,10,16,.85);border:1px solid var(--line2);border-radius:8px;padding:11px 13px;word-break:break-all;">${esc(key)}</code>
               <button class="btn-ghost" onclick="mfaCopyKey('${esc(key)}')">📋 Copy</button>
             </div>
-            <div class="sub" style="margin-top:6px;">Type is <b>time-based</b> (the default).</div>
+
           </div>
           <div>
             <div style="font-weight:700;color:var(--bright);margin-bottom:4px;">3 · Enter the 6-digit code it shows</div>
