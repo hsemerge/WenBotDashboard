@@ -236,6 +236,7 @@
         <a href="#/channels"   data-route="channels"><span class="ico">📡</span> Channels <span id="navLiveCount" class="navbadge hidden"></span></a>
         <a href="#/slots"      data-route="slots"><span class="ico">🎰</span> Slots</a>
         <a href="#/health"     data-route="health"><span class="ico">🩺</span> System Health <span id="navAlertCount" class="navbadge hidden"></span></a>
+        <a href="#/portals"    data-route="portals" class="owner-only"><span class="ico">🌐</span> Portals &amp; Domains</a>
         <div class="navgroup">Growth</div>
         <a href="#/analytics"  data-route="analytics"><span class="ico">📊</span> Analytics</a>
         <a href="#/ops"        data-route="ops"><span class="ico">📈</span> Revenue Ops</a>
@@ -405,6 +406,41 @@
             </div>
           </div>
           <div id="c360Body"><div class="sub" style="padding:8px 2px;">Pick a streamer above — or open one from the Streamers, Ops or Outreach lists.</div></div>
+        </div>
+
+        <!-- PORTALS & DOMAINS (owner) -->
+        <div id="portalsView" class="hidden owner-only">
+          <div class="tablecard" style="padding:16px;margin-bottom:16px;">
+            <div class="kicker">Routing</div>
+            <div class="panel-title">Add a custom domain</div>
+            <div class="sub" style="margin-bottom:11px;">Points a streamer's own domain at their WenBot portal. Add both the bare domain and the <b>www.</b> version — they're separate entries.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <input id="dmHost" type="text" maxlength="120" placeholder="megrewards.com" style="min-width:200px;max-width:260px;" onkeydown="if(event.key==='Enter')dmAdd()">
+              <span class="sub">→</span>
+              <input id="dmSlug" type="text" maxlength="60" placeholder="channel slug" style="min-width:150px;max-width:200px;" onkeydown="if(event.key==='Enter')dmAdd()">
+              <input id="dmPage" type="text" maxlength="200" placeholder="/portals/slug/index.html (optional)" style="min-width:220px;max-width:300px;">
+              <button onclick="dmAdd()">＋ Add</button>
+              <button class="btn-ghost" onclick="loadDomains()">↻</button>
+            </div>
+            <div id="dmMsg" class="sub" style="margin-top:9px;"></div>
+          </div>
+          <div class="tablecard">
+            <div style="overflow-x:auto;">
+              <table>
+                <thead><tr><th>Domain</th><th>Serves</th><th>Bespoke page</th><th>Status</th><th></th></tr></thead>
+                <tbody id="dmTable"><tr><td colspan="5" class="muted" style="text-align:center;padding:24px;">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="tablecard" style="padding:16px;margin-top:16px;">
+            <div class="kicker">Before it works</div>
+            <div class="panel-title">The two steps this page can't do for you</div>
+            <div class="sub" style="line-height:1.7;margin-top:6px;">
+              <b style="color:var(--bright);">1 · The streamer points their DNS at Netlify.</b> A CNAME on <code>www</code> to <code>wenbot.netlify.app</code>, and an ALIAS/A record on the bare domain.<br>
+              <b style="color:var(--bright);">2 · Add the domain in Netlify</b> (Site settings → Domain management) so it gets an HTTPS certificate. Without this the browser shows a certificate warning.<br>
+              <span class="muted">Then this mapping takes effect on the next deploy — it's compiled into the edge router at build time so it costs nothing on every page load.</span>
+            </div>
+          </div>
         </div>
 
         <!-- SYSTEM HEALTH: alerts the bot already writes -->
@@ -801,6 +837,7 @@
     channels:  { view: 'channelsView',title: 'Channels',    kick: 'Live status & setup health' },
     analytics: { view: 'analyticsView',title:'Analytics',   kick: 'What actually gets used' },
     health:    { view: 'healthView',  title: 'System Health',kick: 'Alerts from the bot' },
+    portals:   { view: 'portalsView', title: 'Portals & Domains', kick: 'Custom domain routing', ownerOnly: true },
     ops:       { view: 'opsView',     title: 'Revenue Ops', kick: 'Money & retention' },
     outreach:  { view: 'outreachView',title: 'Outreach',    kick: 'Streamer pipeline' },
     tickets:   { view: 'ticketsView', title: 'Tickets',     kick: 'Team queue' },
@@ -833,6 +870,7 @@
     if (name === 'channels') renderChannels();
     if (name === 'analytics') renderAnalytics();
     if (name === 'health' && !_alertsLoaded) loadAlerts();
+    if (name === 'portals') loadDomains();
     if (name === 'security') renderSecurity();
     if (name === 'customer') {
       const cu = c360UidFromHash();
@@ -1369,6 +1407,76 @@
       const ch = $('tkChannel'); if (ch) ch.value = channel || '';
       const t = $('tkTitle'); if (t) { t.value = channel ? `${channel}: ` : ''; t.focus(); }
     }, 60);
+  };
+
+  // ── Portals & Domains (owner) ──────────────────────────────────────────────
+  // Custom domains used to live as a hardcoded map inside the edge router, so
+  // onboarding an Agency customer's domain meant editing code and shipping a
+  // deploy. The map now lives in Firestore and is baked into that router at
+  // build time — managed here, still zero cost on the hot path.
+  let _domains = [];
+  window.loadDomains = async function () {
+    try {
+      const r = await authedFetch('/api/admin-domains');
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      _domains = d.domains || [];
+      renderDomains();
+    } catch (e) { $('dmTable').innerHTML = `<tr><td colspan="5" class="warn" style="text-align:center;padding:24px;">${esc(e.message)}</td></tr>`; }
+  };
+  function renderDomains() {
+    const byslug = {};
+    _domains.forEach(d => { (byslug[d.slug] = byslug[d.slug] || []).push(d); });
+    $('dmTable').innerHTML = _domains.length ? _domains.map(d => `<tr${d.enabled === false ? ' style="opacity:.5;"' : ''}>
+      <td><b>${esc(d.host)}</b></td>
+      <td><span style="cursor:pointer;color:var(--accent);" onclick="dmOpenSlug('${esc(d.slug)}')">/${esc(d.slug)}</span></td>
+      <td class="muted">${d.page ? esc(d.page) : '<span class="muted">standard portal</span>'}</td>
+      <td>${d.enabled === false ? '<span class="muted">disabled</span>' : '<span class="ok">live</span>'}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn-ghost" style="font-size:11.5px;padding:4px 9px;" onclick="dmToggle('${esc(d.host)}',${d.enabled === false})">${d.enabled === false ? 'Enable' : 'Disable'}</button>
+        <button class="btn-ghost" style="font-size:11.5px;padding:4px 9px;border-color:var(--bad);color:var(--bad);" onclick="dmRemove('${esc(d.host)}')">Remove</button>
+      </td></tr>`).join('')
+      : '<tr><td colspan="5" class="muted" style="text-align:center;padding:24px;">No custom domains yet.</td></tr>';
+  }
+  // Jump to whichever streamer owns that slug, if we can match one.
+  window.dmOpenSlug = function (slug) {
+    const u = _users.find(x => String(x.kickChannel || '').toLowerCase() === String(slug).toLowerCase());
+    if (u) openCustomer(u.uid); else window.open('/' + slug, '_blank');
+  };
+  function dmNote(msg, bad) {
+    const el = $('dmMsg'); if (!el) return;
+    el.innerHTML = msg ? `<span class="${bad ? 'warn' : 'ok'}">${esc(msg)}</span>` : '';
+  }
+  window.dmAdd = async function () {
+    const host = ($('dmHost').value || '').trim();
+    const slug = ($('dmSlug').value || '').trim();
+    const page = ($('dmPage').value || '').trim();
+    if (!host || !slug) { dmNote('Enter the domain and the channel slug it should serve.', true); return; }
+    try {
+      const r = await authedPost('/api/admin-domains', { action: 'add', host, slug, page });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      $('dmHost').value = ''; $('dmPage').value = '';
+      await loadDomains();
+      dmNote(`${host} added — it starts routing on the next deploy.`);
+    } catch (e) { dmNote(e.message, true); }
+  };
+  window.dmToggle = async function (host, enable) {
+    try {
+      const r = await authedPost('/api/admin-domains', { action: 'update', host, fields: { enabled: enable } });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      await loadDomains();
+      dmNote(`${host} ${enable ? 'enabled' : 'disabled'} — takes effect on the next deploy.`);
+    } catch (e) { dmNote(e.message, true); }
+  };
+  window.dmRemove = async function (host) {
+    if (!confirm(`Stop routing ${host} to a WenBot portal?\n\nVisitors will get whatever Netlify serves for an unmapped domain.`)) return;
+    try {
+      const r = await authedPost('/api/admin-domains', { action: 'remove', host });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      await loadDomains();
+      dmNote(`${host} removed — takes effect on the next deploy.`);
+    } catch (e) { dmNote(e.message, true); }
   };
 
   // ── System Health ──────────────────────────────────────────────────────────

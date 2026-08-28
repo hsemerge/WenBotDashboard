@@ -416,6 +416,9 @@ service cloud.firestore {
     match /team_todos/{doc=**} { allow read, write: if false; }
     match /outreach/{doc=**}   { allow read, write: if false; }
     match /tickets/{doc=**}    { allow read, write: if false; }
+    // Custom-domain routing map — admin SDK only; baked into the edge function
+    // at build time by scripts/bake-domains.js.
+    match /custom_domains/{doc} { allow read, write: if false; }
 
     // Discord verify tokens, rate limits, etc — admin SDK only
     match /discord_verify_tokens/{doc} { allow read, write: if false; }

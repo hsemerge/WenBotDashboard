@@ -13,26 +13,19 @@
 // should be backed by Firestore so streamers can self-serve from the
 // dashboard, but the hardcoded map ships SKSlots today without that work.
 
-const HOST_TO_SLUG = {
-  "skslots.co.uk":     "skslots",
-  "www.skslots.co.uk": "skslots",
-  "irishqueenoftheslots.com":     "meggambles",
-  "www.irishqueenoftheslots.com": "meggambles",
-  "megrewards.com":     "meggambles",
-  "www.megrewards.com": "meggambles",
-  "tiltbros.com":       "thetiltbros",
-  "www.tiltbros.com":   "thetiltbros",
-};
-
-// Bespoke (Agency-tier) portals: a slug here is served from its own hand-built
-// page under /portals/<slug>/ instead of the standard portal.html. The page
-// pulls the SAME live data via /api/portal-data?channel=<slug>, so only the
-// presentation differs. Slugs NOT listed here fall through to portal.html.
-const SLUG_TO_PAGE = {
-  skslots: "/portals/skslots/index.html",
-  meggambles: "/portals/meggambles/index.html",
-  thetiltbros: "/portals/thetiltbros/index.html",
-};
+// The host→slug map and the bespoke-portal map now come from a GENERATED file,
+// baked at build time from the `custom_domains` collection that the admin portal
+// manages — so onboarding an Agency customer's domain is a form, not a code edit.
+//
+// Still a baked constant rather than a runtime lookup because this function is
+// registered `path: "/*"`: it runs on every request to the site, and a per-
+// request fetch here would slow every page load for everyone.
+//
+// SLUG_TO_PAGE: a slug listed there is served from its own hand-built page under
+// /portals/<slug>/ instead of the standard portal.html. The page pulls the SAME
+// live data via /api/portal-data?channel=<slug>, so only the presentation
+// differs. Slugs not listed fall through to portal.html.
+import { HOST_TO_SLUG, SLUG_TO_PAGE } from "./domains.generated.js";
 
 export default async (request, context) => {
   const url   = new URL(request.url);
