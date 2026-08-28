@@ -108,6 +108,22 @@ exports.handler = async (event) => {
         stripeSubscriptionId:     session.subscription,
         stripeActivatedAt: Date.now(),
       };
+      // Store the renewal date at CREATION too. Only customer.subscription.updated
+      // wrote stripePeriodEnd before, so a brand-new sub sat as "no confirmed
+      // cycle" in the admin Billing tab until its first update event (often the
+      // NEXT month). Best-effort — a miss here is healed by the next update event
+      // or scripts/sync-stripe-cycles.js.
+      try {
+        if (session.subscription && process.env.STRIPE_SECRET_KEY) {
+          const auth64 = Buffer.from(process.env.STRIPE_SECRET_KEY + ":").toString("base64");
+          const sr = await fetch(`https://api.stripe.com/v1/subscriptions/${session.subscription}`,
+            { headers: { "Authorization": `Basic ${auth64}` } });
+          if (sr.ok) {
+            const sub = await sr.json();
+            if (sub.current_period_end) update.stripePeriodEnd = sub.current_period_end * 1000;
+          }
+        }
+      } catch (e) { console.warn("[stripe-webhook] period fetch failed:", e.message); }
       if (onTrial) {
         update.plan = plan;
         update.planTrial = false;
