@@ -170,10 +170,14 @@
   .minicount div { text-align:center; min-width:64px; }
   .minicount b { display:block; font-family:var(--disp); font-size:19px; color:var(--bright); }
   .minicount span { font-family:var(--mono); font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--dim); }
+  /* The lookup card must NOT clip its dropdown — .tablecard sets overflow:hidden
+     for its rounded corners, which cut the suggestion list down to a sliver. */
+  .lookupcard { overflow:visible !important; position:relative; z-index:20; }
   .c360search { position:relative; max-width:420px; }
-  .c360results { position:absolute; z-index:30; left:0; right:0; top:100%; background:var(--card2); border:1px solid var(--line2); border-radius:10px; margin-top:4px; max-height:280px; overflow-y:auto; }
-  .c360results div { padding:8px 12px; cursor:pointer; font-size:13px; }
-  .c360results div:hover { background:rgba(var(--accent-rgb),.1); }
+  .c360results { position:absolute; z-index:60; left:0; right:0; top:100%; background:var(--card2); border:1px solid var(--line2); border-radius:10px; margin-top:4px; max-height:300px; overflow-y:auto; box-shadow:0 18px 44px rgba(0,0,0,.55); }
+  .c360results div { padding:9px 12px; cursor:pointer; font-size:13px; border-bottom:1px solid rgba(126,170,195,.07); }
+  .c360results div:last-child { border-bottom:none; }
+  .c360results div:hover, .c360results div.sel { background:rgba(var(--accent-rgb),.14); }
 
   @media (max-width:900px){
     .app { grid-template-columns:1fr; }
@@ -368,13 +372,13 @@
 
         <!-- CUSTOMER 360 -->
         <div id="c360View" class="hidden">
-          <div class="tablecard" style="padding:16px;margin-bottom:16px;">
+          <div class="tablecard lookupcard" style="padding:16px;margin-bottom:16px;">
             <div class="kicker">Lookup</div>
             <div class="panel-title">Find a streamer</div>
             <div class="sub" style="margin-bottom:10px;">Everything the team knows about one account — plan, billing, how we got them, their tickets and what admins have done.</div>
             <div class="c360search">
-              <input id="c360Search" type="text" placeholder="Type a channel or email…" autocomplete="off"
-                     oninput="c360Suggest()" onfocus="c360Suggest()">
+              <input id="c360Search" type="text" placeholder="Type a channel or email — or leave blank to browse" autocomplete="off"
+                     oninput="c360Suggest()" onfocus="c360Suggest()" onkeydown="c360Key(event)">
               <div id="c360Results" class="c360results hidden"></div>
             </div>
           </div>
@@ -788,26 +792,56 @@
 
   window.openCustomer = function (uid) {
     if (!uid) return;
-    location.hash = '#/customer/' + uid;      // hashchange → routeTo → c360Load
+    $('c360Results')?.classList.add('hidden');
+    const s = $('c360Search'); if (s) { s.value = ''; s.blur(); }
+    const want = '#/customer/' + uid;
+    if (location.hash === want) { c360Load(uid); return; }  // same page re-opened
+    location.hash = want;                                    // → hashchange → routeTo → c360Load
+    // Belt and braces: if the hash was already on #/customer (different uid) the
+    // browser fires hashchange, but calling routeTo directly costs nothing and
+    // guarantees the load even if a listener was missed.
+    routeTo('customer', true);
   };
   function c360UidFromHash() {
     const m = (location.hash || '').match(/^#\/customer\/([A-Za-z0-9_-]+)/);
     return m ? m[1] : null;
   }
 
+  let _c360Hits = [], _c360Sel = -1;
   window.c360Suggest = function () {
     const q = ($('c360Search').value || '').toLowerCase().trim();
     const box = $('c360Results');
-    if (!q) { box.classList.add('hidden'); return; }
-    const hits = _users.filter(u =>
-      String(u.kickChannel || '').toLowerCase().includes(q) ||
-      String(u.email || '').toLowerCase().includes(q) ||
-      String(u.displayName || '').toLowerCase().includes(q)).slice(0, 12);
-    box.innerHTML = hits.length
-      ? hits.map(u => `<div onclick="openCustomer('${esc(u.uid)}')"><b>${esc(u.kickChannel || u.uid)}</b>
+    if (!box) return;
+    // Empty box = browse: show the most recently active accounts rather than
+    // nothing, so the lookup is useful before you know what you're typing.
+    const pool = _users.filter(u => !u.archived);
+    _c360Hits = (q
+      ? pool.filter(u =>
+          String(u.kickChannel || '').toLowerCase().includes(q) ||
+          String(u.email || '').toLowerCase().includes(q) ||
+          String(u.displayName || '').toLowerCase().includes(q))
+      : pool.slice().sort((a, b) => (b.lastLoginAt || 0) - (a.lastLoginAt || 0))
+      ).slice(0, 12);
+    _c360Sel = -1;
+    box.innerHTML = _c360Hits.length
+      ? _c360Hits.map((u, i) => `<div data-i="${i}" onmousedown="event.preventDefault();openCustomer('${esc(u.uid)}')">
+          <b>${esc(u.kickChannel || u.uid)}</b>
           <span class="muted" style="margin-left:8px;">${esc(u.plan)}${u.email ? ' · ' + esc(u.email) : ''}</span></div>`).join('')
       : '<div class="muted">No match.</div>';
     box.classList.remove('hidden');
+  };
+  // ↑/↓ to move, Enter to open, Esc to dismiss.
+  window.c360Key = function (e) {
+    const box = $('c360Results');
+    if (!box || box.classList.contains('hidden') || !_c360Hits.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      _c360Sel = (_c360Sel + (e.key === 'ArrowDown' ? 1 : -1) + _c360Hits.length) % _c360Hits.length;
+      [...box.children].forEach((el, i) => el.classList.toggle('sel', i === _c360Sel));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      openCustomer((_c360Hits[_c360Sel >= 0 ? _c360Sel : 0] || {}).uid);
+    } else if (e.key === 'Escape') { box.classList.add('hidden'); }
   };
   document.addEventListener('click', (e) => {
     if (!e.target.closest || !e.target.closest('.c360search')) $('c360Results')?.classList.add('hidden');
