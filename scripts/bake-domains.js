@@ -1,7 +1,7 @@
 // Bake the custom-domain map into the edge function.
 //
 // Reads the `custom_domains` collection (managed from the admin portal) and
-// rewrites netlify/edge-functions/domains.generated.js, which custom-domain.js
+// rewrites netlify/edge-shared/domains.generated.js, which custom-domain.js
 // imports. Runs as part of `npm run build`, so adding a domain in the portal
 // takes effect on the next deploy without anyone editing code.
 //
@@ -17,7 +17,10 @@
 const fs   = require("fs");
 const path = require("path");
 
-const OUT = path.join(__dirname, "..", "netlify", "edge-functions", "domains.generated.js");
+// NOT under netlify/edge-functions/: Netlify registers every file in that
+// directory as an edge function, and this one exports constants rather than a
+// default handler — which fails edge bundling and blocks the entire deploy.
+const OUT = path.join(__dirname, "..", "netlify", "edge-shared", "domains.generated.js");
 const CHECK = process.argv.includes("--check");
 
 function creds() {
@@ -94,6 +97,7 @@ ${j(slugToPage)}
 
   const prev = fs.existsSync(OUT) ? fs.readFileSync(OUT, "utf8") : "";
   if (prev === out) { console.log(`[bake-domains] up to date (${Object.keys(hostToSlug).length} hosts).`); process.exit(0); }
+  fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, out);
   console.log(`[bake-domains] wrote ${Object.keys(hostToSlug).length} hosts → ${Object.keys(slugToPage).length} bespoke pages.`);
   process.exit(0);

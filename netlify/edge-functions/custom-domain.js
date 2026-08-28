@@ -25,7 +25,12 @@
 // /portals/<slug>/ instead of the standard portal.html. The page pulls the SAME
 // live data via /api/portal-data?channel=<slug>, so only the presentation
 // differs. Slugs not listed fall through to portal.html.
-import { HOST_TO_SLUG, SLUG_TO_PAGE } from "./domains.generated.js";
+//
+// It lives in netlify/edge-shared/ rather than beside this file because Netlify
+// registers EVERY file in netlify/edge-functions/ as an edge function, and a
+// constants-only module has no default export — which fails the bundling step
+// and takes the whole deploy with it.
+import { HOST_TO_SLUG, SLUG_TO_PAGE } from "../edge-shared/domains.generated.js";
 
 export default async (request, context) => {
   const url   = new URL(request.url);
