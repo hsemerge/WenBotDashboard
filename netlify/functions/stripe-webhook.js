@@ -29,6 +29,35 @@ function priceIdOf(lineOrItem) {
     || null;
 }
 
+// current_period_end also moved — from the subscription onto its item.
+function periodEndOf(sub) {
+  const it = sub && sub.items && sub.items.data && sub.items.data[0];
+  const secs = (sub && sub.current_period_end) || (it && it.current_period_end) || null;
+  return secs ? secs * 1000 : null;
+}
+
+// The full billing picture for a subscription, in the shape the admin portal
+// reads. stripeAutoRenew is the important one: a cancelled subscription keeps
+// reporting status "active" until its period ends, so without it a cancellation
+// is invisible for the entire window in which the customer could be won back.
+function billingFieldsFrom(sub) {
+  const it = (sub.items && sub.items.data && sub.items.data[0]) || {};
+  const isActive = sub.status === "active" || sub.status === "trialing";
+  const amount = (it.plan && it.plan.amount != null) ? it.plan.amount
+               : (it.price && it.price.unit_amount != null) ? it.price.unit_amount : null;
+  return {
+    stripeSubscriptionActive: isActive,
+    stripeStatus:    sub.status || null,
+    stripePeriodEnd: periodEndOf(sub),
+    stripeAutoRenew: isActive && !sub.cancel_at_period_end && !sub.cancel_at,
+    stripeCancelAt:  sub.cancel_at ? sub.cancel_at * 1000 : null,
+    stripeCanceledAt: sub.canceled_at ? sub.canceled_at * 1000 : null,
+    stripeAmount:    amount != null ? amount / 100 : null,
+    stripeInterval:  (it.plan && it.plan.interval) || (it.price && it.price.recurring && it.price.recurring.interval) || null,
+    stripeStartedAt: sub.start_date ? sub.start_date * 1000 : null,
+  };
+}
+
 // Record one payment + maintain running totals. Idempotent by invoice id: the
 // payment doc is keyed on it and the running totals increment only when the doc
 // is NEW — so the SAME payment arriving from both checkout.session.completed
@@ -133,10 +162,7 @@ exports.handler = async (event) => {
           const auth64 = Buffer.from(process.env.STRIPE_SECRET_KEY + ":").toString("base64");
           const sr = await fetch(`https://api.stripe.com/v1/subscriptions/${session.subscription}`,
             { headers: { "Authorization": `Basic ${auth64}` } });
-          if (sr.ok) {
-            const sub = await sr.json();
-            if (sub.current_period_end) update.stripePeriodEnd = sub.current_period_end * 1000;
-          }
+          if (sr.ok) Object.assign(update, billingFieldsFrom(await sr.json()));
         }
       } catch (e) { console.warn("[stripe-webhook] period fetch failed:", e.message); }
       if (onTrial) {
@@ -184,7 +210,10 @@ exports.handler = async (event) => {
       const d       = snap.docs[0].data();
       const onTrial = d.planTrial === true;
       const manual  = d.planManual === true && !onTrial;
-      const update  = { stripeSubscriptionActive: isActive };
+      // Every billing field, so a cancellation, a plan change or a card update
+      // is reflected the moment Stripe tells us — not only when someone
+      // remembers to run the sync script.
+      const update  = billingFieldsFrom(sub);
       if (onTrial && isActive) {           // trial converted to a paid sub
         update.planTrial = false;
         update.planManual = false;
@@ -194,7 +223,6 @@ exports.handler = async (event) => {
         if (newPlan) update.plan = newPlan;
         if (!isActive) update.plan = "starter";
       }
-      if (sub.current_period_end) update.stripePeriodEnd = sub.current_period_end * 1000;
       await snap.docs[0].ref.set(update, { merge: true });
     }
   }
@@ -206,7 +234,13 @@ exports.handler = async (event) => {
       .where("stripeSubscriptionId", "==", sub.id).limit(1).get();
     if (!snap.empty) {
       const manual = snap.docs[0].data().planManual === true;
-      const update = { stripeSubscriptionActive: false };
+      const update = {
+        stripeSubscriptionActive: false,
+        stripeStatus:    sub.status || "canceled",
+        stripeAutoRenew: false,
+        stripeCanceledAt: sub.canceled_at ? sub.canceled_at * 1000 : Date.now(),
+        stripeEndedAt:   sub.ended_at ? sub.ended_at * 1000 : Date.now(),
+      };
       if (!manual) update.plan = "starter"; // keep a comped plan through cancellation
       await snap.docs[0].ref.set(update, { merge: true });
     }

@@ -18,6 +18,12 @@
 [functions."leaderboard-discord-cron"]
   schedule = "@hourly"
 
+# Daily reconcile of every Stripe subscription against Firestore. The webhook is
+# the primary path; this catches anything it missed (deploy downtime, a failed
+# delivery) so a cancellation can't stay invisible.
+[functions."sync-billing"]
+  schedule = "@daily"
+
 [[headers]]
   for = "/*"
   [headers.values]
