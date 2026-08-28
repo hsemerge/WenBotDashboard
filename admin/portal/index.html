@@ -158,6 +158,23 @@
   .thread { max-height:280px; overflow-y:auto; margin:6px 0 10px; }
   .thread .c { display:flex; gap:10px; padding:6px 0; border-bottom:1px solid rgba(126,170,195,.07); }
 
+  /* Customer 360 */
+  .c360grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+  @media (max-width:1080px){ .c360grid { grid-template-columns:1fr; } }
+  .c360hero { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  .c360hero .name { font-family:var(--disp); font-size:26px; font-weight:700; color:var(--bright); }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:5px 14px; font-size:12.5px; }
+  .kv dt { color:var(--dim); font-family:var(--mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase; padding-top:2px; }
+  .kv dd { margin:0; color:var(--text); }
+  .minicount { display:flex; gap:14px; flex-wrap:wrap; }
+  .minicount div { text-align:center; min-width:64px; }
+  .minicount b { display:block; font-family:var(--disp); font-size:19px; color:var(--bright); }
+  .minicount span { font-family:var(--mono); font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--dim); }
+  .c360search { position:relative; max-width:420px; }
+  .c360results { position:absolute; z-index:30; left:0; right:0; top:100%; background:var(--card2); border:1px solid var(--line2); border-radius:10px; margin-top:4px; max-height:280px; overflow-y:auto; }
+  .c360results div { padding:8px 12px; cursor:pointer; font-size:13px; }
+  .c360results div:hover { background:rgba(var(--accent-rgb),.1); }
+
   @media (max-width:900px){
     .app { grid-template-columns:1fr; }
     .sidebar { position:relative; height:auto; border-right:none; border-bottom:1px solid var(--line); }
@@ -197,6 +214,7 @@
         <div class="navgroup">Operations</div>
         <a href="#/dashboard"  data-route="dashboard"><span class="ico">◧</span> Dashboard</a>
         <a href="#/streamers"  data-route="streamers"><span class="ico">👥</span> Streamers</a>
+        <a href="#/customer"   data-route="customer"><span class="ico">🔍</span> Customer 360</a>
         <a href="#/billing"    data-route="billing" class="owner-only"><span class="ico">💳</span> Billing</a>
         <a href="#/slots"      data-route="slots"><span class="ico">🎰</span> Slots</a>
         <div class="navgroup">Growth</div>
@@ -346,6 +364,21 @@
             </div>
           </div>
           <div class="sub" style="margin-top:14px;">💳 Stripe subscriptions auto-renew (dates come from Stripe). 🪙 Crypto subs are manual, send an invoice near the due date. Only streamers with an active billing cycle appear here.</div>
+        </div>
+
+        <!-- CUSTOMER 360 -->
+        <div id="c360View" class="hidden">
+          <div class="tablecard" style="padding:16px;margin-bottom:16px;">
+            <div class="kicker">Lookup</div>
+            <div class="panel-title">Find a streamer</div>
+            <div class="sub" style="margin-bottom:10px;">Everything the team knows about one account — plan, billing, how we got them, their tickets and what admins have done.</div>
+            <div class="c360search">
+              <input id="c360Search" type="text" placeholder="Type a channel or email…" autocomplete="off"
+                     oninput="c360Suggest()" onfocus="c360Suggest()">
+              <div id="c360Results" class="c360results hidden"></div>
+            </div>
+          </div>
+          <div id="c360Body"><div class="sub" style="padding:8px 2px;">Pick a streamer above — or open one from the Streamers, Ops or Outreach lists.</div></div>
         </div>
 
         <!-- REVENUE OPS -->
@@ -626,6 +659,7 @@
   const ROUTES = {
     dashboard: { view: 'dashView',    title: 'Dashboard',   kick: 'Global operations' },
     streamers: { view: 'usersView',   title: 'Streamers',   kick: 'Accounts & plans' },
+    customer:  { view: 'c360View',    title: 'Customer 360',kick: 'One streamer, everything' },
     billing:   { view: 'billingView', title: 'Billing',     kick: 'Owner only', ownerOnly: true },
     slots:     { view: 'slotsView',   title: 'Slots',       kick: 'Catalog health' },
     ops:       { view: 'opsView',     title: 'Revenue Ops', kick: 'Money & retention' },
@@ -637,6 +671,8 @@
     const m = (location.hash || '').match(/^#\/([a-z-]+)/);
     return (m && ROUTES[m[1]]) ? m[1] : 'dashboard';
   }
+  // #/customer/<uid> keeps its uid segment, so a 360 page is linkable/shareable.
+  function routeSuffix(name) { return name === 'customer' && c360UidFromHash() ? '/' + c360UidFromHash() : ''; }
   function routeTo(name, replace) {
     const r = ROUTES[name] || ROUTES.dashboard;
     if (r.ownerOnly && _role !== 'owner') { name = 'dashboard'; }
@@ -646,7 +682,7 @@
     document.querySelectorAll('.nav a').forEach(a => a.classList.toggle('active', a.dataset.route === name));
     $('routeTitle').textContent = conf.title;
     $('routeKick').textContent  = conf.kick;
-    const want = '#/' + name;
+    const want = '#/' + name + routeSuffix(name);
     if (location.hash !== want) { if (replace) history.replaceState(null, '', want); else location.hash = want; }
     if (name === 'slots' && !_slotsLoaded) loadSlots();
     if (name === 'billing') renderBilling();
@@ -654,6 +690,10 @@
     if (name === 'outreach' && !_outreachLoaded) loadOutreach();
     if (name === 'tickets' && !_ticketsLoaded) loadTickets();
     if (name === 'ops') renderOps();
+    if (name === 'customer') {
+      const cu = c360UidFromHash();
+      if (cu && (!_c360 || _c360.uid !== cu)) c360Load(cu);
+    }
   }
   window.addEventListener('hashchange', () => routeTo(currentRoute(), true));
   // Legacy shim: the ported code calls switchTab('billing') from gotoBilling.
@@ -739,6 +779,198 @@
     } catch (e) { el.innerHTML = '<div class="sub" style="padding:12px 14px;">Feed unavailable: ' + esc(e.message) + '</div>'; }
   }
 
+  // ── Customer 360 ───────────────────────────────────────────────────────────
+  // One streamer, everything the team holds: account + billing (owner) from
+  // admin-user-detail, plus outreach history, tickets, usage counts and the
+  // admin action trail from admin-customer-360. Opened from anywhere via
+  // openCustomer(uid); the uid rides in the hash so the page is linkable.
+  let _c360 = null;   // { uid, detail, extra }
+
+  window.openCustomer = function (uid) {
+    if (!uid) return;
+    location.hash = '#/customer/' + uid;      // hashchange → routeTo → c360Load
+  };
+  function c360UidFromHash() {
+    const m = (location.hash || '').match(/^#\/customer\/([A-Za-z0-9_-]+)/);
+    return m ? m[1] : null;
+  }
+
+  window.c360Suggest = function () {
+    const q = ($('c360Search').value || '').toLowerCase().trim();
+    const box = $('c360Results');
+    if (!q) { box.classList.add('hidden'); return; }
+    const hits = _users.filter(u =>
+      String(u.kickChannel || '').toLowerCase().includes(q) ||
+      String(u.email || '').toLowerCase().includes(q) ||
+      String(u.displayName || '').toLowerCase().includes(q)).slice(0, 12);
+    box.innerHTML = hits.length
+      ? hits.map(u => `<div onclick="openCustomer('${esc(u.uid)}')"><b>${esc(u.kickChannel || u.uid)}</b>
+          <span class="muted" style="margin-left:8px;">${esc(u.plan)}${u.email ? ' · ' + esc(u.email) : ''}</span></div>`).join('')
+      : '<div class="muted">No match.</div>';
+    box.classList.remove('hidden');
+  };
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest || !e.target.closest('.c360search')) $('c360Results')?.classList.add('hidden');
+  });
+
+  async function c360Load(uid) {
+    $('c360Results')?.classList.add('hidden');
+    $('c360Body').innerHTML = '<div class="sub" style="padding:8px 2px;">Loading…</div>';
+    try {
+      const [dr, er] = await Promise.all([
+        authedFetch('/api/admin-user-detail?uid=' + encodeURIComponent(uid)),
+        authedFetch('/api/admin-customer-360?uid=' + encodeURIComponent(uid)
+          + '&channel=' + encodeURIComponent((_users.find(u => u.uid === uid) || {}).kickChannel || '')),
+      ]);
+      const detail = await dr.json(), extra = await er.json();
+      if (!dr.ok) throw new Error(detail.error || 'Failed to load the account');
+      _c360 = { uid, detail, extra: er.ok ? extra : {} };
+      c360Render();
+    } catch (e) { $('c360Body').innerHTML = `<div class="tablecard" style="padding:16px;" class="warn">⚠ ${esc(e.message)}</div>`; }
+  }
+
+  function c360Render() {
+    const { uid, detail: d, extra: x } = _c360;
+    const u = _users.find(z => z.uid === uid) || {};
+    const now = Date.now();
+    const onTrial = d.planTrial && d.trialEndsAt && d.trialEndsAt > now;
+
+    // Status chips — the at-a-glance verdict.
+    const chips = [];
+    chips.push(`<span class="pill ${esc(d.plan || 'starter')}">${esc(d.plan || 'starter')}</span>`);
+    if (onTrial) chips.push(`<span class="pill" style="background:rgba(245,197,24,.14);color:var(--gold);">🎁 trial · ${Math.max(0, Math.ceil((d.trialEndsAt - now) / 864e5))}d left</span>`);
+    if (d.planManual && !onTrial) chips.push('<span class="pill comp">comp</span>');
+    if (u.subscriptionActive) chips.push('<span class="stat-chip done">subscribed</span>');
+    if (u.paymentFailed) chips.push('<span class="stat-chip blocked">payment failed</span>');
+    if (!u.onboarded) chips.push('<span class="stat-chip in_progress">not onboarded</span>');
+    if (u.archived) chips.push('<span class="pill" style="background:rgba(255,111,145,.12);color:#e2a1ad;">archived</span>');
+
+    const c = x.counts || {};
+    const countsHtml = ['verified', 'viewers', 'boards', 'giveawayWinners', 'discordLinks']
+      .filter(k => c[k] != null)
+      .map(k => `<div><b>${Number(c[k]).toLocaleString()}</b><span>${({verified:'verified',viewers:'viewers',boards:'boards',giveawayWinners:'winners',discordLinks:'discord'})[k]}</span></div>`).join('');
+
+    // Billing card — owner only; the server sends nulls to staff anyway.
+    const billing = _role !== 'owner' ? '' : `
+      <div class="tablecard" style="padding:16px;">
+        <div class="kicker">Billing</div>
+        <div class="panel-title">Payments & invoices</div>
+        <dl class="kv" style="margin:8px 0 10px;">
+          <dt>Method</dt><dd>${d.stripeSubscribed ? '💳 Stripe' + (d.stripePeriodEnd ? ' · renews ' + date(d.stripePeriodEnd) : '')
+                              : (d.cryptoBillingNextDue ? '🪙 Crypto · next due ' + date(d.cryptoBillingNextDue) : '<span class="muted">no active cycle</span>')}</dd>
+          <dt>Lifetime</dt><dd>${money(d.totalPaid)}${u.paymentCount ? ` <span class="muted">· ${u.paymentCount} payment${u.paymentCount === 1 ? '' : 's'}</span>` : ''}</dd>
+        </dl>
+        ${(d.payments || []).length || (d.invoices || []).length ? `
+        <table><thead><tr><th>Date</th><th>Item</th><th>Amount</th><th>Status</th></tr></thead><tbody>
+          ${(d.payments || []).slice(0, 8).map(p => `<tr><td class="muted">${date(p.paidAt)}</td><td>💳 ${esc(p.plan || '—')}</td><td class="num">${money(p.amount)}</td><td class="ok">paid</td></tr>`).join('')}
+          ${(d.invoices || []).slice(0, 8).map(v => `<tr><td class="muted">${date(v.paidAt || v.createdAt)}</td><td>🪙 ${esc(v.number || '—')}</td><td class="num">${money(v.amount)}</td><td>${v.status === 'paid' ? '<span class="ok">paid</span>' : '<span class="warn">unpaid</span>'}</td></tr>`).join('')}
+        </tbody></table>` : '<div class="sub">No payments or invoices recorded.</div>'}
+        <button class="btn-ghost" style="margin-top:10px;" onclick="gotoBilling('${esc(uid)}')">💳 Manage billing →</button>
+      </div>`;
+
+    // Outreach — how we got them.
+    const o = x.outreach;
+    const notes = (x.outreachNotes || []).slice().reverse().slice(0, 12);
+    const outreachHtml = `
+      <div class="tablecard" style="padding:16px;">
+        <div class="kicker">Growth</div>
+        <div class="panel-title">How we got them</div>
+        ${o ? `<dl class="kv" style="margin:8px 0 10px;">
+            <dt>Stage</dt><dd><span style="color:${OR_COLOR[o.stage] || 'var(--text)'};font-weight:600;">${esc(o.stage)}</span></dd>
+            <dt>Owner</dt><dd>${esc(String(o.owner || '—').split('@')[0])}</dd>
+            <dt>Referred by</dt><dd>${d.referredByChannel ? esc(d.referredByChannel) : '<span class="muted">—</span>'}</dd>
+          </dl>
+          <div class="thread">${notes.length ? notes.map(n => {
+            const when = n.at ? new Date(n.at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—';
+            const who = esc(String(n.by || '?').split('@')[0]);
+            const bodyTxt = n.stageTo ? `<i class="muted">moved ${esc(n.stageFrom || '?')} → ${esc(n.stageTo)}</i>` : esc(n.text || '');
+            return `<div class="c"><span class="mono muted" style="font-size:10.5px;min-width:56px;">${when}</span><span><b style="color:var(--bright);">${who}</b> · ${bodyTxt}</span></div>`;
+          }).join('') : '<div class="muted">No outreach notes.</div>'}</div>
+          <button class="btn-ghost" onclick="location.hash='#/outreach'">📣 Open in Outreach →</button>`
+        : `<div class="sub" style="margin-top:6px;">No outreach card${d.referredByChannel ? ` — but referred by <b>${esc(d.referredByChannel)}</b>` : ''}.</div>`}
+      </div>`;
+
+    // Tickets about this streamer.
+    const tks = x.tickets || [];
+    const ticketsHtml = `
+      <div class="tablecard" style="padding:16px;">
+        <div class="kicker">Support</div>
+        <div class="panel-title">Tickets ${tks.length ? `<span class="muted" style="font-size:13px;">· ${tks.filter(t => t.status !== 'done').length} open</span>` : ''}</div>
+        ${tks.length ? `<table style="margin-top:6px;"><tbody>${tks.slice(0, 8).map(t => `<tr>
+            <td><span class="stat-chip ${esc(t.status)}">${esc(TK_LABEL[t.status] || t.status)}</span></td>
+            <td style="white-space:normal;">${esc(t.title)}</td>
+            <td class="muted">${t.assignee ? esc(String(t.assignee).split('@')[0]) : '—'}</td>
+            <td class="muted">${rel(t.lastActivityAt)}</td></tr>`).join('')}</tbody></table>`
+          : '<div class="sub" style="margin-top:6px;">No tickets reference this streamer.</div>'}
+        <button class="btn-ghost" style="margin-top:10px;" onclick="c360NewTicket('${esc(uid)}','${esc(u.kickChannel || '')}')">🎫 New ticket for them</button>
+      </div>`;
+
+    // Admin trail.
+    const hist = x.history || [];
+    const histHtml = `
+      <div class="tablecard" style="padding:16px;">
+        <div class="kicker">Trail</div>
+        <div class="panel-title">Admin actions</div>
+        <div class="thread" style="max-height:220px;">${hist.length ? hist.map(h => {
+          const when = h.at ? new Date(h.at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—';
+          const label = ACTION_LABEL[h.action] || String(h.action).replace(/_/g, ' ');
+          const det = h.details || {};
+          const bit = det.reason ? ` — “${esc(String(det.reason).slice(0, 80))}”` : (det.plan ? ` → ${esc(det.plan)}` : '');
+          return `<div class="c"><span class="mono muted" style="font-size:10.5px;min-width:56px;">${when}</span>
+            <span><b style="color:var(--bright);">${esc(String(h.by || '?').split('@')[0])}</b> ${esc(label || '')}${bit}</span></div>`;
+        }).join('') : '<div class="muted">No admin actions recorded.</div>'}</div>
+      </div>`;
+
+    // Notes (shared with the Streamers tab's field).
+    const notesHtml = `
+      <div class="tablecard" style="padding:16px;">
+        <div class="kicker">Internal</div>
+        <div class="panel-title">Admin notes</div>
+        <textarea id="note-${esc(uid)}" style="min-height:70px;font-size:12.5px;margin-top:8px;resize:vertical;">${esc(d.adminNotes || '')}</textarea>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+          <button id="noteSave-${esc(uid)}" class="btn-ghost" onclick="saveNote('${esc(uid)}')">Save note</button>
+          <span class="muted" style="font-size:11px;">${d.adminNotesUpdatedBy ? 'last edited by ' + esc(d.adminNotesUpdatedBy) + (d.adminNotesUpdatedAt ? ' · ' + date(d.adminNotesUpdatedAt) : '') : ''}</span>
+        </div>
+      </div>`;
+
+    $('c360Body').innerHTML = `
+      <div class="tablecard" style="padding:18px;margin-bottom:16px;">
+        <div class="c360hero">
+          <div>
+            <div class="name">${esc(u.kickChannel || d.kickChannel || uid)}</div>
+            <div class="sub">${esc(u.displayName || '')}${u.email ? ` · <a href="mailto:${esc(u.email)}">${esc(u.email)}</a>` : ''}</div>
+            <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">${chips.join('')}</div>
+          </div>
+          <div class="minicount" style="margin-left:auto;">${countsHtml}</div>
+        </div>
+        <dl class="kv" style="margin-top:14px;">
+          <dt>Last login</dt><dd>${rel(u.lastLoginAt)} <span class="muted">${u.lastLoginAt ? '· ' + date(u.lastLoginAt) : ''}</span></dd>
+          <dt>Joined</dt><dd>${u.kickConnectedAt ? date(u.kickConnectedAt) : '<span class="muted">—</span>'}</dd>
+          <dt>Casino</dt><dd>${u.provider ? esc(u.provider) : '<span class="muted">none set</span>'}</dd>
+          <dt>Referrals</dt><dd>${d.referralCount || 0}${(d.referrals || []).length ? ` <span class="muted">· ${d.referrals.slice(0, 5).map(r => esc(r.kickChannel || '—')).join(', ')}</span>` : ''}</dd>
+        </dl>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">
+          <a class="btn-ghost" style="text-decoration:none;padding:9px 16px;border-radius:9px;" href="https://kick.com/${esc(u.kickChannel || '')}" target="_blank" rel="noopener">↗ Kick</a>
+          <a class="btn-ghost" style="text-decoration:none;padding:9px 16px;border-radius:9px;" href="/${esc(u.kickChannel || '')}" target="_blank" rel="noopener">↗ Portal</a>
+          <button class="btn-ghost owner-only" style="border-color:var(--accent);color:var(--accent);" onclick="manageStreamer('${esc(uid)}','${esc(u.kickChannel || '')}')">🎛 Switch in</button>
+          <button class="btn-ghost" style="border-color:var(--gold);color:var(--gold);" onclick="giveTrial('${esc(uid)}','elite')">🎁 Elite trial</button>
+        </div>
+      </div>
+      <div class="c360grid">
+        <div style="display:flex;flex-direction:column;gap:16px;">${billing}${outreachHtml}</div>
+        <div style="display:flex;flex-direction:column;gap:16px;">${ticketsHtml}${notesHtml}${histHtml}</div>
+      </div>`;
+  }
+
+  // Pre-fill a ticket for this streamer and jump to the queue.
+  window.c360NewTicket = function (uid, channel) {
+    location.hash = '#/tickets';
+    setTimeout(() => {
+      const ch = $('tkChannel'); if (ch) ch.value = channel || '';
+      const t = $('tkTitle'); if (t) { t.value = channel ? `${channel}: ` : ''; t.focus(); }
+    }, 60);
+  };
+
   // ── Revenue Ops ────────────────────────────────────────────────────────────
   // Five work queues over the streamer list we already hold — no extra fetch.
   // Each answers one question and lists exactly who to act on. Money columns are
@@ -758,7 +990,7 @@
   const isPaying  = (u) => u.subscriptionActive && !u.planManual && !u.planTrial;
   const daysTo    = (ms) => (ms ? Math.ceil((ms - Date.now()) / DAYMS) : null);
   const daysSince = (ms) => (ms ? Math.floor((Date.now() - ms) / DAYMS) : null);
-  const chanCell  = (u) => `<b>${esc(u.kickChannel || u.uid)}</b>`;
+  const chanCell  = (u) => `<b style="cursor:pointer;" title="Open Customer 360" onclick="openCustomer('${esc(u.uid)}')">${esc(u.kickChannel || u.uid)}</b>`;
   const mailCell  = (u) => (u.email ? `<a href="mailto:${esc(u.email)}" class="muted">${esc(u.email)}</a>` : '<span class="muted">—</span>');
 
   window.setOpsTab = function (id) { _opsTab = id; renderOps(); };
@@ -1414,7 +1646,7 @@
       const archTag = u.archived ? ' <span class="pill" style="background:rgba(255,111,145,.12);color:#e2a1ad;">archived</span>' : '';
       const main = `<tr${u.archived ? ' style="opacity:.55;"' : ''}>
         <td><span onclick="toggleDetail('${esc(u.uid)}')" style="cursor:pointer;user-select:none;color:var(--accent);">${open ? '▾' : '▸'}</span></td>
-        <td>${esc(u.kickChannel || u.displayName || u.uid)}${archTag}${noteRow}</td>
+        <td><span style="cursor:pointer;" title="Open Customer 360" onclick="openCustomer('${esc(u.uid)}')">${esc(u.kickChannel || u.displayName || u.uid)}</span>${archTag}${noteRow}</td>
         <td><div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;max-width:250px;white-space:normal;">${planSel}${compTag}${trialTag}</div></td>
         <td>${sub}</td>
         <td>${u.onboarded ? '<span class="ok">yes</span>' : '<span class="no">no</span>'}</td>

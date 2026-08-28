@@ -247,6 +247,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/admin-customer-360"
+  to     = "/.netlify/functions/admin-customer-360"
+  status = 200
+
+[[redirects]]
   from   = "/api/send-agency-inquiry"
   to     = "/.netlify/functions/send-agency-inquiry"
   status = 200
