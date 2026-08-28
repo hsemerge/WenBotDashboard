@@ -204,6 +204,19 @@
       <div style="margin-top:18px;"><button id="loginBtn" type="submit">Sign in</button></div>
       <div class="err" id="loginErr"></div>
     </form>
+
+    <!-- Second step when the account has 2FA enrolled. -->
+    <form id="mfaForm" class="hidden">
+      <div class="kicker" style="margin-bottom:6px;">Two-factor</div>
+      <p style="font-size:13px;color:var(--dim);margin-bottom:10px;">Enter the 6-digit code from your authenticator app for <b id="mfaWho" style="color:var(--bright);"></b>.</p>
+      <label>Authentication code</label>
+      <input id="mfaCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" style="letter-spacing:.4em;font-family:var(--mono);font-size:18px;text-align:center;">
+      <div style="margin-top:16px;display:flex;gap:8px;">
+        <button id="mfaBtn" type="submit">Verify</button>
+        <button type="button" class="btn-ghost" onclick="mfaCancel()">Cancel</button>
+      </div>
+      <div class="err" id="mfaErr"></div>
+    </form>
   </div>
 
   <!-- APP -->
@@ -227,6 +240,7 @@
         <div class="navgroup">Wenbot Team</div>
         <a href="#/tickets"    data-route="tickets"><span class="ico">🎫</span> Tickets <span id="navTicketCount" class="navbadge hidden"></span></a>
         <a href="#/todo"       data-route="todo"><span class="ico">☑</span> To-Do List</a>
+        <a href="#/security"   data-route="security"><span class="ico">🔐</span> Security</a>
       </nav>
       <div class="usercard">
         <div class="em" id="whoami">—</div>
@@ -503,6 +517,21 @@
           </div>
         </div>
 
+        <!-- SECURITY / 2FA -->
+        <div id="securityView" class="hidden">
+          <div class="tablecard" style="padding:18px;margin-bottom:16px;max-width:720px;">
+            <div class="kicker">Your account</div>
+            <div class="panel-title">Two-factor authentication</div>
+            <div class="sub" style="margin-bottom:14px;max-width:64ch;">A 6-digit code from your phone, on top of your password. Once you have this on, your account can't be taken over by a leaked password alone — and it replaces the shared admin secret.</div>
+            <div id="securityBody"><div class="sub">Loading…</div></div>
+          </div>
+          <div class="tablecard" style="padding:18px;max-width:720px;">
+            <div class="kicker">Team</div>
+            <div class="panel-title">Who has access</div>
+            <div id="securityTeam" class="sub" style="margin-top:8px;">—</div>
+          </div>
+        </div>
+
         <!-- TEAM TO-DO (shared) -->
         <div id="todoView" class="hidden">
           <div class="stats" id="todoStats"></div>
@@ -535,14 +564,25 @@
   </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="/js/firebase-config.js"></script>
 <script src="/js/table-sort.js"></script>
-<script>
-(function () {
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
+<!--
+  MODULAR Firebase SDK, deliberately: TOTP two-factor auth
+  (TotpMultiFactorGenerator / getMultiFactorResolver) ships ONLY in the modular
+  build — the compat bundle contains no TOTP generator, so 2FA is impossible on
+  compat. This page's auth surface is small (sign in, auth state, token, sign
+  out), so the swap costs little and buys per-account 2FA.
+  firebase-config.js still supplies the shared config object.
+-->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut,
+    multiFactor, TotpMultiFactorGenerator, getMultiFactorResolver,
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
   let _users = [], _adminSecret = '', _billingOverview = {}, _role = 'owner';
 
   // Interim convenience until per-account TOTP MFA replaces the shared secret:
@@ -584,7 +624,7 @@
     $('loginBtn').disabled = true; $('loginBtn').textContent = 'Signing in…';
     _adminSecret = $('secret').value || '';
     try {
-      await auth.signInWithEmailAndPassword($('email').value.trim(), $('password').value);
+      await signInWithEmailAndPassword(auth, $('email').value.trim(), $('password').value);
       // Persist only after a SUCCESSFUL sign-in; removing is deliberate-only
       // (typed secret + unchecked box). An empty staff login leaves the owner's
       // remembered secret alone on a shared machine.
@@ -594,12 +634,23 @@
         else if (_adminSecret) localStorage.removeItem('wb_admin_secret');
       } catch {}
     } catch (err) {
+      // 2FA enrolled → Firebase hands back a resolver holding the pending
+      // session; step 2 collects the code and finishes the sign-in.
+      if (err && err.code === 'auth/multi-factor-auth-required') {
+        _mfaResolver = getMultiFactorResolver(auth, err);
+        $('mfaWho').textContent = ($('email').value || '').trim();
+        $('loginForm').classList.add('hidden');
+        $('mfaForm').classList.remove('hidden');
+        $('mfaCode').value = ''; $('mfaCode').focus();
+        $('loginBtn').disabled = false; $('loginBtn').textContent = 'Sign in';
+        return;
+      }
       $('loginErr').textContent = 'Sign-in failed: ' + (err.code || err.message);
       $('loginBtn').disabled = false; $('loginBtn').textContent = 'Sign in';
     }
   });
 
-  auth.onAuthStateChanged(async (user) => {
+  onAuthStateChanged(auth, async (user) => {
     if (!user) { show('login'); return; }
     await loadUsers();
   });
@@ -661,7 +712,7 @@
   function denied() {
     $('loginErr').textContent = 'This account is not authorized for the admin panel.';
     show('login');
-    auth.signOut();
+    signOut(auth);
     $('loginBtn').disabled = false; $('loginBtn').textContent = 'Sign in';
   }
 
@@ -676,6 +727,7 @@
     outreach:  { view: 'outreachView',title: 'Outreach',    kick: 'Streamer pipeline' },
     tickets:   { view: 'ticketsView', title: 'Tickets',     kick: 'Team queue' },
     todo:      { view: 'todoView',    title: 'To-Do List',  kick: 'Wenbot team' },
+    security:  { view: 'securityView',title: 'Security',    kick: 'Your account' },
   };
   function currentRoute() {
     const m = (location.hash || '').match(/^#\/([a-z-]+)/);
@@ -700,6 +752,7 @@
     if (name === 'outreach' && !_outreachLoaded) loadOutreach();
     if (name === 'tickets' && !_ticketsLoaded) loadTickets();
     if (name === 'ops') renderOps();
+    if (name === 'security') renderSecurity();
     if (name === 'customer') {
       const cu = c360UidFromHash();
       if (cu && (!_c360 || _c360.uid !== cu)) c360Load(cu);
@@ -800,6 +853,160 @@
         return `<div class="ev"><span class="t">${e.at ? new Date(e.at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}</span><span><b>${who}</b> ${esc(label)}${target ? ' · ' + esc(String(target)).slice(0, 60) : ''}</span></div>`;
       }).join('');
     } catch (e) { el.innerHTML = '<div class="sub" style="padding:12px 14px;">Feed unavailable: ' + esc(e.message) + '</div>'; }
+  }
+
+  // ── Two-factor (TOTP) ──────────────────────────────────────────────────────
+  // Per-account 2FA via an authenticator app, replacing the shared admin secret.
+  // Requires Firebase Authentication with Identity Platform + TOTP enabled in the
+  // console; without it Firebase answers with an operation-not-allowed /
+  // admin-restricted error, which is surfaced as a plain instruction rather than
+  // a raw error code.
+  let _mfaResolver = null, _totpSecret = null;
+
+  function mfaNiceError(e) {
+    const c = (e && e.code) || '';
+    if (/operation-not-allowed|admin-restricted|unsupported|not-enabled/i.test(c + ' ' + (e.message || '')))
+      return 'Two-factor is not switched on for this Firebase project yet. In the Firebase console: Authentication → Sign-in method → upgrade to Identity Platform, then enable TOTP.';
+    if (/invalid-verification-code|invalid-otp|argument-error/i.test(c)) return 'That code was not accepted. Check the clock on your phone and try the next code.';
+    if (/requires-recent-login/i.test(c)) return 'For security this needs a fresh sign-in. Sign out, sign back in, then try again.';
+    if (/too-many-requests/i.test(c)) return 'Too many attempts. Wait a minute and try again.';
+    return (e && e.message) || 'Something went wrong.';
+  }
+
+  // Sign-in step 2 — Firebase throws auth/multi-factor-auth-required when the
+  // account has a factor enrolled; the resolver carries the pending session.
+  window.mfaCancel = function () {
+    _mfaResolver = null;
+    $('mfaForm').classList.add('hidden');
+    $('loginForm').classList.remove('hidden');
+    $('loginBtn').disabled = false; $('loginBtn').textContent = 'Sign in';
+  };
+  $('mfaForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const code = ($('mfaCode').value || '').trim();
+    const btn = $('mfaBtn');
+    $('mfaErr').textContent = '';
+    if (!/^\d{6}$/.test(code)) { $('mfaErr').textContent = 'Enter the 6-digit code.'; return; }
+    btn.disabled = true; btn.textContent = 'Verifying…';
+    try {
+      const hint = _mfaResolver.hints[0];
+      const assertion = TotpMultiFactorGenerator.assertionForSignIn(hint.uid, code);
+      await _mfaResolver.resolveSignIn(assertion);      // → onAuthStateChanged
+      _mfaResolver = null;
+      $('mfaForm').classList.add('hidden');
+      $('loginForm').classList.remove('hidden');
+    } catch (err) {
+      $('mfaErr').textContent = mfaNiceError(err);
+    }
+    btn.disabled = false; btn.textContent = 'Verify';
+    $('mfaCode').value = '';
+  });
+
+  // ── Security page: enrol / remove a factor ────────────────────────────────
+  window.renderSecurity = function () {
+    const el = $('securityBody');
+    const u = auth.currentUser;
+    if (!el || !u) return;
+    const factors = (multiFactor(u).enrolledFactors) || [];
+    el.innerHTML = factors.length
+      ? `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid rgba(85,239,176,.35);background:rgba(85,239,176,.06);border-radius:10px;">
+           <span style="font-size:20px;">🔐</span>
+           <div style="flex:1;">
+             <div style="color:var(--good);font-weight:700;">Two-factor is ON</div>
+             <div class="sub">${factors.map(f => esc(f.displayName || 'Authenticator app') + (f.enrollmentTime ? ' · added ' + new Date(f.enrollmentTime).toLocaleDateString() : '')).join(', ')}</div>
+           </div>
+           <button class="btn-ghost" style="border-color:var(--bad);color:var(--bad);" onclick="mfaUnenroll('${esc(factors[0].uid)}')">Turn off</button>
+         </div>
+         <div class="sub" style="margin-top:10px;">You'll be asked for a code each time you sign in. Keep a backup of your authenticator app, losing it means an owner has to clear the factor for you.</div>`
+      : `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid rgba(245,197,24,.35);background:rgba(245,197,24,.06);border-radius:10px;">
+           <span style="font-size:20px;">⚠️</span>
+           <div style="flex:1;">
+             <div style="color:var(--warn);font-weight:700;">Two-factor is off</div>
+             <div class="sub">Your password is the only thing protecting this account.</div>
+           </div>
+           <button onclick="mfaStart()">Turn on 2FA</button>
+         </div>`;
+    // Team roster, so everyone can see who is still unprotected.
+    const t = $('securityTeam');
+    if (t) t.innerHTML = _team.length ? _team.map(m => `<div style="display:flex;align-items:center;gap:10px;margin:5px 0;">
+        <b style="color:var(--bright);">${esc(m.name)}</b>
+        <span class="pill ${m.role === 'owner' ? 'agency' : 'pro'}">${esc(m.role)}</span>
+        <span class="muted" style="font-size:11px;">${esc(m.email)}</span>
+        <span style="margin-left:auto;">${m.mfa ? '<span class="ok">🔐 2FA on</span>' : '<span class="warn">no 2FA</span>'}</span>
+      </div>`).join('') : '<span class="muted">Roster unavailable.</span>';
+  };
+
+  window.mfaStart = async function () {
+    const el = $('securityBody');
+    el.innerHTML = '<div class="sub">Starting…</div>';
+    try {
+      const u = auth.currentUser;
+      const session = await multiFactor(u).getSession();
+      _totpSecret = await TotpMultiFactorGenerator.generateSecret(session);
+      const key = _totpSecret.secretKey;
+      el.innerHTML = `
+        <div style="display:grid;gap:14px;">
+          <div>
+            <div style="font-weight:700;color:var(--bright);margin-bottom:4px;">1 · Open your authenticator app</div>
+            <div class="sub">Google Authenticator, Authy, 1Password, Bitwarden — any of them. Choose <b>“Add account”</b> → <b>“Enter a setup key”</b>.</div>
+          </div>
+          <div>
+            <div style="font-weight:700;color:var(--bright);margin-bottom:4px;">2 · Enter these</div>
+            <div class="sub" style="margin-bottom:6px;">Account name: <b>WenBot Admin (${esc(u.email || '')})</b></div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <code style="flex:1;min-width:240px;font-family:var(--mono);font-size:15px;letter-spacing:.12em;background:rgba(4,10,16,.85);border:1px solid var(--line2);border-radius:8px;padding:11px 13px;word-break:break-all;">${esc(key)}</code>
+              <button class="btn-ghost" onclick="mfaCopyKey('${esc(key)}')">📋 Copy</button>
+            </div>
+            <div class="sub" style="margin-top:6px;">Type is <b>time-based</b> (the default).</div>
+          </div>
+          <div>
+            <div style="font-weight:700;color:var(--bright);margin-bottom:4px;">3 · Enter the 6-digit code it shows</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+              <input id="mfaEnrollCode" type="text" inputmode="numeric" maxlength="6" placeholder="000000"
+                     style="max-width:170px;letter-spacing:.4em;font-family:var(--mono);font-size:17px;text-align:center;"
+                     onkeydown="if(event.key==='Enter')mfaFinish()">
+              <button onclick="mfaFinish()">Turn on 2FA</button>
+              <button class="btn-ghost" onclick="renderSecurity()">Cancel</button>
+            </div>
+            <div class="err" id="mfaEnrollErr"></div>
+          </div>
+        </div>`;
+      $('mfaEnrollCode')?.focus();
+    } catch (e) {
+      el.innerHTML = `<div class="warn" style="padding:12px 14px;border:1px solid var(--bad);border-radius:10px;">${esc(mfaNiceError(e))}</div>
+                      <button class="btn-ghost" style="margin-top:10px;" onclick="renderSecurity()">Back</button>`;
+    }
+  };
+  window.mfaCopyKey = async function (k) { try { await navigator.clipboard.writeText(k); flashOk('Setup key copied'); } catch {} };
+  window.mfaFinish = async function () {
+    const code = ($('mfaEnrollCode').value || '').trim();
+    const err = $('mfaEnrollErr');
+    err.textContent = '';
+    if (!/^\d{6}$/.test(code)) { err.textContent = 'Enter the 6-digit code from the app.'; return; }
+    try {
+      const assertion = TotpMultiFactorGenerator.assertionForEnrollment(_totpSecret, code);
+      await multiFactor(auth.currentUser).enroll(assertion, 'Authenticator app');
+      _totpSecret = null;
+      await loadTeam();
+      renderSecurity();
+      flashOk('Two-factor is on. You will be asked for a code next sign-in.');
+    } catch (e) { err.textContent = mfaNiceError(e); }
+  };
+  window.mfaUnenroll = async function (factorUid) {
+    if (!confirm('Turn OFF two-factor for your account? Your password becomes the only protection.')) return;
+    try {
+      await multiFactor(auth.currentUser).unenroll(factorUid);
+      await loadTeam();
+      renderSecurity();
+    } catch (e) { alert(mfaNiceError(e)); }
+  };
+  // Small non-blocking confirmation (the page has no toast system of its own).
+  function flashOk(msg) {
+    const d = document.createElement('div');
+    d.textContent = msg;
+    d.style.cssText = 'position:fixed;right:22px;bottom:22px;z-index:900;background:rgba(85,239,176,.14);border:1px solid var(--good);color:var(--good);padding:11px 16px;border-radius:10px;font-size:13px;box-shadow:0 14px 40px rgba(0,0,0,.5);';
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 4000);
   }
 
   // ── Customer 360 ───────────────────────────────────────────────────────────
@@ -2209,7 +2416,7 @@
     }
   };
 
-  window.adminSignOut = function () { auth.signOut(); _users = []; _adminSecret = ''; };
+  window.adminSignOut = function () { signOut(auth); _users = []; _adminSecret = ''; };
 
   // ---- Transfer Viewer ----
   function mvEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -2249,7 +2456,6 @@
     $('loginView').classList.toggle('hidden', which !== 'login');
     $('panelView').classList.toggle('hidden', which !== 'panel');
   }
-})();
 </script>
 </body>
 </html>
