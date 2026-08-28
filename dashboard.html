@@ -1844,21 +1844,6 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           </div>
         </div>
 
-        <div class="field" style="margin-bottom:8px;">
-          <label>Or ask your own<span style="color:var(--text-dim);font-weight:400;font-size:11px;">, leave blank to use the question bank</span></label>
-          <input type="text" id="trivCustomQ" maxlength="200" placeholder="What slot are we opening next?">
-        </div>
-        <div class="grid-2" style="gap:12px;">
-          <div class="field">
-            <label>Answer</label>
-            <input type="text" id="trivCustomA" maxlength="80" placeholder="The exact answer">
-          </div>
-          <div class="field">
-            <label>Also accept<span style="color:var(--text-dim);font-weight:400;font-size:11px;">, comma separated</span></label>
-            <input type="text" id="trivCustomAlts" maxlength="200" placeholder="other spellings chat will type">
-          </div>
-        </div>
-
         <div class="field">
           <label>Time limit</label>
           <select id="trivTimeLimit">
@@ -1869,10 +1854,32 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           </select>
         </div>
 
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
           <button class="btn btn-green"  id="trivStartBtn" onclick="trivStart()">▶ Ask a question</button>
           <button class="btn btn-danger" id="trivStopBtn"  onclick="trivStop(true)" disabled>⏹ End round</button>
           <button class="btn btn-ghost"  onclick="trivRevealAnswer()" id="trivRevealBtn" disabled title="Give up and post the answer in chat">💡 Reveal answer</button>
+        </div>
+
+        <!-- One-off question, tucked behind a toggle so the default view stays
+             simply "pick a category and ask." Reusable questions live in the bank
+             panel below. -->
+        <button type="button" id="trivOneOffToggle" class="btn btn-ghost btn-sm" onclick="trivToggleOneOff()" style="margin-top:12px;">✍️ Ask a one-off question instead</button>
+        <div id="trivOneOffFields" style="display:none;margin-top:12px;">
+          <div class="field">
+            <label>Question</label>
+            <input type="text" id="trivCustomQ" maxlength="200" placeholder="What slot are we opening next?">
+          </div>
+          <div class="grid-2" style="gap:12px;">
+            <div class="field">
+              <label>Answer</label>
+              <input type="text" id="trivCustomA" maxlength="80" placeholder="The exact answer">
+            </div>
+            <div class="field">
+              <label>Also accept<span style="color:var(--text-dim);font-weight:400;font-size:11px;">, comma separated</span></label>
+              <input type="text" id="trivCustomAlts" maxlength="200" placeholder="other spellings chat will type">
+            </div>
+          </div>
+          <p style="font-size:11px;color:var(--text-dim);margin:0;">Asked once, not saved — press <strong>Ask a question</strong> above to run it.</p>
         </div>
       </div>
 
@@ -1899,41 +1906,50 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
 
         <div style="height:1px;background:var(--border);margin:14px 0;"></div>
 
-        <!-- Type one question -->
-        <div class="field">
-          <label>Question</label>
-          <input type="text" id="trivQaQ" maxlength="200" placeholder="What is our Discord's mascot?">
-        </div>
-        <div class="grid-2" style="gap:12px;">
-          <div class="field">
-            <label>Answer</label>
-            <input type="text" id="trivQaA" maxlength="80" placeholder="The exact answer">
+        <!-- One input mode at a time (type one / import many), sharing a
+             difficulty, so the panel isn't a wall of boxes. -->
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+          <div style="display:flex;gap:6px;">
+            <button type="button" id="trivModeOneBtn" class="btn btn-sm"       onclick="trivBankMode('one')">Type one</button>
+            <button type="button" id="trivModeImpBtn" class="btn btn-ghost btn-sm" onclick="trivBankMode('import')">Import many</button>
           </div>
-          <div class="field">
-            <label>Also accept<span style="color:var(--text-dim);font-weight:400;font-size:11px;">, comma separated</span></label>
-            <input type="text" id="trivQaAlts" maxlength="200" placeholder="other spellings chat will type">
-          </div>
-        </div>
-        <div class="grid-2" style="gap:12px;align-items:end;">
-          <div class="field">
-            <label>Difficulty<span style="color:var(--text-dim);font-weight:400;font-size:11px;"> — also used for imports</span></label>
-            <select id="trivQaDiff">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="margin:0;font-size:12px;color:var(--text-dim);">Difficulty</label>
+            <select id="trivQaDiff" style="width:auto;">
               <option value="easy">Easy</option>
               <option value="medium" selected>Medium</option>
               <option value="hard">Hard</option>
             </select>
           </div>
-          <div class="field">
-            <button class="btn btn-green" onclick="trivAddQuestion()" style="width:100%;">+ Add question</button>
-          </div>
         </div>
 
-        <!-- Or import a batch -->
-        <div class="field" style="margin-top:8px;">
-          <label>Or import a batch<span style="color:var(--text-dim);font-weight:400;font-size:11px;"> — one per line: <code>Question | Answer | alt1, alt2</code> (alts optional)</span></label>
-          <textarea id="trivImport" rows="5" placeholder="What year did we hit 1k followers? | 2024&#10;Who is our mod with the cat pfp? | luna | luna_, lunacat"></textarea>
+        <!-- Type one -->
+        <div id="trivBankTypeOne">
+          <div class="field">
+            <label>Question</label>
+            <input type="text" id="trivQaQ" maxlength="200" placeholder="What is our Discord's mascot?">
+          </div>
+          <div class="grid-2" style="gap:12px;">
+            <div class="field">
+              <label>Answer</label>
+              <input type="text" id="trivQaA" maxlength="80" placeholder="The exact answer">
+            </div>
+            <div class="field">
+              <label>Also accept<span style="color:var(--text-dim);font-weight:400;font-size:11px;">, comma separated</span></label>
+              <input type="text" id="trivQaAlts" maxlength="200" placeholder="other spellings chat will type">
+            </div>
+          </div>
+          <button class="btn btn-green" onclick="trivAddQuestion()">+ Add question</button>
         </div>
-        <button class="btn btn-ghost" onclick="trivImportQuestions()">⬆ Import into selected category</button>
+
+        <!-- Import many -->
+        <div id="trivBankImport" style="display:none;">
+          <div class="field">
+            <label>Paste questions<span style="color:var(--text-dim);font-weight:400;font-size:11px;"> — one per line: <code>Question | Answer | alt1, alt2</code> (alts optional)</span></label>
+            <textarea id="trivImport" rows="6" placeholder="What year did we hit 1k followers? | 2024&#10;Who is our mod with the cat pfp? | luna | luna_, lunacat"></textarea>
+          </div>
+          <button class="btn btn-green" onclick="trivImportQuestions()">⬆ Import into selected category</button>
+        </div>
 
         <!-- Review / delete -->
         <div id="trivCustomList" style="margin-top:18px;"></div>
@@ -12817,6 +12833,33 @@ function openTriviaPage() {
   trivRenderScores();
   trivUpdateUI();
   trivConnectChat();
+}
+
+// Reveal / hide the one-off question inputs. Hidden by default so the Ask card is
+// just "pick a category and go." Clearing them on hide means a stale one-off
+// value can't hijack the next bank draw (trivStart only uses it when non-empty).
+function trivToggleOneOff() {
+  const box = document.getElementById('trivOneOffFields');
+  const btn = document.getElementById('trivOneOffToggle');
+  if (!box) return;
+  const show = box.style.display === 'none';
+  box.style.display = show ? 'block' : 'none';
+  if (btn) btn.textContent = show ? '✕ Use the question bank instead' : '✍️ Ask a one-off question instead';
+  if (!show) ['trivCustomQ', 'trivCustomA', 'trivCustomAlts'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+}
+
+// Bank panel: show the "type one" fields or the "import many" textarea, never
+// both. The mode buttons render filled (active) vs ghost (inactive).
+function trivBankMode(mode) {
+  const imp = mode === 'import';
+  const one = document.getElementById('trivBankTypeOne');
+  const imB = document.getElementById('trivBankImport');
+  if (one) one.style.display = imp ? 'none' : 'block';
+  if (imB) imB.style.display = imp ? 'block' : 'none';
+  const bOne = document.getElementById('trivModeOneBtn');
+  const bImp = document.getElementById('trivModeImpBtn');
+  if (bOne) bOne.className = imp ? 'btn btn-ghost btn-sm' : 'btn btn-sm';
+  if (bImp) bImp.className = imp ? 'btn btn-sm' : 'btn btn-ghost btn-sm';
 }
 
 // ── Custom trivia: streamer-authored categories + questions ──────────────────
