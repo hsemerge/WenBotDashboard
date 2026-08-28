@@ -186,6 +186,8 @@
         <a href="#/streamers"  data-route="streamers"><span class="ico">👥</span> Streamers</a>
         <a href="#/billing"    data-route="billing" class="owner-only"><span class="ico">💳</span> Billing</a>
         <a href="#/slots"      data-route="slots"><span class="ico">🎰</span> Slots</a>
+        <div class="navgroup">Growth</div>
+        <a href="#/outreach"   data-route="outreach"><span class="ico">📣</span> Outreach</a>
         <div class="navgroup">Wenbot Team</div>
         <a href="#/todo"       data-route="todo"><span class="ico">☑</span> To-Do List</a>
       </nav>
@@ -331,6 +333,51 @@
           <div class="sub" style="margin-top:14px;">💳 Stripe subscriptions auto-renew (dates come from Stripe). 🪙 Crypto subs are manual, send an invoice near the due date. Only streamers with an active billing cycle appear here.</div>
         </div>
 
+        <!-- OUTREACH CRM -->
+        <div id="outreachView" class="hidden">
+          <div class="stats" id="outreachStats"></div>
+          <div class="tablecard" style="padding:16px;margin-bottom:16px;">
+            <div class="kicker">Growth</div>
+            <div class="panel-title">Add a prospect</div>
+            <div class="sub" style="margin-bottom:11px;">Anyone you're courting. Move them along the pipeline as it happens, and leave a note each time — the timeline is the memory.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <input id="orChannel" type="text" maxlength="60" placeholder="Kick channel / handle" style="min-width:180px;max-width:230px;" onkeydown="if(event.key==='Enter')orCreate()">
+              <input id="orLink" type="text" maxlength="300" placeholder="Profile link (optional)" style="min-width:200px;max-width:300px;" onkeydown="if(event.key==='Enter')orCreate()">
+              <select id="orOwner" style="max-width:210px;" title="Who owns this outreach"></select>
+              <button onclick="orCreate()">＋ Add prospect</button>
+              <button class="btn-ghost" onclick="loadOutreach()">↻</button>
+            </div>
+          </div>
+          <div class="toolbar">
+            <input id="orSearch" type="text" placeholder="Search channel / notes…" oninput="renderOutreach()">
+            <select id="orStageFilter" onchange="renderOutreach()" style="max-width:190px;">
+              <option value="">All stages</option>
+              <option value="open">Open (not won/lost)</option>
+              <option value="lead">Lead</option>
+              <option value="contacted">Contacted</option>
+              <option value="replied">Replied</option>
+              <option value="negotiating">Negotiating</option>
+              <option value="trial">Trial</option>
+              <option value="won">Won</option>
+              <option value="lost">Lost</option>
+            </select>
+            <label class="sub" style="display:flex;align-items:center;gap:6px;cursor:pointer;align-self:center;">
+              <input type="checkbox" id="orMineOnly" onchange="renderOutreach()" style="width:auto;"> Mine only
+            </label>
+            <span id="orCount" class="sub" style="align-self:center;"></span>
+          </div>
+          <div class="tablecard">
+            <div style="overflow-x:auto;">
+              <table>
+                <thead><tr>
+                  <th></th><th>Channel</th><th>Stage</th><th>Owner</th><th>Latest note</th><th>Updated</th><th></th>
+                </tr></thead>
+                <tbody id="outreachTable"><tr><td colspan="7" class="muted" style="text-align:center;padding:24px;">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <!-- TEAM TO-DO (shared) -->
         <div id="todoView" class="hidden">
           <div class="stats" id="todoStats"></div>
@@ -458,7 +505,8 @@
       // on a shared machine — stop sending it and blank the field; the stored
       // copy is left for the owner.
       if (_role !== 'owner') { _adminSecret = ''; const se = $('secret'); if (se) se.value = ''; }
-      $('whoami').textContent = d.admin || (auth.currentUser && auth.currentUser.email) || '';
+      _me = d.admin || (auth.currentUser && auth.currentUser.email) || '';
+      $('whoami').textContent = _me;
       $('whoRole').textContent = _role === 'owner' ? 'Owner access' : 'Staff access';
       renderStats(d.stats || {});
       renderTable();
@@ -490,6 +538,7 @@
     streamers: { view: 'usersView',   title: 'Streamers',   kick: 'Accounts & plans' },
     billing:   { view: 'billingView', title: 'Billing',     kick: 'Owner only', ownerOnly: true },
     slots:     { view: 'slotsView',   title: 'Slots',       kick: 'Catalog health' },
+    outreach:  { view: 'outreachView',title: 'Outreach',    kick: 'Streamer pipeline' },
     todo:      { view: 'todoView',    title: 'To-Do List',  kick: 'Wenbot team' },
   };
   function currentRoute() {
@@ -510,6 +559,7 @@
     if (name === 'slots' && !_slotsLoaded) loadSlots();
     if (name === 'billing') renderBilling();
     if (name === 'todo' && !_todosLoaded) loadTodos();
+    if (name === 'outreach' && !_outreachLoaded) loadOutreach();
   }
   window.addEventListener('hashchange', () => routeTo(currentRoute(), true));
   // Legacy shim: the ported code calls switchTab('billing') from gotoBilling.
@@ -551,6 +601,9 @@
     if (failed)     bits.push(`<a href="#/streamers" onclick="setUserFilter('failed')">⚠ ${failed} payment${failed === 1 ? '' : 's'} failed</a>`);
     if (trialsSoon) bits.push(`<a href="#/streamers" onclick="setUserFilter('trial7')">⏳ ${trialsSoon} trial${trialsSoon === 1 ? '' : 's'} ending within 7 days</a>`);
     if (notOnboard) bits.push(`<span class="muted">🚧 ${notOnboard} signed up but not onboarded</span>`);
+    // Outreach waiting on us — loaded lazily, so only shown once the board has been opened.
+    const stale = _outreach.filter(c => c.stage !== 'won' && c.stage !== 'lost' && c.updatedAt && (now - c.updatedAt) > 7 * DAY).length;
+    if (stale) bits.push(`<a href="#/outreach">📣 ${stale} outreach prospect${stale === 1 ? '' : 's'} untouched for 7+ days</a>`);
     $('dashAttention').innerHTML = bits.length ? bits.map(b => `<div style="margin:5px 0;">${b}</div>`).join('') : '<span class="ok">Nothing urgent. 🎉</span>';
   }
   window.setUserFilter = function (v) { const el = $('userFilter'); if (el) { el.value = v; } renderTable(); };
@@ -583,6 +636,180 @@
       }).join('');
     } catch (e) { el.innerHTML = '<div class="sub" style="padding:12px 14px;">Feed unavailable: ' + esc(e.message) + '</div>'; }
   }
+
+  // ── Outreach CRM ───────────────────────────────────────────────────────────
+  // Pipeline of streamers we're courting. A card carries a stage, an owner and a
+  // notes timeline; stage moves are written INTO that timeline so one expand
+  // shows the whole courtship in order.
+  let _outreach = [], _outreachLoaded = false, _orExpanded = new Set(), _orNotes = {}, _me = '';
+  const OR_STAGES = ['lead', 'contacted', 'replied', 'negotiating', 'trial', 'won', 'lost'];
+  const OR_COLOR  = { lead:'var(--dim)', contacted:'var(--accent)', replied:'var(--purple)',
+                      negotiating:'var(--warn)', trial:'var(--gold)', won:'var(--good)', lost:'var(--bad)' };
+
+  window.loadOutreach = async function () {
+    try {
+      const r = await authedFetch('/api/admin-outreach');
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      _outreach = d.cards || []; _outreachLoaded = true;
+      // Owner picker = the team (whoever already owns a card, plus me).
+      const owners = [...new Set([_me, ...(_outreach.map(c => c.owner).filter(Boolean))])];
+      const sel = $('orOwner');
+      if (sel && !sel.dataset.filled) {
+        sel.innerHTML = owners.map(o => `<option value="${esc(o)}">${esc(String(o).split('@')[0])}</option>`).join('');
+        sel.dataset.filled = '1';
+      }
+      renderOutreach();
+    } catch (e) { $('outreachTable').innerHTML = `<tr><td colspan="7" class="warn" style="text-align:center;padding:24px;">${esc(e.message)}</td></tr>`; }
+  };
+
+  window.renderOutreach = function () {
+    const q = ($('orSearch')?.value || '').toLowerCase().trim();
+    const sf = $('orStageFilter')?.value || '';
+    const mine = !!$('orMineOnly')?.checked;
+    let rows = _outreach.filter(c => {
+      if (mine && c.owner !== _me) return false;
+      if (sf === 'open') { if (c.stage === 'won' || c.stage === 'lost') return false; }
+      else if (sf && c.stage !== sf) return false;
+      if (q && !(`${c.channel} ${c.displayName || ''} ${c.lastNoteSnippet || ''}`.toLowerCase().includes(q))) return false;
+      return true;
+    });
+
+    // Pipeline tiles — the funnel at a glance.
+    const count = (s) => _outreach.filter(c => c.stage === s).length;
+    const open  = _outreach.filter(c => c.stage !== 'won' && c.stage !== 'lost').length;
+    const won   = count('won');
+    const decided = won + count('lost');
+    $('outreachStats').innerHTML =
+      `<div class="stat"><div class="n">${open}</div><div class="l">In pipeline</div></div>`
+      + `<div class="stat"><div class="n">${count('contacted') + count('replied')}</div><div class="l">Contacted · replied</div></div>`
+      + `<div class="stat warn"><div class="n">${count('negotiating') + count('trial')}</div><div class="l">Negotiating · trial</div></div>`
+      + `<div class="stat good"><div class="n">${won}</div><div class="l">Won${decided ? ` · <small>${Math.round(100 * won / decided)}% of decided</small>` : ''}</div></div>`;
+
+    const c = $('orCount'); if (c) c.textContent = `${rows.length} of ${_outreach.length}`;
+    if (!rows.length) { $('outreachTable').innerHTML = '<tr><td colspan="7" class="muted" style="text-align:center;padding:24px;">No prospects yet — add the first above.</td></tr>'; return; }
+
+    $('outreachTable').innerHTML = rows.map(cd => {
+      const open = _orExpanded.has(cd.id);
+      const stageSel = `<select onchange="orSetStage('${esc(cd.id)}', this.value)" style="width:130px;font-size:12px;padding:3px 6px;color:${OR_COLOR[cd.stage] || 'var(--text)'};">`
+        + OR_STAGES.map(s => `<option value="${s}" ${s === cd.stage ? 'selected' : ''}>${s}</option>`).join('') + `</select>`;
+      const link = cd.link ? ` <a href="${esc(cd.link)}" target="_blank" rel="noopener" title="Open profile">↗</a>` : '';
+      const head = `<tr>
+        <td><span onclick="orToggle('${esc(cd.id)}')" style="cursor:pointer;user-select:none;color:var(--accent);">${open ? '▾' : '▸'}</span></td>
+        <td><b>${esc(cd.channel)}</b>${link}${cd.streamerUid ? ' <span class="pill agency" title="Signed up — linked to a WenBot account">signed up</span>' : ''}</td>
+        <td>${stageSel}</td>
+        <td class="muted">${esc(String(cd.owner || '').split('@')[0])}</td>
+        <td class="muted" style="white-space:normal;max-width:340px;">${cd.lastNoteSnippet ? esc(cd.lastNoteSnippet) : '<span class="muted">—</span>'}</td>
+        <td class="muted">${rel(cd.updatedAt)}</td>
+        <td><span class="del" title="Delete prospect" style="cursor:pointer;color:var(--dim);" onclick="orDelete('${esc(cd.id)}','${esc(cd.channel)}')">✕</span></td>
+      </tr>`;
+      return head + (open ? `<tr><td colspan="7" style="background:rgba(4,10,16,.6);">${orDetailHtml(cd)}</td></tr>` : '');
+    }).join('');
+  };
+
+  function orDetailHtml(cd) {
+    const notes = _orNotes[cd.id];
+    let timeline;
+    if (!notes || notes === 'loading') timeline = '<div class="muted">Loading timeline…</div>';
+    else if (!notes.length) timeline = '<div class="muted">No notes yet — the first one goes below.</div>';
+    else timeline = notes.slice().reverse().map(n => {
+      const when = n.at ? new Date(n.at).toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+      const who  = esc(String(n.by || '?').split('@')[0]);
+      const body = n.stageTo
+        ? `<i style="color:${OR_COLOR[n.stageTo] || 'var(--text)'};">moved ${esc(n.stageFrom || '?')} → ${esc(n.stageTo)}</i>`
+        : esc(n.text || '');
+      return `<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid rgba(126,170,195,.07);">
+        <span class="mono muted" style="font-size:10.5px;white-space:nowrap;min-width:96px;">${when}</span>
+        <span><b style="color:var(--bright);">${who}</b> · ${body}</span></div>`;
+    }).join('');
+
+    return `<div style="padding:12px 6px;font-size:12.5px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+        <span class="muted">Owner:</span>
+        <input id="or-owner-${esc(cd.id)}" value="${esc(cd.owner || '')}" style="font-size:12px;padding:4px 8px;width:200px;">
+        <span class="muted">Link:</span>
+        <input id="or-link-${esc(cd.id)}" value="${esc(cd.link || '')}" placeholder="profile URL" style="font-size:12px;padding:4px 8px;width:240px;">
+        <span class="muted">WenBot uid (if signed up):</span>
+        <input id="or-uid-${esc(cd.id)}" value="${esc(cd.streamerUid || '')}" placeholder="streamer uid" style="font-size:12px;padding:4px 8px;width:190px;">
+        <button class="btn-ghost" onclick="orSaveFields('${esc(cd.id)}')">Save</button>
+      </div>
+      <div class="kicker" style="margin-top:6px;">Timeline</div>
+      <div style="margin:6px 0 10px;max-height:260px;overflow-y:auto;">${timeline}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input id="or-note-${esc(cd.id)}" placeholder="Where are they at? (note gets dated + signed)" style="flex:1;min-width:240px;font-size:12px;padding:6px 9px;" onkeydown="if(event.key==='Enter')orAddNote('${esc(cd.id)}')">
+        <button onclick="orAddNote('${esc(cd.id)}')">Add note</button>
+      </div>
+    </div>`;
+  }
+
+  window.orToggle = async function (id) {
+    if (_orExpanded.has(id)) { _orExpanded.delete(id); renderOutreach(); return; }
+    _orExpanded.add(id);
+    if (!_orNotes[id]) {
+      _orNotes[id] = 'loading'; renderOutreach();
+      try {
+        const r = await authedPost('/api/admin-outreach', { action: 'notes', id });
+        const d = await r.json();
+        _orNotes[id] = r.ok ? (d.notes || []) : [];
+      } catch { _orNotes[id] = []; }
+    }
+    renderOutreach();
+  };
+  window.orCreate = async function () {
+    const channel = ($('orChannel').value || '').trim();
+    if (!channel) return;
+    const link = ($('orLink').value || '').trim();
+    const owner = $('orOwner')?.value || _me;
+    try {
+      const r = await authedPost('/api/admin-outreach', { action: 'create', channel, link, owner });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      $('orChannel').value = ''; $('orLink').value = '';
+      await loadOutreach();
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+  window.orSetStage = async function (id, stage) {
+    try {
+      const r = await authedPost('/api/admin-outreach', { action: 'update', id, fields: { stage } });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      delete _orNotes[id];                      // stage move added a timeline entry
+      if (_orExpanded.has(id)) { _orExpanded.delete(id); await orToggle(id); }
+      await loadOutreach();
+    } catch (e) { alert('Failed: ' + e.message); loadOutreach(); }
+  };
+  window.orSaveFields = async function (id) {
+    const fields = {
+      owner:       ($('or-owner-' + id)?.value || '').trim(),
+      link:        ($('or-link-'  + id)?.value || '').trim(),
+      streamerUid: ($('or-uid-'   + id)?.value || '').trim(),
+    };
+    try {
+      const r = await authedPost('/api/admin-outreach', { action: 'update', id, fields });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      await loadOutreach();
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+  window.orAddNote = async function (id) {
+    const el = $('or-note-' + id); const text = (el?.value || '').trim();
+    if (!text) return;
+    el.value = '';
+    try {
+      const r = await authedPost('/api/admin-outreach', { action: 'note', id, text });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      delete _orNotes[id];
+      _orExpanded.delete(id); await orToggle(id);
+      await loadOutreach();
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+  window.orDelete = async function (id, channel) {
+    if (!confirm(`Remove "${channel}" from outreach? The whole timeline goes with it.`)) return;
+    try {
+      const r = await authedPost('/api/admin-outreach', { action: 'delete', id });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      _orExpanded.delete(id); delete _orNotes[id];
+      await loadOutreach();
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
 
   // ── Shared Team To-Do ──────────────────────────────────────────────────────
   let _todos = [], _todosLoaded = false;

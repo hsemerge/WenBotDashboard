@@ -224,6 +224,23 @@
   to     = "/.netlify/functions/admin-merge-viewer"
   status = 200
 
+# Admin portal (admin/portal/) endpoints — activity feed, shared team to-do,
+# outreach CRM. Same pattern as the admin-* rules above.
+[[redirects]]
+  from   = "/api/admin-activity"
+  to     = "/.netlify/functions/admin-activity"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin-team-todos"
+  to     = "/.netlify/functions/admin-team-todos"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin-outreach"
+  to     = "/.netlify/functions/admin-outreach"
+  status = 200
+
 [[redirects]]
   from   = "/api/send-agency-inquiry"
   to     = "/.netlify/functions/send-agency-inquiry"
