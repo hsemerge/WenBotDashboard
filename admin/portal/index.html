@@ -316,6 +316,7 @@
               <option value="free">🆓 Starter / no sub</option>
               <option value="moderators">🛡 Signed up as moderator</option>
               <option value="streamers">🎥 Signed up as streamer</option>
+              <option value="internal">🏢 Internal / test</option>
               <option value="ismod">🛡 Moderates a channel</option>
               <option value="hasmods">👥 Has moderators</option>
             </select>
@@ -890,7 +891,7 @@
   function renderDash(stats) {
     _lastStats = stats;                       // so tickets/outreach can re-render the tiles
     const now = Date.now(), DAY = 864e5;
-    const active = _users.filter(u => !u.archived && u.accountType !== 'moderator');
+    const active = _users.filter(u => !u.archived && isCustomer(u));
     const trialsSoon  = active.filter(u => u.planTrial && u.trialEndsAt && u.trialEndsAt > now && (u.trialEndsAt - now) <= 7 * DAY).length;
     const failed      = active.filter(u => u.paymentFailed).length;
     const notOnboard  = active.filter(u => !u.onboarded).length;
@@ -1595,7 +1596,7 @@
   window.renderChannels = function () {
     const q = ($('chSearch')?.value || '').toLowerCase().trim();
     const f = $('chFilter')?.value || '';
-    const A = _users.filter(u => !u.archived && u.accountType !== 'moderator');
+    const A = _users.filter(u => !u.archived && isCustomer(u));
     const now = Date.now();
 
     const liveNow = A.filter(u => u.kickLive);
@@ -1658,7 +1659,7 @@
   ];
 
   window.renderAnalytics = function () {
-    const A = _users.filter(u => !u.archived && u.accountType !== 'moderator');
+    const A = _users.filter(u => !u.archived && isCustomer(u));
     const withStats = A.filter(u => u.communityStats);
     const totalFor = (k) => withStats.reduce((s, u) => s + (Number(u.communityStats[k]) || 0), 0);
     const usersFor = (k) => withStats.filter(u => Number(u.communityStats[k]) > 0).length;
@@ -1715,9 +1716,11 @@
     { id:'comps',    label:'🎟 Comps'                   },
   ];
   const DAYMS = 864e5;
-  // Moderator logins are not customers: counting them inflates the funnel and
-  // drags the conversion rate down. Every ops queue works off streamers only.
-  const activeUsers = () => _users.filter(u => !u.archived && u.accountType !== 'moderator');
+  // Moderator logins and our own internal/test accounts are not customers:
+  // counting them inflates the funnel and drags the conversion rate down. Every
+  // ops queue works off real streamers only.
+  const isCustomer = (u) => u.accountType !== 'moderator' && u.accountType !== 'internal';
+  const activeUsers = () => _users.filter(u => !u.archived && isCustomer(u));
   const isTrial   = (u) => u.planTrial && u.trialEndsAt;
   const isPaying  = (u) => u.subscriptionActive && !u.planManual && !u.planTrial;
   const daysTo    = (ms) => (ms ? Math.ceil((ms - Date.now()) / DAYMS) : null);
@@ -2382,6 +2385,7 @@
         case 'free':       return !u.subscriptionActive && !u.planTrial;
         case 'moderators': return u.accountType === 'moderator';
         case 'streamers':  return u.accountType !== 'moderator';
+        case 'internal':   return u.accountType === 'internal';
         case 'ismod':      return (u.moderates || []).length > 0;
         case 'hasmods':    return (u.mods || []).length > 0;
         default:           return true;
@@ -2456,7 +2460,9 @@
       const hasModsTag = (u.mods || []).length
         ? ` <span class="pill" style="background:rgba(var(--accent-rgb),.12);color:var(--accent);" title="Moderated by ${esc((u.mods||[]).map(m=>m.channel||m.email||m.uid).join(', '))}">👥 ${(u.mods||[]).length}</span>` : '';
       const typeTag = u.accountType === 'moderator'
-        ? ` <span class="pill" style="background:rgba(140,125,255,.16);color:var(--purple);" title="${u.accountTypeStated ? 'Chose moderator at signup' : 'Inferred'}">🛡 mod</span>` : '';
+        ? ` <span class="pill" style="background:rgba(140,125,255,.16);color:var(--purple);" title="${u.accountTypeStated ? 'Chose moderator at signup' : 'Inferred from having no channel activity of its own'}">🛡 mod</span>`
+        : (u.accountType === 'internal'
+          ? ` <span class="pill" style="background:rgba(140,161,174,.18);color:var(--dim);" title="Our own account — never counted as a customer">🏢 internal</span>` : '');
       const main = `<tr${u.archived ? ' style="opacity:.55;"' : ''}>
         <td><span onclick="toggleDetail('${esc(u.uid)}')" style="cursor:pointer;user-select:none;color:var(--accent);">${open ? '▾' : '▸'}</span></td>
         <td><span style="cursor:pointer;" title="Open Customer 360" onclick="openCustomer('${esc(u.uid)}')">${esc(u.kickChannel || u.displayName || u.uid)}</span>${typeTag}${modTag}${hasModsTag}${archTag}${noteRow}</td>
