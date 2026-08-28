@@ -145,6 +145,19 @@
   .todo-row .meta { margin-left:auto; font-size:11px; color:var(--dim); white-space:nowrap; }
   .todo-row .del { color:var(--dim); cursor:pointer; padding:0 4px; } .todo-row .del:hover { color:var(--bad); }
 
+  /* Tickets */
+  .navbadge { margin-left:auto; font-family:var(--mono); font-size:10px; background:rgba(var(--accent-rgb),.18); border:1px solid rgba(var(--accent-rgb),.4); color:var(--accent); border-radius:20px; padding:0 7px; }
+  .prio { display:inline-block; font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; border-radius:4px; padding:1px 7px; border:1px solid currentColor; }
+  .prio.low { color:var(--dim); } .prio.normal { color:var(--accent); }
+  .prio.high { color:var(--warn); } .prio.urgent { color:var(--bad); }
+  .stat-chip { display:inline-block; font-size:11px; font-weight:700; border-radius:20px; padding:2px 10px; }
+  .stat-chip.open { background:rgba(var(--accent-rgb),.14); color:var(--accent); }
+  .stat-chip.in_progress { background:rgba(245,197,24,.14); color:var(--gold); }
+  .stat-chip.blocked { background:rgba(255,111,145,.15); color:var(--bad); }
+  .stat-chip.done { background:rgba(85,239,176,.14); color:var(--good); }
+  .thread { max-height:280px; overflow-y:auto; margin:6px 0 10px; }
+  .thread .c { display:flex; gap:10px; padding:6px 0; border-bottom:1px solid rgba(126,170,195,.07); }
+
   @media (max-width:900px){
     .app { grid-template-columns:1fr; }
     .sidebar { position:relative; height:auto; border-right:none; border-bottom:1px solid var(--line); }
@@ -189,6 +202,7 @@
         <div class="navgroup">Growth</div>
         <a href="#/outreach"   data-route="outreach"><span class="ico">📣</span> Outreach</a>
         <div class="navgroup">Wenbot Team</div>
+        <a href="#/tickets"    data-route="tickets"><span class="ico">🎫</span> Tickets <span id="navTicketCount" class="navbadge hidden"></span></a>
         <a href="#/todo"       data-route="todo"><span class="ico">☑</span> To-Do List</a>
       </nav>
       <div class="usercard">
@@ -378,6 +392,54 @@
           </div>
         </div>
 
+        <!-- TICKETS -->
+        <div id="ticketsView" class="hidden">
+          <div class="stats" id="ticketStats"></div>
+          <div class="tablecard" style="padding:16px;margin-bottom:16px;">
+            <div class="kicker">Wenbot Team</div>
+            <div class="panel-title">New ticket</div>
+            <div class="sub" style="margin-bottom:11px;">Work for the team — assign it to whoever owns it. Link a streamer channel when it's about one.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <input id="tkTitle" type="text" maxlength="200" placeholder="What needs doing?" style="flex:1;min-width:240px;" onkeydown="if(event.key==='Enter')tkCreate()">
+              <select id="tkAssignee" style="max-width:190px;" title="Assign to"></select>
+              <select id="tkPriority" style="max-width:130px;" title="Priority">
+                <option value="low">low</option>
+                <option value="normal" selected>normal</option>
+                <option value="high">high</option>
+                <option value="urgent">urgent</option>
+              </select>
+              <input id="tkChannel" type="text" maxlength="60" placeholder="Streamer (optional)" style="max-width:190px;" onkeydown="if(event.key==='Enter')tkCreate()">
+              <button onclick="tkCreate()">＋ Create</button>
+              <button class="btn-ghost" onclick="loadTickets()">↻</button>
+            </div>
+          </div>
+          <div class="toolbar">
+            <input id="tkSearch" type="text" placeholder="Search title / body / streamer…" oninput="renderTickets()">
+            <select id="tkStatusFilter" onchange="renderTickets()" style="max-width:180px;">
+              <option value="active">Active (not done)</option>
+              <option value="">All</option>
+              <option value="open">Open</option>
+              <option value="in_progress">In progress</option>
+              <option value="blocked">Blocked</option>
+              <option value="done">Done</option>
+            </select>
+            <label class="sub" style="display:flex;align-items:center;gap:6px;cursor:pointer;align-self:center;">
+              <input type="checkbox" id="tkMineOnly" onchange="renderTickets()" style="width:auto;"> Assigned to me
+            </label>
+            <span id="tkCount" class="sub" style="align-self:center;"></span>
+          </div>
+          <div class="tablecard">
+            <div style="overflow-x:auto;">
+              <table>
+                <thead><tr>
+                  <th></th><th>Ticket</th><th>Status</th><th>Priority</th><th>Assignee</th><th>Streamer</th><th>Activity</th><th></th>
+                </tr></thead>
+                <tbody id="ticketsTable"><tr><td colspan="8" class="muted" style="text-align:center;padding:24px;">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <!-- TEAM TO-DO (shared) -->
         <div id="todoView" class="hidden">
           <div class="stats" id="todoStats"></div>
@@ -512,6 +574,10 @@
       renderTable();
       renderDash(d.stats || {});
       loadActivity();
+      // Tickets + outreach drive dashboard tiles / the nav badge, so pull them
+      // up front rather than waiting for their routes to be opened.
+      loadTickets().catch(() => {});
+      loadOutreach().catch(() => {});
       if (_role === 'owner') {
         loadBillingOverview();
         if (typeof renderBilling === 'function') renderBilling();
@@ -539,6 +605,7 @@
     billing:   { view: 'billingView', title: 'Billing',     kick: 'Owner only', ownerOnly: true },
     slots:     { view: 'slotsView',   title: 'Slots',       kick: 'Catalog health' },
     outreach:  { view: 'outreachView',title: 'Outreach',    kick: 'Streamer pipeline' },
+    tickets:   { view: 'ticketsView', title: 'Tickets',     kick: 'Team queue' },
     todo:      { view: 'todoView',    title: 'To-Do List',  kick: 'Wenbot team' },
   };
   function currentRoute() {
@@ -560,6 +627,7 @@
     if (name === 'billing') renderBilling();
     if (name === 'todo' && !_todosLoaded) loadTodos();
     if (name === 'outreach' && !_outreachLoaded) loadOutreach();
+    if (name === 'tickets' && !_ticketsLoaded) loadTickets();
   }
   window.addEventListener('hashchange', () => routeTo(currentRoute(), true));
   // Legacy shim: the ported code calls switchTab('billing') from gotoBilling.
@@ -568,7 +636,9 @@
   // ── Dashboard ──────────────────────────────────────────────────────────────
   const PLAN_PRICE = { starter: 0, pro: 30, elite: 50, agency: 80 };
   const PLAN_COLOR = { starter: '#5d7484', pro: 'var(--accent)', elite: 'var(--gold)', agency: 'var(--good)' };
+  let _lastStats = null;
   function renderDash(stats) {
+    _lastStats = stats;                       // so tickets/outreach can re-render the tiles
     const now = Date.now(), DAY = 864e5;
     const active = _users.filter(u => !u.archived);
     const trialsSoon  = active.filter(u => u.planTrial && u.trialEndsAt && u.trialEndsAt > now && (u.trialEndsAt - now) <= 7 * DAY).length;
@@ -584,6 +654,8 @@
       ['Trials ending ≤7d', trialsSoon, '', trialsSoon ? 'warn' : ''],
       ['Payment failed', failed, '', failed ? 'bad' : ''],
       ['Not onboarded', notOnboard, '', ''],
+      // Team queue — lazily loaded, so it only appears once tickets have been fetched.
+      ...(_ticketsLoaded ? [['Open tickets', _tickets.filter(t => t.status !== 'done').length, '', '']] : []),
     ];
     $('dashTiles').innerHTML = tiles.map(([l, n, sub, tone]) =>
       `<div class="stat ${tone || ''}"><div class="n">${typeof n === 'number' ? n : esc(n)}</div><div class="l">${esc(l)}${sub ? ' · <small>' + esc(sub) + '</small>' : ''}</div></div>`).join('');
@@ -604,6 +676,10 @@
     // Outreach waiting on us — loaded lazily, so only shown once the board has been opened.
     const stale = _outreach.filter(c => c.stage !== 'won' && c.stage !== 'lost' && c.updatedAt && (now - c.updatedAt) > 7 * DAY).length;
     if (stale) bits.push(`<a href="#/outreach">📣 ${stale} outreach prospect${stale === 1 ? '' : 's'} untouched for 7+ days</a>`);
+    const tkMine = _tickets.filter(t => t.status !== 'done' && t.assignee === _me).length;
+    const tkHot  = _tickets.filter(t => t.status !== 'done' && (t.priority === 'urgent' || t.priority === 'high')).length;
+    if (tkHot)  bits.push(`<a href="#/tickets">🎫 ${tkHot} high/urgent ticket${tkHot === 1 ? '' : 's'} open</a>`);
+    if (tkMine) bits.push(`<a href="#/tickets" onclick="setTimeout(()=>{var m=document.getElementById('tkMineOnly');if(m){m.checked=true;renderTickets();}},50)">🙋 ${tkMine} ticket${tkMine === 1 ? '' : 's'} assigned to you</a>`);
     $('dashAttention').innerHTML = bits.length ? bits.map(b => `<div style="margin:5px 0;">${b}</div>`).join('') : '<span class="ok">Nothing urgent. 🎉</span>';
   }
   window.setUserFilter = function (v) { const el = $('userFilter'); if (el) { el.value = v; } renderTable(); };
@@ -808,6 +884,180 @@
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
       _orExpanded.delete(id); delete _orNotes[id];
       await loadOutreach();
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  // ── Tickets ────────────────────────────────────────────────────────────────
+  // The team queue: work we assign to each other. Status moves are written into
+  // the comment thread (same trick as outreach), so a ticket reads as a story.
+  let _tickets = [], _ticketsLoaded = false, _tkExpanded = new Set(), _tkComments = {};
+  const TK_STATUS = ['open', 'in_progress', 'blocked', 'done'];
+  const TK_LABEL  = { open:'open', in_progress:'in progress', blocked:'blocked', done:'done' };
+  const TK_PRIOS  = ['low', 'normal', 'high', 'urgent'];
+
+  function tkTeam() {
+    // The team = whoever holds a ticket, owns outreach, or is signed in.
+    return [...new Set([_me,
+      ..._tickets.map(t => t.assignee).filter(Boolean),
+      ..._outreach.map(c => c.owner).filter(Boolean)])];
+  }
+
+  window.loadTickets = async function () {
+    try {
+      const r = await authedFetch('/api/admin-tickets');
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      _tickets = d.tickets || []; _ticketsLoaded = true;
+      const sel = $('tkAssignee');
+      if (sel) {
+        const keep = sel.value;
+        sel.innerHTML = '<option value="">unassigned</option>'
+          + tkTeam().map(o => `<option value="${esc(o)}">${esc(String(o).split('@')[0])}</option>`).join('');
+        sel.value = keep || _me;
+      }
+      renderTickets();
+      renderDash(_lastStats || {});     // open-ticket tile + nav badge follow
+    } catch (e) { $('ticketsTable').innerHTML = `<tr><td colspan="8" class="warn" style="text-align:center;padding:24px;">${esc(e.message)}</td></tr>`; }
+  };
+
+  window.renderTickets = function () {
+    const q  = ($('tkSearch')?.value || '').toLowerCase().trim();
+    const sf = $('tkStatusFilter') ? $('tkStatusFilter').value : 'active';
+    const mine = !!$('tkMineOnly')?.checked;
+    let rows = _tickets.filter(t => {
+      if (mine && t.assignee !== _me) return false;
+      if (sf === 'active') { if (t.status === 'done') return false; }
+      else if (sf && t.status !== sf) return false;
+      if (q && !(`${t.title} ${t.body || ''} ${t.relatedChannel || ''}`.toLowerCase().includes(q))) return false;
+      return true;
+    });
+
+    const openCount = _tickets.filter(t => t.status !== 'done').length;
+    const mineOpen  = _tickets.filter(t => t.status !== 'done' && t.assignee === _me).length;
+    const urgent    = _tickets.filter(t => t.status !== 'done' && (t.priority === 'urgent' || t.priority === 'high')).length;
+    const stale     = _tickets.filter(t => t.status !== 'done' && t.lastActivityAt && (Date.now() - t.lastActivityAt) > 3 * 864e5).length;
+    $('ticketStats').innerHTML =
+      `<div class="stat"><div class="n">${openCount}</div><div class="l">Open tickets</div></div>`
+      + `<div class="stat"><div class="n">${mineOpen}</div><div class="l">Assigned to me</div></div>`
+      + `<div class="stat ${urgent ? 'warn' : ''}"><div class="n">${urgent}</div><div class="l">High · urgent</div></div>`
+      + `<div class="stat ${stale ? 'bad' : ''}"><div class="n">${stale}</div><div class="l">Quiet 3+ days</div></div>`;
+
+    const badge = $('navTicketCount');
+    if (badge) { badge.textContent = openCount || ''; badge.classList.toggle('hidden', !openCount); }
+    const c = $('tkCount'); if (c) c.textContent = `${rows.length} of ${_tickets.length}`;
+
+    if (!rows.length) { $('ticketsTable').innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px;">Nothing here — create a ticket above.</td></tr>'; return; }
+    $('ticketsTable').innerHTML = rows.map(t => {
+      const open = _tkExpanded.has(t.id);
+      const statusSel = `<select onchange="tkSetField('${esc(t.id)}','status',this.value)" style="width:125px;font-size:12px;padding:3px 6px;">`
+        + TK_STATUS.map(s => `<option value="${s}" ${s === t.status ? 'selected' : ''}>${TK_LABEL[s]}</option>`).join('') + `</select>`;
+      const prioSel = `<select onchange="tkSetField('${esc(t.id)}','priority',this.value)" style="width:100px;font-size:12px;padding:3px 6px;">`
+        + TK_PRIOS.map(p => `<option value="${p}" ${p === t.priority ? 'selected' : ''}>${p}</option>`).join('') + `</select>`;
+      const head = `<tr${t.status === 'done' ? ' style="opacity:.55;"' : ''}>
+        <td><span onclick="tkToggle('${esc(t.id)}')" style="cursor:pointer;user-select:none;color:var(--accent);">${open ? '▾' : '▸'}</span></td>
+        <td style="white-space:normal;max-width:420px;"><b>${esc(t.title)}</b>${t.commentCount ? ` <span class="muted" style="font-size:11px;">💬 ${t.commentCount}</span>` : ''}</td>
+        <td>${statusSel}</td>
+        <td>${prioSel}</td>
+        <td class="muted">${t.assignee ? esc(String(t.assignee).split('@')[0]) : '<span class="muted">—</span>'}</td>
+        <td class="muted">${t.relatedChannel ? esc(t.relatedChannel) : '—'}</td>
+        <td class="muted">${rel(t.lastActivityAt)}</td>
+        <td><span title="Delete ticket" style="cursor:pointer;color:var(--dim);" onclick="tkDelete('${esc(t.id)}','${esc(String(t.title).replace(/'/g, ''))}')">✕</span></td>
+      </tr>`;
+      return head + (open ? `<tr><td colspan="8" style="background:rgba(4,10,16,.6);">${tkDetailHtml(t)}</td></tr>` : '');
+    }).join('');
+  };
+
+  function tkDetailHtml(t) {
+    const cs = _tkComments[t.id];
+    let thread;
+    if (!cs || cs === 'loading') thread = '<div class="muted">Loading thread…</div>';
+    else if (!cs.length) thread = '<div class="muted">No comments yet.</div>';
+    else thread = cs.slice().reverse().map(c => {
+      const when = c.at ? new Date(c.at).toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+      const who  = esc(String(c.by || '?').split('@')[0]);
+      const body = c.statusTo
+        ? `<i class="muted">moved ${esc(TK_LABEL[c.statusFrom] || c.statusFrom || '?')} → ${esc(TK_LABEL[c.statusTo] || c.statusTo)}</i>`
+        : esc(c.text || '');
+      return `<div class="c"><span class="mono muted" style="font-size:10.5px;white-space:nowrap;min-width:96px;">${when}</span><span><b style="color:var(--bright);">${who}</b> · ${body}</span></div>`;
+    }).join('');
+
+    return `<div style="padding:12px 6px;font-size:12.5px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+        <span class="muted">Assignee:</span>
+        <select id="tk-as-${esc(t.id)}" onchange="tkSetField('${esc(t.id)}','assignee',this.value)" style="width:190px;font-size:12px;padding:4px 8px;">
+          <option value="" ${!t.assignee ? 'selected' : ''}>unassigned</option>
+          ${tkTeam().map(o => `<option value="${esc(o)}" ${o === t.assignee ? 'selected' : ''}>${esc(String(o).split('@')[0])}</option>`).join('')}
+        </select>
+        <span class="muted">Streamer:</span>
+        <input id="tk-ch-${esc(t.id)}" value="${esc(t.relatedChannel || '')}" placeholder="channel" style="font-size:12px;padding:4px 8px;width:170px;">
+        <button class="btn-ghost" onclick="tkSetField('${esc(t.id)}','relatedChannel',document.getElementById('tk-ch-${esc(t.id)}').value)">Save</button>
+        <span class="muted" style="margin-left:auto;font-size:11px;">opened by ${esc(String(t.createdBy || '').split('@')[0])} · ${rel(t.createdAt)}</span>
+      </div>
+      <div style="margin-bottom:8px;">
+        <textarea id="tk-body-${esc(t.id)}" placeholder="Details…" style="min-height:54px;font-size:12px;resize:vertical;">${esc(t.body || '')}</textarea>
+        <button class="btn-ghost" style="margin-top:6px;" onclick="tkSetField('${esc(t.id)}','body',document.getElementById('tk-body-${esc(t.id)}').value)">Save details</button>
+      </div>
+      <div class="kicker">Thread</div>
+      <div class="thread">${thread}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input id="tk-c-${esc(t.id)}" placeholder="Add a comment…" style="flex:1;min-width:240px;font-size:12px;padding:6px 9px;" onkeydown="if(event.key==='Enter')tkComment('${esc(t.id)}')">
+        <button onclick="tkComment('${esc(t.id)}')">Comment</button>
+      </div>
+    </div>`;
+  }
+
+  window.tkToggle = async function (id) {
+    if (_tkExpanded.has(id)) { _tkExpanded.delete(id); renderTickets(); return; }
+    _tkExpanded.add(id);
+    if (!_tkComments[id]) {
+      _tkComments[id] = 'loading'; renderTickets();
+      try {
+        const r = await authedPost('/api/admin-tickets', { action: 'comments', id });
+        const d = await r.json();
+        _tkComments[id] = r.ok ? (d.comments || []) : [];
+      } catch { _tkComments[id] = []; }
+    }
+    renderTickets();
+  };
+  window.tkCreate = async function () {
+    const title = ($('tkTitle').value || '').trim();
+    if (!title) return;
+    try {
+      const r = await authedPost('/api/admin-tickets', { action: 'create', title,
+        assignee: $('tkAssignee')?.value || '', priority: $('tkPriority')?.value || 'normal',
+        relatedChannel: ($('tkChannel')?.value || '').trim() });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      $('tkTitle').value = ''; $('tkChannel').value = '';
+      await loadTickets();
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+  window.tkSetField = async function (id, key, value) {
+    try {
+      const r = await authedPost('/api/admin-tickets', { action: 'update', id, fields: { [key]: value } });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      if (key === 'status') { delete _tkComments[id]; if (_tkExpanded.has(id)) { _tkExpanded.delete(id); await tkToggle(id); } }
+      await loadTickets();
+    } catch (e) { alert('Failed: ' + e.message); loadTickets(); }
+  };
+  window.tkComment = async function (id) {
+    const el = $('tk-c-' + id); const text = (el?.value || '').trim();
+    if (!text) return;
+    el.value = '';
+    try {
+      const r = await authedPost('/api/admin-tickets', { action: 'comment', id, text });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      delete _tkComments[id]; _tkExpanded.delete(id); await tkToggle(id);
+      await loadTickets();
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+  window.tkDelete = async function (id, title) {
+    if (!confirm(`Delete ticket "${title}"? The thread goes with it.`)) return;
+    try {
+      const r = await authedPost('/api/admin-tickets', { action: 'delete', id });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      _tkExpanded.delete(id); delete _tkComments[id];
+      await loadTickets();
     } catch (e) { alert('Failed: ' + e.message); }
   };
 
