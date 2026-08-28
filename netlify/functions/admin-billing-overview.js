@@ -40,7 +40,7 @@ exports.handler = async (event) => {
   const ip = event.headers["x-forwarded-for"]?.split(",")[0].trim() || "unknown";
   if (!(await checkRateLimit(db, ip, "admin_billing_ov", 30, 60))) return res(429, { error: "Too many requests" });
 
-  const adminUser = await requireAdmin(event);
+  const adminUser = await requireAdmin(event, "owner"); // billing/destructive: owner only
   if (!adminUser) return res(403, { error: "Not authorized" });
 
   try {

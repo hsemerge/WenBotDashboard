@@ -48,7 +48,7 @@ exports.handler = async (event) => {
     return res(429, { error: "Too many requests" });
   }
 
-  const adminUser = await requireAdmin(event);
+  const adminUser = await requireAdmin(event, "owner"); // billing/destructive: owner only
   if (!adminUser) return res(403, { error: "Not authorized" });
 
   let body = {};

@@ -60,6 +60,10 @@
   .ok { color:var(--green); } .no { color:var(--dim); } .warn { color:var(--red); }
   .num { font-variant-numeric:tabular-nums; }
   .muted { color:var(--dim); }
+  /* Role gating (cosmetic only — the server refuses regardless): a staff login
+     tags <body> with .role-staff, which removes every owner-only surface
+     (Billing tab, revenue cards/columns, invoice controls, permanent delete). */
+  .role-staff .owner-only { display:none !important; }
 </style>
 </head>
 <body>
@@ -72,8 +76,11 @@
       <input id="email" type="email" autocomplete="username" required>
       <label>Password</label>
       <input id="password" type="password" autocomplete="current-password" required>
-      <label>Admin secret <span style="text-transform:none;color:#5a5f78;">(if required)</span></label>
+      <label>Admin secret <span style="text-transform:none;color:#5a5f78;">(owners; staff leave blank)</span></label>
       <input id="secret" type="password" autocomplete="off" placeholder="optional">
+      <label class="sub" style="display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:0;margin-top:8px;">
+        <input type="checkbox" id="rememberSecret" style="width:auto;"> Remember the secret on this device
+      </label>
       <div style="margin-top:18px;"><button id="loginBtn" type="submit">Sign in</button></div>
       <div class="err" id="loginErr"></div>
     </form>
@@ -91,7 +98,7 @@
 
     <div class="tabs" style="display:flex;gap:8px;margin-bottom:16px;">
       <button id="tabStreamers" onclick="switchTab('streamers')">Streamers</button>
-      <button id="tabBilling" class="btn-ghost" onclick="switchTab('billing')">💳 Billing</button>
+      <button id="tabBilling" class="btn-ghost owner-only" onclick="switchTab('billing')">💳 Billing</button>
       <button id="tabSlots" class="btn-ghost" onclick="switchTab('slots')">Slots</button>
     </div>
 
@@ -134,7 +141,7 @@
           <table>
             <thead><tr id="usersHead">
               <th></th><th data-sort="channel">Channel</th><th data-sort="plan">Plan</th><th data-sort="sub">Sub</th><th data-sort="onboarded">Onboarded</th>
-              <th data-sort="referrals">Referrals</th><th class="num" data-sort="paid">Total paid</th><th data-sort="lastPayment">Last payment</th><th data-sort="lastLogin">Last login</th><th data-sort="email">Email</th>
+              <th data-sort="referrals">Referrals</th><th class="num owner-only" data-sort="paid">Total paid</th><th class="owner-only" data-sort="lastPayment">Last payment</th><th data-sort="lastLogin">Last login</th><th data-sort="email">Email</th>
             </tr></thead>
             <tbody id="usersTable"><tr><td colspan="10" class="muted" style="text-align:center;padding:24px;">…</td></tr></tbody>
           </table>
@@ -218,7 +225,20 @@
 (function () {
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
-  let _users = [], _adminSecret = '', _billingOverview = {};
+  let _users = [], _adminSecret = '', _billingOverview = {}, _role = 'owner';
+
+  // Interim convenience until per-account TOTP MFA replaces the shared secret:
+  // remember it on this device (opt-in). The server still verifies it on every
+  // request, so this only trades local-device storage for retyping.
+  try {
+    const saved = localStorage.getItem('wb_admin_secret');
+    if (saved) {
+      _adminSecret = saved;   // also fixes reloads: a live session used to lose the secret and 403 out
+      const el = document.getElementById('secret'), cb = document.getElementById('rememberSecret');
+      if (el) el.value = saved;
+      if (cb) cb.checked = true;
+    }
+  } catch {}
 
   // Per-streamer crypto-billing status derived from the actual invoices (source of
   // truth), so the Billing tab shows anyone with invoices regardless of stale flags.
@@ -248,6 +268,15 @@
     _adminSecret = $('secret').value || '';
     try {
       await auth.signInWithEmailAndPassword($('email').value.trim(), $('password').value);
+      // Persist only after a SUCCESSFUL sign-in (a typo'd password shouldn't
+      // store the secret). Removing is deliberate-only: typing a secret with the
+      // box unchecked clears the stored one; an empty staff login leaves the
+      // owner's remembered secret alone on a shared machine.
+      try {
+        const cb = $('rememberSecret');
+        if (cb && cb.checked && _adminSecret) localStorage.setItem('wb_admin_secret', _adminSecret);
+        else if (_adminSecret) localStorage.removeItem('wb_admin_secret');
+      } catch {}
       // onAuthStateChanged handles the rest
     } catch (err) {
       $('loginErr').textContent = 'Sign-in failed: ' + (err.code || err.message);
@@ -274,11 +303,20 @@
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       _users = d.users || [];
-      $('whoami').textContent = d.admin || (auth.currentUser && auth.currentUser.email) || '';
+      _role = d.role || 'owner';
+      // Staff never see the owner surface. Cosmetic here; the server enforces.
+      document.body.classList.toggle('role-staff', _role !== 'owner');
+      // A staff session must not carry (or display) an owner secret remembered
+      // on a shared machine — stop sending it and blank the field. The stored
+      // copy is left for the owner.
+      if (_role !== 'owner') { _adminSecret = ''; const se = $('secret'); if (se) se.value = ''; }
+      $('whoami').textContent = (d.admin || (auth.currentUser && auth.currentUser.email) || '') + (_role !== 'owner' ? ' · staff' : '');
       renderStats(d.stats || {});
       renderTable();
-      loadBillingOverview();
-      if (typeof renderBilling === 'function') renderBilling();
+      if (_role === 'owner') {
+        loadBillingOverview();
+        if (typeof renderBilling === 'function') renderBilling();
+      }
       $('footNote').textContent = `${_users.length} streamers · loaded ${new Date().toLocaleTimeString()}`;
       show('panel');
     } catch (e) {
@@ -297,13 +335,16 @@
   function renderStats(s) {
     const byPlan = s.byPlan || {};
     const planLine = ['starter','pro','elite','agency'].filter(p => byPlan[p]).map(p => `${byPlan[p]} ${p}`).join(' · ') || '—';
-    $('statCards').innerHTML = [
+    const cards = [
       ['Streamers', s.total || 0, ''],
       ['Onboarded', s.onboarded || 0, ''],
       ['Active subs', s.activeSubs || 0, ''],
-      ['Total revenue', money(s.totalRevenue), ''],
+      // Revenue is owner-only; the server already withholds it for staff.
+      ...(_role === 'owner' ? [['Total revenue', money(s.totalRevenue), '']] : []),
       ['By plan', '', planLine],
-    ].map(([l, n, sub]) => `<div class="stat"><div class="n">${typeof n === 'number' ? n : esc(n)}</div><div class="l">${esc(l)}${sub ? ' · <small>'+esc(sub)+'</small>' : ''}</div></div>`).join('');
+    ];
+    $('statCards').innerHTML = cards
+      .map(([l, n, sub]) => `<div class="stat"><div class="n">${typeof n === 'number' ? n : esc(n)}</div><div class="l">${esc(l)}${sub ? ' · <small>'+esc(sub)+'</small>' : ''}</div></div>`).join('');
   }
 
   // Click-to-sort on the streamer table. Getters return raw comparable values,
@@ -394,10 +435,16 @@
         + `</select>`;
       const ovp = _billingOverview[u.uid];
       const cryptoPaying = u.planManual && ovp && ovp.paidCount > 0;   // manual plan + real payments = paying, not comped
+      // Staff can't see billing, so they can't tell a comp from a crypto-payer
+      // (both are planManual). Show them a neutral "manual" pill with NO release
+      // link — clicking "↺ auto" on a crypto-paying customer would strip a plan
+      // someone is paying for.
       const compTag = cryptoPaying
         ? ` <span class="pill" style="background:rgba(45,212,150,.15);color:#5fe0a8;margin-left:4px;" title="Paying via crypto, plan locked">crypto</span>`
         : (u.planManual
-          ? ` <span class="pill comp" title="Comp, overrides Stripe">comp</span> <a href="#" onclick="clearManual('${esc(u.uid)}');return false;" class="muted" style="font-size:11px;">↺ auto</a>`
+          ? (_role === 'owner'
+            ? ` <span class="pill comp" title="Comp, overrides Stripe">comp</span> <a href="#" onclick="clearManual('${esc(u.uid)}');return false;" class="muted" style="font-size:11px;">↺ auto</a>`
+            : ` <span class="pill comp" title="Manually managed plan">manual</span>`)
           : '');
       // Recently-expired trial (post-sweep): trialExpiredAt set within the last 30
       // days and no longer on a trial — so you can see who just lapsed.
@@ -424,8 +471,8 @@
         <td>${sub}</td>
         <td>${u.onboarded ? '<span class="ok">yes</span>' : '<span class="no">no</span>'}</td>
         <td class="num">${u.referralCount || 0}</td>
-        <td class="num">${money(u.totalPaid)}</td>
-        <td class="muted">${date(u.lastPaymentAt)}</td>
+        <td class="num owner-only">${money(u.totalPaid)}</td>
+        <td class="muted owner-only">${date(u.lastPaymentAt)}</td>
         <td class="muted" title="${esc(date(u.lastLoginAt))}">${rel(u.lastLoginAt)}</td>
         <td class="muted">${esc(u.email || '—')}</td>
       </tr>`;
@@ -444,13 +491,13 @@
     const u = _users.find(x => x.uid === uid) || {};
     const ch = esc(u.kickChannel || uid);
     const actions = `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;">`
-      + `<button class="btn-ghost" style="border-color:var(--accent);color:var(--accent);" onclick="manageStreamer('${esc(uid)}','${ch}')">🎛 Manage account (switch in)</button>`
+      + `<button class="btn-ghost owner-only" style="border-color:var(--accent);color:var(--accent);" onclick="manageStreamer('${esc(uid)}','${ch}')">🎛 Manage account (switch in)</button>`
       + `<button class="btn-ghost" style="border-color:#a78bfa;color:#a78bfa;" onclick="giveTrial('${esc(uid)}','pro')">🎁 Give Pro trial</button>`
       + `<button class="btn-ghost" style="border-color:#ffd700;color:#ffd700;" onclick="giveTrial('${esc(uid)}','elite')">🎁 Give Elite trial</button>`
       + (u.archived
           ? `<button class="btn-ghost" onclick="unarchiveStreamer('${esc(uid)}','${ch}')">♻ Unarchive</button>`
           : `<button class="btn-ghost" onclick="archiveStreamer('${esc(uid)}','${ch}')">📦 Archive</button>`)
-      + `<button class="btn-ghost" style="border-color:var(--red);color:var(--red);" onclick="deleteStreamer('${esc(uid)}','${ch}')">🗑 Delete permanently</button>`
+      + `<button class="btn-ghost owner-only" style="border-color:var(--red);color:var(--red);" onclick="deleteStreamer('${esc(uid)}','${ch}')">🗑 Delete permanently</button>`
       + `</div>`;
 
     // Free-trial status (comped plan with an expiry).
@@ -480,7 +527,7 @@
         <input id="refset-${esc(uid)}" placeholder="referrer channel" style="background:#0c0c14;border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:12px;padding:4px 8px;width:170px;">
         <button class="btn-ghost" onclick="setReferrer('${esc(uid)}')">${d.referredByChannel ? 'Change' : 'Set'} referrer</button>
       </div>
-      <div style="margin-top:10px;padding:9px 13px;background:rgba(91,140,255,.05);border:1px solid var(--border);border-radius:9px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div class="owner-only" style="margin-top:10px;padding:9px 13px;background:rgba(91,140,255,.05);border:1px solid var(--border);border-radius:9px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
         <span><b style="color:var(--bright);">Billing:</b> <span class="muted">${billSummary} · ${money(d.totalPaid)} paid</span></span>
         <button class="btn-ghost" style="border-color:var(--accent);color:var(--accent);margin-left:auto;" onclick="gotoBilling('${esc(uid)}')">💳 Manage billing →</button>
       </div>
@@ -578,6 +625,7 @@
     renderBilling();
   };
   window.gotoBilling = function (uid) {
+    if (_role !== 'owner') return;
     switchTab('billing');
     _billingExpanded.add(uid);
     if (!_detail[uid]) { _detail[uid] = 'loading'; renderBilling(); fetchDetail(uid).then(renderBilling); }
@@ -686,6 +734,7 @@
 
   // ── Tabs + Slots ──────────────────────────────────────────────────────────
   window.switchTab = function (tab) {
+    if (tab === 'billing' && _role !== 'owner') return;   // staff have no billing surface
     const map = { streamers: 'usersView', billing: 'billingView', slots: 'slotsView' };
     Object.entries(map).forEach(([t, id]) => { const el = $(id); if (el) el.classList.toggle('hidden', t !== tab); });
     $('tabStreamers').className = tab === 'streamers' ? '' : 'btn-ghost';

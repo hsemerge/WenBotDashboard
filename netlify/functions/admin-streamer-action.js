@@ -32,6 +32,12 @@ exports.handler = async (event) => {
   if (!targetUid) return res(400, { error: "Missing uid" });
   if (!["archive", "unarchive", "delete"].includes(action)) return res(400, { error: "Invalid action" });
 
+  // Permanent deletion is owner-only; staff keep the reversible archive path.
+  // Named error (not a bare 403) so a staff admin sees why, not "broken button".
+  if (action === "delete" && adminUser.role !== "owner") {
+    return res(403, { error: "Deleting permanently is owner-only. You can archive instead." });
+  }
+
   const ref  = db.collection("streamers").doc(targetUid);
   const snap = await ref.get();
   if (!snap.exists) return res(404, { error: "Streamer not found" });

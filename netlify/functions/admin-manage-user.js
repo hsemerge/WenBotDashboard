@@ -38,6 +38,17 @@ exports.handler = async (event) => {
   let body = {}; try { body = JSON.parse(event.body || "{}"); } catch {}
   const targetUid = String(body.uid || "").trim();
   const action    = body.action === "revoke" ? "revoke" : "grant";
+
+  // Switch-in is OWNER-ONLY for now. Granting delegatedFor puts the admin inside
+  // the streamer's dashboard, where the client reads that streamer's payments +
+  // invoices straight from Firestore (the rules see any delegated uid as a mod) —
+  // which would hand a staff admin exactly the billing surface the role model
+  // hides. Until staff switch-in runs on a separate, billing-blind claim, only
+  // the owner gets it. Revoke stays any-admin so a leftover grant can always be
+  // cleaned up.
+  if (action === "grant" && adminUser.role !== "owner") {
+    return res(403, { error: "Switching into accounts is owner-only for now — it exposes the streamer's billing pages." });
+  }
   if (!targetUid) return res(400, { error: "Missing uid" });
   if (targetUid === adminUser.uid) return res(400, { error: "That's your own account." });
 

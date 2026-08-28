@@ -45,9 +45,12 @@ exports.handler = async (event) => {
     });
   } catch { referrals = []; }
 
-  // Payment history.
+  // Payment history + invoices — OWNER ONLY (staff see no billing at all). The
+  // reads are skipped for staff, not just the fields hidden, so the data never
+  // leaves Firestore for a staff request.
+  const isOwner = adminUser.role === "owner";
   let payments = [];
-  try {
+  if (isOwner) try {
     const ps = await ref.collection("payments").orderBy("paidAt", "desc").limit(100).get();
     payments = ps.docs.map((d) => {
       const p = d.data();
@@ -57,7 +60,7 @@ exports.handler = async (event) => {
 
   // Manual/crypto invoices issued to this streamer (newest first).
   let invoices = [];
-  try {
+  if (isOwner) try {
     const is = await ref.collection("invoices").orderBy("createdAt", "desc").limit(100).get();
     invoices = is.docs.map((d) => {
       const v = d.data();
@@ -85,15 +88,16 @@ exports.handler = async (event) => {
     kickChannel:       data.kickChannel || null,
     referredByChannel,
     referralCount:     data.referralCount || referrals.length,
-    totalPaid:         data.totalPaid || 0,
+    // Billing fields null out for staff (owner-only surface).
+    totalPaid:         isOwner ? (data.totalPaid || 0) : null,
     referrals,
     payments,
     invoices,
     plan:                 data.plan || "starter",
     planManual:           data.planManual === true,
-    stripeSubscribed:     !!data.stripeSubscriptionId,
-    stripePeriodEnd:      ms(data.stripePeriodEnd),
-    cryptoBillingNextDue: ms(data.cryptoBillingNextDue),
+    stripeSubscribed:     isOwner ? !!data.stripeSubscriptionId : null,
+    stripePeriodEnd:      isOwner ? ms(data.stripePeriodEnd) : null,
+    cryptoBillingNextDue: isOwner ? ms(data.cryptoBillingNextDue) : null,
     // Trial (comped plan with an expiry) + internal admin note.
     planTrial:            data.planTrial === true,
     trialPlan:            data.trialPlan || null,

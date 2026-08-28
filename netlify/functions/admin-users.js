@@ -92,6 +92,23 @@ exports.handler = async (event) => {
     byPlan:       users.reduce((m, u) => { const k = u.plan; m[k] = (m[k] || 0) + 1; return m; }, {}),
   };
 
-  logAdminAudit(db, adminUser.uid, "admin_users_view", { count: users.length });
-  return res(200, { stats, users, admin: adminUser.email });
+  // Staff see the ops surface only — billing is hidden entirely (owner's call).
+  // Stripped SERVER-side so the numbers never even reach a staff browser: every
+  // dollar figure, payment date, renewal date and billing method goes; the
+  // booleans a support conversation needs (has an active sub / payment failed)
+  // stay. The list is then RE-SORTED alphabetically — the owner's default order
+  // is total-paid descending, which would hand staff the exact revenue ranking
+  // the stripped fields hide.
+  if (adminUser.role !== "owner") {
+    for (const u of users) {
+      delete u.totalPaid; delete u.paymentCount; delete u.lastPaymentAt;
+      delete u.stripePeriodEnd; delete u.cryptoNextDue; delete u.cryptoBilling;
+      delete u.stripeSubscribed;
+    }
+    delete stats.totalRevenue;
+    users.sort((a, b) => String(a.kickChannel || "").localeCompare(String(b.kickChannel || "")));
+  }
+
+  logAdminAudit(db, adminUser.uid, "admin_users_view", { count: users.length, role: adminUser.role });
+  return res(200, { stats, users, admin: adminUser.email, role: adminUser.role });
 };
