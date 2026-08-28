@@ -81,6 +81,44 @@ exports.handler = async (event) => {
     };
   });
 
+  // Moderator relationships, derived from `modUids` (the source of truth — see
+  // _lib/team.js). Deliberately NOT from the delegatedFor claim: an admin
+  // switching into an account is also granted delegation, so that claim would
+  // report every admin as a moderator of everyone they have ever helped.
+  //
+  // This is a RELATIONSHIP, not an account type: 7 of the 8 real moderators run
+  // their own channel as well, so "is a moderator" and "is a streamer" are not
+  // alternatives. Each account gets both directions — who moderates them, and
+  // whose channels they moderate.
+  {
+    const byUid = Object.fromEntries(users.map((u) => [u.uid, u]));
+    users.forEach((u) => { u.mods = []; u.moderates = []; });
+    snap.docs.forEach((d) => {
+      const owner = byUid[d.id];
+      const list  = d.data().modUids;
+      if (!owner || !Array.isArray(list)) return;
+      list.forEach((modUid) => {
+        const mod = byUid[modUid];
+        owner.mods.push({ uid: modUid, channel: mod ? (mod.kickChannel || null) : null, email: mod ? mod.email : null });
+        if (mod) mod.moderates.push({ uid: d.id, channel: owner.kickChannel || null });
+      });
+    });
+
+    // A moderator added before account types existed may have no streamer doc at
+    // all (they never finished onboarding), which left their row blank — "is
+    // moderated by:" and then nothing. Resolve those from Firebase Auth so the
+    // person is at least identifiable by email.
+    const orphans = [...new Set(users.flatMap((u) => u.mods).filter((m) => !m.channel && !m.email).map((m) => m.uid))];
+    if (orphans.length) {
+      try {
+        const r = await admin.auth().getUsers(orphans.slice(0, 100).map((uid) => ({ uid })));
+        const emails = {};
+        r.users.forEach((au) => { emails[au.uid] = au.email || null; });
+        users.forEach((u) => u.mods.forEach((m) => { if (!m.email && emails[m.uid]) m.email = emails[m.uid]; }));
+      } catch (e) { console.warn("[admin-users] orphan mod lookup:", e.message); }
+    }
+  }
+
   // Last login — pulled from Firebase Auth metadata (no per-login writes needed).
   // Batched getUsers (max 100/call). Non-fatal: on any failure, leave it null.
   try {

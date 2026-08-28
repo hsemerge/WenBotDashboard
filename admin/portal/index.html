@@ -314,8 +314,10 @@
               <option value="paid">💳 Paying</option>
               <option value="failed">⚠️ Payment failed</option>
               <option value="free">🆓 Starter / no sub</option>
-              <option value="moderators">🛡 Moderators only</option>
-              <option value="streamers">🎥 Streamers only</option>
+              <option value="moderators">🛡 Signed up as moderator</option>
+              <option value="streamers">🎥 Signed up as streamer</option>
+              <option value="ismod">🛡 Moderates a channel</option>
+              <option value="hasmods">👥 Has moderators</option>
             </select>
             <button class="btn-ghost" onclick="loadUsers()">↻ Refresh</button>
             <label class="sub" style="display:flex;align-items:center;gap:6px;cursor:pointer;align-self:center;">
@@ -1318,6 +1320,26 @@
         }).join('') : '<div class="muted">No admin actions recorded.</div>'}</div>
       </div>`;
 
+    // Who moderates this channel, and whose channels this person moderates.
+    // Both directions matter in support: "their mod can't save settings" needs
+    // the first, "why can this person see that account" needs the second.
+    const mods = u.mods || [], moderates = u.moderates || [];
+    const teamHtml = (!mods.length && !moderates.length) ? '' : `
+      <div class="tablecard" style="padding:16px;">
+        <div class="kicker">Team</div>
+        <div class="panel-title">Moderators</div>
+        ${mods.length ? `<div class="sub" style="margin:8px 0 4px;">Can manage this channel:</div>
+          ${mods.map(m => `<div style="display:flex;align-items:center;gap:8px;margin:5px 0;">
+            <b style="color:var(--bright);cursor:pointer;" onclick="openCustomer('${esc(m.uid)}')">${esc(m.channel || m.email || m.uid)}</b>
+            ${m.email ? `<span class="muted" style="font-size:11.5px;">${esc(m.email)}</span>` : ''}
+          </div>`).join('')}`
+          : '<div class="sub" style="margin-top:8px;">No moderators added.</div>'}
+        ${moderates.length ? `<div class="sub" style="margin:12px 0 4px;padding-top:10px;border-top:1px solid var(--line);">Also moderates for:</div>
+          ${moderates.map(m => `<div style="margin:5px 0;">
+            <b style="color:var(--bright);cursor:pointer;" onclick="openCustomer('${esc(m.uid)}')">${esc(m.channel || m.uid)}</b>
+          </div>`).join('')}` : ''}
+      </div>`;
+
     // Login & support — the actions that otherwise mean opening the Firebase
     // console. Reset/verification links are emailed to the account holder, never
     // shown here, so "reset their password" can't become a takeover tool.
@@ -1383,7 +1405,7 @@
       </div>
       <div class="c360grid">
         <div style="display:flex;flex-direction:column;gap:16px;">${billing}${outreachHtml}</div>
-        <div style="display:flex;flex-direction:column;gap:16px;">${ticketsHtml}${loginHtml}${notesHtml}${histHtml}</div>
+        <div style="display:flex;flex-direction:column;gap:16px;">${teamHtml}${ticketsHtml}${loginHtml}${notesHtml}${histHtml}</div>
       </div>`;
   }
 
@@ -2360,6 +2382,8 @@
         case 'free':       return !u.subscriptionActive && !u.planTrial;
         case 'moderators': return u.accountType === 'moderator';
         case 'streamers':  return u.accountType !== 'moderator';
+        case 'ismod':      return (u.moderates || []).length > 0;
+        case 'hasmods':    return (u.mods || []).length > 0;
         default:           return true;
       }
     };
@@ -2425,11 +2449,17 @@
       const archTag = u.archived ? ' <span class="pill" style="background:rgba(255,111,145,.12);color:#e2a1ad;">archived</span>' : '';
       // Only moderators get a chip — labelling all 50-odd streamers "streamer"
       // is noise. A hollow chip means we inferred it rather than being told.
+      // Moderating someone else's channel is orthogonal to being a streamer —
+      // most of our mods run their own channel too — so it gets its own chip.
+      const modTag = (u.moderates || []).length
+        ? ` <span class="pill" style="background:rgba(140,125,255,.16);color:var(--purple);" title="Moderates ${esc((u.moderates||[]).map(m=>m.channel||m.uid).join(', '))}">🛡 mods ${(u.moderates||[]).length}</span>` : '';
+      const hasModsTag = (u.mods || []).length
+        ? ` <span class="pill" style="background:rgba(var(--accent-rgb),.12);color:var(--accent);" title="Moderated by ${esc((u.mods||[]).map(m=>m.channel||m.email||m.uid).join(', '))}">👥 ${(u.mods||[]).length}</span>` : '';
       const typeTag = u.accountType === 'moderator'
         ? ` <span class="pill" style="background:rgba(140,125,255,.16);color:var(--purple);" title="${u.accountTypeStated ? 'Chose moderator at signup' : 'Inferred'}">🛡 mod</span>` : '';
       const main = `<tr${u.archived ? ' style="opacity:.55;"' : ''}>
         <td><span onclick="toggleDetail('${esc(u.uid)}')" style="cursor:pointer;user-select:none;color:var(--accent);">${open ? '▾' : '▸'}</span></td>
-        <td><span style="cursor:pointer;" title="Open Customer 360" onclick="openCustomer('${esc(u.uid)}')">${esc(u.kickChannel || u.displayName || u.uid)}</span>${typeTag}${archTag}${noteRow}</td>
+        <td><span style="cursor:pointer;" title="Open Customer 360" onclick="openCustomer('${esc(u.uid)}')">${esc(u.kickChannel || u.displayName || u.uid)}</span>${typeTag}${modTag}${hasModsTag}${archTag}${noteRow}</td>
         <td><div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;max-width:250px;white-space:normal;">${planSel}${compTag}${trialTag}</div></td>
         <td>${sub}</td>
         <td>${u.onboarded ? '<span class="ok">yes</span>' : '<span class="no">no</span>'}</td>
