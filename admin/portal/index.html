@@ -235,6 +235,7 @@
         <a href="#/billing"    data-route="billing" class="owner-only"><span class="ico">💳</span> Billing</a>
         <a href="#/channels"   data-route="channels"><span class="ico">📡</span> Channels <span id="navLiveCount" class="navbadge hidden"></span></a>
         <a href="#/slots"      data-route="slots"><span class="ico">🎰</span> Slots</a>
+        <a href="#/health"     data-route="health"><span class="ico">🩺</span> System Health <span id="navAlertCount" class="navbadge hidden"></span></a>
         <div class="navgroup">Growth</div>
         <a href="#/analytics"  data-route="analytics"><span class="ico">📊</span> Analytics</a>
         <a href="#/ops"        data-route="ops"><span class="ico">📈</span> Revenue Ops</a>
@@ -406,6 +407,22 @@
           <div id="c360Body"><div class="sub" style="padding:8px 2px;">Pick a streamer above — or open one from the Streamers, Ops or Outreach lists.</div></div>
         </div>
 
+        <!-- SYSTEM HEALTH: alerts the bot already writes -->
+        <div id="healthView" class="hidden">
+          <div class="stats" id="hlStats"></div>
+          <div class="toolbar">
+            <select id="hlFilter" onchange="renderAlerts()" style="max-width:230px;">
+              <option value="open">Open problems</option>
+              <option value="">Everything</option>
+              <option value="error">Errors only</option>
+              <option value="resolved">Resolved</option>
+            </select>
+            <button class="btn-ghost" onclick="loadAlerts()">↻ Refresh</button>
+            <span id="hlCount" class="sub" style="align-self:center;"></span>
+          </div>
+          <div id="hlList"><div class="sub">Loading…</div></div>
+        </div>
+
         <!-- CHANNELS: live status + setup health -->
         <div id="channelsView" class="hidden">
           <div class="stats" id="chStats"></div>
@@ -477,6 +494,7 @@
 
         <!-- OUTREACH CRM -->
         <div id="outreachView" class="hidden">
+          <div id="orLeads"></div>
           <div class="stats" id="outreachStats"></div>
           <div class="tablecard" style="padding:16px;margin-bottom:16px;">
             <div class="kicker">Growth</div>
@@ -751,6 +769,8 @@
         loadTickets().catch(() => {});
         loadOutreach().catch(() => {});
       });
+      loadAlerts().catch(() => {});   // badge + the dashboard's "needs a look"
+
       if (_role === 'owner') {
         loadBillingOverview();
         if (typeof renderBilling === 'function') renderBilling();
@@ -780,6 +800,7 @@
     slots:     { view: 'slotsView',   title: 'Slots',       kick: 'Catalog health' },
     channels:  { view: 'channelsView',title: 'Channels',    kick: 'Live status & setup health' },
     analytics: { view: 'analyticsView',title:'Analytics',   kick: 'What actually gets used' },
+    health:    { view: 'healthView',  title: 'System Health',kick: 'Alerts from the bot' },
     ops:       { view: 'opsView',     title: 'Revenue Ops', kick: 'Money & retention' },
     outreach:  { view: 'outreachView',title: 'Outreach',    kick: 'Streamer pipeline' },
     tickets:   { view: 'ticketsView', title: 'Tickets',     kick: 'Team queue' },
@@ -811,6 +832,7 @@
     if (name === 'ops') renderOps();
     if (name === 'channels') renderChannels();
     if (name === 'analytics') renderAnalytics();
+    if (name === 'health' && !_alertsLoaded) loadAlerts();
     if (name === 'security') renderSecurity();
     if (name === 'customer') {
       const cu = c360UidFromHash();
@@ -866,6 +888,9 @@
     if (stale) bits.push(`<a href="#/outreach">📣 ${stale} outreach prospect${stale === 1 ? '' : 's'} untouched for 7+ days</a>`);
     const tkMine = _tickets.filter(t => t.status !== 'done' && t.assignee === _me).length;
     const tkHot  = _tickets.filter(t => t.status !== 'done' && (t.priority === 'urgent' || t.priority === 'high')).length;
+    const alertsOpen = _alerts && _alerts.stats ? _alerts.stats.openProblems : 0;
+    if (alertsOpen) bits.push(`<a href="#/health">🩺 ${alertsOpen} system alert${alertsOpen === 1 ? '' : 's'} need attention</a>`);
+    if (_leads.length) bits.push(`<a href="#/outreach">💼 ${_leads.length} agency lead${_leads.length === 1 ? '' : 's'} waiting</a>`);
     if (tkHot)  bits.push(`<a href="#/tickets">🎫 ${tkHot} high/urgent ticket${tkHot === 1 ? '' : 's'} open</a>`);
     if (tkMine) bits.push(`<a href="#/tickets" onclick="setTimeout(()=>{var m=document.getElementById('tkMineOnly');if(m){m.checked=true;renderTickets();}},50)">🙋 ${tkMine} ticket${tkMine === 1 ? '' : 's'} assigned to you</a>`);
     $('dashAttention').innerHTML = bits.length ? bits.map(b => `<div style="margin:5px 0;">${b}</div>`).join('') : '<span class="ok">Nothing urgent. 🎉</span>';
@@ -1305,6 +1330,78 @@
     }, 60);
   };
 
+  // ── System Health ──────────────────────────────────────────────────────────
+  // The bot has always written operational alerts (boot results, stuck channels,
+  // failed go-live posts) to admin_alerts; they fired once into Discord and were
+  // never seen again, so a streamer whose announcements had been failing for a
+  // week found out by complaining. Grouped by problem, newest first, with the
+  // fix the alert itself already suggests.
+  let _alerts = null, _alertsLoaded = false;
+  const LEVEL_ICON = { error: '🔴', warn: '🟡', good: '🟢', info: '🔵' };
+  const LEVEL_COLOR = { error: 'var(--bad)', warn: 'var(--warn)', good: 'var(--good)', info: 'var(--accent)' };
+
+  window.loadAlerts = async function () {
+    try {
+      const r = await authedFetch('/api/admin-alerts?limit=300');
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      _alerts = d; _alertsLoaded = true;
+      renderAlerts();
+      const badge = $('navAlertCount');
+      if (badge) {
+        badge.textContent = d.stats.openProblems || '';
+        badge.classList.toggle('hidden', !d.stats.openProblems);
+        if (d.stats.errors) { badge.style.background = 'rgba(255,111,145,.2)'; badge.style.borderColor = 'var(--bad)'; badge.style.color = 'var(--bad)'; }
+      }
+    } catch (e) { $('hlList').innerHTML = `<div class="tablecard" style="padding:16px;" class="warn">⚠ ${esc(e.message)}</div>`; }
+  };
+
+  window.renderAlerts = function () {
+    if (!_alerts) return;
+    const f = $('hlFilter')?.value ?? 'open';
+    const s = _alerts.stats;
+    $('hlStats').innerHTML =
+      `<div class="stat ${s.errors ? 'bad' : ''}"><div class="n">${s.errors}</div><div class="l">Errors</div></div>`
+      + `<div class="stat ${s.warnings ? 'warn' : ''}"><div class="n">${s.warnings}</div><div class="l">Warnings</div></div>`
+      + `<div class="stat"><div class="n">${s.channels}</div><div class="l">Channels affected</div></div>`
+      + `<div class="stat ${s.lastBoot ? 'good' : ''}"><div class="n" style="font-size:15px;padding-top:6px;">${s.lastBoot ? rel(s.lastBoot) : '—'}</div><div class="l">Last bot boot</div></div>`;
+
+    let rows = (_alerts.groups || []).filter(g => {
+      if (f === 'open')     return !g.resolved && (g.level === 'error' || g.level === 'warn');
+      if (f === 'error')    return g.level === 'error' && !g.resolved;
+      if (f === 'resolved') return g.resolved;
+      return true;
+    });
+    const c = $('hlCount'); if (c) c.textContent = `${rows.length} of ${(_alerts.groups || []).length} · ${s.scanned} alerts scanned`;
+
+    if (!rows.length) {
+      $('hlList').innerHTML = `<div class="tablecard" style="padding:22px;text-align:center;">
+        <div style="font-size:26px;">✅</div><div class="panel-title" style="margin-top:6px;">Nothing needs attention</div>
+        <div class="sub">${s.lastBootTitle ? esc(s.lastBootTitle) : 'No open problems.'}</div></div>`;
+      return;
+    }
+
+    $('hlList').innerHTML = rows.map(g => {
+      const fields = g.fields && typeof g.fields === 'object'
+        ? Object.entries(g.fields).map(([k, v]) =>
+            `<span class="muted" style="margin-right:14px;"><b style="color:var(--text);">${esc(k)}:</b> ${esc(String(v))}</span>`).join('')
+        : '';
+      // The alert's own detail text already says how to fix it — show it.
+      return `<div class="tablecard" style="padding:14px 16px;margin-bottom:10px;border-left:3px solid ${LEVEL_COLOR[g.level] || 'var(--line2)'};${g.resolved ? 'opacity:.55;' : ''}">
+        <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+          <span>${LEVEL_ICON[g.level] || '•'}</span>
+          <b style="color:var(--bright);">${esc(g.title)}</b>
+          ${g.count > 1 ? `<span class="pill" style="background:rgba(var(--accent-rgb),.14);color:var(--accent);">×${g.count}</span>` : ''}
+          ${g.resolved ? '<span class="pill" style="background:rgba(85,239,176,.14);color:var(--good);">resolved</span>' : ''}
+          <span class="muted" style="margin-left:auto;font-size:11.5px;">${g.lastAt ? rel(g.lastAt) : ''}${g.count > 1 && g.firstAt ? ` · first ${rel(g.firstAt)}` : ''}</span>
+        </div>
+        ${g.detail ? `<div class="sub" style="margin-top:6px;">${esc(g.detail).replace(/\*\*(.+?)\*\*/g, '<b style="color:var(--text);">$1</b>')}</div>` : ''}
+        ${fields ? `<div style="margin-top:7px;font-size:11.5px;">${fields}</div>` : ''}
+        ${g.uid ? `<div style="margin-top:9px;"><button class="btn-ghost" style="font-size:12px;padding:5px 11px;" onclick="openCustomer('${esc(g.uid)}')">Open ${esc(g.channel || 'account')} →</button></div>` : ''}
+      </div>`;
+    }).join('');
+  };
+
   // ── Channels: live status + setup health ───────────────────────────────────
   // The support view. When a streamer says "it isn't working", this answers the
   // first five questions in one row: is their bot on, casino set, portal on,
@@ -1600,7 +1697,53 @@
   // Pipeline of streamers we're courting. A card carries a stage, an owner and a
   // notes timeline; stage moves are written INTO that timeline so one expand
   // shows the whole courtship in order.
-  let _outreach = [], _outreachLoaded = false, _orExpanded = new Set(), _orNotes = {}, _me = '';
+  let _outreach = [], _outreachLoaded = false, _orExpanded = new Set(), _orNotes = {}, _me = '', _leads = [];
+
+  // Agency enquiries straight from the public contact form. They were written to
+  // Firestore and shown nowhere, so a real lead sat unread — this puts them at
+  // the top of Outreach until someone turns them into a prospect or clears them.
+  function renderLeads() {
+    const el = $('orLeads');
+    if (!el) return;
+    if (!_leads.length) { el.innerHTML = ''; return; }
+    el.innerHTML = `<div class="tablecard" style="padding:16px;margin-bottom:16px;border-left:3px solid var(--gold);">
+      <div class="kicker" style="color:var(--gold);">New leads</div>
+      <div class="panel-title">${_leads.length} agency enquir${_leads.length === 1 ? 'y' : 'ies'} waiting</div>
+      <div class="sub" style="margin-bottom:10px;">Straight from the contact form on the site. Add one to the pipeline and it stops showing here.</div>
+      ${_leads.map(l => `<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;padding:10px 0;border-top:1px solid rgba(126,170,195,.09);">
+        <div style="flex:1;min-width:240px;">
+          <b style="color:var(--bright);">${esc(l.name || 'Unknown')}</b>
+          ${l.email ? ` <a href="mailto:${esc(l.email)}" class="muted" style="font-size:12px;">${esc(l.email)}</a>` : ''}
+          <span class="muted" style="font-size:11.5px;margin-left:6px;">${l.at ? rel(l.at) : ''}</span>
+          ${l.details ? `<div class="sub" style="margin-top:4px;">${esc(l.details)}</div>` : ''}
+        </div>
+        <button class="btn-ghost" style="font-size:12px;padding:6px 12px;"
+          onclick="orFromLead('${esc(l.id)}')">＋ Add to pipeline</button>
+      </div>`).join('')}
+    </div>`;
+  }
+  // Turn an enquiry into a prospect card, carrying the email so the enquiry is
+  // recognised as handled, and the enquiry text as the first timeline note.
+  window.orFromLead = async function (id) {
+    const l = _leads.find(x => x.id === id);
+    if (!l) return;
+    const handle = prompt(`Add "${l.name || l.email}" to the outreach pipeline.\n\nKick channel / handle (you can change it later):`,
+      (l.email || '').split('@')[0]);
+    if (handle === null) return;
+    try {
+      const r = await authedPost('/api/admin-outreach', {
+        action: 'create', channel: (handle || '').trim() || (l.email || 'lead'),
+        displayName: l.name || '', email: l.email || '', stage: 'lead', owner: _me,
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      if (l.details) {
+        await authedPost('/api/admin-outreach', { action: 'note', id: d.id,
+          text: `Agency enquiry from the website: ${l.details}` });
+      }
+      await loadOutreach();
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
   const OR_STAGES = ['lead', 'contacted', 'replied', 'negotiating', 'trial', 'won', 'lost'];
   const OR_COLOR  = { lead:'var(--dim)', contacted:'var(--accent)', replied:'var(--purple)',
                       negotiating:'var(--warn)', trial:'var(--gold)', won:'var(--good)', lost:'var(--bad)' };
@@ -1611,6 +1754,8 @@
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       _outreach = d.cards || []; _outreachLoaded = true;
+      _leads = d.inquiries || [];
+      renderLeads();
       // Owner picker = the real admin roster, plus anyone already owning a card.
       const owners = tkTeam();
       const sel = $('orOwner');

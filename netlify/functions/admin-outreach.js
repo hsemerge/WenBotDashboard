@@ -45,7 +45,25 @@ exports.handler = async (event) => {
 
   if (event.httpMethod === "GET") {
     const snap = await col.orderBy("updatedAt", "desc").limit(500).get();
-    return res(200, { cards: snap.docs.map((d) => ({ id: d.id, ...d.data() })), stages: STAGES });
+    const cards = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    // Agency enquiries from the public contact form. They were written to
+    // Firestore and surfaced NOWHERE — a real lead sat unread. Any that haven't
+    // been turned into a prospect yet come back as "new leads" so they can't be
+    // missed again. Matched on email so one converted lead stops reappearing.
+    let inquiries = [];
+    try {
+      const seen = new Set(cards.map((c) => String(c.email || "").toLowerCase()).filter(Boolean));
+      const qs = await db.collection("agency_inquiries").orderBy("submittedAt", "desc").limit(50).get();
+      inquiries = qs.docs.map((d) => {
+        const x = d.data();
+        const at = x.submittedAt && x.submittedAt.toMillis ? x.submittedAt.toMillis()
+                 : (typeof x.submittedAt === "number" ? x.submittedAt : null);
+        return { id: d.id, name: x.name || null, email: x.email || null, details: x.details || null, at };
+      }).filter((q) => !q.email || !seen.has(String(q.email).toLowerCase()));
+    } catch (e) { console.warn("[outreach] inquiries lookup:", e.message); }
+
+    return res(200, { cards, inquiries, stages: STAGES });
   }
 
   let body = {}; try { body = JSON.parse(event.body || "{}"); } catch {}
@@ -59,6 +77,9 @@ exports.handler = async (event) => {
     const doc = {
       channel,
       channel_lower: channel.toLowerCase(),
+      // Carried when a card is created from an agency enquiry, so that enquiry
+      // stops showing as a new lead.
+      email:       clean(body.email, 160).toLowerCase() || null,
       platform:    clean(body.platform, 30) || "kick",
       displayName: clean(body.displayName, 80) || null,
       link:        clean(body.link, 300) || null,
