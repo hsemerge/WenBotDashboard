@@ -14,6 +14,43 @@ function getPricePlanMap() {
   };
 }
 
+// Record one payment + maintain running totals. Idempotent by invoice id: the
+// payment doc is keyed on it and the running totals increment only when the doc
+// is NEW — so the SAME payment arriving from both checkout.session.completed
+// (which always resolves the streamer) and invoice.paid (renewals), or a Stripe
+// redelivery, can never double-count.
+async function recordPayment(db, ref, p) {
+  if (!p.invoiceId || !(p.amount > 0)) return;
+  const payRef = ref.collection("payments").doc(p.invoiceId);
+  const d  = new Date(p.paidAtMs);
+  const ym = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  try {
+    await db.runTransaction(async (tx) => {
+      const existing = await tx.get(payRef);
+      tx.set(payRef, {
+        invoiceId:        p.invoiceId,
+        amount:           p.amount,
+        currency:         p.currency || "usd",
+        plan:             p.plan || null,
+        paidAt:           p.paidAtMs,
+        month:            ym,
+        periodStart:      p.periodStart || null,
+        periodEnd:        p.periodEnd || null,
+        hostedInvoiceUrl: p.hostedInvoiceUrl || null,
+      }, { merge: true });
+      if (!existing.exists) {
+        tx.set(ref, {
+          totalPaid:     admin.firestore.FieldValue.increment(p.amount),
+          paymentCount:  admin.firestore.FieldValue.increment(1),
+          lastPaymentAt: Date.now(),
+        }, { merge: true });
+      }
+    });
+  } catch (err) {
+    console.error("[stripe-webhook] payment record failed:", err.message);
+  }
+}
+
 function verifyStripeSignature(rawBody, signature, secret) {
   try {
     const parts     = Object.fromEntries(signature.split(",").map(p => p.split("=")));
@@ -80,6 +117,25 @@ exports.handler = async (event) => {
         update.plan = plan; // admin comp overrides Stripe's plan
       }
       await ref.set(update, { merge: true });
+
+      // Record the first invoice payment HERE too. invoice.paid fires for this
+      // same invoice, but on a NEW subscription it races with THIS event and
+      // frequently arrives before stripeCustomerId is written just above — so its
+      // customer-id lookup finds nobody and the payment is dropped (the "paid on
+      // Stripe, $0 in the dash" bug). This event ALWAYS resolves the streamer (the
+      // uid is in the session), so recording here guarantees the subscription-
+      // creation payment lands. The shared invoice-id key + increment-once guard
+      // mean invoice.paid recording the same payment can't double-count it.
+      const firstAmount = (session.amount_total || 0) / 100;
+      if (session.invoice && firstAmount > 0) {
+        await recordPayment(db, ref, {
+          invoiceId: session.invoice,
+          amount:    firstAmount,
+          currency:  session.currency || "usd",
+          plan,
+          paidAtMs:  Date.now(),
+        });
+      }
     }
   }
 
@@ -150,41 +206,18 @@ exports.handler = async (event) => {
       // and future referral rewards). Idempotent by invoice id: the payment doc is
       // keyed on it, and the running totals only increment when the doc is new — so
       // Stripe redelivering the same event can't double-count.
-      const invoiceId = invoice.id;
-      const amount    = (invoice.amount_paid || 0) / 100; // cents → currency units
-      if (invoiceId && amount > 0) {
-        const payRef  = ref.collection("payments").doc(invoiceId);
-        const priceId = invoice.lines?.data?.[0]?.price?.id;
-        const plan    = getPricePlanMap()[priceId] || null;
-        const paidAtMs = (invoice.status_transitions?.paid_at || invoice.created || Math.floor(Date.now() / 1000)) * 1000;
-        const d  = new Date(paidAtMs);
-        const ym = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-        try {
-          await db.runTransaction(async (tx) => {
-            const existing = await tx.get(payRef);
-            tx.set(payRef, {
-              invoiceId,
-              amount,
-              currency:         invoice.currency || "usd",
-              plan,
-              paidAt:           paidAtMs,
-              month:            ym,
-              periodStart:      invoice.lines?.data?.[0]?.period?.start ? invoice.lines.data[0].period.start * 1000 : null,
-              periodEnd:        periodEnd ? periodEnd * 1000 : null,
-              hostedInvoiceUrl: invoice.hosted_invoice_url || null,
-            }, { merge: true });
-            if (!existing.exists) {
-              tx.set(ref, {
-                totalPaid:     admin.firestore.FieldValue.increment(amount),
-                paymentCount:  admin.firestore.FieldValue.increment(1),
-                lastPaymentAt: Date.now(),
-              }, { merge: true });
-            }
-          });
-        } catch (err) {
-          console.error("[stripe-webhook] payment record failed:", err.message);
-        }
-      }
+      const priceId  = invoice.lines?.data?.[0]?.price?.id;
+      const paidAtMs = (invoice.status_transitions?.paid_at || invoice.created || Math.floor(Date.now() / 1000)) * 1000;
+      await recordPayment(db, ref, {
+        invoiceId:        invoice.id,
+        amount:           (invoice.amount_paid || 0) / 100, // cents → currency units
+        currency:         invoice.currency || "usd",
+        plan:             getPricePlanMap()[priceId] || null,
+        paidAtMs,
+        periodStart:      invoice.lines?.data?.[0]?.period?.start ? invoice.lines.data[0].period.start * 1000 : null,
+        periodEnd:        periodEnd ? periodEnd * 1000 : null,
+        hostedInvoiceUrl: invoice.hosted_invoice_url || null,
+      });
     }
   }
 
