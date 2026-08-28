@@ -238,6 +238,18 @@ function roleFailed(streamerData, v) {
   return !!(cfg.assignRole && cfg.roleId && v.discordUserId && !(v.roleResult && v.roleResult.ok));
 }
 
+// Why the grant failed, in the streamer's terms. The old footer always blamed
+// permissions/role-position, which is wrong (and alarming) for the common case:
+// a transient Discord 5xx or stall. Only a 403 is actually a permissions/
+// hierarchy problem; a 404 means the member isn't in the server; everything else
+// (5xx, or no status after retries) is Discord being briefly unavailable.
+function roleFailureHint(v) {
+  const st = (v.roleResult && v.roleResult.status) || 0;
+  if (st === 403) return "Role not granted — check WenBot has Manage Roles and that its own role sits ABOVE the Verified role";
+  if (st === 404) return "Role not granted — that member isn't in the server yet";
+  return `Role not granted — Discord had a temporary error${st ? ` (${st})` : ""}, not a setup problem. Re-check them from the dashboard, or they can press Verify again`;
+}
+
 function roleField(streamerData, v) {
   const cfg = (streamerData.discordConfig && streamerData.discordConfig.verify) || {};
   if (!cfg.assignRole || !cfg.roleId || !v.discordUserId) return [];
@@ -318,7 +330,7 @@ async function postVerifyLog(db, uid, streamerData, v) {
         fields,
         footer: {
           text: roleFailed(streamerData, v)
-            ? "Role not granted, check WenBot's permissions and role position"
+            ? roleFailureHint(v)
             : (notes.length ? `${notes.length} thing${notes.length === 1 ? "" : "s"} to check` : "Nothing unusual"),
         },
         timestamp: new Date().toISOString(),

@@ -19,6 +19,41 @@
 // this runs, and a viewer who is verified must not be told they are not because
 // Discord refused a role.
 
+// One role PUT/DELETE, with retries on transient Discord failures. Discord
+// occasionally answers with a 5xx (a brief server-side blip) or the request
+// stalls; a single attempt then left a verified viewer without their role, and
+// the log wrongly blamed the streamer's permissions. Retry ONLY the transient
+// cases — a 401/403/404 (bad token, missing Manage Roles / role hierarchy, or the
+// member not being in the server) will not change on a retry, so those return at
+// once. 8s timeout per attempt so a stall can't hang the caller.
+const RETRIABLE_STATUS = new Set([500, 502, 503, 504]);
+async function roleRequest(method, guildId, discordUserId, roleId) {
+  const url = `https://discord.com/api/v10/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`;
+  let lastStatus;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    if (attempt > 1) await new Promise((r) => setTimeout(r, 400 * (attempt - 1))); // 400ms, 800ms backoff
+    const ctrl  = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const r = await fetch(url, { method, headers: { "Authorization": `Bot ${process.env.DISCORD_BOT_TOKEN}` }, signal: ctrl.signal });
+      clearTimeout(timer);
+      if (r.ok) return { ok: true };
+      lastStatus = r.status;
+      if (!RETRIABLE_STATUS.has(r.status)) {
+        const body = await r.text().catch(() => "");
+        console.warn(`[discord-role] ${method} failed:`, r.status, body.slice(0, 200));
+        return { ok: false, status: r.status };  // permanent for this call — don't retry
+      }
+      console.warn(`[discord-role] ${method} transient ${r.status} (attempt ${attempt}/3)`);
+    } catch (err) {
+      clearTimeout(timer);
+      lastStatus = null; // network error / timeout — treat as transient
+      console.warn(`[discord-role] ${method} error (attempt ${attempt}/3):`, err.message);
+    }
+  }
+  return { ok: false, status: lastStatus }; // retries exhausted
+}
+
 /**
  * @param {object} streamerData  the streamers/{uid} document data
  * @param {string} discordUserId
@@ -35,23 +70,11 @@ async function grantVerifiedRole(streamerData, discordUserId) {
     return { expected, ok: false };
   }
 
-  try {
-    // PUT is idempotent: re-verifying someone who already holds the role is a
-    // no-op, and it 404s harmlessly if they aren't in the server.
-    const r = await fetch(
-      `https://discord.com/api/v10/guilds/${guildId}/members/${discordUserId}/roles/${cfg.roleId}`,
-      { method: "PUT", headers: { "Authorization": `Bot ${process.env.DISCORD_BOT_TOKEN}` } }
-    );
-    if (!r.ok) {
-      const body = await r.text().catch(() => "");
-      console.warn("[discord-role] grant failed:", r.status, body.slice(0, 200));
-      return { expected, ok: false, status: r.status };
-    }
-    return { expected, ok: true };
-  } catch (err) {
-    console.warn("[discord-role] grant error:", err.message);
-    return { expected, ok: false };
-  }
+  // PUT is idempotent: re-verifying someone who already holds the role is a
+  // no-op, and it 404s harmlessly if they aren't in the server. The retry inside
+  // rides out a transient Discord outage that would otherwise leave them role-less.
+  const r = await roleRequest("PUT", guildId, discordUserId, cfg.roleId);
+  return r.ok ? { expected, ok: true } : { expected, ok: false, ...(r.status ? { status: r.status } : {}) };
 }
 
 /**
@@ -75,23 +98,11 @@ async function revokeVerifiedRole(streamerData, discordUserId) {
     return { expected, ok: false };
   }
 
-  try {
-    // DELETE is idempotent, and 404s harmlessly when they have already left or
-    // never held the role.
-    const r = await fetch(
-      `https://discord.com/api/v10/guilds/${guildId}/members/${discordUserId}/roles/${cfg.roleId}`,
-      { method: "DELETE", headers: { "Authorization": `Bot ${process.env.DISCORD_BOT_TOKEN}` } }
-    );
-    if (!r.ok && r.status !== 404) {
-      const body = await r.text().catch(() => "");
-      console.warn("[discord-role] revoke failed:", r.status, body.slice(0, 200));
-      return { expected, ok: false, status: r.status };
-    }
-    return { expected, ok: true };
-  } catch (err) {
-    console.warn("[discord-role] revoke error:", err.message);
-    return { expected, ok: false };
-  }
+  // DELETE is idempotent, and 404s harmlessly when they have already left or
+  // never held the role. Same transient-retry contract as granting.
+  const r = await roleRequest("DELETE", guildId, discordUserId, cfg.roleId);
+  if (r.ok || r.status === 404) return { expected, ok: true };
+  return { expected, ok: false, ...(r.status ? { status: r.status } : {}) };
 }
 
 module.exports = { grantVerifiedRole, revokeVerifiedRole };

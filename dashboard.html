@@ -661,7 +661,7 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="sidebar-signout" onclick="signOut()">Sign out</div>
       </div>
       <div id="appVersion" onclick="showPage('whatsnew')" title="See what's new" style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);letter-spacing:0.05em;cursor:pointer;">
-        WenBot v<span id="appVersionNumber">1.43.0</span> · <span style="color:var(--accent);">What's new ✨</span>
+        WenBot v<span id="appVersionNumber">1.44.0</span> · <span style="color:var(--accent);">What's new ✨</span>
       </div>
     </div>
   </aside>
@@ -3723,9 +3723,20 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
         <div class="card">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <h3 style="margin:0;">✨ What's New</h3>
-            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.43.0</span>
+            <span style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;">v1.44.0</span>
           </div>
           <div style="font-size:13px;color:var(--text-dim);">Every WenBot update lands here, so you always know exactly what shipped.</div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;">v1.44.0 &middot; Verified-role reliability</h3>
+            <span style="font-size:12px;color:var(--text-dim);">August 27, 2026</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;line-height:1.85;font-size:14px;color:var(--bright);">
+            <li>&#128737;&#65039; <strong>A verified viewer who didn&rsquo;t get their role now gets it on re-check.</strong> Discord occasionally has a brief hiccup when WenBot grants the Verified role; WenBot now retries automatically at verify time, and if one still slips through, clicking <strong>&#8635; Re-check</strong> on that user in <strong>Verified Users</strong> retries the grant and hands them the role.</li>
+            <li>&#128172; <strong>Clearer verify-log messages.</strong> When a role grant fails, the log now says whether it was a <strong>temporary Discord error</strong> (just press Verify again) or an actual <strong>permissions / role-position</strong> problem &mdash; instead of always blaming your setup.</li>
+          </ul>
         </div>
 
         <div class="card">
@@ -13730,12 +13741,15 @@ async function recheckVerified(docId, btn) {
     if (!resp.ok) throw new Error(data.error || 'Recheck failed');
     // Log diagnostics for debugging affiliate-status mismatches
     console.log('[Recheck]', { target: data.target, underAffiliate: data.underAffiliate, foundOnLeaderboard: data.foundOnLeaderboard, leaderboardType: data.leaderboardType, diagnostics: data.diagnostics });
+    // A verify-time role grant can fail on a transient Discord error; the recheck
+    // retries it, so tell the streamer when that repaired a missing role.
+    const roleNote = data.roleHealed ? ' · ✅ Verified role granted' : '';
     if (data.statusChanged) {
-      flash(`@${data.target} → Under Code`);
+      flash(`@${data.target} → Under Code${roleNote}`);
     } else if (data.foundOnLeaderboard) {
-      flash(`@${data.target} confirmed Under Code`);
+      flash(`@${data.target} confirmed Under Code${roleNote}`);
     } else {
-      flash(`@${data.target} not on the leaderboard, status unchanged.`);
+      flash(`@${data.target} not on the leaderboard, status unchanged.${roleNote}`);
     }
     // The verified_users onSnapshot listener will pick up the Firestore update and re-render
   } catch (e) {

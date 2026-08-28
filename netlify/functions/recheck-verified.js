@@ -13,6 +13,7 @@ const { CASINO_NAMES, API_CASINOS } = require("./_lib/casinos");
 const { lookupAffiliate }     = require("./_lib/affiliate");
 const { lookupDegen }         = require("./_lib/degen");
 const { logAudit }            = require("./_lib/audit");
+const { grantVerifiedRole }   = require("./_lib/discord-role");
 
 
 exports.handler = async (event) => {
@@ -57,6 +58,26 @@ exports.handler = async (event) => {
       return res(400, { error: "Doc is missing provider or providerUsername" });
     }
 
+    // Heal a missing verified-role while we're here. The role grant can fail
+    // transiently at verify time (e.g. a Discord 503), leaving a verified viewer
+    // role-less; re-checking them is the natural place to retry it. The role is
+    // granted on VERIFICATION, not on under-code status, so this is independent
+    // of the affiliate lookup below and runs for every provider. Best-effort — it
+    // must never fail the recheck. `roleHealed` is surfaced so the UI can confirm.
+    let roleHealed = false;
+    try {
+      const sData = (await db.collection("streamers").doc(uid).get()).data();
+      const rcfg  = (sData && sData.discordConfig && sData.discordConfig.verify) || {};
+      if (sData && rcfg.assignRole && rcfg.roleId) {
+        const dl = await db.collection("streamers").doc(uid).collection("discord_links")
+          .where("kickUsername", "==", v.kickName).limit(1).get();
+        if (!dl.empty) {
+          const rr = await grantVerifiedRole(sData, dl.docs[0].id);
+          roleHealed = !!(rr && rr.ok);
+        }
+      }
+    } catch (e) { /* role heal is best-effort; never block the recheck */ }
+
     // Degen: public race, masked-name match (no per-user API / no UID). Re-check
     // refreshes the wager + confirms under-code from the live race. Upgrade-only:
     // if not found (anonymous row / inactive), leave the existing status alone so a
@@ -86,6 +107,7 @@ exports.handler = async (event) => {
         wagerAmount:       m.wagerAmount || 0,
         ambiguous:         !!m.ambiguous,
         statusChanged:     !wasUnder && !!m.underAffiliate,
+        roleHealed,
         target:            affiliateUsername,
       });
     }
@@ -165,6 +187,7 @@ exports.handler = async (event) => {
       wagerAmount:       result?.wagerAmount || 0,
       leaderboardType:   result?.leaderboardType || null,
       statusChanged:     wasUnderAffiliate !== nowUnderAffiliate,
+      roleHealed,
       diagnostics,
       target:            affiliateUsername,
     });
