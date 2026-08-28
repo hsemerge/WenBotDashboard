@@ -200,6 +200,7 @@
         <a href="#/billing"    data-route="billing" class="owner-only"><span class="ico">💳</span> Billing</a>
         <a href="#/slots"      data-route="slots"><span class="ico">🎰</span> Slots</a>
         <div class="navgroup">Growth</div>
+        <a href="#/ops"        data-route="ops"><span class="ico">📈</span> Revenue Ops</a>
         <a href="#/outreach"   data-route="outreach"><span class="ico">📣</span> Outreach</a>
         <div class="navgroup">Wenbot Team</div>
         <a href="#/tickets"    data-route="tickets"><span class="ico">🎫</span> Tickets <span id="navTicketCount" class="navbadge hidden"></span></a>
@@ -345,6 +346,28 @@
             </div>
           </div>
           <div class="sub" style="margin-top:14px;">💳 Stripe subscriptions auto-renew (dates come from Stripe). 🪙 Crypto subs are manual, send an invoice near the due date. Only streamers with an active billing cycle appear here.</div>
+        </div>
+
+        <!-- REVENUE OPS -->
+        <div id="opsView" class="hidden">
+          <div class="stats" id="opsTiles"></div>
+          <div class="toolbar" style="margin-top:4px;">
+            <div class="tabs" id="opsTabs" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+            <button class="btn-ghost" onclick="loadUsers()" style="margin-left:auto;">↻ Refresh</button>
+          </div>
+          <div class="tablecard" style="padding:16px 18px;margin-bottom:14px;">
+            <div class="kicker" id="opsKicker">—</div>
+            <div class="panel-title" id="opsTitle">—</div>
+            <div class="sub" id="opsWhy" style="max-width:78ch;">—</div>
+          </div>
+          <div class="tablecard">
+            <div style="overflow-x:auto;">
+              <table>
+                <thead><tr id="opsHead"></tr></thead>
+                <tbody id="opsTable"><tr><td class="muted" style="text-align:center;padding:24px;">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         <!-- OUTREACH CRM -->
@@ -573,6 +596,7 @@
       renderStats(d.stats || {});
       renderTable();
       renderDash(d.stats || {});
+      if (currentRoute() === 'ops') renderOps();   // keep the queues in step with ↻ Refresh
       loadActivity();
       // Tickets + outreach drive dashboard tiles / the nav badge, so pull them
       // up front rather than waiting for their routes to be opened.
@@ -604,6 +628,7 @@
     streamers: { view: 'usersView',   title: 'Streamers',   kick: 'Accounts & plans' },
     billing:   { view: 'billingView', title: 'Billing',     kick: 'Owner only', ownerOnly: true },
     slots:     { view: 'slotsView',   title: 'Slots',       kick: 'Catalog health' },
+    ops:       { view: 'opsView',     title: 'Revenue Ops', kick: 'Money & retention' },
     outreach:  { view: 'outreachView',title: 'Outreach',    kick: 'Streamer pipeline' },
     tickets:   { view: 'ticketsView', title: 'Tickets',     kick: 'Team queue' },
     todo:      { view: 'todoView',    title: 'To-Do List',  kick: 'Wenbot team' },
@@ -628,6 +653,7 @@
     if (name === 'todo' && !_todosLoaded) loadTodos();
     if (name === 'outreach' && !_outreachLoaded) loadOutreach();
     if (name === 'tickets' && !_ticketsLoaded) loadTickets();
+    if (name === 'ops') renderOps();
   }
   window.addEventListener('hashchange', () => routeTo(currentRoute(), true));
   // Legacy shim: the ported code calls switchTab('billing') from gotoBilling.
@@ -712,6 +738,167 @@
       }).join('');
     } catch (e) { el.innerHTML = '<div class="sub" style="padding:12px 14px;">Feed unavailable: ' + esc(e.message) + '</div>'; }
   }
+
+  // ── Revenue Ops ────────────────────────────────────────────────────────────
+  // Five work queues over the streamer list we already hold — no extra fetch.
+  // Each answers one question and lists exactly who to act on. Money columns are
+  // owner-only (the server strips them for staff, so staff see the same queues
+  // minus the dollars — which is still the useful part: who to talk to).
+  let _opsTab = 'arrears';
+  const OPS_TABS = [
+    { id:'arrears',  label:'💸 Arrears',    owner:true  },
+    { id:'trials',   label:'🎁 Trials'                  },
+    { id:'churn',    label:'⚠️ Churn risk'              },
+    { id:'funnel',   label:'🚧 Onboarding'              },
+    { id:'comps',    label:'🎟 Comps'                   },
+  ];
+  const DAYMS = 864e5;
+  const activeUsers = () => _users.filter(u => !u.archived);
+  const isTrial   = (u) => u.planTrial && u.trialEndsAt;
+  const isPaying  = (u) => u.subscriptionActive && !u.planManual && !u.planTrial;
+  const daysTo    = (ms) => (ms ? Math.ceil((ms - Date.now()) / DAYMS) : null);
+  const daysSince = (ms) => (ms ? Math.floor((Date.now() - ms) / DAYMS) : null);
+  const chanCell  = (u) => `<b>${esc(u.kickChannel || u.uid)}</b>`;
+  const mailCell  = (u) => (u.email ? `<a href="mailto:${esc(u.email)}" class="muted">${esc(u.email)}</a>` : '<span class="muted">—</span>');
+
+  window.setOpsTab = function (id) { _opsTab = id; renderOps(); };
+
+  window.renderOps = function () {
+    const tabs = OPS_TABS.filter(t => !t.owner || _role === 'owner');
+    if (!tabs.find(t => t.id === _opsTab)) _opsTab = tabs[0].id;
+    $('opsTabs').innerHTML = tabs.map(t =>
+      `<button class="${t.id === _opsTab ? '' : 'btn-ghost'}" onclick="setOpsTab('${t.id}')" style="padding:7px 14px;font-size:12.5px;">${t.label}</button>`).join('');
+
+    const A = activeUsers();
+    // Headline tiles: the numbers worth knowing before picking a queue.
+    const mrr = A.filter(isPaying).reduce((s, u) => s + (PLAN_PRICE[u.plan] || 0), 0);
+    const trialsOpen = A.filter(u => isTrial(u) && u.trialEndsAt > Date.now()).length;
+    const converted  = A.filter(u => u.trialExpiredAt && isPaying(u)).length;
+    const lapsed     = A.filter(u => u.trialExpiredAt && !isPaying(u) && !u.planTrial).length;
+    const convRate   = (converted + lapsed) ? Math.round(100 * converted / (converted + lapsed)) : null;
+    $('opsTiles').innerHTML = [
+      ...(_role === 'owner' ? [[`${money(mrr)}`, 'MRR (approx)', '']] : []),
+      [A.filter(isPaying).length, 'Paying subs', ''],
+      [trialsOpen, 'Trials running', trialsOpen ? 'warn' : ''],
+      [convRate == null ? '—' : convRate + '%', 'Trial → paid', ''],
+      [A.filter(u => u.planManual && !u.planTrial).length, 'Comped', ''],
+    ].map(([n, l, tone]) => `<div class="stat ${tone || ''}"><div class="n">${typeof n === 'number' ? n : esc(String(n))}</div><div class="l">${esc(l)}</div></div>`).join('');
+
+    const V = OPS_VIEWS[_opsTab](A);
+    $('opsKicker').textContent = V.kicker;
+    $('opsTitle').textContent  = V.title;
+    $('opsWhy').textContent    = V.why;
+    $('opsHead').innerHTML     = V.cols.map(c => `<th>${esc(c)}</th>`).join('');
+    $('opsTable').innerHTML    = V.rows.length
+      ? V.rows.join('')
+      : `<tr><td colspan="${V.cols.length}" class="ok" style="text-align:center;padding:24px;">${esc(V.empty)}</td></tr>`;
+  };
+
+  const OPS_VIEWS = {
+    // 1) Money we're owed or about to lose — the direct-recovery queue.
+    arrears: (A) => {
+      const rows = A.filter(u => u.paymentFailed || (u.cryptoNextDue && u.cryptoNextDue < Date.now()) ||
+                                 (u.stripePeriodEnd && u.stripePeriodEnd < Date.now() && u.subscriptionActive))
+        .map(u => ({ u, due: u.cryptoNextDue || u.stripePeriodEnd || 0 }))
+        .sort((a, b) => (a.due || Infinity) - (b.due || Infinity));
+      return {
+        kicker: 'Recover', title: 'Failed payments & arrears',
+        why: 'Stripe failures and overdue crypto invoices in one list, oldest first. At this scale a single saved subscription is a few percent of MRR — these are worth a personal message today.',
+        cols: ['Channel', 'Plan', 'Problem', 'Since', 'Email'],
+        empty: 'Nothing overdue. 🎉',
+        rows: rows.map(({ u, due }) => {
+          const od = daysSince(due);
+          const what = u.paymentFailed ? '<span class="warn">card declined</span>'
+                     : `<span class="warn">${u.cryptoNextDue ? 'crypto invoice overdue' : 'renewal date passed'}</span>`;
+          return `<tr><td>${chanCell(u)}</td><td><span class="pill ${esc(u.plan)}">${esc(u.plan)}</span></td>
+            <td>${what}</td><td class="muted">${od != null ? od + 'd' : '—'}</td><td>${mailCell(u)}</td></tr>`;
+        }),
+      };
+    },
+    // 2) The trial pipeline — the highest-leverage moment to reach out.
+    trials: (A) => {
+      const running = A.filter(u => isTrial(u) && u.trialEndsAt > Date.now())
+        .sort((a, b) => a.trialEndsAt - b.trialEndsAt);
+      const ended = A.filter(u => (u.trialExpiredAt || (isTrial(u) && u.trialEndsAt <= Date.now())) && !isPaying(u))
+        .sort((a, b) => (b.trialExpiredAt || b.trialEndsAt || 0) - (a.trialExpiredAt || a.trialEndsAt || 0)).slice(0, 40);
+      const row = (u, state) => {
+        const left = daysTo(u.trialEndsAt);
+        const tone = state === 'running' ? (left <= 3 ? 'warn' : '') : 'muted';
+        return `<tr><td>${chanCell(u)}</td><td><span class="pill ${esc(u.trialPlan || u.plan)}">${esc(u.trialPlan || u.plan)}</span></td>
+          <td class="${tone}">${state === 'running' ? `${left}d left` : 'ended ' + (daysSince(u.trialExpiredAt || u.trialEndsAt) ?? '?') + 'd ago'}</td>
+          <td class="muted">${u.onboarded ? 'onboarded' : '<span class="warn">never onboarded</span>'}</td>
+          <td class="muted">${rel(u.lastLoginAt)}</td><td>${mailCell(u)}</td></tr>`;
+      };
+      return {
+        kicker: 'Convert', title: 'Trial pipeline',
+        why: 'Everyone on a free trial, soonest to lapse first — then the ones that already ended without converting. The days before a trial expires are the best conversation you will have with a streamer.',
+        cols: ['Channel', 'Trial', 'Status', 'Setup', 'Last login', 'Email'],
+        empty: 'No trials running or recently lapsed.',
+        rows: [
+          ...(running.length ? [`<tr><td colspan="6" class="kicker" style="background:rgba(var(--accent-rgb),.06);">RUNNING (${running.length})</td></tr>`] : []),
+          ...running.map(u => row(u, 'running')),
+          ...(ended.length ? [`<tr><td colspan="6" class="kicker" style="background:rgba(255,111,145,.07);">ENDED, NOT CONVERTED (${ended.length})</td></tr>`] : []),
+          ...ended.map(u => row(u, 'ended')),
+        ],
+      };
+    },
+    // 3) Paying but gone quiet — cancellations you can still prevent.
+    churn: (A) => {
+      const rows = A.filter(u => (isPaying(u) || u.cryptoBilling) && u.lastLoginAt && daysSince(u.lastLoginAt) >= 21)
+        .sort((a, b) => (a.lastLoginAt || 0) - (b.lastLoginAt || 0));
+      return {
+        kicker: 'Retain', title: 'Churn risk — paying but inactive',
+        why: 'Active subscriptions with no dashboard login in 21+ days. Reach out before the renewal, not after the cancellation email.',
+        cols: ['Channel', 'Plan', 'Quiet for', 'Renews', 'Email'],
+        empty: 'Every paying streamer has been active recently. 🎉',
+        rows: rows.map(u => {
+          const next = u.stripePeriodEnd || u.cryptoNextDue;
+          const d = daysTo(next);
+          return `<tr><td>${chanCell(u)}</td><td><span class="pill ${esc(u.plan)}">${esc(u.plan)}</span></td>
+            <td class="warn">${daysSince(u.lastLoginAt)}d</td>
+            <td class="muted">${next ? (d < 0 ? 'overdue' : `in ${d}d`) : '—'}</td><td>${mailCell(u)}</td></tr>`;
+        }),
+      };
+    },
+    // 4) Signed up but never got going — each one deserves a nudge.
+    funnel: (A) => {
+      const steps = [
+        ['Signed up',      A.length],
+        ['Connected Kick', A.filter(u => u.kickConnectedAt).length],
+        ['Onboarded',      A.filter(u => u.onboarded).length],
+        ['Paying',         A.filter(u => isPaying(u) || u.cryptoBilling).length],
+      ];
+      const top = steps[0][1] || 1;
+      const stuck = A.filter(u => !u.onboarded).sort((a, b) => (b.kickConnectedAt || 0) - (a.kickConnectedAt || 0));
+      return {
+        kicker: 'Activate', title: 'Onboarding funnel',
+        why: 'Where new accounts stall. At this size every stuck signup is worth a personal ping — they already wanted in.',
+        cols: ['Stage / channel', 'Count', 'Share', 'Joined', 'Email'],
+        empty: 'Nobody is stuck.',
+        rows: [
+          ...steps.map(([label, n]) => `<tr><td><b>${esc(label)}</b></td><td class="num">${n}</td>
+            <td style="min-width:180px;"><div class="planbar" style="margin:0;"><div style="width:${(100 * n / top).toFixed(1)}%;background:var(--accent);"></div></div></td>
+            <td class="muted">${Math.round(100 * n / top)}%</td><td></td></tr>`),
+          ...(stuck.length ? [`<tr><td colspan="5" class="kicker" style="background:rgba(245,197,24,.07);">NOT ONBOARDED (${stuck.length})</td></tr>`] : []),
+          ...stuck.map(u => `<tr><td style="padding-left:22px;">${chanCell(u)}</td><td class="muted" colspan="2">${u.kickConnectedAt ? 'Kick connected' : '<span class="warn">no Kick yet</span>'}</td>
+            <td class="muted">${rel(u.kickConnectedAt)}</td><td>${mailCell(u)}</td></tr>`),
+        ],
+      };
+    },
+    // 5) Comps quietly running forever — convert or reclaim.
+    comps: (A) => {
+      const rows = A.filter(u => u.planManual && !u.planTrial)
+        .sort((a, b) => (a.lastLoginAt || 0) - (b.lastLoginAt || 0));
+      return {
+        kicker: 'Review', title: 'Comped accounts',
+        why: 'Manually granted plans, least-recently-active first. Comps accumulate silently and hide real MRR — a monthly skim converts the ones getting value and reclaims the rest.',
+        cols: ['Channel', 'Plan', 'Last login', 'Onboarded', 'Email'],
+        empty: 'No comped accounts.',
+        rows: rows.map(u => `<tr><td>${chanCell(u)}</td><td><span class="pill ${esc(u.plan)}">${esc(u.plan)}</span> <span class="pill comp">comp</span></td>
+          <td class="muted">${rel(u.lastLoginAt)}</td><td class="muted">${u.onboarded ? 'yes' : '<span class="warn">no</span>'}</td><td>${mailCell(u)}</td></tr>`),
+      };
+    },
+  };
 
   // ── Outreach CRM ───────────────────────────────────────────────────────────
   // Pipeline of streamers we're courting. A card carries a stage, an owner and a
