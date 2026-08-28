@@ -9,7 +9,7 @@
 // The related lookups are best-effort: a missing index or a slow subcollection
 // must not blank the page, so each falls back to an empty list.
 
-const { getDb }               = require("./_lib/firebase");
+const { getDb, admin }        = require("./_lib/firebase");
 const { res, checkRateLimit } = require("./_lib/http");
 const { requireAdmin }        = require("./_lib/admin");
 
@@ -97,5 +97,20 @@ exports.handler = async (event) => {
     }
   } catch (e) { console.warn("[c360] history lookup:", e.message); }
 
-  return res(200, { uid, outreach, outreachNotes, tickets, counts, history, role: adminUser.role });
+  // Login state, for the support actions on the 360 page: is the email verified,
+  // are they locked out, do they have 2FA, when did they last sign in.
+  let login = null;
+  try {
+    const u = await admin.auth().getUser(uid);
+    login = {
+      email:         u.email || null,
+      emailVerified: !!u.emailVerified,
+      disabled:      !!u.disabled,
+      mfa:           !!(u.multiFactor && u.multiFactor.enrolledFactors && u.multiFactor.enrolledFactors.length),
+      lastSignIn:    u.metadata && u.metadata.lastSignInTime ? new Date(u.metadata.lastSignInTime).getTime() : null,
+      createdAt:     u.metadata && u.metadata.creationTime ? new Date(u.metadata.creationTime).getTime() : null,
+    };
+  } catch { login = null; }   // no Firebase login (shouldn't happen, but don't break the page)
+
+  return res(200, { uid, outreach, outreachNotes, tickets, counts, history, login, role: adminUser.role });
 };

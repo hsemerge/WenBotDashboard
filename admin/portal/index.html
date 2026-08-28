@@ -1280,6 +1280,34 @@
         }).join('') : '<div class="muted">No admin actions recorded.</div>'}</div>
       </div>`;
 
+    // Login & support — the actions that otherwise mean opening the Firebase
+    // console. Reset/verification links are emailed to the account holder, never
+    // shown here, so "reset their password" can't become a takeover tool.
+    const lg = x.login;
+    const loginHtml = !lg ? '' : `
+      <div class="tablecard" style="padding:16px;">
+        <div class="kicker">Account</div>
+        <div class="panel-title">Login &amp; support</div>
+        <dl class="kv" style="margin:8px 0 12px;">
+          <dt>Email</dt><dd>${esc(lg.email || '—')} ${lg.emailVerified
+            ? '<span class="ok" style="font-size:11px;">✓ verified</span>'
+            : '<span class="warn" style="font-size:11px;">not verified</span>'}</dd>
+          <dt>Two-factor</dt><dd>${lg.mfa ? '<span class="ok">🔐 on</span>' : '<span class="muted">off</span>'}</dd>
+          <dt>Sign-in</dt><dd>${lg.disabled ? '<span class="warn">🚫 blocked</span>' : '<span class="ok">allowed</span>'}</dd>
+          <dt>Last seen</dt><dd class="muted">${lg.lastSignIn ? rel(lg.lastSignIn) : '—'}${lg.createdAt ? ` · joined ${date(lg.createdAt)}` : ''}</dd>
+        </dl>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn-ghost" onclick="acctAction('${esc(uid)}','password-reset','Email them a password reset link?')">✉ Send password reset</button>
+          ${lg.emailVerified ? '' : `<button class="btn-ghost" onclick="acctAction('${esc(uid)}','verify-email','Re-send their verification email?')">✉ Resend verification</button>`}
+          <button class="btn-ghost" onclick="acctAction('${esc(uid)}','revoke-sessions','Sign this account out of every device?')">⏻ Sign out everywhere</button>
+          ${lg.mfa ? `<button class="btn-ghost owner-only" style="border-color:var(--warn);color:var(--warn);" onclick="acctAction('${esc(uid)}','clear-mfa','Remove their two-factor? Do this only if they have lost their phone — it lets them back in with just a password.')">🔓 Clear 2FA</button>` : ''}
+          ${lg.disabled
+            ? `<button class="btn-ghost owner-only" style="border-color:var(--good);color:var(--good);" onclick="acctAction('${esc(uid)}','enable','Restore sign-in for this account?')">✓ Unblock sign-in</button>`
+            : `<button class="btn-ghost owner-only" style="border-color:var(--bad);color:var(--bad);" onclick="acctAction('${esc(uid)}','disable','Block this account from signing in?')">🚫 Block sign-in</button>`}
+        </div>
+        <div class="sub" style="margin-top:9px;font-size:11.5px;">Reset and verification links are emailed to them, never shown here.</div>
+      </div>`;
+
     // Notes (shared with the Streamers tab's field).
     const notesHtml = `
       <div class="tablecard" style="padding:16px;">
@@ -1317,9 +1345,22 @@
       </div>
       <div class="c360grid">
         <div style="display:flex;flex-direction:column;gap:16px;">${billing}${outreachHtml}</div>
-        <div style="display:flex;flex-direction:column;gap:16px;">${ticketsHtml}${notesHtml}${histHtml}</div>
+        <div style="display:flex;flex-direction:column;gap:16px;">${ticketsHtml}${loginHtml}${notesHtml}${histHtml}</div>
       </div>`;
   }
+
+  // Support actions. Each confirms first — these email real people or lock them
+  // out — then reloads the page so the card reflects the new state.
+  window.acctAction = async function (uid, action, confirmMsg) {
+    if (!confirm(confirmMsg)) return;
+    try {
+      const r = await authedPost('/api/admin-account-action', { uid, action });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      flashOk(d.message || 'Done');
+      await c360Load(uid);
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
 
   // Pre-fill a ticket for this streamer and jump to the queue.
   window.c360NewTicket = function (uid, channel) {
