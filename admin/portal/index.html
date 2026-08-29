@@ -3128,6 +3128,21 @@
       // One sorter across every lens — the visible columns change, the table
       // doesn't, so the comparator map is the union of all three.
       billing:     u => String(u.billingType || '').toLowerCase(),
+      // Sorted by how loudly it's asking for attention, not alphabetically —
+      // clicking Status should surface what needs doing, not group the letter C.
+      status:      { dir: 'desc', get: (u) => {
+        const now = Date.now();
+        const onTrial = u.planTrial && u.trialEndsAt && u.trialEndsAt > now;
+        const cancelEnd = u.stripeCancelAt || u.stripePeriodEnd || null;
+        const cancelling = u.stripeSubscribed && u.stripeAutoRenew === false;
+        if (cancelling && cancelEnd && cancelEnd <= now) return 6;   // cancelled
+        if (cancelling)                                   return 5;   // cancelling
+        if (u.paymentFailed)                              return 4;
+        if (onTrial)                                      return 3;
+        if (u.planTrial && u.trialEndsAt <= now)          return 2;   // trial ended, sweep pending
+        if (u.trialExpiredAt && !u.subscriptionActive)    return 1;   // lapsed, no convert
+        return 0;
+      } },
       manager:     u => String(u.accountManager || '').toLowerCase(),
       renewal:     u => (u.stripePeriodEnd || u.cryptoNextDue || u.trialEndsAt || null),
       gaps:        { get: u => chGaps(u).length, dir: 'desc' },
@@ -3153,6 +3168,7 @@
         ['channel',  'Channel',  ''],
         ['plan',     'Plan',     ''],
         ['billing',  'Billing',  ''],
+        ['status',   'Status',   ''],
         ['manager',  'Manager',  ''],
         ['onboarded','Onboarded',''],
         ['referrals','Referrals','num'],
@@ -3167,11 +3183,11 @@
         ['channel',  'Channel',  ''],
         ['plan',     'Plan',     ''],
         ['billing',  'Method',   ''],
+        ['status',   'Status',   ''],
         ['renewal',  'Renews / due', ''],
         ['paid',     'Lifetime', 'num'],
         ['lastPayment','Last payment',''],
         ['referrals','Referrals','num'],
-        ['email',    'Email',    ''],
       ],
     },
     health: {
@@ -3348,25 +3364,8 @@
       // billingType is server-derived and available to staff too, unlike the
       // owner-only invoice overview this used to guess from.
       const cryptoPaying = u.billingType === 'crypto';
-      // Staff can't see billing, so they can't tell a comp from a crypto-payer
-      // (both are planManual): neutral "manual" pill, no release link for them.
-      // An internal/test account is on a manual plan BY DEFINITION — it isn't a
-      // customer, so "comp" adds nothing next to the internal chip that already
-      // says why they aren't billed, and the release link invites an edit nobody
-      // wants to make on a test account.
-      //
-      // Otherwise the pill follows billingType from the server. Before, ANY
-      // manually-held plan read as "comp", so a customer paying every month by
-      // invoice was labelled a freebie — which was wrong to Meg and wrong about
-      // the money.
-      const compTag = (u.accountType === 'internal') ? ''
-        : u.billingType === 'crypto'
-          ? ` <span class="pill" style="background:rgba(85,239,176,.15);color:var(--good);" title="Paying customer — invoiced, pays in crypto${u.cryptoNextDue ? '. Next invoice due ' + date(u.cryptoNextDue) : ''}">🪙 crypto</span>`
-        : u.billingType === 'comp'
-          ? (_role === 'owner'
-            ? ` <span class="pill comp" title="Comped — free, overrides Stripe">comp</span> <a href="#" onclick="clearManual('${esc(u.uid)}');return false;" class="muted" style="font-size:11px;">↺ auto</a>`
-            : ` <span class="pill comp" title="Manually managed plan">manual</span>`)
-        : '';
+      // How they pay is the Billing column's job now — it used to be repeated as
+      // a pill beside the plan, so a crypto customer's row said "crypto" twice.
 
       // "Cancelling" and "cancelled" are different facts and want different
       // reactions: one is a customer you can still save, the other is churn that
@@ -3416,19 +3415,36 @@
         ? ` <span class="pill" style="background:rgba(140,125,255,.16);color:var(--purple);" title="${u.accountTypeStated ? 'Chose moderator at signup' : 'Inferred from having no channel activity of its own'}">🛡 mod</span>`
         : (u.accountType === 'internal'
           ? ` <span class="pill" style="background:rgba(140,161,174,.18);color:var(--dim);" title="Our own account — never counted as a customer">🏢 internal</span>` : '');
+      // One Status column instead of chips scattered through Plan. Ordered by
+      // how much it wants attention: money already lost, then money about to
+      // be, then a clock running, then good news.
+      const statusChips = [
+        cancelTag, u.paymentFailed
+          ? ` <span class="pill" style="background:rgba(255,111,145,.16);color:var(--bad);" title="Their last Stripe payment failed">⚠ payment failed</span>` : '',
+        trialTag,
+      ].filter(Boolean).join('').trim();
+
       const gaps = chGaps(u);
       // One cell per column id; the lens decides which get emitted. The row is
       // no longer expandable — clicking the channel opens the full Customer 360,
       // which is where every action now lives (one place, one notes editor).
       const CELL = {
         channel: () => `<td><span style="cursor:pointer;" title="Open Customer 360" onclick="openCustomer('${esc(u.uid)}')">${esc(u.kickChannel || u.displayName || u.uid)}</span>${typeTag}${modTag}${hasModsTag}${archTag}${noteRow}</td>`,
-        plan:    () => `<td><div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;max-width:250px;white-space:normal;">${planSel}${compTag}${trialTag}${cancelTag}</div></td>`,
+        // Just the plan. The chips that used to crowd in here said the same
+        // things the Billing and Status columns now say — "crypto" appeared
+        // twice on the same row.
+        plan:    () => `<td>${planSel}</td>`,
         sub:     () => `<td>${sub}</td>`,
         billing: () => {
           const B = { stripe:['💳 Stripe','var(--accent)'], crypto:['🪙 Crypto','var(--good)'],
                       comp:['🎁 Comped','#ff9ec4'], free:['—','var(--dim)'] }[u.billingType] || ['—','var(--dim)'];
-          return `<td style="color:${B[1]};white-space:nowrap;">${B[0]}${u.paymentFailed ? ' <span class="warn">failed</span>' : ''}</td>`;
+          // The release link belongs with the thing it releases.
+          const release = (u.billingType === 'comp' && _role === 'owner' && u.accountType !== 'internal')
+            ? ` <a href="#" onclick="clearManual('${esc(u.uid)}');return false;" class="muted" style="font-size:11px;" title="Release this comp and let Stripe decide the plan again">↺ auto</a>` : '';
+          return `<td style="white-space:nowrap;"><span style="color:${B[1]};">${B[0]}</span>${release}</td>`;
         },
+        // Everything time-sensitive about the account, in one place, worst first.
+        status:  () => `<td style="white-space:nowrap;">${statusChips || '<span class="muted">—</span>'}</td>`,
         manager: () => `<td class="muted">${u.accountManager
           ? esc(String(u.accountManager).split('@')[0])
           : '<span class="muted" title="Nobody looks after this account yet">—</span>'}</td>`,
