@@ -93,6 +93,8 @@ exports.handler = async (event) => {
       accountManager:     s.accountManager || null,
       accountManagerAt:   ms(s.accountManagerAt),     // drives "newly assigned to you"
       accountManagerBy:   s.accountManagerBy || null,
+      // Filled from the admin_notes collection below. The legacy field is the
+      // fallback until every account has been migrated off it.
       hasNote:            !!(s.adminNotes && String(s.adminNotes).trim()),
       noteSnippet:        s.adminNotes ? String(s.adminNotes).replace(/\s+/g, " ").trim().slice(0, 80) : null,
       provider:           s.activeProvider || s.casino || null,
@@ -228,6 +230,27 @@ exports.handler = async (event) => {
       // extra month off-book shouldn't read as a debt the streamer owes us.
       u.referralCreditsOwed = Math.max(0, u.referralsConverted - (u.referralCreditsUsed || 0));
     });
+  }
+
+  // Note snippets, from the admin_notes summaries. One collection read for the
+  // whole roster rather than a subcollection query per streamer.
+  //
+  // These live OUTSIDE the streamer document on purpose: firestore.rules lets a
+  // streamer read their own doc, and Firestore has no field-level reads, so a
+  // note stored there was readable by the person it was about.
+  try {
+    const ns = await db.collection("admin_notes").get();
+    const byUid = {};
+    ns.forEach((d) => { byUid[d.id] = d.data() || {}; });
+    users.forEach((u) => {
+      const n = byUid[u.uid];
+      if (!n || !n.latest) return;
+      u.hasNote     = true;
+      u.noteSnippet = String(n.latest).replace(/\s+/g, " ").trim().slice(0, 80);
+      u.noteCount   = Number(n.count || 1);
+    });
+  } catch (e) {
+    console.warn("[admin-users] admin_notes lookup:", e.message);
   }
 
   // Bespoke portals and custom domains, from `custom_domains` (the same

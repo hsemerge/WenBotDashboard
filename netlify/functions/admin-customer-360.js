@@ -112,5 +112,14 @@ exports.handler = async (event) => {
     };
   } catch { login = null; }   // no Firebase login (shouldn't happen, but don't break the page)
 
-  return res(200, { uid, outreach, outreachNotes, tickets, counts, history, login, role: adminUser.role });
+  // The internal note thread. Best-effort like everything else here: a missing
+  // subcollection just means no notes yet, and must not blank the page.
+  let notes = [];
+  try {
+    const ns = await db.collection("admin_notes").doc(uid).collection("entries")
+      .orderBy("at", "desc").limit(100).get();
+    notes = ns.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (e) { console.warn("[c360] notes lookup:", e.message); }
+
+  return res(200, { uid, outreach, outreachNotes, tickets, counts, history, login, notes, role: adminUser.role });
 };

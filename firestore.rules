@@ -420,6 +420,11 @@ service cloud.firestore {
     // Admin SDK only — a client that could write this could silence its own
     // notifications, and reading it leaks who is watching what.
     match /admin_prefs/{doc}   { allow read, write: if false; }
+    // Internal notes ABOUT a streamer. Deliberately not on the streamer's own
+    // document: that doc is readable by them (and their mods), and Firestore has
+    // no field-level reads — so a note stored there was readable by the person
+    // it was written about. Admin SDK only.
+    match /admin_notes/{doc=**} { allow read, write: if false; }
     // Product suggestion board (imported from Discord / added by the team).
     // Admin SDK only — a client that could write here could stuff the vote.
     match /suggestions/{doc=**} { allow read, write: if false; }
