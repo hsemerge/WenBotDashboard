@@ -284,6 +284,7 @@
         <a href="#/outreach"   data-route="outreach"><span class="ico">📣</span> Outreach</a>
         <div class="navgroup">Wenbot Team</div>
         <a href="#/tickets"    data-route="tickets"><span class="ico">🎫</span> Tickets <span id="navTicketDot" class="navdot hidden" title="Something on your plate moved"></span><span id="navTicketCount" class="navbadge hidden"></span></a>
+        <a href="#/suggestions" data-route="suggestions"><span class="ico">💡</span> Suggestions <span id="navSugCount" class="navbadge hidden"></span></a>
         <a href="#/todo"       data-route="todo"><span class="ico">☑</span> To-Do List</a>
         <a href="#/security"   data-route="security"><span class="ico">🔐</span> Security</a>
       </nav>
@@ -523,7 +524,8 @@
               <option value="">All channels</option>
               <option value="live">🔴 Live now</option>
               <option value="issues">⚠️ Setup gaps</option>
-              <option value="quiet">💤 Not live in 30 days</option>
+              <option value="quiet">💤 Not live in 30+ days</option>
+              <option value="custom">★ Has a custom portal</option>
               <option value="botoff">🤖 Bot disabled</option>
             </select>
             <button class="btn-ghost" onclick="loadUsers()">↻ Refresh</button>
@@ -532,14 +534,19 @@
           <div class="tablecard">
             <div style="overflow-x:auto;">
               <table>
-                <thead><tr>
-                  <th>Channel</th><th>Live</th><th>Bot</th><th>Casino</th><th>Portal</th><th>Discord</th><th>Last live</th><th>Stream time</th>
+                <thead><tr id="chHead">
+                  <th data-sort="channel">Channel</th><th data-sort="gaps">Setup</th><th data-sort="live">Live</th>
+                  <th data-sort="bot">Bot</th><th data-sort="casino">Casino</th><th data-sort="portal">Portal</th>
+                  <th data-sort="discord">Discord</th><th data-sort="lastLive">Last live</th><th class="num" data-sort="streamTime">Stream time</th>
                 </tr></thead>
-                <tbody id="chTable"><tr><td colspan="8" class="muted" style="text-align:center;padding:24px;">Loading…</td></tr></tbody>
+                <tbody id="chTable"><tr><td colspan="9" class="muted" style="text-align:center;padding:24px;">Loading…</td></tr></tbody>
               </table>
             </div>
           </div>
-          <div class="sub" style="margin-top:12px;">🔴 live now · ✅ wired up · — not set up. Click a channel to open its Customer 360.</div>
+          <div class="sub" style="margin-top:12px;">
+            <b>Setup</b> lists what a channel is missing — a casino, a portal, or a linked Discord. ★ custom means a bespoke portal page on their own domain, which counts as a portal.
+            🔴 live now · ✅ wired up · — not set up. Click any column header to sort; click a channel to open its Customer 360.
+          </div>
         </div>
 
         <!-- ANALYTICS: what streamers actually use -->
@@ -677,6 +684,57 @@
               </table>
             </div>
           </div>
+        </div>
+
+        <!-- SUGGESTIONS: the product board -->
+        <div id="suggestionsView" class="hidden">
+          <div class="stats" id="sugStats"></div>
+
+          <div class="tablecard" style="padding:16px;margin-bottom:16px;">
+            <div class="kicker">Wenbot Product</div>
+            <div class="panel-title">Add a suggestion</div>
+            <div class="sub" style="margin-bottom:11px;">Ideas the team votes on. Pull the backlog out of Discord with Import, or add one here.</div>
+            <input id="sugTitle" type="text" maxlength="200" placeholder="What should we build?" style="width:100%;margin-bottom:9px;">
+            <textarea id="sugBody" maxlength="4000" placeholder="Why does it matter, and who asked for it? (optional)"
+                      style="width:100%;display:block;min-height:70px;resize:vertical;font-size:13px;line-height:1.55;padding:10px 12px;margin-bottom:10px;"></textarea>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <button onclick="sugCreate()">＋ Add suggestion</button>
+              <span style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <input id="sugChannel" type="text" maxlength="40" placeholder="Discord channel ID"
+                       style="max-width:210px;font-size:12px;" title="Right-click your suggestions channel in Discord → Copy Channel ID (needs Developer Mode on)">
+                <button class="btn-ghost" onclick="sugImport()" title="Pull the last 100 messages in and turn each into a suggestion. Already-imported messages are skipped.">⇩ Import from Discord</button>
+              </span>
+            </div>
+            <div id="sugImportMsg" class="sub" style="margin-top:8px;"></div>
+          </div>
+
+          <div class="toolbar">
+            <input id="sugSearch" type="text" placeholder="Search suggestions…" oninput="renderSuggestions()">
+            <select id="sugFilter" onchange="renderSuggestions()" style="max-width:190px;">
+              <option value="open">Open (not shipped/declined)</option>
+              <option value="">All</option>
+              <option value="new">New</option>
+              <option value="planned">Planned</option>
+              <option value="in_progress">In progress</option>
+              <option value="shipped">Shipped</option>
+              <option value="declined">Declined</option>
+            </select>
+            <span id="sugCount" class="sub" style="align-self:center;"></span>
+          </div>
+
+          <div class="tablecard">
+            <div style="overflow-x:auto;">
+              <table>
+                <thead><tr id="sugHead">
+                  <th></th><th data-sort="votes" class="num">Votes</th><th data-sort="title">Suggestion</th>
+                  <th data-sort="status">Status</th><th data-sort="source">From</th>
+                  <th data-sort="notes" class="num">Notes</th><th data-sort="added">Added</th><th></th>
+                </tr></thead>
+                <tbody id="sugTable"><tr><td colspan="8" class="muted" style="text-align:center;padding:24px;">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="sub" style="margin-top:12px;">▲/▼ is your own vote — click again to undo it. 💬 from Discord is the reaction count the message already had.</div>
         </div>
 
         <!-- SECURITY / 2FA -->
@@ -898,6 +956,7 @@
     ops:       { view: 'opsView',     title: 'Revenue Ops', kick: 'Money & retention' },
     outreach:  { view: 'outreachView',title: 'Outreach',    kick: 'Streamer pipeline' },
     tickets:   { view: 'ticketsView', title: 'Tickets',     kick: 'Team queue' },
+    suggestions:{ view: 'suggestionsView', title: 'Suggestions', kick: 'Product board' },
     todo:      { view: 'todoView',    title: 'To-Do List',  kick: 'Wenbot team' },
     security:  { view: 'securityView',title: 'Security',    kick: 'Your account' },
   };
@@ -921,6 +980,7 @@
     if (name === 'slots' && !_slotsLoaded) loadSlots();
     if (name === 'billing') renderBilling();
     if (name === 'todo' && !_todosLoaded) loadTodos();
+    if (name === 'suggestions' && !_sugLoaded) loadSuggestions();
     if (name === 'outreach' && !_outreachLoaded) loadOutreach();
     if (name === 'tickets' && !_ticketsLoaded) loadTickets();
     // Opening the queue IS reading it — clear the sign-in banner (and the nav
@@ -1732,15 +1792,38 @@
     : `<span class="muted" title="${esc(label)}">—</span>`;
   const hoursFrom = (ms) => (ms ? Math.round(ms / 36e5) : 0);
 
+  // What's missing that a working channel needs. Bot-disabled is deliberate (an
+  // admin turned it off with a reason), so it's reported, not counted a gap.
+  //
+  // A bespoke portal counts as a portal. Meg, SKSlots and TheTiltBros have
+  // hand-built pages on their own domains and the standard leaderboard flag off
+  // — which read as a setup gap for precisely the customers with the MOST
+  // portal. `customPortal` comes from the custom_domains collection.
   function chGaps(u) {
-    // What's missing that a working channel needs. Bot-disabled is deliberate
-    // (an admin turned it off with a reason), so it's reported, not counted a gap.
     const g = [];
     if (!u.provider) g.push('no casino');
-    if (!u.leaderboardEnabled) g.push('leaderboard off');
+    if (!u.leaderboardEnabled && !u.customPortal) g.push('no portal');
     if (!u.hasDiscord) g.push('no Discord');
     return g;
   }
+
+  const channelsSort = createTableSort({
+    storageKey: 'wb.admin.channelsSort',
+    head:       '#chHead',
+    onChange:   () => renderChannels(),
+    columns: {
+      channel:    u => String(u.kickChannel || u.uid || '').toLowerCase(),
+      // Most broken first on the first click — that's what the column is for.
+      gaps:       { get: u => chGaps(u).length, dir: 'desc' },
+      live:       { get: u => (u.kickLive ? 1 : 0), dir: 'desc' },
+      bot:        { get: u => (u.botEnabled ? 1 : 0), dir: 'asc' },   // problems first
+      casino:     u => String(u.provider || '').toLowerCase(),
+      portal:     { get: u => (u.customPortal ? 2 : (u.leaderboardEnabled ? 1 : 0)), dir: 'desc' },
+      discord:    { get: u => (u.hasDiscord ? 1 : 0), dir: 'desc' },
+      lastLive:   u => (u.kickLiveAt || null),
+      streamTime: u => Number((u.liveStats && u.liveStats.totalLiveMs) || 0),
+    },
+  });
 
   window.renderChannels = function () {
     const q = ($('chSearch')?.value || '').toLowerCase().trim();
@@ -1758,7 +1841,7 @@
       + `<div class="stat"><div class="n">${A.filter(u => u.kickLiveAt).length}</div><div class="l">Have streamed</div></div>`
       + `<div class="stat ${gappy.length ? 'warn' : ''}"><div class="n">${gappy.length}</div><div class="l">Setup gaps</div></div>`
       + `<div class="stat ${botOff.length ? 'bad' : ''}"><div class="n">${botOff.length}</div><div class="l">Bot disabled</div></div>`
-      + `<div class="stat"><div class="n">${quiet.length}</div><div class="l">Quiet 30d+</div></div>`;
+      + `<div class="stat" title="Channels that aren't live now and haven't gone live in over 30 days — including ones that have never streamed. Dormant accounts, not a fault."><div class="n">${quiet.length}</div><div class="l">Not live in 30+ days</div></div>`;
 
     const badge = $('navLiveCount');
     if (badge) { badge.textContent = liveNow.length || ''; badge.classList.toggle('hidden', !liveNow.length); }
@@ -1769,10 +1852,13 @@
       if (f === 'botoff') return !u.botEnabled;
       if (f === 'issues') return chGaps(u).length > 0;
       if (f === 'quiet')  return !u.kickLive && (!u.kickLiveAt || (now - u.kickLiveAt) > 30 * DAYMS);
+      if (f === 'custom') return !!u.customPortal;
       return true;
     });
-    // Live first, then most recently live.
+    // Live first, then most recently live — until someone clicks a header, at
+    // which point their choice wins (and is remembered).
     rows.sort((a, b) => (b.kickLive ? 1 : 0) - (a.kickLive ? 1 : 0) || (b.kickLiveAt || 0) - (a.kickLiveAt || 0));
+    rows = channelsSort.apply(rows);
 
     const c = $('chCount'); if (c) c.textContent = `${rows.length} of ${A.length}`;
     $('chTable').innerHTML = rows.length ? rows.map(u => {
@@ -1780,18 +1866,26 @@
       const bot = u.botEnabled
         ? '<span class="ok">on</span>'
         : `<span class="warn" title="${esc(u.botDisabledReason || 'disabled')}">off</span>`;
+      // Name the gaps on the row. As a bare count in a tooltip, "2 gaps" meant
+      // hovering every channel to find out what was actually missing.
+      const setupCell = gaps.length
+        ? `<span class="pill" style="background:rgba(245,197,24,.14);color:var(--gold);white-space:nowrap;" title="Missing: ${esc(gaps.join(', '))}">${esc(gaps.join(' · '))}</span>`
+        : '<span class="ok" title="Casino, portal and Discord are all set up">✅ complete</span>';
+      const portalCell = u.customPortal
+        ? `<span class="ok" title="Bespoke portal page${(u.customDomains || []).length ? ' on ' + esc((u.customDomains || []).join(', ')) : ''}">★ custom</span>`
+        : chOk(u.leaderboardEnabled, 'Public leaderboard/portal enabled');
       return `<tr${u.kickLive ? ' style="background:rgba(85,239,176,.05);"' : ''}>
-        <td><span style="cursor:pointer;" onclick="openCustomer('${esc(u.uid)}')" title="Open Customer 360"><b>${esc(u.kickChannel || u.uid)}</b></span>
-            ${gaps.length ? ` <span class="pill" style="background:rgba(245,197,24,.14);color:var(--gold);" title="${esc(gaps.join(', '))}">${gaps.length} gap${gaps.length === 1 ? '' : 's'}</span>` : ''}</td>
+        <td><span style="cursor:pointer;" onclick="openCustomer('${esc(u.uid)}')" title="Open Customer 360"><b>${esc(u.kickChannel || u.uid)}</b></span></td>
+        <td>${setupCell}</td>
         <td>${u.kickLive ? '<span style="color:var(--bad);font-weight:700;">🔴 LIVE</span>' : '<span class="muted">—</span>'}</td>
         <td>${bot}</td>
         <td>${u.provider ? `<span class="ok" title="${esc(u.provider)}">${esc(u.provider)}</span>` : '<span class="muted">—</span>'}</td>
-        <td>${chOk(u.leaderboardEnabled, 'Public leaderboard/portal enabled')}</td>
+        <td>${portalCell}</td>
         <td>${chOk(u.hasDiscord, u.hasDiscord ? 'Discord server linked' : 'No Discord server linked')}</td>
         <td class="muted">${u.kickLiveAt ? rel(u.kickLiveAt) : '<span class="muted">never</span>'}</td>
         <td class="muted num">${u.liveStats && u.liveStats.totalLiveMs ? hoursFrom(u.liveStats.totalLiveMs) + 'h' + (u.liveStats.sessions ? ` <span style="opacity:.6;">· ${u.liveStats.sessions} sessions</span>` : '') : '—'}</td>
       </tr>`;
-    }).join('') : '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px;">No channels match.</td></tr>';
+    }).join('') : '<tr><td colspan="9" class="muted" style="text-align:center;padding:24px;">No channels match.</td></tr>';
   };
 
   // ── Analytics: what streamers actually use ─────────────────────────────────
@@ -2565,6 +2659,223 @@
       _tkExpanded.delete(id); delete _tkComments[id];
       await loadTickets();
     } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  // ── Suggestions: the product board ─────────────────────────────────────────
+  // Feature ideas used to live in a Discord channel, where they scrolled away
+  // and nothing could be counted or decided. Import pulls that channel in; the
+  // team then votes, argues in the notes, and sets a status.
+  let _sug = [], _sugLoaded = false, _sugExpanded = new Set(), _sugNotes = {};
+  const SUG_LABEL = { new:'new', planned:'planned', in_progress:'in progress', shipped:'shipped', declined:'declined' };
+  const SUG_ORDER = ['new', 'planned', 'in_progress', 'shipped', 'declined'];
+  const SUG_RANK  = { new:0, planned:1, in_progress:2, shipped:3, declined:4 };
+
+  const sugSort = createTableSort({
+    storageKey: 'wb.admin.sugSort',
+    head:       '#sugHead',
+    onChange:   () => renderSuggestions(),
+    columns: {
+      votes:  { get: s => Number(s.score || 0), dir: 'desc' },
+      title:  s => String(s.title || '').toLowerCase(),
+      status: { get: s => SUG_RANK[s.status] ?? 9, dir: 'asc' },
+      source: s => String(s.source || '').toLowerCase(),
+      notes:  { get: s => Number(s.noteCount || 0), dir: 'desc' },
+      added:  s => (s.createdAt || null),
+    },
+  });
+
+  window.loadSuggestions = async function () {
+    try {
+      const r = await authedFetch('/api/admin-suggestions');
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      _sug = d.suggestions || []; _sugLoaded = true;
+      renderSuggestions();
+    } catch (e) {
+      $('sugTable').innerHTML = `<tr><td colspan="8" class="warn" style="text-align:center;padding:24px;">${esc(e.message)}</td></tr>`;
+    }
+  };
+
+  window.renderSuggestions = function () {
+    const q = ($('sugSearch')?.value || '').toLowerCase().trim();
+    const f = $('sugFilter') ? $('sugFilter').value : 'open';
+    let rows = _sug.filter(s => {
+      if (f === 'open') { if (s.status === 'shipped' || s.status === 'declined') return false; }
+      else if (f && s.status !== f) return false;
+      if (q && !(`${s.title} ${s.body || ''} ${s.discordAuthor || ''}`.toLowerCase().includes(q))) return false;
+      return true;
+    });
+
+    const open = _sug.filter(s => s.status !== 'shipped' && s.status !== 'declined').length;
+    $('sugStats').innerHTML =
+      `<div class="stat"><div class="n">${open}</div><div class="l">Open ideas</div></div>`
+      + `<div class="stat"><div class="n">${_sug.filter(s => s.status === 'new').length}</div><div class="l">Unreviewed</div></div>`
+      + `<div class="stat good"><div class="n">${_sug.filter(s => s.status === 'shipped').length}</div><div class="l">Shipped</div></div>`
+      + `<div class="stat"><div class="n">${_sug.filter(s => s.source === 'discord').length}</div><div class="l">From Discord</div></div>`;
+    const nb = $('navSugCount');
+    if (nb) { nb.textContent = _sug.filter(s => s.status === 'new').length || ''; nb.classList.toggle('hidden', !_sug.some(s => s.status === 'new')); }
+
+    // Highest-voted first by default; a header click takes over from there.
+    rows.sort((a, b) => (b.score - a.score) || (b.createdAt || 0) - (a.createdAt || 0));
+    rows = sugSort.apply(rows);
+
+    const c = $('sugCount'); if (c) c.textContent = `${rows.length} of ${_sug.length}`;
+    if (!rows.length) { $('sugTable').innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px;">Nothing here yet — add one, or import from Discord.</td></tr>'; return; }
+
+    $('sugTable').innerHTML = rows.map(s => {
+      const id = esc(s.id);
+      const isOpen = _sugExpanded.has(s.id);
+      const statusSel = `<select onchange="sugSetField('${id}','status',this.value)" style="width:120px;font-size:12px;padding:3px 6px;">`
+        + SUG_ORDER.map(k => `<option value="${k}" ${k === s.status ? 'selected' : ''}>${SUG_LABEL[k]}</option>`).join('') + '</select>';
+      const head = `<tr${s.status === 'shipped' || s.status === 'declined' ? ' style="opacity:.6;"' : ''}>
+        <td><span onclick="sugToggle('${id}')" style="cursor:pointer;user-select:none;color:var(--accent);">${isOpen ? '▾' : '▸'}</span></td>
+        <td class="num" style="white-space:nowrap;">
+          <span onclick="sugVote('${id}',1)" title="Vote up" style="cursor:pointer;color:${s.myVote === 1 ? 'var(--good)' : 'var(--dim)'};">▲</span>
+          <b style="margin:0 3px;color:var(--bright);">${s.score}</b>
+          <span onclick="sugVote('${id}',-1)" title="Vote down" style="cursor:pointer;color:${s.myVote === -1 ? 'var(--bad)' : 'var(--dim)'};">▼</span>
+        </td>
+        <td style="white-space:normal;max-width:460px;"><b>${esc(s.title)}</b>${s.discordUp ? ` <span class="muted" style="font-size:11px;" title="👍 reactions on the original Discord message">💬 ${s.discordUp}</span>` : ''}</td>
+        <td>${statusSel}</td>
+        <td class="muted">${s.source === 'discord'
+            ? (s.discordUrl ? `<a href="${esc(s.discordUrl)}" target="_blank" rel="noopener" class="muted" title="Open the original message">Discord${s.discordAuthor ? ' · ' + esc(s.discordAuthor) : ''}</a>` : 'Discord')
+            : esc(String(s.createdBy || '').split('@')[0])}</td>
+        <td class="num muted">${s.noteCount || 0}</td>
+        <td class="muted">${rel(s.createdAt)}</td>
+        <td><span title="Delete" style="cursor:pointer;color:var(--dim);" onclick="sugDelete('${id}','${esc(String(s.title).replace(/'/g, ''))}')">✕</span></td>
+      </tr>`;
+      return head + (isOpen ? `<tr><td colspan="8" style="background:rgba(4,10,16,.6);padding:0;">${sugDetail(s)}</td></tr>` : '');
+    }).join('');
+  };
+
+  function sugDetail(s) {
+    const id = esc(s.id);
+    const ns = _sugNotes[s.id];
+    let thread;
+    if (!ns || ns === 'loading') thread = '<div class="muted">Loading notes…</div>';
+    else if (!ns.length) thread = '<div class="muted">No notes yet.</div>';
+    else thread = ns.slice().reverse().map(n => {
+      const when = n.at ? new Date(n.at).toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+      return `<div class="c"><span class="mono muted" style="font-size:10.5px;white-space:nowrap;min-width:96px;">${when}</span>
+        <span><b style="color:var(--bright);">${esc(String(n.by || '?').split('@')[0])}</b> · ${esc(n.text || '')}</span></div>`;
+    }).join('');
+
+    return `<div class="tk-detail">
+      ${s.source === 'discord' && s.discordAuthor
+        ? `<div class="sub" style="margin-bottom:10px;">Posted in Discord by <b style="color:var(--bright);">${esc(s.discordAuthor)}</b>${s.discordUrl ? ` · <a href="${esc(s.discordUrl)}" target="_blank" rel="noopener">open the original</a>` : ''}</div>`
+        : ''}
+      <div class="tk-field">
+        <div class="kicker">Detail</div>
+        <textarea id="sug-body-${id}" placeholder="What exactly are we building, and why?">${esc(s.body || '')}</textarea>
+        <div class="row">
+          <button class="btn-ghost" onclick="sugSaveBody('${id}')">Save detail</button>
+          <span class="tk-saved" id="sug-ok-${id}">Saved</span>
+        </div>
+      </div>
+      <div class="kicker">Notes</div>
+      <div class="thread">${thread}</div>
+      <div class="tk-reply">
+        <textarea id="sug-n-${id}" placeholder="Add a note…"
+                  onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sugNote('${id}');}"></textarea>
+        <button onclick="sugNote('${id}')" style="align-self:flex-start;">Note</button>
+      </div>
+    </div>`;
+  }
+
+  window.sugToggle = async function (id) {
+    if (_sugExpanded.has(id)) { _sugExpanded.delete(id); renderSuggestions(); return; }
+    _sugExpanded.add(id);
+    if (!_sugNotes[id]) {
+      _sugNotes[id] = 'loading'; renderSuggestions();
+      try {
+        const r = await authedPost('/api/admin-suggestions', { action: 'notes', id });
+        const d = await r.json();
+        _sugNotes[id] = r.ok ? (d.notes || []) : [];
+      } catch { _sugNotes[id] = []; }
+    }
+    renderSuggestions();
+  };
+
+  window.sugCreate = async function () {
+    const title = ($('sugTitle').value || '').trim();
+    if (!title) return;
+    try {
+      const r = await authedPost('/api/admin-suggestions', { action: 'create', title, body: ($('sugBody')?.value || '').trim() });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      $('sugTitle').value = ''; if ($('sugBody')) $('sugBody').value = '';
+      await loadSuggestions();
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  // Clicking your existing vote clears it, so a mind can be changed all the way
+  // back to neutral rather than only flipped.
+  window.sugVote = async function (id, dir) {
+    const s = _sug.find(x => x.id === id);
+    const next = (s && s.myVote === dir) ? 0 : dir;
+    try {
+      const r = await authedPost('/api/admin-suggestions', { action: 'vote', id, dir: next });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      if (s) { s.score = d.score; s.myVote = d.myVote; }
+      renderSuggestions();
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  window.sugSetField = async function (id, key, value) {
+    try {
+      const r = await authedPost('/api/admin-suggestions', { action: 'update', id, fields: { [key]: value } });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      const s = _sug.find(x => x.id === id); if (s) s[key] = value;
+      renderSuggestions();
+    } catch (e) { alert('Failed: ' + e.message); loadSuggestions(); }
+  };
+
+  window.sugSaveBody = async function (id) {
+    const el = $('sug-body-' + id); if (!el) return;
+    const value = el.value;
+    try {
+      const r = await authedPost('/api/admin-suggestions', { action: 'update', id, fields: { body: value } });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      const s = _sug.find(x => x.id === id); if (s) s.body = value.trim() || null;
+      const ok = $('sug-ok-' + id);
+      if (ok) { ok.classList.add('on'); setTimeout(() => ok.classList.remove('on'), 1600); }
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  window.sugNote = async function (id) {
+    const el = $('sug-n-' + id); const text = (el?.value || '').trim();
+    if (!text) return;
+    el.value = '';
+    try {
+      const r = await authedPost('/api/admin-suggestions', { action: 'note', id, text });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      delete _sugNotes[id]; _sugExpanded.delete(id); await sugToggle(id);
+      await loadSuggestions();
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  window.sugDelete = async function (id, title) {
+    if (!confirm(`Delete "${title}"? Its notes and votes go with it.`)) return;
+    try {
+      const r = await authedPost('/api/admin-suggestions', { action: 'delete', id });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      _sugExpanded.delete(id); delete _sugNotes[id];
+      await loadSuggestions();
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  window.sugImport = async function () {
+    const channelId = ($('sugChannel')?.value || '').trim();
+    const msg = $('sugImportMsg');
+    if (!channelId) { if (msg) msg.innerHTML = '<span class="warn">Paste the channel ID first — right-click the channel in Discord → Copy Channel ID (Developer Mode must be on).</span>'; return; }
+    if (msg) msg.textContent = 'Reading the channel…';
+    try {
+      const r = await authedPost('/api/admin-suggestions', { action: 'import', channelId, limit: 100 });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      if (msg) msg.innerHTML = `<span class="ok">Imported ${d.added} new suggestion${d.added === 1 ? '' : 's'}</span> <span class="muted">· ${d.skipped} skipped (already here or not a suggestion) of ${d.scanned} messages read.</span>`;
+      await loadSuggestions();
+    } catch (e) { if (msg) msg.innerHTML = `<span class="warn">${esc(e.message)}</span>`; }
   };
 
   // ── Shared Team To-Do ──────────────────────────────────────────────────────

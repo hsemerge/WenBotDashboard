@@ -132,6 +132,37 @@ exports.handler = async (event) => {
     }
   }
 
+  // Bespoke portals and custom domains, from `custom_domains` (the same
+  // collection the edge function's map is baked from).
+  //
+  // Without this, an Agency customer with a hand-built portal read as a SETUP
+  // GAP — "leaderboard off" — because the standard portal flag is off for
+  // exactly the people who have something better. Meg is the case in point: she
+  // has megrewards.com and a bespoke page, and the roster called it a gap.
+  //
+  // One small read for the whole request; the collection holds a handful of docs.
+  try {
+    const dom = await db.collection("custom_domains").get();
+    const bespoke = new Set();
+    const hostsBySlug = {};
+    dom.forEach((d) => {
+      const x = d.data() || {};
+      if (x.enabled === false || !x.slug) return;
+      const slug = String(x.slug).toLowerCase();
+      if (x.page) bespoke.add(slug);
+      if (x.host) (hostsBySlug[slug] = hostsBySlug[slug] || []).push(String(x.host).toLowerCase());
+    });
+    users.forEach((u) => {
+      const slug = String(u.kickChannel || "").toLowerCase();
+      u.customPortal  = !!slug && bespoke.has(slug);
+      u.customDomains = (slug && hostsBySlug[slug]) ? hostsBySlug[slug] : [];
+    });
+  } catch (e) {
+    // Non-fatal: without it the roster just falls back to the plain portal flag.
+    console.warn("[admin-users] custom_domains lookup:", e.message);
+    users.forEach((u) => { u.customPortal = false; u.customDomains = []; });
+  }
+
   // Last login — pulled from Firebase Auth metadata (no per-login writes needed).
   // Batched getUsers (max 100/call). Non-fatal: on any failure, leave it null.
   try {
