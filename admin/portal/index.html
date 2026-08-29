@@ -200,7 +200,18 @@
   .navdot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--bad); margin-left:6px; vertical-align:middle; }
 
   /* Customer 360 */
-  .c360grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+  /* The channel name opens Customer 360. It used to be plain text with a
+     cursor:pointer you had to discover by hovering, so the drill-in — the most
+     useful thing on the page — was invisible. */
+  .chan { color:var(--accent); font-weight:600; cursor:pointer; border-bottom:1px dotted rgba(var(--accent-rgb),.45); }
+  .chan::after { content:'›'; margin-left:5px; opacity:.45; font-weight:700; }
+  .chan:hover { color:var(--bright); border-bottom-color:var(--bright); }
+  .chan:hover::after { opacity:1; }
+  tbody tr:hover .chan { border-bottom-style:solid; }
+
+  /* Left carries the detail (money, notes, the admin trail), right the short
+     cards you act from — so the page stops running down one side. */
+  .c360grid { display:grid; grid-template-columns:1.35fr 1fr; gap:16px; align-items:start; }
   @media (max-width:1080px){ .c360grid { grid-template-columns:1fr; } }
   .c360hero { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
   .c360hero .name { font-family:var(--disp); font-size:26px; font-weight:700; color:var(--bright); }
@@ -1472,17 +1483,29 @@
     // Who moderates this channel, and whose channels this person moderates.
     // Both directions matter in support: "their mod can't save settings" needs
     // the first, "why can this person see that account" needs the second.
+    // The card is always shown now, because it's where an admin ADDS and REMOVES
+    // moderators. Before, "can you add my mod for me" meant switching into the
+    // streamer's account to use their own screen.
     const mods = u.mods || [], moderates = u.moderates || [];
-    const teamHtml = (!mods.length && !moderates.length) ? '' : `
+    const teamHtml = `
       <div class="tablecard" style="padding:16px;">
         <div class="kicker">Team</div>
         <div class="panel-title">Moderators</div>
-        ${mods.length ? `<div class="sub" style="margin:8px 0 4px;">Can manage this channel:</div>
-          ${mods.map(m => `<div style="display:flex;align-items:center;gap:8px;margin:5px 0;">
+        <div class="sub" style="margin:6px 0 8px;">Up to 2 people who can manage ${esc(u.kickChannel || 'this channel')} from their own login.</div>
+        ${mods.length ? mods.map(m => `<div style="display:flex;align-items:center;gap:8px;margin:6px 0;">
             <b style="color:var(--bright);cursor:pointer;" onclick="openCustomer('${esc(m.uid)}')">${esc(m.channel || m.email || m.uid)}</b>
             ${m.email ? `<span class="muted" style="font-size:11.5px;">${esc(m.email)}</span>` : ''}
-          </div>`).join('')}`
-          : '<div class="sub" style="margin-top:8px;">No moderators added.</div>'}
+            <span title="Remove this moderator" style="margin-left:auto;cursor:pointer;color:var(--dim);"
+                  onclick="c360RemoveMod('${esc(uid)}','${esc(m.uid)}','${esc(String(m.channel || m.email || m.uid).replace(/'/g, ''))}')">✕</span>
+          </div>`).join('')
+          : '<div class="sub">Nobody yet.</div>'}
+        ${mods.length < 2 ? `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;">
+          <input id="c360ModEmail" type="email" placeholder="Their WenBot email" style="flex:1;min-width:180px;font-size:12px;padding:5px 9px;"
+                 onkeydown="if(event.key==='Enter')c360AddMod('${esc(uid)}')">
+          <button class="btn-ghost" onclick="c360AddMod('${esc(uid)}')">＋ Add</button>
+        </div>
+        <div class="sub" style="margin-top:6px;font-size:11px;">They need a WenBot account already, and must sign out and back in for it to take effect.</div>` : ''}
         ${moderates.length ? `<div class="sub" style="margin:12px 0 4px;padding-top:10px;border-top:1px solid var(--line);">Also moderates for:</div>
           ${moderates.map(m => `<div style="margin:5px 0;">
             <b style="color:var(--bright);cursor:pointer;" onclick="openCustomer('${esc(m.uid)}')">${esc(m.channel || m.uid)}</b>
@@ -1637,8 +1660,14 @@
         </div>
       </div>
       <div class="c360grid">
-        <div style="display:flex;flex-direction:column;gap:16px;">${billing}${outreachHtml}</div>
-        <div style="display:flex;flex-direction:column;gap:16px;">${actionsHtml}${billingHtml}${managerHtml}${teamHtml}${ticketsHtml}${loginHtml}${notesHtml}${histHtml}</div>
+        <!-- LEFT: the substance, grouped by subject. Money first and whole —
+             how they pay, what they've paid, and what their referrals have
+             earned were split across both columns before. Then the long-form
+             record: notes, then the admin trail. -->
+        <div style="display:flex;flex-direction:column;gap:16px;">${billingHtml}${billing}${notesHtml}${histHtml}</div>
+        <!-- RIGHT: the short cards you act from — do something, who owns them,
+             who can help them, and how we got them. -->
+        <div style="display:flex;flex-direction:column;gap:16px;">${actionsHtml}${managerHtml}${teamHtml}${ticketsHtml}${loginHtml}${outreachHtml}</div>
       </div>`;
   }
 
@@ -1676,6 +1705,34 @@
       }
       if (clear) await c360Load(uid);
       renderDash(_lastStats || {});
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  // Moderators, managed from support rather than by switching into the account.
+  // Both refresh the roster first: mods/moderates are computed server-side from
+  // modUids, so the card can't repaint correctly from local state alone.
+  window.c360AddMod = async function (uid) {
+    const el = $('c360ModEmail');
+    const email = (el?.value || '').trim();
+    if (!email) { alert("Enter the moderator's WenBot email."); return; }
+    try {
+      const r = await authedPost('/api/admin-account-action', { uid, action: 'add-mod', email });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      flashOk(d.message || 'Moderator added');
+      await loadUsers();
+      await c360Load(uid);
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+  window.c360RemoveMod = async function (uid, modUid, who) {
+    if (!confirm(`Remove ${who} as a moderator?\n\nThey lose access to this channel's dashboard.`)) return;
+    try {
+      const r = await authedPost('/api/admin-account-action', { uid, action: 'remove-mod', modUid });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      flashOk(d.message || 'Moderator removed');
+      await loadUsers();
+      await c360Load(uid);
     } catch (e) { alert('Failed: ' + e.message); }
   };
 
@@ -2004,7 +2061,7 @@
   const isPaying  = (u) => u.subscriptionActive && !u.planManual && !u.planTrial;
   const daysTo    = (ms) => (ms ? Math.ceil((ms - Date.now()) / DAYMS) : null);
   const daysSince = (ms) => (ms ? Math.floor((Date.now() - ms) / DAYMS) : null);
-  const chanCell  = (u) => `<b style="cursor:pointer;" title="Open Customer 360" onclick="openCustomer('${esc(u.uid)}')">${esc(u.kickChannel || u.uid)}</b>`;
+  const chanCell  = (u) => `<span class="chan" title="Open ${esc(u.kickChannel || u.uid)}'s Customer 360" onclick="openCustomer('${esc(u.uid)}')">${esc(u.kickChannel || u.uid)}</span>`;
   const mailCell  = (u) => (u.email ? `<a href="mailto:${esc(u.email)}" class="muted">${esc(u.email)}</a>` : '<span class="muted">—</span>');
 
   window.setOpsTab = function (id) { _opsTab = id; renderOps(); };
@@ -3319,7 +3376,8 @@
         .filter(([, d]) => !d.owner || _role === 'owner')
         .map(([k, d]) => `<button class="${k === _lens ? '' : 'btn-ghost'}" onclick="setLens('${k}')" style="padding:7px 14px;font-size:12.5px;">${esc(d.label)}</button>`).join('');
     }
-    const noteEl = $('lensNote'); if (noteEl) noteEl.textContent = lens.note;
+    const noteEl = $('lensNote');
+    if (noteEl) noteEl.innerHTML = `<b style="color:var(--accent);">Click a channel</b> for its full Customer 360. ${esc(lens.note)}`;
     const head = $('usersHead');
     if (head) {
       head.innerHTML = lens.cols
@@ -3429,7 +3487,7 @@
       // no longer expandable — clicking the channel opens the full Customer 360,
       // which is where every action now lives (one place, one notes editor).
       const CELL = {
-        channel: () => `<td><span style="cursor:pointer;" title="Open Customer 360" onclick="openCustomer('${esc(u.uid)}')">${esc(u.kickChannel || u.displayName || u.uid)}</span>${typeTag}${modTag}${hasModsTag}${archTag}${noteRow}</td>`,
+        channel: () => `<td><span class="chan" title="Open ${esc(u.kickChannel || u.displayName || u.uid)}'s Customer 360 — billing, moderators, tickets, notes" onclick="openCustomer('${esc(u.uid)}')">${esc(u.kickChannel || u.displayName || u.uid)}</span>${typeTag}${modTag}${hasModsTag}${archTag}${noteRow}</td>`,
         // Just the plan. The chips that used to crowd in here said the same
         // things the Billing and Status columns now say — "crypto" appeared
         // twice on the same row.

@@ -20,6 +20,7 @@ const { getDb, admin }        = require("./_lib/firebase");
 const { res, checkRateLimit } = require("./_lib/http");
 const { requireAdmin, logAdminAudit } = require("./_lib/admin");
 const { sendEmail, wrap, button, SUPPORT_EMAIL } = require("./_lib/email");
+const { MAX_MODS, findUserByEmail, grantDelegation, revokeDelegation } = require("./_lib/team");
 
 const OWNER_ONLY = new Set(["clear-mfa", "disable", "enable"]);
 
@@ -120,6 +121,44 @@ exports.handler = async (event) => {
     await sref.set({ referralCreditsUsed: used }, { merge: true });
     logAdminAudit(db, adminUser.uid, "referral_credits_set", { uid, used });
     return res(200, { success: true, used });
+  }
+
+  // Moderators, from the admin side. The streamer-facing endpoints
+  // (team-add-mod / team-remove-mod) only let the OWNER manage their own list,
+  // which is right for them and useless in support — "can you add my mod for
+  // me" previously meant switching into their account to do it.
+  //
+  // Same two-place grant the streamer flow uses (modUids + the delegatedFor
+  // claim), so the two can't drift. The MAX_MODS cap is kept; the Elite gate is
+  // deliberately NOT, because an admin doing this is making a considered call
+  // (setting up a trial, fixing a botched signup) and the audit log records it.
+  if (action === "add-mod" || action === "remove-mod") {
+    const sref = db.collection("streamers").doc(uid);
+    const ssnap = await sref.get();
+    if (!ssnap.exists) return res(404, { error: "No such streamer." });
+    const mods = Array.isArray(ssnap.data().modUids) ? ssnap.data().modUids : [];
+
+    if (action === "add-mod") {
+      const modEmail = String(body.email || "").trim().toLowerCase();
+      if (!modEmail.includes("@")) return res(400, { error: "Enter the moderator's email address." });
+      const modUser = await findUserByEmail(modEmail);
+      if (!modUser) return res(404, { error: "No WenBot account for that email — they need to sign up first." });
+      if (modUser.uid === uid) return res(400, { error: "That's the streamer's own account." });
+      if (mods.includes(modUser.uid)) return res(409, { error: "Already a moderator on this channel." });
+      if (mods.length >= MAX_MODS) return res(400, { error: `At most ${MAX_MODS} moderators. Remove one first.` });
+      await grantDelegation(modUser.uid, uid);
+      await sref.update({ modUids: admin.firestore.FieldValue.arrayUnion(modUser.uid) });
+      logAdminAudit(db, adminUser.uid, "mod_added", { uid, modUid: modUser.uid, modEmail: modUser.email });
+      return res(200, { success: true, message: `${modUser.email} added — they must sign out and back in for it to take effect.` });
+    }
+
+    const modUid = String(body.modUid || "").trim();
+    if (!modUid) return res(400, { error: "Missing moderator." });
+    if (!mods.includes(modUid)) return res(404, { error: "That account isn't a moderator here." });
+    await revokeDelegation(modUid, uid).catch((e) => console.warn("[admin-account-action] revoke:", e.message));
+    await sref.update({ modUids: admin.firestore.FieldValue.arrayRemove(modUid) });
+    logAdminAudit(db, adminUser.uid, "mod_removed", { uid, modUid });
+    return res(200, { success: true, message: "Moderator removed." });
   }
 
   let user;
