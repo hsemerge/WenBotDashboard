@@ -12,7 +12,7 @@
 //
 // Everything here is best-effort. A failed post, a missing channel, a Discord
 // outage: none of it may break a verification that has already been written.
-const { CASINO_NAMES } = require("./casinos");
+const { CASINO_NAMES, BOARD_MATCHED_CASINOS } = require("./casinos");
 
 const GREEN = 0x00ff88;   // clean
 const AMBER = 0xffa726;   // worth a look
@@ -324,7 +324,16 @@ async function postVerifyLog(db, uid, streamerData, v) {
     let status;
     if (v.casinoSkipped)        status = "Kick only, no casino linked";
     else if (v.underAffiliate)  status = `✅ Under code${v.wagerAmount ? ` · $${Number(v.wagerAmount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} wagered` : ""}`;
-    else                        status = "⏳ Not confirmed under the code yet";
+    // On a board-matched casino a miss is NOT evidence they aren't under the
+    // code. Gamba and ETHbet only expose the leaderboard's top wagerers, so
+    // anyone under the code who hasn't wagered much is simply absent from it.
+    // The old wording said "not confirmed under the code" for both cases, which
+    // reads as an accusation and gets argued with — usually by someone who is in
+    // fact under the code.
+    else if (BOARD_MATCHED_CASINOS.has(v.provider)) {
+      status = `⏳ Not on ${casino}'s leaderboard yet — ${casino} only reports its top wagerers, so this does **not** mean they aren't under the code`;
+    }
+    else                        status = "⏳ Not under the code";
 
     const fields = [
       { name: "Kick",    value: `[${v.kickUsername}](https://kick.com/${encodeURIComponent(v.kickUsername)})${v.kickUserId ? `\n\`${v.kickUserId}\`` : ""}`, inline: true },

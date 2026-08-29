@@ -78,4 +78,19 @@ const CASINO_NAMES = {
 // lookupAffiliate, so every caller picks it up through the one dispatch.
 const API_CASINOS = new Set(["gambulls", "rainbet", "duelbits", "clash", "gamba", "winovo", "hypebet", "ethbet"]);
 
-module.exports = { CASINO_NAMES, API_CASINOS };
+// Of the API casinos, the ones whose "is this viewer under the code" answer comes
+// from a LEADERBOARD rather than a referral list.
+//
+// Gamba and ETHbet expose no per-user endpoint and no full list of referred
+// players — only the current board's standings, which is the top handful of
+// wagerers. So a miss means "not among the ranked players", NOT "not under the
+// code": someone genuinely under the code who hasn't wagered much simply isn't
+// on the board.
+//
+// This distinction has to reach the UI. Reporting a board miss as "not confirmed
+// under the code" reads as an accusation, and viewers push back on it — rightly,
+// because they usually ARE under the code. Winovo and Hype.bet return every
+// referred player, so for those a miss really does mean not under the code.
+const BOARD_MATCHED_CASINOS = new Set(["gamba", "ethbet"]);
+
+module.exports = { CASINO_NAMES, API_CASINOS, BOARD_MATCHED_CASINOS };
