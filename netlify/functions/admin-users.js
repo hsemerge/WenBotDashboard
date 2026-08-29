@@ -249,12 +249,17 @@ exports.handler = async (event) => {
   users.sort((a, b) => (b.totalPaid - a.totalPaid) ||
     String(a.kickChannel || "").localeCompare(String(b.kickChannel || "")));
 
+  // The "Streamers" count and its breakdowns are about actual streamer customers,
+  // not moderator/internal accounts. A mod who signed up (or was manually set
+  // mod-only) shouldn't inflate the streamer count or the plan mix — they remain
+  // in `users` for the table + moderator filters, just not in these totals.
+  const streamers = users.filter((u) => u.accountType !== "moderator" && u.accountType !== "internal");
   const stats = {
-    total:        users.length,
-    onboarded:    users.filter((u) => u.onboarded).length,
-    activeSubs:   users.filter((u) => u.subscriptionActive).length,
-    totalRevenue: users.reduce((sum, u) => sum + (u.totalPaid || 0), 0),
-    byPlan:       users.reduce((m, u) => { const k = u.plan; m[k] = (m[k] || 0) + 1; return m; }, {}),
+    total:        streamers.length,
+    onboarded:    streamers.filter((u) => u.onboarded).length,
+    activeSubs:   streamers.filter((u) => u.subscriptionActive).length,
+    totalRevenue: streamers.reduce((sum, u) => sum + (u.totalPaid || 0), 0),
+    byPlan:       streamers.reduce((m, u) => { const k = u.plan; m[k] = (m[k] || 0) + 1; return m; }, {}),
   };
 
   // Staff see the ops surface only — billing is hidden entirely (owner's call).

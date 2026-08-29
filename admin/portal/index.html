@@ -945,7 +945,7 @@
         loadBillingOverview();
         if (typeof renderBilling === 'function') renderBilling();
       }
-      $('footNote').textContent = `${_users.length} streamers · loaded ${new Date().toLocaleTimeString()}`;
+      $('footNote').textContent = `${_users.filter(isCustomer).length} streamers · loaded ${new Date().toLocaleTimeString()}`;
       show('panel');
       routeTo(currentRoute(), true);
     } catch (e) {
@@ -3287,9 +3287,10 @@
 
     const countEl = $('matchCount');
     if (countEl) {
+      const nStreamers = _users.filter(isCustomer).length;   // mods/internal don't count as streamers
       countEl.textContent = (q || filter)
-        ? `${rows.length} of ${_users.length}`
-        : `${_users.length} streamer${_users.length === 1 ? '' : 's'}`;
+        ? `${rows.length} of ${nStreamers}`
+        : `${nStreamers} streamer${nStreamers === 1 ? '' : 's'}`;
     }
     if (!rows.length) { $('usersTable').innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center;padding:24px;">No matches.</td></tr>'; return; }
     $('usersTable').innerHTML = rows.map(u => {
