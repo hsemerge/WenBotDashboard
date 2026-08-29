@@ -83,6 +83,7 @@ exports.handler = async (event) => {
         discordUrl: x.discordUrl || null,
         discordAuthor: x.discordAuthor || null,
         discordUp: x.discordUp || 0,
+        discordReplies: x.discordReplies || 0,
         noteCount: x.noteCount || 0,
         createdBy: x.createdBy || null,
         createdAt: x.createdAt || null,
@@ -118,47 +119,120 @@ exports.handler = async (event) => {
     if (!process.env.DISCORD_BOT_TOKEN) return res(500, { error: "DISCORD_BOT_TOKEN is not configured" });
     const limit = Math.min(Math.max(Number(body.limit) || 100, 1), 100);
 
-    let msgs;
-    try {
-      const r = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages?limit=${limit}`, {
+    const dget = async (path) => {
+      const r = await fetch(`https://discord.com/api/v10${path}`, {
         headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` },
       });
-      if (r.status === 403) return res(400, { error: "The bot can't read that channel. Give it View Channel + Read Message History." });
-      if (r.status === 404) return res(400, { error: "No such channel — check the ID." });
-      if (!r.ok) return res(400, { error: `Discord said ${r.status}.` });
-      msgs = await r.json();
+      return { ok: r.ok, status: r.status, json: r.ok ? await r.json().catch(() => null) : null };
+    };
+
+    // What kind of channel is this? A FORUM holds posts as THREADS, and asking
+    // it for messages returns an empty list — which is why importing a forum
+    // reported "0 messages read" while looking perfectly healthy.
+    let chan;
+    try {
+      const c = await dget(`/channels/${channelId}`);
+      if (c.status === 403) return res(400, { error: "The bot can't see that channel. Give it View Channel + Read Message History." });
+      if (c.status === 404) return res(400, { error: "No such channel — check the ID." });
+      if (!c.ok) return res(400, { error: `Discord said ${c.status} when reading the channel.` });
+      chan = c.json || {};
     } catch (e) {
       return res(500, { error: "Could not reach Discord: " + e.message });
     }
-    if (!Array.isArray(msgs)) return res(400, { error: "Unexpected reply from Discord." });
+    const IS_FORUM = chan.type === 15 || chan.type === 16;   // GUILD_FORUM / GUILD_MEDIA
+    const guildId  = chan.guild_id || "@me";
+
+    // Normalised list of candidates, whichever kind of channel this is.
+    // { id, title, body, author, up, at }
+    const items = [];
+    let scanned = 0;
+
+    try {
+      if (IS_FORUM) {
+        // Posts live as threads: active ones come from the guild, archived ones
+        // from the channel. A busy forum has most of its history archived, so
+        // both are needed or the import silently sees only recent posts.
+        const threads = [];
+        const act = await dget(`/guilds/${guildId}/threads/active`);
+        if (act.ok && act.json && Array.isArray(act.json.threads)) {
+          threads.push(...act.json.threads.filter((t) => t.parent_id === channelId));
+        }
+        const arc = await dget(`/channels/${channelId}/threads/archived/public?limit=100`);
+        if (arc.status === 403) return res(400, { error: "The bot needs Read Message History on that forum to see older posts." });
+        if (arc.ok && arc.json && Array.isArray(arc.json.threads)) threads.push(...arc.json.threads);
+
+        scanned = threads.length;
+        for (const t of threads.slice(0, 50)) {
+          // The post's opening message shares the thread's id. It can be gone
+          // (deleted starter) — the post still counts, just with no body.
+          let starter = null;
+          const sm = await dget(`/channels/${t.id}/messages/${t.id}`);
+          if (sm.ok) starter = sm.json;
+          const parsed = starter ? fromDiscord(starter) : null;
+          items.push({
+            id: t.id,
+            title: String(t.name || (parsed && parsed.title) || "Untitled post").slice(0, 200),
+            // The thread name is already the title, so the starter message is
+            // all body — don't drop its first line the way a text post does.
+            body: starter ? String(starter.content || "").slice(0, MAX_BODY) || (parsed ? parsed.body : null) : null,
+            author: (starter && starter.author && (starter.author.global_name || starter.author.username)) || null,
+            up: parsed ? parsed.up : 0,
+            replies: Number(t.message_count || 0),
+            at: (t.thread_metadata && t.thread_metadata.create_timestamp)
+              ? new Date(t.thread_metadata.create_timestamp).getTime()
+              : (starter && starter.timestamp ? new Date(starter.timestamp).getTime() : Date.now()),
+          });
+        }
+      } else {
+        const r = await dget(`/channels/${channelId}/messages?limit=${limit}`);
+        if (r.status === 403) return res(400, { error: "The bot can't read that channel. Give it View Channel + Read Message History." });
+        if (!r.ok) return res(400, { error: `Discord said ${r.status}.` });
+        const msgs = Array.isArray(r.json) ? r.json : [];
+        scanned = msgs.length;
+        for (const m of msgs) {
+          const parsed = fromDiscord(m);
+          if (!parsed) continue;
+          items.push({
+            id: m.id, title: parsed.title, body: parsed.body,
+            author: (m.author && (m.author.global_name || m.author.username)) || null,
+            up: parsed.up, replies: 0,
+            at: m.timestamp ? new Date(m.timestamp).getTime() : Date.now(),
+          });
+        }
+      }
+    } catch (e) {
+      return res(500, { error: "Could not read from Discord: " + e.message });
+    }
 
     const seen = new Set();
     const have = await col.where("source", "==", "discord").limit(500).get();
     have.forEach((d) => { const m = d.data().discordMessageId; if (m) seen.add(m); });
 
     let added = 0, skipped = 0;
-    for (const m of msgs) {
-      if (seen.has(m.id)) { skipped++; continue; }
-      const parsed = fromDiscord(m);
-      if (!parsed) { skipped++; continue; }
-      const at = m.timestamp ? new Date(m.timestamp).getTime() : Date.now();
+    for (const it of items) {
+      if (seen.has(it.id)) { skipped++; continue; }
       await col.add({
-        title: parsed.title, body: parsed.body,
+        title: it.title, body: it.body || null,
         status: "new", source: "discord",
         votes: {}, noteCount: 0,
-        discordMessageId: m.id,
+        discordMessageId: it.id,
         discordChannelId: channelId,
-        discordAuthor: (m.author && (m.author.global_name || m.author.username)) || null,
-        discordUrl: `https://discord.com/channels/${m.guild_id || "@me"}/${channelId}/${m.id}`,
-        discordUp: parsed.up,
-        createdBy: me, createdAt: at, updatedAt: Date.now(), lastActivityAt: at,
+        discordAuthor: it.author,
+        discordUrl: `https://discord.com/channels/${guildId}/${IS_FORUM ? it.id : channelId}${IS_FORUM ? "" : "/" + it.id}`,
+        discordUp: it.up,
+        discordReplies: it.replies || 0,
+        createdBy: me, createdAt: it.at, updatedAt: Date.now(), lastActivityAt: it.at,
       });
       added++;
     }
     // Remember the channel so the next import is one click.
     await db.collection("admin_prefs").doc("suggestions").set({ lastChannelId: channelId }, { merge: true });
-    logAdminAudit(db, uid, "suggestions_import", { channelId, added, skipped });
-    return res(200, { ok: true, added, skipped, scanned: msgs.length });
+    logAdminAudit(db, uid, "suggestions_import", { channelId, added, skipped, kind: IS_FORUM ? "forum" : "text" });
+    return res(200, {
+      ok: true, added, skipped, scanned,
+      kind: IS_FORUM ? "forum" : "text",
+      channelName: chan.name || null,
+    });
   }
 
   const id = clean(body.id, 60);

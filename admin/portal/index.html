@@ -655,8 +655,7 @@
                 <option value="high">high</option>
                 <option value="urgent">urgent</option>
               </select>
-              <input id="tkChannel" type="text" list="tkStreamerList" maxlength="60" placeholder="Streamer (optional) — pick or type" style="max-width:190px;">
-              <datalist id="tkStreamerList"></datalist>
+              <select id="tkChannel" style="max-width:190px;" title="Link a streamer channel (optional)"></select>
               <button onclick="tkCreate()" style="margin-left:auto;">＋ Create ticket</button>
               <button class="btn-ghost" onclick="loadTickets()" title="Refresh">↻</button>
             </div>
@@ -703,8 +702,8 @@
               <button onclick="sugCreate()">＋ Add suggestion</button>
               <span style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <input id="sugChannel" type="text" maxlength="40" placeholder="Discord channel ID"
-                       style="max-width:210px;font-size:12px;" title="Right-click your suggestions channel in Discord → Copy Channel ID (needs Developer Mode on)">
-                <button class="btn-ghost" onclick="sugImport()" title="Pull the last 100 messages in and turn each into a suggestion. Already-imported messages are skipped.">⇩ Import from Discord</button>
+                       style="max-width:210px;font-size:12px;" title="Right-click the channel in Discord → Copy Channel ID (needs Developer Mode on). Works with a forum channel or a plain text channel.">
+                <button class="btn-ghost" onclick="sugImport()" title="Forum channel: each post becomes a suggestion, active and archived. Text channel: each message does. Anything already imported is skipped, so it's safe to run again.">⇩ Import from Discord</button>
               </span>
             </div>
             <div id="sugImportMsg" class="sub" style="margin-top:8px;"></div>
@@ -838,17 +837,20 @@
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-  // Fill the New-ticket streamer picker (a datalist) with every known channel, so
+  // Fill the New-ticket streamer picker (a dropdown) with every known channel, so
   // a ticket can be pointed at a streamer by picking rather than typing. Optional —
   // a blank field still means "no streamer". Refreshed whenever the roster reloads.
   function fillStreamerPicker() {
-    const dl = document.getElementById('tkStreamerList');
-    if (!dl) return;
+    const sel = document.getElementById('tkChannel');
+    if (!sel) return;
+    const keep = sel.value;
     const chans = [...new Set(_users
       .filter(u => !u.archived && u.kickChannel && u.accountType !== 'moderator' && u.accountType !== 'internal')
       .map(u => u.kickChannel))]
       .sort((a, b) => a.localeCompare(b));
-    dl.innerHTML = chans.map(c => `<option value="${esc(c)}"></option>`).join('');
+    sel.innerHTML = '<option value="">— No streamer —</option>'
+      + chans.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    if (keep) sel.value = keep;   // keep the current pick across roster refreshes
   }
   const money = n => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const date = ms => ms ? new Date(ms).toLocaleDateString() : '—';
@@ -2999,7 +3001,9 @@
           <b style="margin:0 3px;color:var(--bright);">${s.score}</b>
           <span onclick="sugVote('${id}',-1)" title="Vote down" style="cursor:pointer;color:${s.myVote === -1 ? 'var(--bad)' : 'var(--dim)'};">▼</span>
         </td>
-        <td style="white-space:normal;max-width:460px;"><b>${esc(s.title)}</b>${s.discordUp ? ` <span class="muted" style="font-size:11px;" title="👍 reactions on the original Discord message">💬 ${s.discordUp}</span>` : ''}</td>
+        <td style="white-space:normal;max-width:460px;"><b>${esc(s.title)}</b>${
+          s.discordUp ? ` <span class="muted" style="font-size:11px;" title="👍 reactions on the original Discord post">👍 ${s.discordUp}</span>` : ''}${
+          s.discordReplies ? ` <span class="muted" style="font-size:11px;" title="Replies on the Discord post — how much discussion it drew">💬 ${s.discordReplies}</span>` : ''}</td>
         <td>${statusSel}</td>
         <td class="muted">${s.source === 'discord'
             ? (s.discordUrl ? `<a href="${esc(s.discordUrl)}" target="_blank" rel="noopener" class="muted" title="Open the original message">Discord${s.discordAuthor ? ' · ' + esc(s.discordAuthor) : ''}</a>` : 'Discord')
@@ -3138,7 +3142,10 @@
       const r = await authedPost('/api/admin-suggestions', { action: 'import', channelId, limit: 100 });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
-      if (msg) msg.innerHTML = `<span class="ok">Imported ${d.added} new suggestion${d.added === 1 ? '' : 's'}</span> <span class="muted">· ${d.skipped} skipped (already here or not a suggestion) of ${d.scanned} messages read.</span>`;
+      const unit = d.kind === 'forum' ? 'forum post' : 'message';
+      if (msg) msg.innerHTML = d.scanned === 0
+        ? `<span class="warn">Read ${esc(d.channelName || 'that channel')} but found nothing.</span> <span class="muted">If it's a forum, the bot needs Read Message History to see the posts; if it's a text channel, there may simply be no messages left in it.</span>`
+        : `<span class="ok">Imported ${d.added} new suggestion${d.added === 1 ? '' : 's'}</span> <span class="muted">· ${d.skipped} already here · ${d.scanned} ${unit}${d.scanned === 1 ? '' : 's'} read from ${esc(d.channelName || 'the channel')}${d.kind === 'forum' ? ' (forum)' : ''}.</span>`;
       await loadSuggestions();
     } catch (e) { if (msg) msg.innerHTML = `<span class="warn">${esc(e.message)}</span>`; }
   };
