@@ -358,7 +358,8 @@
               <option value="trial">🎁 On a trial</option>
               <option value="trial3">⏳ Trial ends ≤ 3 days</option>
               <option value="trial7">⏳ Trial ends ≤ 7 days</option>
-              <option value="trialended">⌛ Trial ended</option>
+              <option value="trialended">⌛ Trial ended, didn't convert</option>
+              <option value="converted">🎉 Converted after a trial</option>
               <option value="paid">💳 Paying</option>
               <option value="failed">⚠️ Payment failed</option>
               <option value="free">🆓 Starter / no sub</option>
@@ -1920,7 +1921,12 @@
     // Customers who have pressed cancel but are still paid up. They are the only
     // churn you can still do something about, and nothing surfaced them before.
     cancelling: (A) => {
+      // Only the ones still inside their paid period. Someone whose access has
+      // already ended has churned — they belong in Churn, not in a save list
+      // that calls itself "access not expired yet". A missing end date is kept:
+      // unknown is not the same as gone.
       const rows = A.filter(u => u.stripeSubscribed && u.stripeAutoRenew === false)
+        .filter(u => { const e = u.stripeCancelAt || u.stripePeriodEnd; return !e || e > Date.now(); })
         .sort((a, b) => (a.stripeCancelAt || a.stripePeriodEnd || 0) - (b.stripeCancelAt || b.stripePeriodEnd || 0));
       return {
         kicker: 'Save', title: 'Cancelling — access not expired yet',
@@ -2658,7 +2664,13 @@
         case 'trial':      return onTrial;
         case 'trial3':     return onTrial && daysLeft <= 3;
         case 'trial7':     return onTrial && daysLeft <= 7;
-        case 'trialended': return (u.planTrial && u.trialEndsAt && u.trialEndsAt <= now) || !!u.trialExpiredAt;
+        // A trial that lapsed and did NOT turn into money — the outreach list.
+        // Converted ones are deliberately excluded: they're a success, not a
+        // follow-up, and mixing them in is what made this list misleading.
+        case 'trialended': return ((u.planTrial && u.trialEndsAt && u.trialEndsAt <= now) || !!u.trialExpiredAt)
+                                  && !u.subscriptionActive;
+        case 'converted':  return ((u.planTrial && u.trialEndsAt && u.trialEndsAt <= now) || !!u.trialExpiredAt)
+                                  && !!u.subscriptionActive;
         case 'paid':       return !!u.subscriptionActive;
         case 'failed':     return !!u.paymentFailed;
         case 'free':       return !u.subscriptionActive && !u.planTrial;
@@ -2722,23 +2734,50 @@
       const cryptoPaying = u.planManual && ovp && ovp.paidCount > 0;
       // Staff can't see billing, so they can't tell a comp from a crypto-payer
       // (both are planManual): neutral "manual" pill, no release link for them.
-      const compTag = cryptoPaying
+      // An internal/test account is on a manual plan BY DEFINITION — it isn't a
+      // customer, so "comp" adds nothing next to the internal chip that already
+      // says why they aren't billed, and the release link invites an edit nobody
+      // wants to make on a test account.
+      const compTag = (u.accountType === 'internal') ? ''
+        : cryptoPaying
         ? ` <span class="pill" style="background:rgba(85,239,176,.15);color:var(--good);margin-left:4px;" title="Paying via crypto, plan locked">crypto</span>`
         : (u.planManual
           ? (_role === 'owner'
             ? ` <span class="pill comp" title="Comp, overrides Stripe">comp</span> <a href="#" onclick="clearManual('${esc(u.uid)}');return false;" class="muted" style="font-size:11px;">↺ auto</a>`
             : ` <span class="pill comp" title="Manually managed plan">manual</span>`)
           : '');
-      const cancelTag = (u.stripeSubscribed && u.stripeAutoRenew === false)
-        ? ` <span class="pill" style="background:rgba(255,111,145,.16);color:var(--bad);" title="Cancelled${u.stripeCanceledAt ? ' on ' + date(u.stripeCanceledAt) : ''}${u.stripeCancelAt ? ', access ends ' + date(u.stripeCancelAt) : ''}">🚪 cancelling</span>` : '';
+
+      // "Cancelling" and "cancelled" are different facts and want different
+      // reactions: one is a customer you can still save, the other is churn that
+      // has already happened. Both look identical in Stripe's `status`, so the
+      // access-end date is what separates them.
+      const cancelEnd  = u.stripeCancelAt || u.stripePeriodEnd || null;
+      const cancelDone = !!cancelEnd && cancelEnd <= Date.now();
+      const cancelTag = !(u.stripeSubscribed && u.stripeAutoRenew === false) ? ''
+        : cancelDone
+          ? ` <span class="pill" style="background:rgba(255,111,145,.22);color:#ff8fa5;" title="Cancelled${u.stripeCanceledAt ? ' on ' + date(u.stripeCanceledAt) : ''} — access ended ${date(cancelEnd)}">🚫 cancelled</span>`
+          : ` <span class="pill" style="background:rgba(255,111,145,.16);color:var(--bad);" title="Cancelled${u.stripeCanceledAt ? ' on ' + date(u.stripeCanceledAt) : ''}, access ends ${cancelEnd ? date(cancelEnd) : 'at period end'}">🚪 cancelling</span>`;
+
+      // Trial outcome. A trial that ended only means something while they have
+      // NOT converted — that's the outreach list. Once they're paying, the
+      // interesting fact is the opposite one, so the flag flips rather than
+      // sitting there implying they lapsed.
       const expiredAgo = (u.trialExpiredAt && !onTrial) ? Math.floor((Date.now() - u.trialExpiredAt) / 86400000) : -1;
       const recentlyExpired = expiredAgo >= 0 && expiredAgo <= 30;
+      const nowPaying = !!u.subscriptionActive || cryptoPaying;
+      const converted = !onTrial && nowPaying && (trialEnded || expiredAgo >= 0);
       const trialTag = onTrial
         ? ` <span class="pill" style="background:rgba(245,197,24,.14);color:var(--gold);" title="Free ${esc(_tp)} trial, auto-drops to starter ${esc(date(u.trialEndsAt))}">🎁 ${esc(_tp)} trial · ${trialDays}d</span>`
+        : converted
+          // Kept on the row for a while rather than forever: after a couple of
+          // months they're simply a customer, and the trial is history.
+          ? (expiredAgo < 0 || expiredAgo <= 60
+              ? ` <span class="pill" style="background:rgba(85,239,176,.16);color:var(--good);" title="Took a free ${esc(u.trialPlan || _tp || '')} trial${u.trialExpiredAt ? ' that ended ' + esc(date(u.trialExpiredAt)) : ''} and converted — now paying on ${esc(u.plan)}">🎉 converted from trial</span>`
+              : '')
         : (trialEnded
             ? ` <span class="pill" style="background:rgba(255,111,145,.15);color:#ffa9bc;" title="${esc(_tp)} trial expired ${esc(date(u.trialEndsAt))} — reverts to starter on the next daily sweep">⌛ ${esc(_tp)} trial ended</span>`
             : (recentlyExpired
-                ? ` <span class="pill" style="background:rgba(255,111,145,.15);color:#ffa9bc;" title="Free ${esc(u.trialPlan || '')} trial ended ${esc(date(u.trialExpiredAt))} — now on ${esc(u.plan)}">⌛ trial ended · ${expiredAgo}d ago</span>`
+                ? ` <span class="pill" style="background:rgba(255,111,145,.15);color:#ffa9bc;" title="Free ${esc(u.trialPlan || '')} trial ended ${esc(date(u.trialExpiredAt))} — did NOT convert, now on ${esc(u.plan)}">⌛ trial ended · ${expiredAgo}d ago</span>`
                 : ''));
       const noteRow = u.noteSnippet
         ? `<div class="muted" title="${esc(u.noteSnippet)}" style="font-size:10px;line-height:1.35;margin-top:2px;white-space:normal;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">📝 ${esc(u.noteSnippet)}</div>` : '';
