@@ -271,10 +271,11 @@
       <nav class="nav">
         <div class="navgroup">Operations</div>
         <a href="#/dashboard"  data-route="dashboard"><span class="ico">◧</span> Dashboard</a>
-        <a href="#/streamers"  data-route="streamers"><span class="ico">👥</span> Streamers</a>
-        <a href="#/customer"   data-route="customer"><span class="ico">🔍</span> Customer 360</a>
+        <!-- Streamers, Channels and Customer 360 were three tabs over the same
+             accounts: two column sets and a detail page. One tab now, with a
+             lens switcher for the columns and a drill-in for the detail. -->
+        <a href="#/streamers"  data-route="streamers"><span class="ico">👥</span> Streamers <span id="navLiveCount" class="navbadge hidden" title="Live right now"></span></a>
         <a href="#/billing"    data-route="billing" class="owner-only"><span class="ico">💳</span> Billing</a>
-        <a href="#/channels"   data-route="channels"><span class="ico">📡</span> Channels <span id="navLiveCount" class="navbadge hidden"></span></a>
         <a href="#/slots"      data-route="slots"><span class="ico">🎰</span> Slots</a>
         <a href="#/health"     data-route="health"><span class="ico">🩺</span> System Health <span id="navAlertCount" class="navbadge hidden"></span></a>
         <a href="#/portals"    data-route="portals" class="owner-only"><span class="ico">🌐</span> Portals &amp; Domains</a>
@@ -338,8 +339,21 @@
           </div>
         </div>
 
-        <!-- STREAMERS (ported from admin/index.html — ids unchanged) -->
+        <!-- STREAMERS — the list AND the drill-in. One set of accounts, three
+             column lenses, and Customer 360 as the detail of a row. -->
         <div id="usersView" class="hidden">
+
+        <!-- DETAIL MODE (Customer 360) -->
+        <div id="strDetail" class="hidden">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+            <button class="btn-ghost" onclick="backToList()">← All streamers</button>
+            <span class="sub" id="strDetailWho"></span>
+          </div>
+          <div id="c360Body"><div class="sub" style="padding:8px 2px;">Loading…</div></div>
+        </div>
+
+        <!-- LIST MODE -->
+        <div id="strList">
           <div class="tablecard" style="padding:16px;margin-bottom:16px;">
             <div class="panel-title">🔁 Transfer Viewer</div>
             <div class="sub" style="margin-bottom:11px;">Move a viewer's points, verification, raffle tickets &amp; purchases from an old Kick username to a new one, across every channel they're in. Preview is read-only; confirm migrates.</div>
@@ -352,6 +366,13 @@
             <div id="mvResult" style="margin-top:12px;"></div>
           </div>
           <div class="stats" id="statCards"></div>
+          <!-- Lens switcher: same rows, same filters, different columns. The
+               commercial and channel-health views together would be seventeen
+               columns, which reads as noise. -->
+          <div class="toolbar" style="margin-bottom:6px;">
+            <div class="tabs" id="lensTabs" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+            <span class="sub" id="lensNote" style="align-self:center;"></span>
+          </div>
           <div class="toolbar">
             <input id="search" type="text" placeholder="Search channel / name / email / plan / uid…" oninput="renderTable()">
             <select id="userFilter" onchange="renderTable()" style="max-width:220px;">
@@ -372,6 +393,13 @@
               <option value="hasmods">👥 Has moderators</option>
               <option value="mine">🙋 My streamers</option>
               <option value="unassigned">🫥 No account manager</option>
+              <optgroup label="Channel health">
+                <option value="live">🔴 Live right now</option>
+                <option value="issues">⚠️ Setup gaps</option>
+                <option value="quiet">💤 Not live in 30+ days</option>
+                <option value="botoff">🤖 Bot disabled</option>
+                <option value="custom">★ Has a custom portal</option>
+              </optgroup>
             </select>
             <select id="mgrFilter" onchange="renderTable()" style="max-width:200px;" title="Filter by account manager"></select>
             <button class="btn-ghost" onclick="loadUsers()">↻ Refresh</button>
@@ -384,16 +412,16 @@
           <div class="tablecard">
             <div style="overflow-x:auto;">
               <table>
-                <thead><tr id="usersHead">
-                  <th></th><th data-sort="channel">Channel</th><th data-sort="plan">Plan</th><th data-sort="sub">Sub</th><th data-sort="onboarded">Onboarded</th>
-                  <th data-sort="referrals">Referrals</th><th class="num owner-only" data-sort="paid">Total paid</th><th class="owner-only" data-sort="lastPayment">Last payment</th><th data-sort="lastLogin">Last login</th><th data-sort="email">Email</th>
-                </tr></thead>
+                <!-- The <tr> node is kept and only its <th>s are swapped, so the
+                     sorter's delegated listener survives a lens change. -->
+                <thead><tr id="usersHead"></tr></thead>
                 <tbody id="usersTable"><tr><td colspan="10" class="muted" style="text-align:center;padding:24px;">…</td></tr></tbody>
               </table>
             </div>
           </div>
           <div class="sub" id="footNote" style="margin-top:14px;"></div>
-        </div>
+        </div><!-- /strList -->
+        </div><!-- /usersView -->
 
         <!-- SLOTS (ported — ids unchanged) -->
         <div id="slotsView" class="hidden">
@@ -450,21 +478,6 @@
           <div class="sub" style="margin-top:14px;">💳 Stripe subscriptions auto-renew (dates come from Stripe). 🪙 Crypto subs are manual, send an invoice near the due date. Only streamers with an active billing cycle appear here.</div>
         </div>
 
-        <!-- CUSTOMER 360 -->
-        <div id="c360View" class="hidden">
-          <div class="tablecard lookupcard" style="padding:16px;margin-bottom:16px;">
-            <div class="kicker">Lookup</div>
-            <div class="panel-title">Find a streamer</div>
-            <div class="sub" style="margin-bottom:10px;">Everything the team knows about one account — plan, billing, how we got them, their tickets and what admins have done.</div>
-            <div class="c360search">
-              <input id="c360Search" type="text" placeholder="Type a channel or email — or leave blank to browse" autocomplete="off"
-                     oninput="c360Suggest()" onfocus="c360Suggest()" onkeydown="c360Key(event)">
-              <div id="c360Results" class="c360results hidden"></div>
-            </div>
-          </div>
-          <div id="c360Body"><div class="sub" style="padding:8px 2px;">Pick a streamer above — or open one from the Streamers, Ops or Outreach lists.</div></div>
-        </div>
-
         <!-- PORTALS & DOMAINS (owner) -->
         <div id="portalsView" class="hidden owner-only">
           <div class="tablecard" style="padding:16px;margin-bottom:16px;">
@@ -514,40 +527,6 @@
             <span id="hlCount" class="sub" style="align-self:center;"></span>
           </div>
           <div id="hlList"><div class="sub">Loading…</div></div>
-        </div>
-
-        <!-- CHANNELS: live status + setup health -->
-        <div id="channelsView" class="hidden">
-          <div class="stats" id="chStats"></div>
-          <div class="toolbar">
-            <input id="chSearch" type="text" placeholder="Search channel…" oninput="renderChannels()">
-            <select id="chFilter" onchange="renderChannels()" style="max-width:220px;">
-              <option value="">All channels</option>
-              <option value="live">🔴 Live now</option>
-              <option value="issues">⚠️ Setup gaps</option>
-              <option value="quiet">💤 Not live in 30+ days</option>
-              <option value="custom">★ Has a custom portal</option>
-              <option value="botoff">🤖 Bot disabled</option>
-            </select>
-            <button class="btn-ghost" onclick="loadUsers()">↻ Refresh</button>
-            <span id="chCount" class="sub" style="align-self:center;"></span>
-          </div>
-          <div class="tablecard">
-            <div style="overflow-x:auto;">
-              <table>
-                <thead><tr id="chHead">
-                  <th data-sort="channel">Channel</th><th data-sort="gaps">Setup</th><th data-sort="live">Live</th>
-                  <th data-sort="bot">Bot</th><th data-sort="casino">Casino</th><th data-sort="portal">Portal</th>
-                  <th data-sort="discord">Discord</th><th data-sort="lastLive">Last live</th><th class="num" data-sort="streamTime">Stream time</th>
-                </tr></thead>
-                <tbody id="chTable"><tr><td colspan="9" class="muted" style="text-align:center;padding:24px;">Loading…</td></tr></tbody>
-              </table>
-            </div>
-          </div>
-          <div class="sub" style="margin-top:12px;">
-            <b>Setup</b> lists what a channel is missing — a casino, a portal, or a linked Discord. ★ custom means a bespoke portal page on their own domain, which counts as a portal.
-            🔴 live now · ✅ wired up · — not set up. Click any column header to sort; click a channel to open its Customer 360.
-          </div>
         </div>
 
         <!-- ANALYTICS: what streamers actually use -->
@@ -931,7 +910,6 @@
       renderDash(d.stats || {});
       // Keep whichever data view is open in step with ↻ Refresh.
       if (currentRoute() === 'ops') renderOps();
-      if (currentRoute() === 'channels') renderChannels();
       if (currentRoute() === 'analytics') renderAnalytics();
       loadActivity();
       // The roster must land BEFORE the pickers build, or "assign to" is just
@@ -966,11 +944,14 @@
   // ── Router (hash-based, from the mock) ─────────────────────────────────────
   const ROUTES = {
     dashboard: { view: 'dashView',    title: 'Dashboard',   kick: 'Global operations' },
-    streamers: { view: 'usersView',   title: 'Streamers',   kick: 'Accounts & plans' },
-    customer:  { view: 'c360View',    title: 'Customer 360',kick: 'One streamer, everything' },
+    streamers: { view: 'usersView',   title: 'Streamers',   kick: 'Accounts, channels & billing' },
+    // Same view as `streamers` — the difference is which mode it opens in.
+    // Kept as routes so #/customer/<uid> links (the assignment email sends one)
+    // and any bookmarked #/channels keep working.
+    customer:  { view: 'usersView',   title: 'Customer 360',kick: 'One streamer, everything' },
+    channels:  { view: 'usersView',   title: 'Streamers',   kick: 'Live status & setup health' },
     billing:   { view: 'billingView', title: 'Billing',     kick: 'Owner only', ownerOnly: true },
     slots:     { view: 'slotsView',   title: 'Slots',       kick: 'Catalog health' },
-    channels:  { view: 'channelsView',title: 'Channels',    kick: 'Live status & setup health' },
     analytics: { view: 'analyticsView',title:'Analytics',   kick: 'What actually gets used' },
     health:    { view: 'healthView',  title: 'System Health',kick: 'Alerts from the bot' },
     portals:   { view: 'portalsView', title: 'Portals & Domains', kick: 'Custom domain routing', ownerOnly: true },
@@ -1008,16 +989,39 @@
     // dot) so it only ever reports what changed while they were away.
     if (name === 'tickets' && _ticketsLoaded) tkMarkSeen();
     if (name === 'ops') renderOps();
-    if (name === 'channels') renderChannels();
     if (name === 'analytics') renderAnalytics();
     if (name === 'health' && !_alertsLoaded) loadAlerts();
     if (name === 'portals') loadDomains();
     if (name === 'security') renderSecurity();
+
+    // The three ways into the one Streamers view.
+    // A bookmarked #/channels lands on the list with the health lens showing.
+    if (name === 'channels') { showStreamerMode('list'); setLens('health'); }
+    if (name === 'streamers') { showStreamerMode('list'); renderTable(); }
     if (name === 'customer') {
       const cu = c360UidFromHash();
-      if (cu && (!_c360 || _c360.uid !== cu)) c360Load(cu);
+      if (cu) {
+        showStreamerMode('detail');
+        if (!_c360 || _c360.uid !== cu) c360Load(cu);
+      } else {
+        // #/customer with no uid is just the list — there is no lookup page any
+        // more, the roster IS the lookup.
+        showStreamerMode('list');
+      }
     }
   }
+
+  // List ↔ drill-in. Both live inside usersView so the nav item stays lit and
+  // the browser Back button walks the hash the way it always did.
+  window.showStreamerMode = function (mode) {
+    const list = $('strList'), det = $('strDetail');
+    if (!list || !det) return;
+    const detail = mode === 'detail';
+    list.classList.toggle('hidden', detail);
+    det.classList.toggle('hidden', !detail);
+    document.querySelectorAll('.nav a').forEach(a => a.classList.toggle('active', a.dataset.route === 'streamers'));
+  };
+  window.backToList = function () { location.hash = '#/streamers'; };
   window.addEventListener('hashchange', () => routeTo(currentRoute(), true));
   // Legacy shim: the ported code calls switchTab('billing') from gotoBilling.
   window.switchTab = function (tab) { routeTo(tab === 'billing' ? 'billing' : tab, false); };
@@ -1336,8 +1340,6 @@
 
   window.openCustomer = function (uid) {
     if (!uid) return;
-    $('c360Results')?.classList.add('hidden');
-    const s = $('c360Search'); if (s) { s.value = ''; s.blur(); }
     const want = '#/customer/' + uid;
     if (location.hash === want) { c360Load(uid); return; }  // same page re-opened
     location.hash = want;                                    // → hashchange → routeTo → c360Load
@@ -1351,55 +1353,7 @@
     return m ? m[1] : null;
   }
 
-  let _c360Hits = [], _c360Sel = -1;
-  window.c360Suggest = function () {
-    const q = ($('c360Search').value || '').toLowerCase().trim();
-    const box = $('c360Results');
-    if (!box) return;
-    // Empty box = browse: show the most recently active accounts rather than
-    // nothing, so the lookup is useful before you know what you're typing.
-    const pool = _users.filter(u => !u.archived);
-    _c360Hits = (q
-      ? pool.filter(u =>
-          String(u.kickChannel || '').toLowerCase().includes(q) ||
-          String(u.email || '').toLowerCase().includes(q) ||
-          String(u.displayName || '').toLowerCase().includes(q))
-      : pool.slice().sort((a, b) => (b.lastLoginAt || 0) - (a.lastLoginAt || 0))
-      // Browsing (empty box) lists EVERYONE — the panel scrolls. Capping the
-      // browse list at a dozen made it look like the portal only knew about a
-      // handful of streamers. A typed query still caps, since that's a shortlist.
-      ).slice(0, q ? 25 : 500);
-    _c360Sel = -1;
-    box.innerHTML = _c360Hits.length
-      ? (q ? '' : `<div class="muted" style="position:sticky;top:0;background:var(--card2);border-bottom:1px solid var(--line2);font-size:11px;">${_c360Hits.length} streamers · most recently active first</div>`)
-        + _c360Hits.map((u, i) => `<div data-i="${i}" onmousedown="event.preventDefault();openCustomer('${esc(u.uid)}')">
-          <b>${esc(u.kickChannel || u.uid)}</b>
-          <span class="muted" style="margin-left:8px;">${esc(u.plan)}${u.email ? ' · ' + esc(u.email) : ''}</span></div>`).join('')
-      : '<div class="muted">No match.</div>';
-    box.classList.remove('hidden');
-  };
-  // ↑/↓ to move, Enter to open, Esc to dismiss.
-  window.c360Key = function (e) {
-    const box = $('c360Results');
-    if (!box || box.classList.contains('hidden') || !_c360Hits.length) return;
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      _c360Sel = (_c360Sel + (e.key === 'ArrowDown' ? 1 : -1) + _c360Hits.length) % _c360Hits.length;
-      // Select by data-i, not child index — the browse list carries a header row.
-      const rows = box.querySelectorAll('[data-i]');
-      rows.forEach((el) => el.classList.toggle('sel', Number(el.dataset.i) === _c360Sel));
-      rows[_c360Sel]?.scrollIntoView({ block: 'nearest' });
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      openCustomer((_c360Hits[_c360Sel >= 0 ? _c360Sel : 0] || {}).uid);
-    } else if (e.key === 'Escape') { box.classList.add('hidden'); }
-  };
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest || !e.target.closest('.c360search')) $('c360Results')?.classList.add('hidden');
-  });
-
   async function c360Load(uid) {
-    $('c360Results')?.classList.add('hidden');
     $('c360Body').innerHTML = '<div class="sub" style="padding:8px 2px;">Loading…</div>';
     try {
       const [dr, er] = await Promise.all([
@@ -1555,6 +1509,24 @@
         </div>
       </div>`;
 
+    // The account actions. These used to live only in the roster's row
+    // expander, so "the thing you want to do" and "the page showing you why"
+    // were in different tabs. One place now.
+    const actionsHtml = `
+      <div class="tablecard" style="padding:16px;">
+        <div class="kicker">Actions</div>
+        <div class="panel-title">Manage this account</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+          <button class="btn-ghost owner-only" style="border-color:var(--accent);color:var(--accent);" onclick="manageStreamer('${esc(uid)}','${esc(u.kickChannel || uid)}')">🎛 Switch in</button>
+          <button class="btn-ghost" style="border-color:var(--purple);color:var(--purple);" onclick="giveTrial('${esc(uid)}','pro')">🎁 Pro trial</button>
+          <button class="btn-ghost" style="border-color:var(--gold);color:var(--gold);" onclick="giveTrial('${esc(uid)}','elite')">🎁 Elite trial</button>
+          ${u.archived
+            ? `<button class="btn-ghost" onclick="unarchiveStreamer('${esc(uid)}','${esc(u.kickChannel || uid)}')">♻ Unarchive</button>`
+            : `<button class="btn-ghost" onclick="archiveStreamer('${esc(uid)}','${esc(u.kickChannel || uid)}')">📦 Archive</button>`}
+          <button class="btn-ghost owner-only" style="border-color:var(--bad);color:var(--bad);" onclick="deleteStreamer('${esc(uid)}','${esc(u.kickChannel || uid)}')">🗑 Delete permanently</button>
+        </div>
+      </div>`;
+
     // How they pay, and what they've earned by bringing others in.
     const BT_LABEL = { stripe:'Stripe subscription', crypto:'Invoiced — pays in crypto', comp:'Comped (free)', free:'No plan / free' };
     const refs = u.referrals || [];
@@ -1666,7 +1638,7 @@
       </div>
       <div class="c360grid">
         <div style="display:flex;flex-direction:column;gap:16px;">${billing}${outreachHtml}</div>
-        <div style="display:flex;flex-direction:column;gap:16px;">${billingHtml}${managerHtml}${teamHtml}${ticketsHtml}${loginHtml}${notesHtml}${histHtml}</div>
+        <div style="display:flex;flex-direction:column;gap:16px;">${actionsHtml}${billingHtml}${managerHtml}${teamHtml}${ticketsHtml}${loginHtml}${notesHtml}${histHtml}</div>
       </div>`;
   }
 
@@ -1949,87 +1921,6 @@
     if (!u.hasDiscord) g.push('no Discord');
     return g;
   }
-
-  const channelsSort = createTableSort({
-    storageKey: 'wb.admin.channelsSort',
-    head:       '#chHead',
-    onChange:   () => renderChannels(),
-    columns: {
-      channel:    u => String(u.kickChannel || u.uid || '').toLowerCase(),
-      // Most broken first on the first click — that's what the column is for.
-      gaps:       { get: u => chGaps(u).length, dir: 'desc' },
-      live:       { get: u => (u.kickLive ? 1 : 0), dir: 'desc' },
-      bot:        { get: u => (u.botEnabled ? 1 : 0), dir: 'asc' },   // problems first
-      casino:     u => String(u.provider || '').toLowerCase(),
-      portal:     { get: u => (u.customPortal ? 2 : (u.leaderboardEnabled ? 1 : 0)), dir: 'desc' },
-      discord:    { get: u => (u.hasDiscord ? 1 : 0), dir: 'desc' },
-      lastLive:   u => (u.kickLiveAt || null),
-      streamTime: u => Number((u.liveStats && u.liveStats.totalLiveMs) || 0),
-    },
-  });
-
-  window.renderChannels = function () {
-    const q = ($('chSearch')?.value || '').toLowerCase().trim();
-    const f = $('chFilter')?.value || '';
-    const A = _users.filter(u => !u.archived && isCustomer(u));
-    const now = Date.now();
-
-    const liveNow = A.filter(u => u.kickLive);
-    const botOff  = A.filter(u => !u.botEnabled);
-    const quiet   = A.filter(u => !u.kickLive && (!u.kickLiveAt || (now - u.kickLiveAt) > 30 * DAYMS));
-    const gappy   = A.filter(u => chGaps(u).length);
-
-    $('chStats').innerHTML =
-      `<div class="stat ${liveNow.length ? 'good' : ''}"><div class="n">${liveNow.length}</div><div class="l">Live right now</div></div>`
-      + `<div class="stat"><div class="n">${A.filter(u => u.kickLiveAt).length}</div><div class="l">Have streamed</div></div>`
-      + `<div class="stat ${gappy.length ? 'warn' : ''}"><div class="n">${gappy.length}</div><div class="l">Setup gaps</div></div>`
-      + `<div class="stat ${botOff.length ? 'bad' : ''}"><div class="n">${botOff.length}</div><div class="l">Bot disabled</div></div>`
-      + `<div class="stat" title="Channels that aren't live now and haven't gone live in over 30 days — including ones that have never streamed. Dormant accounts, not a fault."><div class="n">${quiet.length}</div><div class="l">Not live in 30+ days</div></div>`;
-
-    const badge = $('navLiveCount');
-    if (badge) { badge.textContent = liveNow.length || ''; badge.classList.toggle('hidden', !liveNow.length); }
-
-    let rows = A.filter(u => {
-      if (q && !String(u.kickChannel || u.uid).toLowerCase().includes(q)) return false;
-      if (f === 'live')   return u.kickLive;
-      if (f === 'botoff') return !u.botEnabled;
-      if (f === 'issues') return chGaps(u).length > 0;
-      if (f === 'quiet')  return !u.kickLive && (!u.kickLiveAt || (now - u.kickLiveAt) > 30 * DAYMS);
-      if (f === 'custom') return !!u.customPortal;
-      return true;
-    });
-    // Live first, then most recently live — until someone clicks a header, at
-    // which point their choice wins (and is remembered).
-    rows.sort((a, b) => (b.kickLive ? 1 : 0) - (a.kickLive ? 1 : 0) || (b.kickLiveAt || 0) - (a.kickLiveAt || 0));
-    rows = channelsSort.apply(rows);
-
-    const c = $('chCount'); if (c) c.textContent = `${rows.length} of ${A.length}`;
-    $('chTable').innerHTML = rows.length ? rows.map(u => {
-      const gaps = chGaps(u);
-      const bot = u.botEnabled
-        ? '<span class="ok">on</span>'
-        : `<span class="warn" title="${esc(u.botDisabledReason || 'disabled')}">off</span>`;
-      // Name the gaps on the row. As a bare count in a tooltip, "2 gaps" meant
-      // hovering every channel to find out what was actually missing.
-      const setupCell = gaps.length
-        ? `<span class="pill" style="background:rgba(245,197,24,.14);color:var(--gold);white-space:nowrap;" title="Missing: ${esc(gaps.join(', '))}">${esc(gaps.join(' · '))}</span>`
-        : '<span class="ok" title="Casino, portal and Discord are all set up">✅ complete</span>';
-      const portalCell = u.customPortal
-        ? `<span class="ok" title="Bespoke portal page${(u.customDomains || []).length ? ' on ' + esc((u.customDomains || []).join(', ')) : ''}">★ custom</span>`
-        : chOk(u.leaderboardEnabled, 'Public leaderboard/portal enabled');
-      return `<tr${u.kickLive ? ' style="background:rgba(85,239,176,.05);"' : ''}>
-        <td><span style="cursor:pointer;" onclick="openCustomer('${esc(u.uid)}')" title="Open Customer 360"><b>${esc(u.kickChannel || u.uid)}</b></span></td>
-        <td>${setupCell}</td>
-        <td>${u.kickLive ? '<span style="color:var(--bad);font-weight:700;">🔴 LIVE</span>' : '<span class="muted">—</span>'}</td>
-        <td>${bot}</td>
-        <td>${u.provider ? `<span class="ok" title="${esc(u.provider)}">${esc(u.provider)}</span>` : '<span class="muted">—</span>'}</td>
-        <td>${portalCell}</td>
-        <td>${chOk(u.hasDiscord, u.hasDiscord ? 'Discord server linked' : 'No Discord server linked')}</td>
-        <td class="muted">${u.kickLiveAt ? rel(u.kickLiveAt) : '<span class="muted">never</span>'}</td>
-        <td class="muted num">${u.liveStats && u.liveStats.totalLiveMs ? hoursFrom(u.liveStats.totalLiveMs) + 'h' + (u.liveStats.sessions ? ` <span style="opacity:.6;">· ${u.liveStats.sessions} sessions</span>` : '') : '—'}</td>
-      </tr>`;
-    }).join('') : '<tr><td colspan="9" class="muted" style="text-align:center;padding:24px;">No channels match.</td></tr>';
-  };
 
   // ── Analytics: what streamers actually use ─────────────────────────────────
   // Feature adoption across the whole platform, from communityStats. Answers the
@@ -3201,7 +3092,10 @@
   };
 
   // ── Everything below is ported unchanged from admin/index.html ─────────────
+  let _userStats = null;      // kept so the lens switcher can repaint the tiles
   function renderStats(s) {
+    _userStats = s || _userStats;
+    s = _userStats || {};
     const byPlan = s.byPlan || {};
     const planLine = ['starter','pro','elite','agency'].filter(p => byPlan[p]).map(p => `${byPlan[p]} ${p}`).join(' · ') || '—';
     const cards = [
@@ -3231,8 +3125,115 @@
       lastPayment: u => (u.lastPaymentAt || null),
       lastLogin:   u => (u.lastLoginAt || null),
       email:       u => String(u.email || '').toLowerCase(),
+      // One sorter across every lens — the visible columns change, the table
+      // doesn't, so the comparator map is the union of all three.
+      billing:     u => String(u.billingType || '').toLowerCase(),
+      manager:     u => String(u.accountManager || '').toLowerCase(),
+      renewal:     u => (u.stripePeriodEnd || u.cryptoNextDue || u.trialEndsAt || null),
+      gaps:        { get: u => chGaps(u).length, dir: 'desc' },
+      live:        { get: u => (u.kickLive ? 1 : 0), dir: 'desc' },
+      bot:         { get: u => (u.botEnabled ? 1 : 0), dir: 'asc' },   // problems first
+      casino:      u => String(u.provider || '').toLowerCase(),
+      portal:      { get: u => (u.customPortal ? 2 : (u.leaderboardEnabled ? 1 : 0)), dir: 'desc' },
+      discord:     { get: u => (u.hasDiscord ? 1 : 0), dir: 'desc' },
+      lastLive:    u => (u.kickLiveAt || null),
+      streamTime:  u => Number((u.liveStats && u.liveStats.totalLiveMs) || 0),
     },
   });
+
+  // ── Lenses ─────────────────────────────────────────────────────────────────
+  // Streamers, Channels and Customer 360 were three tabs over the same accounts.
+  // These are the column sets that used to be separate tabs; rows, search and
+  // filters are shared, so switching lens never loses your place.
+  const LENSES = {
+    overview: {
+      label: 'Overview',
+      note: 'Who they are, what they pay, who looks after them.',
+      cols: [
+        ['channel',  'Channel',  ''],
+        ['plan',     'Plan',     ''],
+        ['billing',  'Billing',  ''],
+        ['manager',  'Manager',  ''],
+        ['onboarded','Onboarded',''],
+        ['referrals','Referrals','num'],
+        ['lastLogin','Last login',''],
+        ['email',    'Email',    ''],
+      ],
+    },
+    billing: {
+      label: 'Billing', owner: true,
+      note: 'What each account is worth and when it next pays.',
+      cols: [
+        ['channel',  'Channel',  ''],
+        ['plan',     'Plan',     ''],
+        ['billing',  'Method',   ''],
+        ['renewal',  'Renews / due', ''],
+        ['paid',     'Lifetime', 'num'],
+        ['lastPayment','Last payment',''],
+        ['referrals','Referrals','num'],
+        ['email',    'Email',    ''],
+      ],
+    },
+    health: {
+      label: 'Channel health',
+      note: 'Setup lists what a channel is missing. ★ custom is a bespoke portal on their own domain, which counts as a portal.',
+      cols: [
+        ['channel',   'Channel',  ''],
+        ['gaps',      'Setup',    ''],
+        ['live',      'Live',     ''],
+        ['bot',       'Bot',      ''],
+        ['casino',    'Casino',   ''],
+        ['portal',    'Portal',   ''],
+        ['discord',   'Discord',  ''],
+        ['lastLive',  'Last live',''],
+        ['streamTime','Stream time','num'],
+      ],
+    },
+  };
+  let _lens = 'overview';
+  try { const L = localStorage.getItem('wb.admin.lens'); if (L && LENSES[L]) _lens = L; } catch {}
+
+  function lensDef() {
+    const d = LENSES[_lens];
+    // Billing is owner-only; a staff session that had it stored falls back.
+    if (!d || (d.owner && _role !== 'owner')) { _lens = 'overview'; return LENSES.overview; }
+    return d;
+  }
+
+  window.setLens = function (name, quiet) {
+    if (!LENSES[name]) return;
+    if (LENSES[name].owner && _role !== 'owner') return;
+    if (_lens !== name) {
+      _lens = name;
+      try { localStorage.setItem('wb.admin.lens', name); } catch {}
+      // A sort on a column this lens doesn't show would silently reorder the
+      // table with no arrow to explain it.
+      const act = usersSort.active();
+      if (act && !LENSES[name].cols.some(c => c[0] === act.key)) usersSort.clear();
+    }
+    if (!quiet) renderTable();
+  };
+
+  // Tiles above the table follow the lens: commercial totals for overview and
+  // billing, channel health for health — the four tiles the Channels tab had.
+  function renderLensTiles(lens) {
+    const el = $('statCards'); if (!el) return;
+    if (lens !== LENSES.health) { renderStats(_userStats || {}); return; }
+    const A = _users.filter(u => !u.archived && isCustomer(u));
+    const now = Date.now();
+    const liveNow = A.filter(u => u.kickLive).length;
+    const botOff  = A.filter(u => !u.botEnabled).length;
+    const quiet   = A.filter(u => !u.kickLive && (!u.kickLiveAt || (now - u.kickLiveAt) > 30 * DAYMS)).length;
+    const gappy   = A.filter(u => chGaps(u).length).length;
+    const badge = $('navLiveCount');
+    if (badge) { badge.textContent = liveNow || ''; badge.classList.toggle('hidden', !liveNow); }
+    el.innerHTML =
+      `<div class="stat ${liveNow ? 'good' : ''}"><div class="n">${liveNow}</div><div class="l">Live right now</div></div>`
+      + `<div class="stat"><div class="n">${A.filter(u => u.kickLiveAt).length}</div><div class="l">Have streamed</div></div>`
+      + `<div class="stat ${gappy ? 'warn' : ''}"><div class="n">${gappy}</div><div class="l">Setup gaps</div></div>`
+      + `<div class="stat ${botOff ? 'bad' : ''}"><div class="n">${botOff}</div><div class="l">Bot disabled</div></div>`
+      + `<div class="stat" title="Not live now and not live in over 30 days — including never. Dormant, not broken."><div class="n">${quiet}</div><div class="l">Not live in 30+ days</div></div>`;
+  }
 
   window.renderTable = function () {
     const q = ($('search').value || '').toLowerCase().trim();
@@ -3266,6 +3267,12 @@
         case 'mine':       return u.accountManager === _me;
         case 'unassigned': return isCustomer(u) && !u.accountManager;
         case 'notOnboarded': return isCustomer(u) && !u.onboarded;
+        // Channel-health filters, from what used to be its own tab.
+        case 'live':       return !!u.kickLive;
+        case 'issues':     return chGaps(u).length > 0;
+        case 'quiet':      return !u.kickLive && (!u.kickLiveAt || (now - u.kickLiveAt) > 30 * DAY);
+        case 'botoff':     return !u.botEnabled;
+        case 'custom':     return !!u.customPortal;
         default:           return true;
       }
     };
@@ -3287,9 +3294,31 @@
       String(u.plan||'').toLowerCase().includes(q) ||
       String(u.uid||'').toLowerCase().includes(q)));
 
+    // Lens chrome: tabs, header cells, tiles. The <tr> node is reused so the
+    // sorter's delegated click listener survives the swap.
+    const lens = lensDef();
+    const lensTabs = $('lensTabs');
+    if (lensTabs) {
+      lensTabs.innerHTML = Object.entries(LENSES)
+        .filter(([, d]) => !d.owner || _role === 'owner')
+        .map(([k, d]) => `<button class="${k === _lens ? '' : 'btn-ghost'}" onclick="setLens('${k}')" style="padding:7px 14px;font-size:12.5px;">${esc(d.label)}</button>`).join('');
+    }
+    const noteEl = $('lensNote'); if (noteEl) noteEl.textContent = lens.note;
+    const head = $('usersHead');
+    if (head) {
+      head.innerHTML = lens.cols
+        .map(([key, label, cls]) => `<th${cls ? ` class="${cls}"` : ''} data-sort="${key}">${label}</th>`).join('');
+      usersSort.refresh();          // rebind arrows onto the new <th>s
+    }
+    renderLensTiles(lens);
+
     rows = usersSort.apply(rows);
     if (!usersSort.active() && filter.startsWith('trial') && filter !== 'trialended') {
       rows = rows.slice().sort((a, b) => (a.trialEndsAt || Infinity) - (b.trialEndsAt || Infinity));
+    }
+    // Health reads best live-first, the way the Channels tab did.
+    if (!usersSort.active() && _lens === 'health') {
+      rows = rows.slice().sort((a, b) => (b.kickLive ? 1 : 0) - (a.kickLive ? 1 : 0) || (b.kickLiveAt || 0) - (a.kickLiveAt || 0));
     }
 
     const countEl = $('matchCount');
@@ -3299,7 +3328,7 @@
         ? `${rows.length} of ${nStreamers}`
         : `${nStreamers} streamer${nStreamers === 1 ? '' : 's'}`;
     }
-    if (!rows.length) { $('usersTable').innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center;padding:24px;">No matches.</td></tr>'; return; }
+    if (!rows.length) { $('usersTable').innerHTML = `<tr><td colspan="${lens.cols.length}" class="muted" style="text-align:center;padding:24px;">No matches.</td></tr>`; return; }
     $('usersTable').innerHTML = rows.map(u => {
       const sub = u.subscriptionActive
         ? '<span class="ok">active</span>' + (u.paymentFailed ? ' <span class="warn">(failed)</span>' : '')
@@ -3387,13 +3416,24 @@
         ? ` <span class="pill" style="background:rgba(140,125,255,.16);color:var(--purple);" title="${u.accountTypeStated ? 'Chose moderator at signup' : 'Inferred from having no channel activity of its own'}">🛡 mod</span>`
         : (u.accountType === 'internal'
           ? ` <span class="pill" style="background:rgba(140,161,174,.18);color:var(--dim);" title="Our own account — never counted as a customer">🏢 internal</span>` : '');
-      const main = `<tr${u.archived ? ' style="opacity:.55;"' : ''}>
-        <td><span onclick="toggleDetail('${esc(u.uid)}')" style="cursor:pointer;user-select:none;color:var(--accent);">${open ? '▾' : '▸'}</span></td>
-        <td><span style="cursor:pointer;" title="Open Customer 360" onclick="openCustomer('${esc(u.uid)}')">${esc(u.kickChannel || u.displayName || u.uid)}</span>${typeTag}${modTag}${hasModsTag}${archTag}${noteRow}</td>
-        <td><div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;max-width:250px;white-space:normal;">${planSel}${compTag}${trialTag}${cancelTag}</div></td>
-        <td>${sub}</td>
-        <td>${u.onboarded ? '<span class="ok">yes</span>' : '<span class="no">no</span>'}</td>
-        <td class="num" style="white-space:nowrap;">${(() => {
+      const gaps = chGaps(u);
+      // One cell per column id; the lens decides which get emitted. The row is
+      // no longer expandable — clicking the channel opens the full Customer 360,
+      // which is where every action now lives (one place, one notes editor).
+      const CELL = {
+        channel: () => `<td><span style="cursor:pointer;" title="Open Customer 360" onclick="openCustomer('${esc(u.uid)}')">${esc(u.kickChannel || u.displayName || u.uid)}</span>${typeTag}${modTag}${hasModsTag}${archTag}${noteRow}</td>`,
+        plan:    () => `<td><div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;max-width:250px;white-space:normal;">${planSel}${compTag}${trialTag}${cancelTag}</div></td>`,
+        sub:     () => `<td>${sub}</td>`,
+        billing: () => {
+          const B = { stripe:['💳 Stripe','var(--accent)'], crypto:['🪙 Crypto','var(--good)'],
+                      comp:['🎁 Comped','#ff9ec4'], free:['—','var(--dim)'] }[u.billingType] || ['—','var(--dim)'];
+          return `<td style="color:${B[1]};white-space:nowrap;">${B[0]}${u.paymentFailed ? ' <span class="warn">failed</span>' : ''}</td>`;
+        },
+        manager: () => `<td class="muted">${u.accountManager
+          ? esc(String(u.accountManager).split('@')[0])
+          : '<span class="muted" title="Nobody looks after this account yet">—</span>'}</td>`,
+        onboarded: () => `<td>${u.onboarded ? '<span class="ok">yes</span>' : '<span class="no">no</span>'}</td>`,
+        referrals: () => `<td class="num" style="white-space:nowrap;">${(() => {
           // Sign-ups earn nothing — a converted, paying referral earns a free
           // month. So the number that matters is the second one.
           const n = u.referralsSignedUp != null ? u.referralsSignedUp : (u.referralCount || 0);
@@ -3403,69 +3443,35 @@
           return `${n}`
             + (conv ? ` <span class="ok" title="${esc((u.referrals || []).filter(r => r.converted).map(r => r.channel).join(', '))}">· ${conv} paying</span>` : ' <span class="muted">· 0 paying</span>')
             + (owed ? ` <span class="pill" style="background:rgba(245,197,24,.16);color:var(--gold);" title="${owed} free month${owed === 1 ? '' : 's'} earned and not yet given">🎁 ${owed}</span>` : '');
-        })()}</td>
-        <td class="num owner-only">${money(u.totalPaid)}</td>
-        <td class="muted owner-only">${date(u.lastPaymentAt)}</td>
-        <td class="muted" title="${esc(date(u.lastLoginAt))}">${rel(u.lastLoginAt)}</td>
-        <td class="muted">${esc(u.email || '—')}</td>
-      </tr>`;
-      return main + (open ? `<tr><td colspan="10" style="background:rgba(4,10,16,.6);">${detailHtml(u.uid)}</td></tr>` : '');
+        })()}</td>`,
+        paid:        () => `<td class="num owner-only">${money(u.totalPaid)}</td>`,
+        lastPayment: () => `<td class="muted owner-only">${date(u.lastPaymentAt)}</td>`,
+        renewal:     () => {
+          const when = u.stripePeriodEnd || u.cryptoNextDue || (onTrial ? u.trialEndsAt : null);
+          const what = u.stripePeriodEnd ? 'renews' : u.cryptoNextDue ? 'invoice due' : onTrial ? 'trial ends' : '';
+          const late = when && when < Date.now();
+          return `<td class="${late ? 'warn' : 'muted'}" style="white-space:nowrap;">${when ? `${date(when)} <small style="opacity:.7;">${what}</small>` : '—'}</td>`;
+        },
+        lastLogin: () => `<td class="muted" title="${esc(date(u.lastLoginAt))}">${rel(u.lastLoginAt)}</td>`,
+        email:     () => `<td class="muted">${esc(u.email || '—')}</td>`,
+        gaps:      () => `<td>${gaps.length
+          ? `<span class="pill" style="background:rgba(245,197,24,.14);color:var(--gold);white-space:nowrap;" title="Missing: ${esc(gaps.join(', '))}">${esc(gaps.join(' · '))}</span>`
+          : '<span class="ok" title="Casino, portal and Discord are all set up">✅ complete</span>'}</td>`,
+        live:      () => `<td>${u.kickLive ? '<span style="color:var(--bad);font-weight:700;">🔴 LIVE</span>' : '<span class="muted">—</span>'}</td>`,
+        bot:       () => `<td>${u.botEnabled ? '<span class="ok">on</span>' : `<span class="warn" title="${esc(u.botDisabledReason || 'disabled')}">off</span>`}</td>`,
+        casino:    () => `<td>${u.provider ? `<span class="ok" title="${esc(u.provider)}">${esc(u.provider)}</span>` : '<span class="muted">—</span>'}</td>`,
+        portal:    () => `<td>${u.customPortal
+          ? `<span class="ok" title="Bespoke portal page${(u.customDomains || []).length ? ' on ' + esc((u.customDomains || []).join(', ')) : ''}">★ custom</span>`
+          : chOk(u.leaderboardEnabled, 'Public leaderboard/portal enabled')}</td>`,
+        discord:   () => `<td>${chOk(u.hasDiscord, u.hasDiscord ? 'Discord server linked' : 'No Discord server linked')}</td>`,
+        lastLive:  () => `<td class="muted">${u.kickLiveAt ? rel(u.kickLiveAt) : '<span class="muted">never</span>'}</td>`,
+        streamTime:() => `<td class="muted num">${u.liveStats && u.liveStats.totalLiveMs ? hoursFrom(u.liveStats.totalLiveMs) + 'h' + (u.liveStats.sessions ? ` <span style="opacity:.6;">· ${u.liveStats.sessions} sessions</span>` : '') : '—'}</td>`,
+      };
+      const tint = u.kickLive && _lens === 'health' ? ' style="background:rgba(85,239,176,.05);"'
+                 : (u.archived ? ' style="opacity:.55;"' : '');
+      return `<tr${tint}>${lens.cols.map(c => (CELL[c[0]] || (() => '<td></td>'))()).join('')}</tr>`;
     }).join('');
   };
-
-  function detailHtml(uid) {
-    const d = _detail[uid];
-    if (!d || d === 'loading') return '<div class="muted" style="padding:8px 4px;">Loading…</div>';
-    if (d.error) return `<div class="warn" style="padding:8px 4px;">${esc(d.error)}</div>`;
-    const refBy = d.referredByChannel ? `Referred by <b>${esc(d.referredByChannel)}</b> · ` : '';
-    const refList = (d.referrals && d.referrals.length)
-      ? d.referrals.map(r => `${esc(r.kickChannel||'—')} <span class="muted">(${esc(r.plan)}, ${esc(r.status)})</span>`).join(' · ')
-      : '<span class="muted">none</span>';
-    const u = _users.find(x => x.uid === uid) || {};
-    const ch = esc(u.kickChannel || uid);
-    const actions = `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;">`
-      + `<button class="btn-ghost owner-only" style="border-color:var(--accent);color:var(--accent);" onclick="manageStreamer('${esc(uid)}','${ch}')">🎛 Manage account (switch in)</button>`
-      + `<button class="btn-ghost" style="border-color:var(--purple);color:var(--purple);" onclick="giveTrial('${esc(uid)}','pro')">🎁 Give Pro trial</button>`
-      + `<button class="btn-ghost" style="border-color:var(--gold);color:var(--gold);" onclick="giveTrial('${esc(uid)}','elite')">🎁 Give Elite trial</button>`
-      + (u.archived
-          ? `<button class="btn-ghost" onclick="unarchiveStreamer('${esc(uid)}','${ch}')">♻ Unarchive</button>`
-          : `<button class="btn-ghost" onclick="archiveStreamer('${esc(uid)}','${ch}')">📦 Archive</button>`)
-      + `<button class="btn-ghost owner-only" style="border-color:var(--bad);color:var(--bad);" onclick="deleteStreamer('${esc(uid)}','${ch}')">🗑 Delete permanently</button>`
-      + `</div>`;
-
-    const _now = Date.now();
-    const trialActive = d.planTrial && d.trialEndsAt && d.trialEndsAt > _now;
-    const trialLine = trialActive
-      ? `<div style="margin-top:8px;padding:8px 12px;background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.3);border-radius:8px;color:#ffe07a;">`
-        + `<b>🎁 ${esc(d.trialPlan || 'elite')} trial</b> — ${Math.max(0, Math.ceil((d.trialEndsAt - _now) / 86400000))} day(s) left · auto-drops to starter ${esc(date(d.trialEndsAt))}</div>`
-      : '';
-
-    const noteMeta = d.adminNotesUpdatedBy
-      ? `<span class="muted" style="font-size:11px;">last edited by ${esc(d.adminNotesUpdatedBy)}${d.adminNotesUpdatedAt ? ' · ' + esc(date(d.adminNotesUpdatedAt)) : ''}</span>` : '';
-    const notesBlock = `<div style="margin-top:12px;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;"><b style="color:var(--bright);">📝 Admin notes</b> ${noteMeta}</div>
-        <textarea id="note-${esc(uid)}" placeholder="Internal note, e.g. 'comped Elite for launch help, revisit Aug'…" style="min-height:58px;font-size:12px;resize:vertical;">${esc(d.adminNotes || '')}</textarea>
-        <button id="noteSave-${esc(uid)}" class="btn-ghost" style="margin-top:6px;" onclick="saveNote('${esc(uid)}')">Save note</button>
-      </div>`;
-    const billSummary = d.stripeSubscribed
-      ? `💳 Stripe${d.stripePeriodEnd ? ' · renews ' + date(d.stripePeriodEnd) : ''}`
-      : (d.cryptoBillingNextDue ? `🪙 Crypto · next due ${date(d.cryptoBillingNextDue)}` : 'no active billing cycle');
-    return `<div style="padding:10px 4px;font-size:12px;line-height:1.6;">
-      <div>${refBy}Invited <b>${d.referralCount||0}</b>: ${refList}</div>
-      <div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <span class="muted">Set referrer:</span>
-        <input id="refset-${esc(uid)}" placeholder="referrer channel" style="font-size:12px;padding:4px 8px;width:170px;">
-        <button class="btn-ghost" onclick="setReferrer('${esc(uid)}')">${d.referredByChannel ? 'Change' : 'Set'} referrer</button>
-      </div>
-      <div class="owner-only" style="margin-top:10px;padding:9px 13px;background:rgba(var(--accent-rgb),.05);border:1px solid var(--line);border-radius:9px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-        <span><b style="color:var(--bright);">Billing:</b> <span class="muted">${billSummary} · ${money(d.totalPaid)} paid</span></span>
-        <button class="btn-ghost" style="border-color:var(--accent);color:var(--accent);margin-left:auto;" onclick="gotoBilling('${esc(uid)}')">💳 Manage billing →</button>
-      </div>
-      ${trialLine}
-      ${notesBlock}
-      ${actions}
-    </div>`;
-  }
 
   function billingSectionHtml(uid, d) {
     if (!d || d === 'loading') return '<div class="muted" style="padding:10px;">Loading…</div>';
@@ -3640,20 +3646,6 @@
       await loadUsers();
       alert('Referrer set → ' + (d.referrerChannel || referrer));
     } catch (e) { alert('Failed: ' + e.message); }
-  };
-
-  window.toggleDetail = async function (uid) {
-    if (_expanded.has(uid)) { _expanded.delete(uid); renderTable(); return; }
-    _expanded.add(uid);
-    if (!_detail[uid]) {
-      _detail[uid] = 'loading'; renderTable();
-      try {
-        const r = await authedFetch('/api/admin-user-detail?uid=' + encodeURIComponent(uid));
-        const d = await r.json();
-        _detail[uid] = r.ok ? d : { error: d.error || 'Failed to load' };
-      } catch (e) { _detail[uid] = { error: e.message }; }
-    }
-    renderTable();
   };
 
   window.renderBilling = function () {

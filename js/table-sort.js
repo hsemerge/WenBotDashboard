@@ -137,6 +137,15 @@
       },
       active: function () { return state.key ? { key: state.key, dir: state.dir } : null; },
       refresh: function () { bind(); paintHeaders(); },
+      // Back to the table's own default ordering. Needed when the visible
+      // columns change under the sorter (a table that swaps column sets can
+      // otherwise stay sorted by a column that is no longer on screen, which
+      // reads as a random order with no arrow to explain it).
+      clear: function () {
+        state = { key: null, dir: null };
+        try { localStorage.setItem(opts.storageKey, JSON.stringify(state)); } catch (e) {}
+        paintHeaders();
+      },
     };
   };
 })(window);
