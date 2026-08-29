@@ -123,6 +123,20 @@ exports.handler = async (event) => {
     return res(200, { success: true, used });
   }
 
+  // What KIND of account this is. Streamers are customers; moderators are
+  // someone's helper; internal is us. It drives who counts in the totals, who
+  // appears in revenue queues, and — for internal — that they carry a plan with
+  // no billing relationship at all.
+  if (action === "set-account-type") {
+    const t = String(body.accountType || "").trim();
+    if (!["streamer", "moderator", "internal"].includes(t)) return res(400, { error: "Unknown account type." });
+    const sref = db.collection("streamers").doc(uid);
+    if (!(await sref.get()).exists) return res(404, { error: "No such streamer." });
+    await sref.set({ accountType: t }, { merge: true });
+    logAdminAudit(db, adminUser.uid, "account_type_set", { uid, accountType: t });
+    return res(200, { success: true, accountType: t });
+  }
+
   // Moderators, from the admin side. The streamer-facing endpoints
   // (team-add-mod / team-remove-mod) only let the OWNER manage their own list,
   // which is right for them and useless in support — "can you add my mod for

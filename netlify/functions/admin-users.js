@@ -28,6 +28,10 @@ function ms(v) {
 function billingTypeOf(s) {
   const forced = s.billingMethod;
   if (forced === "stripe" || forced === "crypto" || forced === "comp" || forced === "free") return forced;
+  // Our own accounts get a plan without a billing relationship. Nobody invoices
+  // the owner or the team, so historic invoices on those channels shouldn't make
+  // them read as paying customers — or as comps to review and reclaim.
+  if (s.accountType === "internal") return "free";
   if (s.stripeSubscriptionActive) return "stripe";
   if (s.cryptoBilling === true)   return "crypto";
   if (s.planManual)               return "comp";

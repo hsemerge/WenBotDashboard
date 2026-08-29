@@ -285,9 +285,10 @@
         <!-- Streamers, Channels and Customer 360 were three tabs over the same
              accounts: two column sets and a detail page. One tab now, with a
              lens switcher for the columns and a drill-in for the detail. -->
-        <a href="#/streamers"  data-route="streamers"><span class="ico">👥</span> Streamers <span id="navLiveCount" class="navbadge hidden" title="Live right now"></span></a>
+        <a href="#/streamers"  data-route="streamers"><span class="ico">👥</span> Users <span id="navLiveCount" class="navbadge hidden" title="Live right now"></span></a>
         <a href="#/billing"    data-route="billing" class="owner-only"><span class="ico">💳</span> Billing</a>
         <a href="#/slots"      data-route="slots"><span class="ico">🎰</span> Slots</a>
+        <a href="#/tools"      data-route="tools"><span class="ico">🛠</span> Admin Tools</a>
         <a href="#/health"     data-route="health"><span class="ico">🩺</span> System Health <span id="navAlertCount" class="navbadge hidden"></span></a>
         <a href="#/portals"    data-route="portals" class="owner-only"><span class="ico">🌐</span> Portals &amp; Domains</a>
         <div class="navgroup">Growth</div>
@@ -365,22 +366,13 @@
 
         <!-- LIST MODE -->
         <div id="strList">
-          <div class="tablecard" style="padding:16px;margin-bottom:16px;">
-            <div class="panel-title">🔁 Transfer Viewer</div>
-            <div class="sub" style="margin-bottom:11px;">Move a viewer's points, verification, raffle tickets &amp; purchases from an old Kick username to a new one, across every channel they're in. Preview is read-only; confirm migrates.</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-              <input id="mvFrom" type="text" placeholder="Old username" style="min-width:150px;max-width:220px;">
-              <span class="sub">→</span>
-              <input id="mvTo" type="text" placeholder="New username" style="min-width:150px;max-width:220px;">
-              <button onclick="mvPreview()">Preview</button>
-            </div>
-            <div id="mvResult" style="margin-top:12px;"></div>
-          </div>
           <div class="stats" id="statCards"></div>
           <!-- Lens switcher: same rows, same filters, different columns. The
                commercial and channel-health views together would be seventeen
                columns, which reads as noise. -->
           <div class="toolbar" style="margin-bottom:6px;">
+            <div class="tabs" id="audienceTabs" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+            <span class="sub" style="align-self:center;opacity:.4;">·</span>
             <div class="tabs" id="lensTabs" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
             <span class="sub" id="lensNote" style="align-self:center;"></span>
           </div>
@@ -433,6 +425,23 @@
           <div class="sub" id="footNote" style="margin-top:14px;"></div>
         </div><!-- /strList -->
         </div><!-- /usersView -->
+
+        <!-- TOOLS: one-off admin utilities. Not part of the roster —
+             transferring a viewer is a support action on a PERSON, not
+             something you do to a streamer account. -->
+        <div id="toolsView" class="hidden">
+          <div class="tablecard" style="padding:16px;margin-bottom:16px;">
+            <div class="panel-title">🔁 Transfer Viewer</div>
+            <div class="sub" style="margin-bottom:11px;">Move a viewer's points, verification, raffle tickets &amp; purchases from an old Kick username to a new one, across every channel they're in. Preview is read-only; confirm migrates.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <input id="mvFrom" type="text" placeholder="Old username" style="min-width:150px;max-width:220px;">
+              <span class="sub">→</span>
+              <input id="mvTo" type="text" placeholder="New username" style="min-width:150px;max-width:220px;">
+              <button onclick="mvPreview()">Preview</button>
+            </div>
+            <div id="mvResult" style="margin-top:12px;"></div>
+          </div>
+        </div>
 
         <!-- SLOTS (ported — ids unchanged) -->
         <div id="slotsView" class="hidden">
@@ -955,14 +964,15 @@
   // ── Router (hash-based, from the mock) ─────────────────────────────────────
   const ROUTES = {
     dashboard: { view: 'dashView',    title: 'Dashboard',   kick: 'Global operations' },
-    streamers: { view: 'usersView',   title: 'Streamers',   kick: 'Accounts, channels & billing' },
+    streamers: { view: 'usersView',   title: 'Users',       kick: 'Streamers, moderators & team' },
     // Same view as `streamers` — the difference is which mode it opens in.
     // Kept as routes so #/customer/<uid> links (the assignment email sends one)
     // and any bookmarked #/channels keep working.
     customer:  { view: 'usersView',   title: 'Customer 360',kick: 'One streamer, everything' },
-    channels:  { view: 'usersView',   title: 'Streamers',   kick: 'Live status & setup health' },
+    channels:  { view: 'usersView',   title: 'Users',       kick: 'Live status & setup health' },
     billing:   { view: 'billingView', title: 'Billing',     kick: 'Owner only', ownerOnly: true },
     slots:     { view: 'slotsView',   title: 'Slots',       kick: 'Catalog health' },
+    tools:     { view: 'toolsView',   title: 'Admin Tools', kick: 'Support utilities' },
     analytics: { view: 'analyticsView',title:'Analytics',   kick: 'What actually gets used' },
     health:    { view: 'healthView',  title: 'System Health',kick: 'Alerts from the bot' },
     portals:   { view: 'portalsView', title: 'Portals & Domains', kick: 'Custom domain routing', ownerOnly: true },
@@ -1560,6 +1570,17 @@
         <div class="sub" style="margin:6px 0 10px;">
           Currently: <b style="color:var(--bright);">${esc(BT_LABEL[u.billingType] || u.billingType || '—')}</b>${u.billingMethodSet ? ' <span class="muted">(set by hand)</span>' : ''}
         </div>
+        <div class="kicker" style="margin-top:2px;">Account type</div>
+        <div class="sub" style="margin:6px 0 8px;">Decides who counts as a customer. <b>Team</b> carries a plan with no billing at all — nobody invoices us.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+          <select id="c360Type" style="min-width:200px;">
+            <option value="streamer"${(u.accountType || 'streamer') === 'streamer' ? ' selected' : ''}>Streamer — a customer</option>
+            <option value="moderator"${u.accountType === 'moderator' ? ' selected' : ''}>Moderator — helps someone else</option>
+            <option value="internal"${u.accountType === 'internal' ? ' selected' : ''}>Team — us, never billed</option>
+          </select>
+          <button class="btn-ghost" onclick="c360SetType('${esc(uid)}')">Save</button>
+          <span class="tk-saved" id="c360TypeOk">Saved</span>
+        </div>
         ${_role === 'owner' ? `
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
           <select id="c360Billing" style="min-width:210px;">
@@ -1705,6 +1726,22 @@
       }
       if (clear) await c360Load(uid);
       renderDash(_lastStats || {});
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  // Streamer / moderator / team. Changing it moves the account between the
+  // audience tabs and, for team, drops it out of billing entirely — so the
+  // roster has to be re-read rather than patched locally.
+  window.c360SetType = async function (uid) {
+    const sel = $('c360Type'); if (!sel) return;
+    try {
+      const r = await authedPost('/api/admin-account-action', { uid, action: 'set-account-type', accountType: sel.value });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      const ok = $('c360TypeOk');
+      if (ok) { ok.classList.add('on'); setTimeout(() => ok.classList.remove('on'), 1600); }
+      await loadUsers();
+      await c360Load(uid);
     } catch (e) { alert('Failed: ' + e.message); }
   };
 
@@ -3263,6 +3300,29 @@
       ],
     },
   };
+  // Who's in the list. Everyone with a login lives in one collection, but they
+  // are not one kind of person: our own accounts and someone's moderator are not
+  // streamers and are not billed, so counting them as such was always wrong.
+  // The audience picks the rows; the lens picks the columns.
+  const AUDIENCES = {
+    streamers:  { label: 'Streamers',  test: (u) => isCustomer(u),
+                  note: 'Customers — the people we bill.' },
+    moderators: { label: 'Moderators', test: (u) => u.accountType === 'moderator' || (u.moderates || []).length > 0,
+                  note: 'People who help run someone else’s channel.' },
+    team:       { label: 'Team',       test: (u) => u.accountType === 'internal' || _team.some(m => m.uid === u.uid),
+                  note: 'Us. A plan, no billing.' },
+    all:        { label: 'All',        test: () => true,
+                  note: 'Every account with a login.' },
+  };
+  let _audience = 'streamers';
+  try { const A = localStorage.getItem('wb.admin.audience'); if (A && AUDIENCES[A]) _audience = A; } catch {}
+  window.setAudience = function (name) {
+    if (!AUDIENCES[name]) return;
+    _audience = name;
+    try { localStorage.setItem('wb.admin.audience', name); } catch {}
+    renderTable();
+  };
+
   let _lens = 'overview';
   try { const L = localStorage.getItem('wb.admin.lens'); if (L && LENSES[L]) _lens = L; } catch {}
 
@@ -3359,7 +3419,8 @@
     }
     const mgrPick = mgrSel ? mgrSel.value : '';
 
-    let rows = _users.filter(u => (showArch || !u.archived) && matchesFilter(u)
+    const inAudience = AUDIENCES[_audience].test;
+    let rows = _users.filter(u => (showArch || !u.archived) && inAudience(u) && matchesFilter(u)
       && (!mgrPick || u.accountManager === mgrPick) && (!q ||
       String(u.kickChannel||'').toLowerCase().includes(q) ||
       String(u.displayName||'').toLowerCase().includes(q) ||
@@ -3370,6 +3431,13 @@
     // Lens chrome: tabs, header cells, tiles. The <tr> node is reused so the
     // sorter's delegated click listener survives the swap.
     const lens = lensDef();
+    const audTabs = $('audienceTabs');
+    if (audTabs) {
+      audTabs.innerHTML = Object.entries(AUDIENCES).map(([k, d]) => {
+        const n = _users.filter(u => !u.archived && d.test(u)).length;
+        return `<button class="${k === _audience ? '' : 'btn-ghost'}" onclick="setAudience('${k}')" style="padding:7px 14px;font-size:12.5px;" title="${esc(d.note)}">${esc(d.label)} <span style="opacity:.55;">${n}</span></button>`;
+      }).join('');
+    }
     const lensTabs = $('lensTabs');
     if (lensTabs) {
       lensTabs.innerHTML = Object.entries(LENSES)
@@ -3377,7 +3445,7 @@
         .map(([k, d]) => `<button class="${k === _lens ? '' : 'btn-ghost'}" onclick="setLens('${k}')" style="padding:7px 14px;font-size:12.5px;">${esc(d.label)}</button>`).join('');
     }
     const noteEl = $('lensNote');
-    if (noteEl) noteEl.innerHTML = `<b style="color:var(--accent);">Click a channel</b> for its full Customer 360. ${esc(lens.note)}`;
+    if (noteEl) noteEl.innerHTML = `<b style="color:var(--accent);">Click a channel</b> for its Customer 360. ${esc(AUDIENCES[_audience].note)}`;
     const head = $('usersHead');
     if (head) {
       head.innerHTML = lens.cols
@@ -3397,10 +3465,11 @@
 
     const countEl = $('matchCount');
     if (countEl) {
-      const nStreamers = _users.filter(isCustomer).length;   // mods/internal don't count as streamers
-      countEl.textContent = (q || filter)
-        ? `${rows.length} of ${nStreamers}`
-        : `${nStreamers} streamer${nStreamers === 1 ? '' : 's'}`;
+      const inAud = _users.filter(u => (showArch || !u.archived) && inAudience(u)).length;
+      const noun  = AUDIENCES[_audience].label.toLowerCase().replace(/s$/, '');
+      countEl.textContent = (q || filter || mgrPick)
+        ? `${rows.length} of ${inAud}`
+        : `${inAud} ${noun}${inAud === 1 ? '' : 's'}`;
     }
     if (!rows.length) { $('usersTable').innerHTML = `<tr><td colspan="${lens.cols.length}" class="muted" style="text-align:center;padding:24px;">No matches.</td></tr>`; return; }
     $('usersTable').innerHTML = rows.map(u => {
@@ -3729,7 +3798,10 @@
     const dueOnly = !!($('billingDueOnly') && $('billingDueOnly').checked);
     const now = Date.now(), DAY = 864e5;
     const PAID_PLANS = new Set(['pro', 'elite', 'agency']);
-    let rows = (_users || []).map(u => {
+    // Our own accounts are never billed, so they don't belong on a billing page
+    // — the owner's channel was showing up as a crypto customer purely because
+    // it has old invoices against it. Moderator logins aren't customers either.
+    let rows = (_users || []).filter(u => isCustomer(u)).map(u => {
       const ov = _billingOverview[u.uid];
       const hasCrypto = !!ov || !!u.cryptoNextDue || !!u.cryptoBilling;
       const paidPlan  = PAID_PLANS.has(String(u.plan || '').toLowerCase());
