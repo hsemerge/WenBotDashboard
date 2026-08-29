@@ -1165,7 +1165,13 @@
     streamer_archive: 'archived', streamer_unarchive: 'unarchived', streamer_delete: 'deleted',
     invoice_created: 'created an invoice', invoice_confirmed: 'confirmed an invoice',
     invoice_unconfirmed: 'unmarked an invoice', invoice_deleted: 'deleted an invoice',
-    admin_manage_grant: 'switched into an account', admin_manage_revoke: 'exited managing',
+    admin_manage_grant: 'switched into', admin_manage_revoke: 'left',
+    mod_added: 'added a moderator to', mod_removed: 'removed a moderator from',
+    account_manager_set: 'took over support for', account_type_set: 'set the account type of',
+    billing_method_set: 'set the billing method for', referral_credits_set: 'recorded referral credits for',
+    ticket_create: 'opened a ticket', ticket_status: 'moved a ticket', ticket_assign: 'assigned a ticket',
+    suggestion_create: 'added a suggestion', suggestion_status: 'moved a suggestion',
+    agency_inquiry_dismissed: 'cleared an agency enquiry',
     todo_add: 'added a task', todo_delete: 'removed a task',
     admin_users_view: null, backfill_notes: 'imported comp notes',
     slots_pull_shuffle: 'pulled the Shuffle catalog',
@@ -1183,7 +1189,16 @@
         const who = esc(String(e.by || '?').split('@')[0]);
         const det = e.details || {};
         const target = det.channel || det.kickChannel || det.number || (det.text ? '“' + det.text + '”' : '') || '';
-        return `<div class="ev"><span class="t">${e.at ? new Date(e.at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}</span><span><b>${who}</b> ${esc(label)}${target ? ' · ' + esc(String(target)).slice(0, 60) : ''}</span></div>`;
+        // Entering someone's account is an ACCESS event, not routine admin —
+        // now that the whole team can do it, the log is what makes it
+        // accountable, so it shouldn't read like a note being saved.
+        const access = e.action === 'admin_manage_grant' || e.action === 'admin_manage_revoke';
+        const when = e.at ? new Date(e.at).toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+        return `<div class="ev"${access ? ' style="background:rgba(var(--accent-rgb),.05);"' : ''}>`
+          + `<span class="t">${esc(when)}</span>`
+          + `<span>${access ? '<span title="Account access">🎛 </span>' : ''}<b>${who}</b> `
+          + `<span${access ? ' style="color:var(--accent);font-weight:600;"' : ''}>${esc(label)}</span>`
+          + `${target ? ' <b style="color:var(--bright);">' + esc(String(target)).slice(0, 60) + '</b>' : ''}</span></div>`;
       }).join('');
     } catch (e) { el.innerHTML = '<div class="sub" style="padding:12px 14px;">Feed unavailable: ' + esc(e.message) + '</div>'; }
   }
@@ -1685,7 +1700,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);align-items:center;">
           <a class="btn-ghost" style="text-decoration:none;padding:9px 16px;border-radius:9px;" href="https://kick.com/${esc(u.kickChannel || '')}" target="_blank" rel="noopener">↗ Kick</a>
           <a class="btn-ghost" style="text-decoration:none;padding:9px 16px;border-radius:9px;" href="/${esc(u.kickChannel || '')}" target="_blank" rel="noopener">↗ Portal</a>
-          <button class="btn-ghost owner-only" style="border-color:var(--accent);color:var(--accent);" onclick="manageStreamer('${esc(uid)}','${esc(u.kickChannel || '')}')">🎛 Switch in</button>
+          <button class="btn-ghost" style="border-color:var(--accent);color:var(--accent);" title="Open their dashboard as them, to change settings on their behalf. Logged to the team activity feed, and to this account's admin trail." onclick="manageStreamer('${esc(uid)}','${esc(u.kickChannel || '')}')">🎛 Switch in</button>
           <button class="btn-ghost" onclick="c360NewTicket('${esc(uid)}','${esc(u.kickChannel || '')}')">🎫 New ticket</button>
           <span style="width:1px;height:26px;background:var(--line2);margin:0 2px;"></span>
           <button class="btn-ghost" style="border-color:var(--purple);color:var(--purple);" onclick="giveTrial('${esc(uid)}','pro')">🎁 Pro trial</button>

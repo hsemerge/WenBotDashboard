@@ -39,16 +39,17 @@ exports.handler = async (event) => {
   const targetUid = String(body.uid || "").trim();
   const action    = body.action === "revoke" ? "revoke" : "grant";
 
-  // Switch-in is OWNER-ONLY for now. Granting delegatedFor puts the admin inside
-  // the streamer's dashboard, where the client reads that streamer's payments +
-  // invoices straight from Firestore (the rules see any delegated uid as a mod) —
-  // which would hand a staff admin exactly the billing surface the role model
-  // hides. Until staff switch-in runs on a separate, billing-blind claim, only
-  // the owner gets it. Revoke stays any-admin so a leftover grant can always be
-  // cleaned up.
-  if (action === "grant" && adminUser.role !== "owner") {
-    return res(403, { error: "Switching into accounts is owner-only for now — it exposes the streamer's billing pages." });
-  }
+  // Any admin can switch in. Staff support real accounts and need to be able to
+  // change settings from inside them, so this is deliberately open to the whole
+  // team rather than the owner alone.
+  //
+  // KNOWN TRADE-OFF, accepted: granting delegatedFor makes the streamer's own
+  // dashboard read their payments and invoices straight from Firestore (the
+  // rules treat any delegated uid as a moderator). So a staff admin inside an
+  // account can see THAT streamer's billing, even though the admin panel keeps
+  // billing owner-only. Closing that would mean a separate, billing-blind
+  // delegation claim; until then every grant and every exit is written to the
+  // admin audit trail below, which is what makes the access accountable.
   if (!targetUid) return res(400, { error: "Missing uid" });
   if (targetUid === adminUser.uid) return res(400, { error: "That's your own account." });
 
