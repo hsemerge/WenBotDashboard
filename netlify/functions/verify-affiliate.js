@@ -222,6 +222,7 @@ exports.handler = async (event) => {
         casinoSkipped:      true,
         apiVerified:        false,
         underAffiliate:     false,
+        needsSecondVerification: roleResult?.blocked === "needs-second-role",
         discordLinked:      !!discordUserId,
         discordLinkedAny:   hasExistingDiscordLink,
         discordUsername:    discordUsername || null,
@@ -508,6 +509,10 @@ exports.handler = async (event) => {
 
     return res(200, {
       success:           true,
+      // Two-role server gate: they verified with us but the other bot hasn't
+      // verified them yet, so nothing was granted. Told plainly rather than
+      // leaving them verified-looking and still locked out.
+      needsSecondVerification: roleResult?.blocked === "needs-second-role",
       kickUsername,
       affiliateUsername: resultUsername,
       provider,

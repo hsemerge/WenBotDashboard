@@ -3454,8 +3454,42 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           </div>
           <div class="field" id="dvRoleField" style="display:none;">
             <label>Verified role</label>
-            <select id="dvRoleId"><option value="">— select a role —</option></select>
+            <select id="dvRoleId" onchange="dvRenderGateHelp()"><option value="">— select a role —</option></select>
             <div class="hint">WenBot needs <strong>Manage Roles</strong> and its own role positioned <strong>above</strong> this one in your server's role list.</div>
+          </div>
+
+          <!-- Optional second gate. OFF by default — most servers run WenBot on
+               its own and should never see the extra fields. Only useful if a
+               different bot (Double Counter, Wick, …) also verifies members. -->
+          <div id="dvGateBlock" style="display:none;">
+            <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;margin-bottom:12px;">
+              <input type="checkbox" id="dvRequireSecondRole" onchange="dvToggleChanged()" style="width:16px;height:16px;margin-top:2px;accent-color:var(--accent);cursor:pointer;">
+              <label for="dvRequireSecondRole" style="cursor:pointer;flex:1;">
+                <div style="font-size:13px;color:var(--bright);font-weight:600;">Only unlock the server once another bot has verified them too <span style="font-weight:400;color:var(--text-dim);">(optional)</span></div>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">
+                  For servers that also run an anti-bot gate like Double Counter. Discord can't require two roles at once —
+                  so WenBot grants a third role only once a member holds both. Leave this off if WenBot is your only verification.
+                </div>
+              </label>
+            </div>
+
+            <div id="dvGateFields" style="display:none;">
+              <div class="field">
+                <label>Role the other bot grants</label>
+                <select id="dvSecondRoleId" onchange="dvRenderGateHelp()"><option value="">— select a role —</option></select>
+                <div class="hint">e.g. Double Counter's verified role. WenBot only <strong>reads</strong> this one — it never assigns or removes it.</div>
+              </div>
+              <div class="field">
+                <label>Role that unlocks the server</label>
+                <select id="dvUnlockRoleId" onchange="dvRenderGateHelp()"><option value="">— select a role —</option></select>
+                <div class="hint">
+                  Give <strong>only this role</strong> permission to see your channels — leave the two verification roles on neutral.
+                  WenBot adds it when a member has both, and takes it back if either one goes away.
+                </div>
+              </div>
+              <div id="dvGateFlow" style="font-size:11.5px;color:var(--text-dim);line-height:1.7;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:11px 13px;margin-bottom:12px;"></div>
+              <div id="dvGateWarn" style="display:none;font-size:12px;line-height:1.6;border-radius:8px;padding:10px 12px;margin-bottom:12px;"></div>
+            </div>
           </div>
 
           <!-- Always-available: post a clickable verify link to a channel.
@@ -18932,7 +18966,7 @@ async function populateDiscordChannels(selectedGiveaway, selectedAnnouncement) {
     const resp = await fetch('/api/discord-channels?uid=' + encodeURIComponent(fb.activeUid || ''), {
       headers: { 'Authorization': 'Bearer ' + idToken },
     });
-    const { channels, roles, error, streamersInGuild } = await resp.json();
+    const { channels, roles, botTopRole, error, streamersInGuild } = await resp.json();
     if (error) throw new Error(error);
     const blankC = '<option value="">— select a channel —</option>';
     const chanOpts = (channels || []).map(c =>
@@ -18945,6 +18979,18 @@ async function populateDiscordChannels(selectedGiveaway, selectedAnnouncement) {
     if (lSel) lSel.innerHTML = '<option value="">— off —</option>' + chanOpts;
     if (rSel) rSel.innerHTML = '<option value="">— select a role —</option>' +
       (roles || []).map(r => `<option value="${r.id}">@${escHtml(r.name)}</option>`).join('');
+    // The optional two-role gate uses the same role list.
+    _dvRoles = roles || [];
+    _dvBotTopRole = (typeof botTopRole === 'number') ? botTopRole : null;
+    ['dvSecondRoleId', 'dvUnlockRoleId'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '<option value="">— select a role —</option>' +
+        _dvRoles.map(r => `<option value="${r.id}">@${escHtml(r.name)}</option>`).join('');
+    });
+    { const v = (profile?.discordConfig?.verify) || {};
+      const a = document.getElementById('dvSecondRoleId'); if (a && v.secondRoleId) { a.value = v.secondRoleId; if (a.selectedIndex < 0) a.selectedIndex = 0; }
+      const b = document.getElementById('dvUnlockRoleId'); if (b && v.unlockRoleId) { b.value = v.unlockRoleId; if (b.selectedIndex < 0) b.selectedIndex = 0; } }
+    dvToggleChanged();
     // Go-live announcement selects share the same channel/role lists.
     if (goC) goC.innerHTML = '<option value="">— use the announcement channel —</option>' + chanOpts;
     if (goR) goR.innerHTML = '<option value="">No ping</option><option value="everyone">@everyone</option>' +
@@ -19073,10 +19119,68 @@ function collectDiscordRoutes() {
 }
 
 // ── Discord Verification & Roles ──
+let _dvRoles = [], _dvBotTopRole = null;
 function dvToggleChanged() {
   const assign = document.getElementById('dvAssignRole')?.checked;
   const roleField = document.getElementById('dvRoleField');
   if (roleField) roleField.style.display = assign ? '' : 'none';
+
+  // The two-role gate only makes sense once WenBot grants a role of its own,
+  // and stays hidden entirely for the servers that don't run a second gate bot.
+  const block = document.getElementById('dvGateBlock');
+  if (block) block.style.display = assign ? '' : 'none';
+  const req = document.getElementById('dvRequireSecondRole')?.checked;
+  const fields = document.getElementById('dvGateFields');
+  if (fields) fields.style.display = (assign && req) ? '' : 'none';
+  if (assign && req) dvRenderGateHelp();
+}
+
+// Spell out what the chosen roles will actually do, and catch the two setup
+// mistakes that fail silently: picking the same role twice, and picking a role
+// WenBot sits below (which it cannot assign).
+function dvRenderGateHelp() {
+  const nameOf = (id) => (_dvRoles.find(r => String(r.id) === String(id)) || {}).name || null;
+  const verifyId = document.getElementById('dvRoleId')?.value || '';
+  const secondId = document.getElementById('dvSecondRoleId')?.value || '';
+  const unlockId = document.getElementById('dvUnlockRoleId')?.value || '';
+  const flow = document.getElementById('dvGateFlow');
+  const warn = document.getElementById('dvGateWarn');
+
+  if (flow) {
+    const V = nameOf(verifyId) || 'your verified role';
+    const S = nameOf(secondId) || 'the other bot's role';
+    const U = nameOf(unlockId) || 'the unlock role';
+    flow.innerHTML =
+      `<b style="color:var(--bright);">What members will experience</b><br>`
+      + `Has <b>@${escHtml(S)}</b> already → presses Verify → gets <b>@${escHtml(V)}</b> and <b>@${escHtml(U)}</b>. Server opens.<br>`
+      + `Presses Verify first → told to finish the other verification, nothing granted yet. They press Verify again and it opens.<br>`
+      + `Loses <b>@${escHtml(S)}</b> later → WenBot takes <b>@${escHtml(U)}</b> back within the hour.`;
+  }
+
+  if (!warn) return;
+  const problems = [];
+  const chosen = [verifyId, secondId, unlockId].filter(Boolean);
+  if (new Set(chosen).size !== chosen.length) {
+    problems.push('Two of these are the same role. All three must be different, or the gate has nothing to check.');
+  }
+  // roles come back in Discord's own order (highest first) when available.
+  const posOf = (id) => { const r = _dvRoles.find(x => String(x.id) === String(id)); return r && typeof r.position === 'number' ? r.position : null; };
+  const botTop = (typeof _dvBotTopRole === 'number') ? _dvBotTopRole : null;
+  [['verified', verifyId], ['unlock', unlockId]].forEach(([label, id]) => {
+    const p = posOf(id);
+    if (botTop != null && p != null && p >= botTop) {
+      problems.push(`WenBot sits below <b>@${escHtml(nameOf(id))}</b>, so it can't assign it. Drag WenBot above that role in Server Settings → Roles.`);
+    }
+  });
+  if (problems.length) {
+    warn.style.display = '';
+    warn.style.background = 'rgba(255,111,145,.08)';
+    warn.style.border = '1px solid rgba(255,111,145,.4)';
+    warn.style.color = '#ffb3c4';
+    warn.innerHTML = '⚠ ' + problems.join('<br>⚠ ');
+  } else {
+    warn.style.display = 'none';
+  }
 }
 
 // A checkbox per casino the streamer runs (primary + enabled boards), controlling
@@ -19117,6 +19221,9 @@ function loadVerifySettings() {
   const v = (profile?.discordConfig?.verify) || {};
   const setChk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
   setChk('dvAssignRole', v.assignRole);
+  setChk('dvRequireSecondRole', v.requireSecondRole);
+  // Reveal/hide the optional gate to match what was saved.
+  if (typeof dvToggleChanged === 'function') dvToggleChanged();
   const role = document.getElementById('dvRoleId');        if (role && v.roleId)        role.value = v.roleId;
   const gch  = document.getElementById('dvGateChannelId'); if (gch && v.gateChannelId)  gch.value  = v.gateChannelId;
   const lch  = document.getElementById('dvLogChannelId');  if (lch && v.logChannelId)   lch.value  = v.logChannelId;
@@ -19149,6 +19256,11 @@ async function saveVerifySettings() {
   const verify = {
     assignRole:        document.getElementById('dvAssignRole')?.checked || false,
     roleId:            document.getElementById('dvRoleId')?.value || '',
+    // Optional second gate. Off unless the streamer runs another verification
+    // bot; the two role ids are meaningless without it.
+    requireSecondRole: document.getElementById('dvRequireSecondRole')?.checked || false,
+    secondRoleId:      document.getElementById('dvSecondRoleId')?.value || '',
+    unlockRoleId:      document.getElementById('dvUnlockRoleId')?.value || '',
     gateChannelId:     document.getElementById('dvGateChannelId')?.value || '',
     // Empty string means off, which is what verify-log checks for.
     logChannelId:      document.getElementById('dvLogChannelId')?.value || '',
@@ -19156,6 +19268,17 @@ async function saveVerifySettings() {
   };
   if (verify.assignRole && !verify.roleId) {
     flash('Pick a Verified role first.', 'error'); return;
+  }
+  // A half-configured gate is worse than none: it would refuse every member
+  // without ever being able to unlock anything.
+  if (verify.requireSecondRole) {
+    if (!verify.secondRoleId || !verify.unlockRoleId) {
+      flash('Pick both the other bot’s role and the role that unlocks the server.', 'error'); return;
+    }
+    const three = [verify.roleId, verify.secondRoleId, verify.unlockRoleId];
+    if (new Set(three).size !== three.length) {
+      flash('The three roles must all be different — otherwise the gate has nothing to check.', 'error'); return;
+    }
   }
   try {
     const discordConfig = { ...(profile?.discordConfig || {}), verify };

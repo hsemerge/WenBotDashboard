@@ -943,7 +943,7 @@
         // The already-verified short-circuit card ("Looks good") must clear on
         // success too — leaving it up made the confirm look like a no-op.
         document.getElementById('alreadyVerifiedSection').style.display = 'none';
-        showSuccess();
+        showSuccess(data);
         document.getElementById('successBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
       } else {
         showError(data.error || 'Verification failed. Please try again.');
@@ -998,7 +998,7 @@
         if (data.discordLinked || data.discordLinkedAny || !data.streamerHasDiscord) {
           document.getElementById('discordLinkSection').style.display = 'none';
         }
-        showSuccess();
+        showSuccess(data);
         document.getElementById('successBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
       } else {
         showError(data.error || 'Verification failed. Please try again.');
@@ -1010,7 +1010,29 @@
     }
   }
 
-  function showSuccess() {
+  // Two-role server gate (optional, off for most streamers). The member IS
+  // verified with WenBot, but the server stays shut until the other
+  // verification bot has seen them. Saying so is the whole point — the
+  // alternative is somebody staring at a success screen in a server they
+  // still can't see, assuming the bot is broken.
+  function vfShowSecondGate(data) {
+    if (!data || !data.needsSecondVerification) return;
+    const box = document.getElementById('successBox');
+    if (!box || document.getElementById('secondGateNote')) return;
+    const el = document.createElement('div');
+    el.id = 'secondGateNote';
+    el.style.cssText = 'margin-top:14px;padding:12px 14px;border-radius:10px;'
+      + 'background:rgba(245,197,24,.10);border:1px solid rgba(245,197,24,.45);'
+      + 'color:#ffe07a;font-size:13.5px;line-height:1.6;text-align:left;';
+    el.innerHTML = '<strong>One more step to unlock the server</strong><br>'
+      + 'This server also uses a second verification bot. Finish that one in the '
+      + 'verification channel, then press <strong>Verify</strong> here again and '
+      + 'the rest of the server will open up.';
+    box.appendChild(el);
+  }
+
+  function showSuccess(data) {
+    vfShowSecondGate(data);
     document.getElementById('successBox').classList.add('show');
     document.getElementById('errorBox').classList.remove('show');
     document.getElementById('tryAgainLink').style.display = 'none';

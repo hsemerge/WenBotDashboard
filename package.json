@@ -4,7 +4,7 @@
   "scripts": {
     "build": "node scripts/bake-domains.js && node scripts/strip-comments.js",
     "smoke": "node scripts/smoke-giveaway.js",
-    "test": "node scripts/test-giveaway.js && node scripts/test-giveaway-fixes.js && node scripts/test-linkify.js && node scripts/check-inline-js.js",
+    "test": "node scripts/test-giveaway.js && node scripts/test-giveaway-fixes.js && node scripts/test-linkify.js && node scripts/test-verify-gate.js && node scripts/check-inline-js.js",
     "test:exec": "node scripts/test-snippet-exec.js"
   },
   "dependencies": {

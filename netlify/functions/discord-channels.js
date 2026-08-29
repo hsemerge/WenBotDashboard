@@ -53,13 +53,31 @@ exports.handler = async (event) => {
 
     // Roles WenBot can assign: exclude @everyone (id === guildId) and bot/
     // integration-managed roles. Highest position first for nicer ordering.
-    let roles = [];
+    let roles = [], botTopRole = null;
     if (roleResp.ok) {
       const allRoles = await roleResp.json();
-      roles = (Array.isArray(allRoles) ? allRoles : [])
+      const list = Array.isArray(allRoles) ? allRoles : [];
+      roles = list
         .filter(r => r.id !== guildId && !r.managed)
         .sort((a, b) => (b.position ?? 0) - (a.position ?? 0))
-        .map(r => ({ id: r.id, name: r.name }));
+        // `position` rides along so the dashboard can warn BEFORE a streamer
+        // saves a role WenBot sits below and cannot assign — otherwise that
+        // failure only shows up when a real member gets stuck.
+        .map(r => ({ id: r.id, name: r.name, position: r.position ?? 0 }));
+
+      // WenBot's own highest role. Its bot role is `managed`, so it was filtered
+      // out of the list above and there was nothing to compare against.
+      try {
+        const botId = process.env.DISCORD_APPLICATION_ID;
+        if (botId) {
+          const me = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${botId}`, { headers: auth });
+          if (me.ok) {
+            const mine = new Set(((await me.json()).roles) || []);
+            botTopRole = list.filter(r => mine.has(r.id))
+              .reduce((top, r) => Math.max(top, r.position ?? 0), 0);
+          }
+        }
+      } catch (e) { console.warn("[discord-channels] bot role lookup:", e.message); }
     }
 
     // How many streamers share this server. The dashboard only surfaces the
@@ -75,7 +93,7 @@ exports.handler = async (event) => {
       }
     } catch (e) { console.warn("[discord-channels] guild lookup failed:", e.message); }
 
-    return res(200, { channels: text, roles, guildId, streamersInGuild });
+    return res(200, { channels: text, roles, botTopRole, guildId, streamersInGuild });
   } catch (e) {
     console.error("[discord-channels] error:", e.message);
     return res(500, { error: "Internal server error" });

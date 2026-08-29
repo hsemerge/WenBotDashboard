@@ -18,6 +18,12 @@
 [functions."leaderboard-discord-cron"]
   schedule = "@hourly"
 
+# Two-role server gate. WenBot has no Discord gateway connection, so it never
+# sees a role being added by another bot — this notices when someone completes
+# their OTHER verification after ours. Only runs for streamers who enabled it.
+[functions."verify-unlock-sweep"]
+  schedule = "@hourly"
+
 # Daily reconcile of every Stripe subscription against Firestore. The webhook is
 # the primary path; this catches anything it missed (deploy downtime, a failed
 # delivery) so a cancellation can't stay invisible.
