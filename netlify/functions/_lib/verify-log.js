@@ -235,6 +235,10 @@ async function detectAnomalies(db, uid, v) {
 // thing here a mod can fix, and the viewer can't see that anything went wrong.
 function roleFailed(streamerData, v) {
   const cfg = (streamerData.discordConfig && streamerData.discordConfig.verify) || {};
+  // A member held back by the optional two-role gate is NOT a failure — it is
+  // the setting working. Flagging it amber would cry wolf at the mods on every
+  // single person who verifies with WenBot before the other bot.
+  if (v.roleResult && (v.roleResult.blocked || v.roleResult.pending)) return false;
   return !!(cfg.assignRole && cfg.roleId && v.discordUserId && !(v.roleResult && v.roleResult.ok));
 }
 
@@ -254,10 +258,25 @@ function roleField(streamerData, v) {
   const cfg = (streamerData.discordConfig && streamerData.discordConfig.verify) || {};
   if (!cfg.assignRole || !cfg.roleId || !v.discordUserId) return [];
   const ok = v.roleResult && v.roleResult.ok;
+  // Waiting on the other verification bot — say so plainly, so a mod reading
+  // the feed knows nothing is broken and nothing needs doing.
+  if (v.roleResult && v.roleResult.blocked === "needs-second-role") {
+    return [{
+      name:  "Role",
+      value: `⏳ Waiting on the other verification bot — no roles granted yet.`
+           + (cfg.secondRoleId ? ` Needs <@&${cfg.secondRoleId}> first.` : ""),
+      inline: false,
+    }];
+  }
+  if (v.roleResult && v.roleResult.pending) {
+    return [{ name: "Role", value: "⏳ Discord was unreachable — the hourly check will settle it.", inline: false }];
+  }
+  const unlockNote = (ok && cfg.requireSecondRole && cfg.unlockRoleId)
+    ? ` and <@&${cfg.unlockRoleId}>` : "";
   return [{
     name:  "Role",
     value: ok
-      ? `✅ Granted <@&${cfg.roleId}>`
+      ? `✅ Granted <@&${cfg.roleId}>${unlockNote}`
       : `⚠️ Could not grant <@&${cfg.roleId}>${v.roleResult && v.roleResult.status ? ` (Discord said ${v.roleResult.status})` : ""}`,
     inline: false,
   }];
