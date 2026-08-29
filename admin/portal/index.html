@@ -388,10 +388,7 @@
               <option value="paid">💳 Paying</option>
               <option value="failed">⚠️ Payment failed</option>
               <option value="free">🆓 Starter / no sub</option>
-              <option value="moderators">🛡 Signed up as moderator</option>
-              <option value="streamers">🎥 Signed up as streamer</option>
               <option value="notOnboarded">🚧 Signed up, not onboarded</option>
-              <option value="internal">🏢 Internal / test</option>
               <option value="ismod">🛡 Moderates a channel</option>
               <option value="hasmods">👥 Has moderators</option>
               <option value="mine">🙋 My streamers</option>
@@ -1363,11 +1360,11 @@
     if (!uid) return;
     const want = '#/customer/' + uid;
     if (location.hash === want) { c360Load(uid); return; }  // same page re-opened
-    location.hash = want;                                    // → hashchange → routeTo → c360Load
-    // Belt and braces: if the hash was already on #/customer (different uid) the
-    // browser fires hashchange, but calling routeTo directly costs nothing and
-    // guarantees the load even if a listener was missed.
-    routeTo('customer', true);
+    // Assigning the hash fires hashchange → routeTo → c360Load. Calling routeTo
+    // here as well ran the whole load a SECOND time: c360Load only assigns
+    // _c360 after awaiting both fetches, so the guard hadn't been set yet and
+    // every drill-in doubled its requests.
+    location.hash = want;
   };
   function c360UidFromHash() {
     const m = (location.hash || '').match(/^#\/customer\/([A-Za-z0-9_-]+)/);
@@ -1399,7 +1396,19 @@
     const chips = [];
     chips.push(`<span class="pill ${esc(d.plan || 'starter')}">${esc(d.plan || 'starter')}</span>`);
     if (onTrial) chips.push(`<span class="pill" style="background:rgba(245,197,24,.14);color:var(--gold);">🎁 trial · ${Math.max(0, Math.ceil((d.trialEndsAt - now) / 864e5))}d left</span>`);
-    if (d.planManual && !onTrial) chips.push('<span class="pill comp">comp</span>');
+    // How they pay, from billingType — NOT planManual. An invoice customer's
+    // plan is held manually too, so keying off planManual labelled Meg "comp"
+    // in the header while the card below correctly said she pays in crypto.
+    if (!onTrial) {
+      const HERO_BILL = {
+        crypto: ['🪙 crypto', 'rgba(85,239,176,.15)', 'var(--good)', 'Paying customer — invoiced, pays in crypto'],
+        comp:   ['🎁 not billed', 'rgba(255,158,196,.15)', '#ff9ec4', 'Active plan, deliberately not being charged'],
+        free:   u.accountType === 'internal'
+                  ? ['🏢 team · not billed', 'rgba(140,161,174,.18)', 'var(--dim)', 'One of our own accounts — never billed']
+                  : null,
+      }[u.billingType];
+      if (HERO_BILL) chips.push(`<span class="pill" style="background:${HERO_BILL[1]};color:${HERO_BILL[2]};" title="${esc(HERO_BILL[3])}">${HERO_BILL[0]}</span>`);
+    }
     if (u.subscriptionActive) chips.push('<span class="stat-chip done">subscribed</span>');
     if (u.paymentFailed) chips.push('<span class="stat-chip blocked">payment failed</span>');
     if (!u.onboarded) chips.push('<span class="stat-chip in_progress">not onboarded</span>');
@@ -1470,8 +1479,7 @@
             <td style="white-space:normal;">${esc(t.title)}</td>
             <td class="muted">${t.assignee ? esc(String(t.assignee).split('@')[0]) : '—'}</td>
             <td class="muted">${rel(t.lastActivityAt)}</td></tr>`).join('')}</tbody></table>`
-          : '<div class="sub" style="margin-top:6px;">No tickets reference this streamer.</div>'}
-        <button class="btn-ghost" style="margin-top:10px;" onclick="c360NewTicket('${esc(uid)}','${esc(u.kickChannel || '')}')">🎫 New ticket for them</button>
+          : '<div class="sub" style="margin-top:6px;">No tickets reference this streamer. <span class="muted">Raise one from the bar at the top.</span></div>'}
       </div>`;
 
     // Admin trail.
@@ -1545,30 +1553,21 @@
     // The account actions. These used to live only in the roster's row
     // expander, so "the thing you want to do" and "the page showing you why"
     // were in different tabs. One place now.
-    const actionsHtml = `
-      <div class="tablecard" style="padding:16px;">
-        <div class="kicker">Actions</div>
-        <div class="panel-title">Manage this account</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-          <button class="btn-ghost owner-only" style="border-color:var(--accent);color:var(--accent);" onclick="manageStreamer('${esc(uid)}','${esc(u.kickChannel || uid)}')">🎛 Switch in</button>
-          <button class="btn-ghost" style="border-color:var(--purple);color:var(--purple);" onclick="giveTrial('${esc(uid)}','pro')">🎁 Pro trial</button>
-          <button class="btn-ghost" style="border-color:var(--gold);color:var(--gold);" onclick="giveTrial('${esc(uid)}','elite')">🎁 Elite trial</button>
-          ${u.archived
-            ? `<button class="btn-ghost" onclick="unarchiveStreamer('${esc(uid)}','${esc(u.kickChannel || uid)}')">♻ Unarchive</button>`
-            : `<button class="btn-ghost" onclick="archiveStreamer('${esc(uid)}','${esc(u.kickChannel || uid)}')">📦 Archive</button>`}
-          <button class="btn-ghost owner-only" style="border-color:var(--bad);color:var(--bad);" onclick="deleteStreamer('${esc(uid)}','${esc(u.kickChannel || uid)}')">🗑 Delete permanently</button>
-        </div>
-      </div>`;
+    // (The actions card lived here. Everything it held is now in the one bar
+    //  under the header, beside Kick / Portal / Switch in — which already
+    //  duplicated two of its buttons.)
+    const actionsHtml = '';
 
     // How they pay, and what they've earned by bringing others in.
-    const BT_LABEL = { stripe:'Stripe subscription', crypto:'Invoiced — pays in crypto', comp:'Comped (free)', free:'No plan / free' };
+    const BT_LABEL = { stripe:'Stripe subscription', crypto:'Invoiced — pays in crypto', comp:'Active plan, not being billed', free:'No plan / not billed' };
     const refs = u.referrals || [];
     const billingHtml = `
       <div class="tablecard" style="padding:16px;">
         <div class="kicker">Money</div>
         <div class="panel-title">Billing &amp; referrals</div>
-        <div class="sub" style="margin:6px 0 10px;">
-          Currently: <b style="color:var(--bright);">${esc(BT_LABEL[u.billingType] || u.billingType || '—')}</b>${u.billingMethodSet ? ' <span class="muted">(set by hand)</span>' : ''}
+        <div class="sub" style="margin:6px 0 12px;padding:9px 12px;border-radius:8px;background:rgba(var(--accent-rgb),.05);border:1px solid var(--line2);">
+          Currently: <b style="color:var(--bright);">${esc(BT_LABEL[u.billingType] || u.billingType || '—')}</b><br>
+          <span class="muted">Because ${esc(u.billingWhy || 'no reason recorded')}.</span>
         </div>
         <div class="kicker" style="margin-top:2px;">Account type</div>
         <div class="sub" style="margin:6px 0 8px;">Decides who counts as a customer. <b>Team</b> carries a plan with no billing at all — nobody invoices us.</div>
@@ -1582,13 +1581,20 @@
           <span class="tk-saved" id="c360TypeOk">Saved</span>
         </div>
         ${_role === 'owner' ? `
+        <div class="kicker">Override</div>
+        <div class="sub" style="margin:6px 0 8px;">
+          Leave it on <b>default</b> and it follows their record — a live Stripe
+          sub, a confirmed invoice, or an admin-set plan. Change it only when
+          that answer is wrong, or to park a real customer on
+          <b>“active plan, not being billed”</b> until you start charging them.
+        </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
           <select id="c360Billing" style="min-width:210px;">
-            <option value="auto"${!u.billingMethodSet ? ' selected' : ''}>Work it out automatically</option>
+            <option value="auto"${!u.billingMethodSet ? ' selected' : ''}>Work it out from their record (default)</option>
             <option value="crypto"${u.billingMethodSet && u.billingType === 'crypto' ? ' selected' : ''}>Invoiced — pays in crypto</option>
             <option value="stripe"${u.billingMethodSet && u.billingType === 'stripe' ? ' selected' : ''}>Stripe subscription</option>
-            <option value="comp"${u.billingMethodSet && u.billingType === 'comp' ? ' selected' : ''}>Comped (free)</option>
-            <option value="free"${u.billingMethodSet && u.billingType === 'free' ? ' selected' : ''}>No plan</option>
+            <option value="comp"${u.billingMethodSet && u.billingType === 'comp' ? ' selected' : ''}>Active plan, not being billed</option>
+            <option value="free"${u.billingMethodSet && u.billingType === 'free' ? ' selected' : ''}>No plan at all</option>
           </select>
           <button class="btn-ghost" onclick="c360SetBilling('${esc(uid)}')">Save</button>
           <span class="tk-saved" id="c360BillOk">Saved</span>
@@ -1673,11 +1679,21 @@
           <dt>Casino</dt><dd>${u.provider ? esc(u.provider) : '<span class="muted">none set</span>'}</dd>
           <dt>Referrals</dt><dd>${d.referralCount || 0}${(d.referrals || []).length ? ` <span class="muted">· ${d.referrals.slice(0, 5).map(r => esc(r.kickChannel || '—')).join(', ')}</span>` : ''}</dd>
         </dl>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">
+        <!-- Every action on this account, in one bar. There used to be four
+             buttons here and a "Manage this account" card repeating two of
+             them lower down the page. -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);align-items:center;">
           <a class="btn-ghost" style="text-decoration:none;padding:9px 16px;border-radius:9px;" href="https://kick.com/${esc(u.kickChannel || '')}" target="_blank" rel="noopener">↗ Kick</a>
           <a class="btn-ghost" style="text-decoration:none;padding:9px 16px;border-radius:9px;" href="/${esc(u.kickChannel || '')}" target="_blank" rel="noopener">↗ Portal</a>
           <button class="btn-ghost owner-only" style="border-color:var(--accent);color:var(--accent);" onclick="manageStreamer('${esc(uid)}','${esc(u.kickChannel || '')}')">🎛 Switch in</button>
+          <button class="btn-ghost" onclick="c360NewTicket('${esc(uid)}','${esc(u.kickChannel || '')}')">🎫 New ticket</button>
+          <span style="width:1px;height:26px;background:var(--line2);margin:0 2px;"></span>
+          <button class="btn-ghost" style="border-color:var(--purple);color:var(--purple);" onclick="giveTrial('${esc(uid)}','pro')">🎁 Pro trial</button>
           <button class="btn-ghost" style="border-color:var(--gold);color:var(--gold);" onclick="giveTrial('${esc(uid)}','elite')">🎁 Elite trial</button>
+          ${u.archived
+            ? `<button class="btn-ghost" onclick="unarchiveStreamer('${esc(uid)}','${esc(u.kickChannel || uid)}')">♻ Unarchive</button>`
+            : `<button class="btn-ghost" onclick="archiveStreamer('${esc(uid)}','${esc(u.kickChannel || uid)}')">📦 Archive</button>`}
+          <button class="btn-ghost owner-only" style="margin-left:auto;border-color:var(--bad);color:var(--bad);" onclick="deleteStreamer('${esc(uid)}','${esc(u.kickChannel || uid)}')">🗑 Delete permanently</button>
         </div>
       </div>
       <div class="c360grid">
@@ -2092,7 +2108,10 @@
   // Moderator logins and our own internal/test accounts are not customers:
   // counting them inflates the funnel and drags the conversion rate down. Every
   // ops queue works off real streamers only.
-  const isCustomer = (u) => u.accountType !== 'moderator' && u.accountType !== 'internal';
+  // Not a customer: someone's moderator, an account marked internal, or a login
+  // that administers WenBot (server-derived from the adminRole claim, so the
+  // owner's own channel drops out of billing without anyone flagging it).
+  const isCustomer = (u) => u.accountType !== 'moderator' && u.accountType !== 'internal' && !u.isTeamAccount;
   const activeUsers = () => _users.filter(u => !u.archived && isCustomer(u));
   const isTrial   = (u) => u.planTrial && u.trialEndsAt;
   const isPaying  = (u) => u.subscriptionActive && !u.planManual && !u.planTrial;
@@ -2216,7 +2235,7 @@
     },
     // 3) Paying but gone quiet — cancellations you can still prevent.
     churn: (A) => {
-      const rows = A.filter(u => (isPaying(u) || u.cryptoBilling) && u.lastLoginAt && daysSince(u.lastLoginAt) >= 21)
+      const rows = A.filter(u => (isPaying(u) || u.billingType === 'crypto') && u.lastLoginAt && daysSince(u.lastLoginAt) >= 21)
         .sort((a, b) => (a.lastLoginAt || 0) - (b.lastLoginAt || 0));
       return {
         kicker: 'Retain', title: 'Churn risk — paying but inactive',
@@ -2238,7 +2257,7 @@
         ['Signed up',      A.length],
         ['Connected Kick', A.filter(u => u.kickConnectedAt).length],
         ['Onboarded',      A.filter(u => u.onboarded).length],
-        ['Paying',         A.filter(u => isPaying(u) || u.cryptoBilling).length],
+        ['Paying',         A.filter(u => isPaying(u) || u.billingType === 'crypto').length],
       ];
       const top = steps[0][1] || 1;
       const stuck = A.filter(u => !u.onboarded).sort((a, b) => (b.kickConnectedAt || 0) - (a.kickConnectedAt || 0));
@@ -3234,7 +3253,11 @@
         if (u.paymentFailed)                              return 4;
         if (onTrial)                                      return 3;
         if (u.planTrial && u.trialEndsAt <= now)          return 2;   // trial ended, sweep pending
-        if (u.trialExpiredAt && !u.subscriptionActive)    return 1;   // lapsed, no convert
+        // Must match the cell's definition of "paying", which counts invoice
+        // customers — otherwise a crypto convert shows the green chip and sorts
+        // as a lapsed trial at the same time.
+        const paying = !!u.subscriptionActive || u.billingType === 'crypto';
+        if (u.trialExpiredAt && !paying)                  return 1;   // lapsed, no convert
         return 0;
       } },
       manager:     u => String(u.accountManager || '').toLowerCase(),
@@ -3305,13 +3328,20 @@
   // streamers and are not billed, so counting them as such was always wrong.
   // The audience picks the rows; the lens picks the columns.
   const AUDIENCES = {
-    streamers:  { label: 'Streamers',  test: (u) => isCustomer(u),
+    streamers:  { label: 'Streamers',  one: 'streamer',     many: 'streamers',
+                  test: (u) => isCustomer(u),
                   note: 'Customers — the people we bill.' },
-    moderators: { label: 'Moderators', test: (u) => u.accountType === 'moderator' || (u.moderates || []).length > 0,
+    moderators: { label: 'Moderators', one: 'moderator',    many: 'moderators',
+                  test: (u) => u.accountType === 'moderator' || (u.moderates || []).length > 0,
                   note: 'People who help run someone else’s channel.' },
-    team:       { label: 'Team',       test: (u) => u.accountType === 'internal' || _team.some(m => m.uid === u.uid),
-                  note: 'Us. A plan, no billing.' },
-    all:        { label: 'All',        test: () => true,
+    // isTeamAccount comes from the server (an adminRole claim), so this is right
+    // on the FIRST paint — keying off the separately-loaded _team roster meant
+    // the Team tab read 0 until something else happened to re-render.
+    team:       { label: 'Team',       one: 'team member',  many: 'team members',
+                  test: (u) => u.accountType === 'internal' || !!u.isTeamAccount,
+                  note: 'Us. A plan, never billed.' },
+    all:        { label: 'All',        one: 'account',      many: 'accounts',
+                  test: () => true,
                   note: 'Every account with a login.' },
   };
   let _audience = 'streamers';
@@ -3329,7 +3359,15 @@
   function lensDef() {
     const d = LENSES[_lens];
     // Billing is owner-only; a staff session that had it stored falls back.
-    if (!d || (d.owner && _role !== 'owner')) { _lens = 'overview'; return LENSES.overview; }
+    if (!d || (d.owner && _role !== 'owner')) {
+      _lens = 'overview';
+      // Same care setLens takes: a sort restored from localStorage can point at
+      // a column this lens doesn't render, which reorders the table with no
+      // arrow to explain it.
+      const act = usersSort.active();
+      if (act && !LENSES.overview.cols.some(c => c[0] === act.key)) usersSort.clear();
+      return LENSES.overview;
+    }
     return d;
   }
 
@@ -3392,9 +3430,6 @@
         case 'paid':       return !!u.subscriptionActive;
         case 'failed':     return !!u.paymentFailed;
         case 'free':       return !u.subscriptionActive && !u.planTrial;
-        case 'moderators': return u.accountType === 'moderator';
-        case 'streamers':  return u.accountType !== 'moderator';
-        case 'internal':   return u.accountType === 'internal';
         case 'ismod':      return (u.moderates || []).length > 0;
         case 'hasmods':    return (u.mods || []).length > 0;
         case 'mine':       return u.accountManager === _me;
@@ -3434,7 +3469,7 @@
     const audTabs = $('audienceTabs');
     if (audTabs) {
       audTabs.innerHTML = Object.entries(AUDIENCES).map(([k, d]) => {
-        const n = _users.filter(u => !u.archived && d.test(u)).length;
+        const n = _users.filter(u => (showArch || !u.archived) && d.test(u)).length;
         return `<button class="${k === _audience ? '' : 'btn-ghost'}" onclick="setAudience('${k}')" style="padding:7px 14px;font-size:12.5px;" title="${esc(d.note)}">${esc(d.label)} <span style="opacity:.55;">${n}</span></button>`;
       }).join('');
     }
@@ -3466,10 +3501,10 @@
     const countEl = $('matchCount');
     if (countEl) {
       const inAud = _users.filter(u => (showArch || !u.archived) && inAudience(u)).length;
-      const noun  = AUDIENCES[_audience].label.toLowerCase().replace(/s$/, '');
+      const A = AUDIENCES[_audience];
       countEl.textContent = (q || filter || mgrPick)
         ? `${rows.length} of ${inAud}`
-        : `${inAud} ${noun}${inAud === 1 ? '' : 's'}`;
+        : `${inAud} ${inAud === 1 ? A.one : A.many}`;
     }
     if (!rows.length) { $('usersTable').innerHTML = `<tr><td colspan="${lens.cols.length}" class="muted" style="text-align:center;padding:24px;">No matches.</td></tr>`; return; }
     $('usersTable').innerHTML = rows.map(u => {

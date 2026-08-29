@@ -4,7 +4,7 @@
 
 const { getDb, admin }        = require("./_lib/firebase");
 const { res, checkRateLimit } = require("./_lib/http");
-const { requireAdmin, logAdminAudit } = require("./_lib/admin");
+const { requireAdmin, logAdminAudit, adminUids } = require("./_lib/admin");
 
 function ms(v) {
   if (v == null) return null;
@@ -36,6 +36,18 @@ function billingTypeOf(s) {
   if (s.cryptoBilling === true)   return "crypto";
   if (s.planManual)               return "comp";
   return "free";
+}
+
+// Why billingTypeOf landed where it did, in words. "Work it out automatically"
+// is meaningless on its own — an admin looking at the override needs to know
+// what was worked out and from WHAT, so they can tell whether it's wrong.
+function billingWhyOf(s) {
+  if (s.billingMethod) return "set by hand — the automatic answer is being overridden";
+  if (s.accountType === "internal") return "one of our own accounts, so it is never billed";
+  if (s.stripeSubscriptionActive)   return "they have a live Stripe subscription";
+  if (s.cryptoBilling === true)     return "an invoice has been confirmed paid on this account";
+  if (s.planManual)                 return "their plan was set by an admin and no payments are recorded";
+  return "no subscription, no paid invoices and no admin-set plan";
 }
 
 exports.handler = async (event) => {
@@ -85,6 +97,7 @@ exports.handler = async (event) => {
       // How they pay — a CATEGORY, not an amount, so staff get it too. Without
       // it a crypto customer is indistinguishable from a freebie.
       billingType:        billingTypeOf(s),
+      billingWhy:         billingWhyOf(s),            // shown next to the override
       billingMethodSet:   !!s.billingMethod,          // an admin said so by hand
       // Free months already handed out for referrals that converted. Owed =
       // converted - used (both computed below).
@@ -235,12 +248,25 @@ exports.handler = async (event) => {
 
   // Last login — pulled from Firebase Auth metadata (no per-login writes needed).
   // Batched getUsers (max 100/call). Non-fatal: on any failure, leave it null.
+  //
+  // The same call also reveals who holds an adminRole claim, which settles a
+  // question that shouldn't need a manual flag: OUR OWN logins are never
+  // billing customers. The owner's channel was appearing in Billing as an
+  // overdue crypto customer purely because it has old invoices — and marking it
+  // by hand would have to be repeated for every teammate. An account whose
+  // login can administer WenBot is us, by definition.
+  const envAdmins = new Set(adminUids());
   try {
     for (let i = 0; i < users.length; i += 100) {
       const chunk = users.slice(i, i + 100).map((u) => ({ uid: u.uid }));
       const r = await admin.auth().getUsers(chunk);
       const m = {};
       r.users.forEach((rec) => {
+        const role = rec.customClaims && rec.customClaims.adminRole;
+        if (role === "owner" || role === "staff" || envAdmins.has(rec.uid)) {
+          const u = users.find((x) => x.uid === rec.uid);
+          if (u) { u.isTeamAccount = true; u.adminRole = role || "owner"; }
+        }
         const t = rec.metadata && rec.metadata.lastSignInTime;
         if (t) m[rec.uid] = new Date(t).getTime();
       });
@@ -249,6 +275,14 @@ exports.handler = async (event) => {
   } catch (e) {
     console.warn("[admin-users] last-login lookup failed:", e.message);
   }
+
+  // Our own logins carry a plan and no billing relationship, regardless of the
+  // invoices or subscriptions sitting in their history.
+  users.forEach((u) => {
+    if (!u.isTeamAccount) return;
+    u.billingType = "free";
+    u.billingWhy  = "this login administers WenBot — we are never billed";
+  });
 
   users.sort((a, b) => (b.totalPaid - a.totalPaid) ||
     String(a.kickChannel || "").localeCompare(String(b.kickChannel || "")));

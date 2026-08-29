@@ -22,7 +22,12 @@ const { requireAdmin, logAdminAudit } = require("./_lib/admin");
 const { sendEmail, wrap, button, SUPPORT_EMAIL } = require("./_lib/email");
 const { MAX_MODS, findUserByEmail, grantDelegation, revokeDelegation } = require("./_lib/team");
 
-const OWNER_ONLY = new Set(["clear-mfa", "disable", "enable"]);
+// add-mod is owner-only because it hands out PERSISTENT access to someone
+// else's account: grantDelegation writes delegatedFor on the target login, and
+// firestore.rules honours that claim directly. An admin could otherwise name
+// their own address and read a streamer's data indefinitely. Removing a
+// moderator only ever takes access away, so staff keep that.
+const OWNER_ONLY = new Set(["clear-mfa", "disable", "enable", "add-mod"]);
 
 // Values interpolated into notification HTML are account data (channel names,
 // admin notes), so they get escaped before they reach the email body.
