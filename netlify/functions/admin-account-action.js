@@ -23,6 +23,11 @@ const { sendEmail, wrap, button, SUPPORT_EMAIL } = require("./_lib/email");
 
 const OWNER_ONLY = new Set(["clear-mfa", "disable", "enable"]);
 
+// Values interpolated into notification HTML are account data (channel names,
+// admin notes), so they get escaped before they reach the email body.
+const escHtml = (s) => String(s == null ? "" : s)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
   if (event.httpMethod !== "POST")    return res(405, { error: "Method not allowed" });
@@ -51,14 +56,44 @@ exports.handler = async (event) => {
     const manager = String(body.manager || "").trim().slice(0, 120);
     if (manager && !manager.includes("@")) return res(400, { error: "Manager must be an admin email." });
     const sref = db.collection("streamers").doc(uid);
-    if (!(await sref.get()).exists) return res(404, { error: "No such streamer." });
+    const ssnap = await sref.get();
+    if (!ssnap.exists) return res(404, { error: "No such streamer." });
+    const s = ssnap.data();
+    const changed = (s.accountManager || null) !== (manager || null);
     await sref.set({
       accountManager:   manager || null,
       accountManagerAt: manager ? Date.now() : null,
       accountManagerBy: manager ? (adminUser.email || adminUser.uid) : null,
     }, { merge: true });
     logAdminAudit(db, adminUser.uid, "account_manager_set", { uid, manager: manager || null });
-    return res(200, { success: true, manager: manager || null });
+
+    // Tell them they've been handed someone. The portal shows it on sign-in;
+    // this reaches whoever isn't looking at the portal. Best-effort — an account
+    // must still be assigned if Resend is down — and never mails you your own
+    // action, since assigning yourself a streamer is not news.
+    let emailed = false;
+    if (changed && manager && manager !== (adminUser.email || "") && process.env.RESEND_API_KEY) {
+      try {
+        const chan = s.kickChannel || s.displayName || uid;
+        const who  = String(adminUser.email || "someone").split("@")[0];
+        const note = String(s.adminNotes || "").trim();
+        emailed = await sendEmail({
+          to: manager,
+          subject: `[WenBot] ${chan} is now yours to look after`,
+          html: wrap(`${escHtml(who)} assigned you a streamer`, `
+            <p style="font-size:17px;color:#f0f6fc;margin:0 0 4px;"><b>${escHtml(chan)}</b></p>
+            <p style="font-size:13px;color:#8b949e;margin:0 0 14px;">
+              ${escHtml(s.plan || "starter")}${s.planTrial ? " · on a free trial" : ""}${s.email ? " &nbsp;·&nbsp; " + escHtml(s.email) : ""}
+            </p>
+            <p style="margin:0 0 6px;">You're their day-to-day contact now — they'll show up under <b>My streamers</b> on your dashboard.</p>
+            ${note ? `<div style="background:#0d1117;border-left:3px solid #00e5ff;padding:10px 14px;margin:14px 0 0;white-space:pre-wrap;font-size:14px;">
+              <b style="color:#f0f6fc;">Notes on this account</b><br>${escHtml(note).slice(0, 1200)}</div>` : ""}
+            ${button(`https://wenbot.gg/admin/portal/#/customer/${encodeURIComponent(uid)}`, "Open their Customer 360")}
+          `),
+        });
+      } catch (e) { console.warn("[admin-account-action] manager notify failed:", e.message); }
+    }
+    return res(200, { success: true, manager: manager || null, emailed });
   }
 
   // How this account pays, when the history can't tell the truth by itself —

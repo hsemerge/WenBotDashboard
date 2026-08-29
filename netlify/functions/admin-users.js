@@ -62,6 +62,8 @@ exports.handler = async (event) => {
       // Who on the team owns this relationship (set from Customer 360). Drives
       // the "my streamers" book on the dashboard and the roster filter.
       accountManager:     s.accountManager || null,
+      accountManagerAt:   ms(s.accountManagerAt),     // drives "newly assigned to you"
+      accountManagerBy:   s.accountManagerBy || null,
       hasNote:            !!(s.adminNotes && String(s.adminNotes).trim()),
       noteSnippet:        s.adminNotes ? String(s.adminNotes).replace(/\s+/g, " ").trim().slice(0, 80) : null,
       provider:           s.activeProvider || s.casino || null,

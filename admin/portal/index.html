@@ -1100,6 +1100,11 @@
         + (unowned ? `<div class="sub" style="margin-top:8px;">${unowned} account${unowned === 1 ? '' : 's'} with nobody assigned.</div>` : '');
     }
 
+    // Newly-assigned streamers live in the same panel as ticket news, and they
+    // come from _users — so refresh it whenever the roster does, not only when
+    // tickets reload.
+    if (typeof renderInbox === 'function') renderInbox();
+
     // Who can sign into this portal — the roster the pickers use.
     const teamEl = $('dashTeam');
     if (teamEl) {
@@ -1672,9 +1677,14 @@
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       const u = _users.find(x => x.uid === uid);
-      if (u) u.accountManager = d.manager || null;
+      if (u) { u.accountManager = d.manager || null; u.accountManagerAt = d.manager ? Date.now() : null; u.accountManagerBy = _me; }
       const ok = $('c360MgrOk');
-      if (ok) { ok.classList.add('on'); setTimeout(() => ok.classList.remove('on'), 1600); }
+      // Say whether they were actually told — "Saved" alone leaves you guessing
+      // whether the handover reached anyone.
+      if (ok) {
+        ok.textContent = d.emailed ? 'Saved · emailed them' : (d.manager ? 'Saved' : 'Cleared');
+        ok.classList.add('on'); setTimeout(() => ok.classList.remove('on'), 2600);
+      }
       if (clear) await c360Load(uid);
       renderDash(_lastStats || {});
     } catch (e) { alert('Failed: ' + e.message); }
@@ -1740,8 +1750,20 @@
                detail: u.cryptoNextDue ? `next due ${date(u.cryptoNextDue)}` : 'no cycle set',
                amt: '', tone: (u.cryptoNextDue && u.cryptoNextDue < Date.now()) ? 'bad' : '' };
     }
-    if (u.planManual) return { method: '🎁 Comped', methodKey: 'comp', renews: true, label: 'Comped', detail: 'no billing', amt: '', tone: '' };
-    if (u.planTrial)  return { method: '🎁 Trial',  methodKey: 'trial', renews: false, label: 'Trial', detail: u.trialEndsAt ? `ends ${date(u.trialEndsAt)}` : '', amt: '', tone: 'warn' };
+    // Trials BEFORE comps: a trial is held as a manual plan, so checking
+    // planManual first made every trial read "Comped, no billing" — webby1k had
+    // two days left and the billing panel called him a freebie, which is exactly
+    // the account you don't want to overlook.
+    if (u.planTrial) {
+      const left = u.trialEndsAt ? Math.ceil((u.trialEndsAt - Date.now()) / 864e5) : null;
+      return { method: '🎁 Free trial', methodKey: 'trial', renews: false,
+               label: left != null && left > 0 ? `${left} day${left === 1 ? '' : 's'} left` : 'ended',
+               detail: u.trialEndsAt ? `${(u.trialPlan || u.plan || '')} until ${date(u.trialEndsAt)}` : '',
+               amt: '', tone: (left != null && left <= 7) ? 'warn' : '' };
+    }
+    // label deliberately isn't "Comped" again — method already says it, and the
+    // two rendered side by side read "🎁 Comped Comped no billing".
+    if (u.planManual) return { method: '🎁 Comped', methodKey: 'comp', renews: true, label: 'free of charge', detail: 'no billing', amt: '', tone: '' };
     return { method: '—', methodKey: 'none', renews: false, label: 'No billing', detail: '', amt: '', tone: '' };
   }
 
@@ -2591,31 +2613,47 @@
   window.renderInbox = function () {
     const el = $('inbox'); if (!el) return;
     const since = _tkSeenAt;
-    const mine = _tickets.filter(t =>
-      t.assignee === _me && t.status !== 'done' &&
-      // "Never looked" would otherwise flag the entire backlog on first sign-in.
-      (since ? (t.lastActivityAt || 0) > since : (t.assignedAt || 0) > Date.now() - 7 * 864e5));
+    const WEEK = 7 * 864e5;
+    // "Never looked" would otherwise flag the entire backlog on first sign-in,
+    // so an admin with no marker yet sees only the last week.
+    const fresh = (at) => since ? (at || 0) > since : (at || 0) > Date.now() - WEEK;
 
+    const mine = _tickets.filter(t =>
+      t.assignee === _me && t.status !== 'done' && fresh(t.lastActivityAt));
+
+    // Streamers handed to you since you last looked. Being made someone's
+    // day-to-day contact is exactly the kind of thing that shouldn't depend on
+    // whoever assigned it remembering to mention it.
+    const handed = _users.filter(u =>
+      u.accountManager === _me && !u.archived && fresh(u.accountManagerAt));
+
+    const total = mine.length + handed.length;
     const dot = $('navTicketDot');
     if (dot) dot.classList.toggle('hidden', !mine.length);
-    if (!mine.length) { el.innerHTML = ''; return; }
+    if (!total) { el.innerHTML = ''; return; }
 
     el.innerHTML = `<div class="inbox">
       <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
         <div>
-          <h3>${mine.length} ticket${mine.length === 1 ? '' : 's'} need${mine.length === 1 ? 's' : ''} you</h3>
-          <div class="sub">Assigned to you and moved since you last read the queue.</div>
+          <h3>${total} thing${total === 1 ? '' : 's'} need${total === 1 ? 's' : ''} you</h3>
+          <div class="sub">On your plate, and changed since you last read the queue.</div>
         </div>
         <button class="btn-ghost" style="margin-left:auto;" onclick="tkMarkSeen()">Mark all read</button>
       </div>
       <div style="margin-top:10px;">
+        ${handed.slice(0, 6).map(u => `<div class="row">
+          <span class="prio normal" style="color:var(--good);border-color:rgba(85,239,176,.5);">new</span>
+          <a href="#/customer/${esc(u.uid)}">${esc(u.kickChannel || u.email || u.uid)}</a>
+          <span class="muted" style="font-size:11.5px;">· assigned to you${u.accountManagerBy ? ' by ' + esc(String(u.accountManagerBy).split('@')[0]) : ''}${u.planTrial ? ' · on a trial' : ''}</span>
+          <span class="when">${rel(u.accountManagerAt)}</span>
+        </div>`).join('')}
         ${mine.slice(0, 8).map(t => `<div class="row">
           <span class="prio ${esc(t.priority || 'normal')}">${esc(t.priority || 'normal')}</span>
           <a href="#/tickets" onclick="tkOpenFromInbox('${esc(t.id)}')">${esc(t.title)}</a>
           ${t.relatedChannel ? `<span class="muted" style="font-size:11.5px;">· ${esc(t.relatedChannel)}</span>` : ''}
           <span class="when">${rel(t.lastActivityAt)}</span>
         </div>`).join('')}
-        ${mine.length > 8 ? `<div class="row"><a href="#/tickets">…and ${mine.length - 8} more</a></div>` : ''}
+        ${mine.length > 8 ? `<div class="row"><a href="#/tickets">…and ${mine.length - 8} more ticket${mine.length - 8 === 1 ? '' : 's'}</a></div>` : ''}
       </div>
     </div>`;
   };
