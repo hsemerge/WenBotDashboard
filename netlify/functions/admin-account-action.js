@@ -21,6 +21,7 @@ const { res, checkRateLimit } = require("./_lib/http");
 const { requireAdmin, logAdminAudit, adminUids } = require("./_lib/admin");
 const { sendEmail, wrap, button, SUPPORT_EMAIL } = require("./_lib/email");
 const { MAX_MODS, findUserByEmail, grantDelegation, revokeDelegation } = require("./_lib/team");
+const { syncUnlockRole, fetchMemberRoleIds } = require("./_lib/discord-role");
 
 // add-mod is owner-only because it hands out PERSISTENT access to someone
 // else's account: grantDelegation writes delegatedFor on the target login, and
@@ -157,6 +158,68 @@ exports.handler = async (event) => {
     await sref.set({ accountType: t }, { merge: true });
     logAdminAudit(db, adminUser.uid, "account_type_set", { uid, accountType: t });
     return res(200, { success: true, accountType: t });
+  }
+
+  // Run the two-role server gate over one streamer's existing members, now.
+  //
+  // The hourly sweep does this on its own, but after switching the setting on
+  // there is a backlog: everyone who ALREADY holds both roles is sitting there
+  // without the unlock role. Waiting an hour to find out whether the setup is
+  // even right is a poor way to change a live community's permissions — so this
+  // previews exactly who would be affected before anything is granted.
+  if (action === "run-unlock-sweep") {
+    const sref = db.collection("streamers").doc(uid);
+    const ssnap = await sref.get();
+    if (!ssnap.exists) return res(404, { error: "No such streamer." });
+    const s = ssnap.data();
+    const cfg = (s.discordConfig && s.discordConfig.verify) || {};
+    if (!(cfg.requireSecondRole && cfg.secondRoleId && cfg.unlockRoleId && cfg.roleId)) {
+      return res(400, { error: "This streamer hasn't set up the two-role server gate yet (Discord settings → Verification & Roles)." });
+    }
+    if (!(s.discordConfig && s.discordConfig.guildId)) return res(400, { error: "No Discord server connected." });
+
+    const dry = body.dry !== false;
+    let members;
+    try {
+      members = await sref.collection("verified_users").limit(500).get();
+    } catch (e) { return res(500, { error: "Couldn't read their verified members: " + e.message }); }
+
+    const wouldGrant = [], already = [], noSecond = [], unreadable = [];
+    let granted = 0;
+    for (const m of members.docs) {
+      const v = m.data();
+      if (!v.discordUserId) continue;
+      const who = v.kickUsername || v.discordUsername || v.discordUserId;
+
+      if (dry) {
+        // Read-only classification, so the preview can be trusted.
+        const info = await fetchMemberRoleIds(s.discordConfig.guildId, v.discordUserId);
+        if (info === null) { unreadable.push(who); continue; }
+        if (info.notMember) continue;
+        const hasSecond = info.roles.includes(cfg.secondRoleId);
+        const hasUnlock = info.roles.includes(cfg.unlockRoleId);
+        if (hasSecond && !hasUnlock) wouldGrant.push(who);
+        else if (hasSecond && hasUnlock) already.push(who);
+        else noSecond.push(who);
+        continue;
+      }
+
+      // Apply. Only ever grants here — never revokes, because a preview the
+      // admin just read shouldn't quietly turn into a removal. Revocation stays
+      // with the hourly sweep and its two-confirmation rule.
+      const r = await syncUnlockRole(s, v.discordUserId, { confirmedMisses: 0 });
+      if (r.action === "granted") { granted++; wouldGrant.push(who); }
+      else if (r.action === "unknown") unreadable.push(who);
+    }
+
+    if (!dry) logAdminAudit(db, adminUser.uid, "unlock_sweep_run", { uid, granted });
+    return res(200, {
+      success: true, dry, granted,
+      wouldGrant: wouldGrant.slice(0, 60), wouldGrantCount: wouldGrant.length,
+      alreadyCount: already.length, noSecondCount: noSecond.length,
+      unreadable: unreadable.slice(0, 20), unreadableCount: unreadable.length,
+      scanned: members.size,
+    });
   }
 
   // Moderators, from the admin side. The streamer-facing endpoints

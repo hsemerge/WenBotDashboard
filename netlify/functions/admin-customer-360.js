@@ -121,5 +121,15 @@ exports.handler = async (event) => {
     notes = ns.docs.map((d) => ({ id: d.id, ...d.data() }));
   } catch (e) { console.warn("[c360] notes lookup:", e.message); }
 
-  return res(200, { uid, outreach, outreachNotes, tickets, counts, history, login, notes, role: adminUser.role });
+  // Whether this streamer runs the optional two-role Discord gate, so the panel
+  // can offer the backfill only where it applies. Role IDs are not returned —
+  // the panel has no use for them and they are the streamer's server config.
+  let verifyGate = { on: false };
+  try {
+    const sd = (await db.collection("streamers").doc(uid).get()).data() || {};
+    const v = (sd.discordConfig && sd.discordConfig.verify) || {};
+    verifyGate = { on: !!(v.requireSecondRole && v.secondRoleId && v.unlockRoleId && v.roleId && sd.discordConfig.guildId) };
+  } catch (e) { console.warn("[c360] gate lookup:", e.message); }
+
+  return res(200, { uid, outreach, outreachNotes, tickets, counts, history, login, notes, verifyGate, role: adminUser.role });
 };

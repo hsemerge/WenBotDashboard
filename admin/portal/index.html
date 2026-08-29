@@ -1583,6 +1583,29 @@
         </div>
       </div>`;
 
+    // Two-role Discord gate. Only appears for streamers who actually switched it
+    // on, so it's invisible for everyone running WenBot alone.
+    //
+    // The hourly sweep handles this by itself, but the moment the setting is
+    // switched on there's a backlog — everyone already holding both roles is
+    // waiting on the unlock role. Previewing that before granting matters:
+    // it's a bulk permission change on somebody's live community.
+    const gateOn = !!(x.verifyGate && x.verifyGate.on);
+    const gateHtml = !gateOn ? '' : `
+      <div class="tablecard" style="padding:16px;">
+        <div class="kicker">Discord</div>
+        <div class="panel-title">Two-role server gate</div>
+        <div class="sub" style="margin:6px 0 10px;">
+          Members need WenBot's role <b>and</b> the other bot's before the unlock role opens the server.
+          WenBot re-checks hourly — run it now to clear the backlog, or after changing the roles.
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <button class="btn-ghost" onclick="c360UnlockSweep('${esc(uid)}', true)">Preview</button>
+          <button class="btn-ghost" onclick="c360UnlockSweep('${esc(uid)}', false)">Grant to everyone eligible</button>
+        </div>
+        <div id="c360SweepMsg" class="sub" style="margin-top:10px;"></div>
+      </div>`;
+
     // The account actions. These used to live only in the roster's row
     // expander, so "the thing you want to do" and "the page showing you why"
     // were in different tabs. One place now.
@@ -1750,7 +1773,7 @@
         <div style="display:flex;flex-direction:column;gap:16px;">${billingHtml}${billing}${notesHtml}${histHtml}</div>
         <!-- RIGHT: the short cards you act from — do something, who owns them,
              who can help them, and how we got them. -->
-        <div style="display:flex;flex-direction:column;gap:16px;">${actionsHtml}${managerHtml}${teamHtml}${ticketsHtml}${loginHtml}${outreachHtml}</div>
+        <div style="display:flex;flex-direction:column;gap:16px;">${actionsHtml}${gateHtml}${managerHtml}${teamHtml}${ticketsHtml}${loginHtml}${outreachHtml}</div>
       </div>`;
   }
 
@@ -1789,6 +1812,32 @@
       if (clear) await c360Load(uid);
       renderDash(_lastStats || {});
     } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  // Run the two-role gate over this streamer's existing members.
+  window.c360UnlockSweep = async function (uid, dry) {
+    const el = $('c360SweepMsg');
+    if (!dry && !confirm('Grant the unlock role to every member who already has both roles?\n\nThis changes permissions on their live Discord server. Preview first if you have not.')) return;
+    if (el) el.textContent = dry ? 'Checking their members against Discord…' : 'Granting…';
+    try {
+      const r = await authedPost('/api/admin-account-action', { uid, action: 'run-unlock-sweep', dry: !!dry });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      if (!el) return;
+      const names = (d.wouldGrant || []).map(esc).join(', ');
+      if (d.dry) {
+        el.innerHTML = d.wouldGrantCount
+          ? `<span class="ok">${d.wouldGrantCount} member${d.wouldGrantCount === 1 ? '' : 's'} would get the unlock role</span>`
+            + `<div class="muted" style="margin-top:4px;">${names}${d.wouldGrantCount > 60 ? ' …' : ''}</div>`
+            + `<div class="sub" style="margin-top:6px;">${d.alreadyCount} already have it · ${d.noSecondCount} still need the other bot`
+            + (d.unreadableCount ? ` · <span class="warn">${d.unreadableCount} unreadable (left the server, or Discord did not answer)</span>` : '') + '</div>'
+          : `<span class="muted">Nobody is waiting. ${d.alreadyCount} already unlocked, ${d.noSecondCount} still need the other bot.</span>`;
+      } else {
+        el.innerHTML = `<span class="ok">Granted the unlock role to ${d.granted} member${d.granted === 1 ? '' : 's'}.</span>`
+          + (names ? `<div class="muted" style="margin-top:4px;">${names}</div>` : '')
+          + (d.unreadableCount ? `<div class="sub warn" style="margin-top:6px;">${d.unreadableCount} could not be read — the hourly check will retry them.</div>` : '');
+      }
+    } catch (e) { if (el) el.innerHTML = `<span class="warn">${esc(e.message)}</span>`; }
   };
 
   // Streamer / moderator / team. Changing it moves the account between the
