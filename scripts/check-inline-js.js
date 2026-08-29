@@ -8,9 +8,17 @@
 //
 // Node's own module parser catches exactly this class, so the build now asks it.
 // A module script is its own scope, so each block is checked independently.
-// Classic <script> blocks are skipped: they share one global scope across tags
-// and legitimately redeclare things, so parsing them in isolation would report
-// failures that aren't real.
+// CLASSIC <script> blocks are checked too, as SYNTAX only.
+//
+// Skipping them is how a broken dashboard shipped: dashboard.html's 812KB of
+// logic is a classic script, an editing slip left a raw apostrophe inside a
+// single-quoted string, and the whole block failed to parse — so NOTHING on the
+// page ran and signing in died. Every other check was green.
+//
+// They are parsed as scripts, not modules, and only for syntax: several tags
+// share one global scope and legitimately redeclare across blocks, so
+// duplicate-declaration errors between them would be false alarms. A block that
+// cannot parse at all is never a false alarm.
 //
 // USAGE:  node scripts/check-inline-js.js
 //         node scripts/check-inline-js.js admin/portal/index.html   (one file)
@@ -40,20 +48,38 @@ const deCdn = (js) => js.replace(/from\s+["']https?:\/\/[^"']+["']/g, 'from "nod
 function checkFile(file) {
   const src = fs.readFileSync(file, "utf8");
   const problems = [];
-  const re = /<script\b[^>]*\btype\s*=\s*["']module["'][^>]*>/gi;
+  // EVERY inline script — module and classic. Checking modules only is how a
+  // dead dashboard shipped: dashboard.html is one 812KB classic block, an
+  // unescaped apostrophe ended a string early, the block failed to parse, and
+  // the browser ran none of it. This file existed to catch exactly that and
+  // skipped the one page it mattered on.
+  const re = /<script\b(?![^>]*\bsrc\s*=)([^>]*)>/gi;
   let m, n = 0;
   while ((m = re.exec(src))) {
+    const attrs = m[1] || "";
     const start = m.index + m[0].length;
     const end = src.indexOf("</script>", start);
     if (end < 0) continue;
+
+    // Skip non-JS payloads: JSON-LD, importmaps, x-template blocks.
+    const t = (attrs.match(/\btype\s*=\s*["']([^"']+)["']/i) || [])[1];
+    const type = (t || "").toLowerCase();
+    const isModule = type === "module";
+    if (type && !isModule && !/javascript|ecmascript/.test(type)) continue;
+
     n++;
-    const tmp = path.join(os.tmpdir(), `inline-check-${process.pid}-${n}.mjs`);
+    const line = src.slice(0, m.index).split("\n").length;
+    // .mjs parses as a module (catching early errors like a duplicate const);
+    // .js as a script. Classic blocks share one global scope across tags and
+    // legitimately redeclare between them, so they are checked for SYNTAX only
+    // — a block that cannot parse at all is never a false alarm.
+    const tmp = path.join(os.tmpdir(), `inline-check-${process.pid}-${n}${isModule ? ".mjs" : ".js"}`);
     fs.writeFileSync(tmp, deCdn(src.slice(start, end)));
     try {
       execFileSync(process.execPath, ["--check", tmp], { stdio: "pipe" });
     } catch (e) {
       const detail = (e.stderr || e.stdout || "").toString().split("\n").slice(0, 12).join("\n");
-      problems.push(`  module script #${n}:\n${detail}`);
+      problems.push(`  ${isModule ? "module" : "classic"} script #${n} (starts line ${line}):\n${detail}`);
     } finally {
       try { fs.unlinkSync(tmp); } catch {}
     }
@@ -76,7 +102,7 @@ for (const f of files) {
 }
 
 if (bad) {
-  console.error(`\n${bad} file(s) contain a module script the browser would refuse to run.`);
+  console.error(`\n${bad} file(s) contain a script the browser would refuse to run — it would serve 200 and execute nothing.`);
   process.exit(1);
 }
-console.log(`ok   ${modules} inline module script(s) parse across ${files.length} html file(s)`);
+console.log(`ok   ${modules} inline script(s) parse across ${files.length} html file(s)`);
