@@ -47,6 +47,48 @@ exports.handler = async (event) => {
 
   let body = {};
   try { body = JSON.parse(event.body || "{}"); } catch {}
+
+  // Sweep every legacy note off the streamer documents in one go, from the
+  // portal — the alternative was handing someone a service-account key to run a
+  // script for a one-time data fix. Owner-only: it rewrites records across the
+  // whole collection. `dry` reports without writing.
+  if (body.action === "migrate-all") {
+    if (adminUser.role !== "owner") return res(403, { error: "Owner only." });
+    const dry = body.dry !== false;
+    const all = await db.collection("streamers").get();
+    const pending = [];
+    all.forEach((d) => {
+      const x = d.data();
+      const text = String(x.adminNotes || "").trim();
+      if (text) pending.push({ uid: d.id, channel: x.kickChannel || d.id, text,
+                               by: x.adminNotesUpdatedBy || "unknown",
+                               at: Number(x.adminNotesUpdatedAt) || Date.now() });
+    });
+    if (dry) {
+      return res(200, {
+        ok: true, dry: true, count: pending.length,
+        accounts: pending.map((p) => ({ channel: p.channel, preview: p.text.replace(/\s+/g, " ").slice(0, 90) })),
+      });
+    }
+    let moved = 0;
+    for (const p of pending) {
+      const nref = db.collection("admin_notes").doc(p.uid);
+      // Re-running must not duplicate: skip a note already in the thread.
+      const dupe = await nref.collection("entries").where("text", "==", p.text).limit(1).get();
+      if (dupe.empty) await nref.collection("entries").add({ text: p.text, by: p.by, at: p.at, migrated: true });
+      const latest = await nref.collection("entries").orderBy("at", "desc").limit(1).get();
+      const top = latest.empty ? null : latest.docs[0].data();
+      const cnt = await nref.collection("entries").count().get().catch(() => null);
+      await nref.set({ channel: p.channel, latest: top ? top.text : null, at: top ? top.at : null,
+                       by: top ? top.by : null, count: cnt ? cnt.data().count : 1 }, { merge: true });
+      await db.collection("streamers").doc(p.uid)
+        .set({ adminNotes: "", adminNotesUpdatedAt: null, adminNotesUpdatedBy: null }, { merge: true });
+      moved++;
+    }
+    logAdminAudit(db, adminUser.uid, "admin_notes_migrated", { moved });
+    return res(200, { ok: true, dry: false, moved });
+  }
+
   const targetUid = String(body.uid || "").trim();
   const note      = String(body.note ?? "").slice(0, MAX_NOTE);
   if (!targetUid) return res(400, { error: "Missing uid" });
