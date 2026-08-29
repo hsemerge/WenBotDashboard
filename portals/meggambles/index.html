@@ -1456,7 +1456,13 @@
     csgobig: { name:'CSGOBig',  tag:'Cases and coins',     code:'Meg', url:'https://csgobig.com/r/Meg',
                banner:'/portals/meggambles/assets/megnew2.png', logo:'/portals/meggambles/assets/megnew2.png',
                theme:'theme-csgobig', live:true,
-               blurb:'Case openings and battles, with a coin race that pays out every two weeks.' },
+               blurb:'Case openings and battles, with a coin race that pays out every two weeks.',
+               // The coin race amount isn't listed: it's already the Play
+               // button's "2,500 race" label.
+               offer: { benefits: [
+                 'Daily giveaways',
+                 'Bi-weekly leaderboard',
+               ] } },
     clash:   { name:'Clash.gg', tag:'Case opening',        code:'MEG', url:'https://clash.gg/r/meg',
                banner:'/portals/meggambles/assets/megnew1.png', logo:'/portals/meggambles/assets/megnew1.png',
                theme:'theme-clash', live:true,
@@ -1474,7 +1480,15 @@
     ethbet:  { name:'EthBet',   tag:'Crypto casino',       code:'MEG', url:'',
                site:'https://ethbet.gg/?ref=meg',
                banner:'/portals/meggambles/assets/megnew3.png', logo:'/portals/meggambles/assets/megnew3.png', theme:'theme-ethbet', live:false,
-               blurb:'Instant deposits, provably fair, daily rewards. Opening soon.' },
+               blurb:'Instant deposits, provably fair, daily rewards. Opening soon.',
+               // Listed before the doors open: these are what a viewer gets on
+               // day one, and the card still reads "Coming soon" rather than
+               // linking out.
+               offer: { benefits: [
+                 'Bi-weekly $1,500 leaderboard',
+                 'Daily giveaway',
+                 'Daily battle',
+               ] } },
   };
   const CASINO_ORDER = ['degen', 'csgobig', 'clash', 'ethbet'];
 
@@ -1512,7 +1526,7 @@
       // <div>. Its extra height is absorbed by the grid's align-items:start,
       // leaving the other cards untouched.
       const offer = c.offer;
-      if (offer && Array.isArray(offer.benefits) && offer.benefits.length && href) {
+      if (offer && Array.isArray(offer.benefits) && offer.benefits.length) {
         const perks = offer.benefits.map(function (bft) { return '<li>' + esc(bft) + '</li>'; }).join('');
         return '<div class="lp-room lp-room-offer" style="border-color:' + tint + '33">'
           + '<img src="' + c.banner + '" alt="' + esc(c.name) + '" loading="lazy">'
@@ -1523,10 +1537,15 @@
           +   '<ul class="lp-room-perks">' + perks + '</ul>'
           +   '<div class="lp-room-foot">'
           +     '<span class="lp-code">Code <b>' + esc(c.code) + '</b></span>'
-          +     '<div class="lp-room-btns">'
-          +       '<a class="lp-go lp-go-live" href="' + href + '" target="_blank" rel="noopener" style="background:' + tint + '">' + cta + '</a>'
-          +       (c.live ? '<a class="lp-go lp-go-lb" href="#' + k + '" onclick="return goTo(\'#' + k + '\')">Leaderboard</a>' : '')
-          +     '</div>'
+          +     (href
+                    ? '<div class="lp-room-btns">'
+                      + '<a class="lp-go lp-go-live" href="' + href + '" target="_blank" rel="noopener" style="background:' + tint + '">' + cta + '</a>'
+                      + (c.live ? '<a class="lp-go lp-go-lb" href="#' + k + '" onclick="return goTo(\'#' + k + '\')">Leaderboard</a>' : '')
+                      + '</div>'
+                    // A room that has not opened lists its perks but has
+                    // nowhere to send anyone, so its foot is the same flat
+                    // "Coming soon" pill the card without perks uses.
+                    : '<span class="lp-go ' + cls + '">' + cta + '</span>')
           +   '</div>'
           + '</div></div>';
       }
