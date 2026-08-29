@@ -4140,13 +4140,15 @@
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       if (!el) return;
+      const meta = d.orphanMeta
+        ? `<div class="sub" style="margin-top:6px;">Plus ${d.orphanMeta} account${d.orphanMeta === 1 ? '' : 's'} where the note text is gone but “who wrote about you, and when” is still on the record — that gets cleared too.</div>` : '';
       if (d.dry) {
-        el.innerHTML = d.count
+        el.innerHTML = (d.count
           ? `<span class="warn">${d.count} note${d.count === 1 ? '' : 's'} still readable by the streamer:</span>`
             + d.accounts.map(a => `<div style="margin-top:4px;"><b style="color:var(--bright);">${esc(a.channel)}</b> <span class="muted">— ${esc(a.preview)}</span></div>`).join('')
-          : '<span class="ok">Nothing left on any streamer record. Already clean.</span>';
+          : '<span class="ok">No note text left on any streamer record.</span>') + meta;
       } else {
-        el.innerHTML = `<span class="ok">Moved ${d.moved} note${d.moved === 1 ? '' : 's'}.</span> <span class="muted">They are now admin-only.</span>`;
+        el.innerHTML = `<span class="ok">Moved ${d.moved} note${d.moved === 1 ? '' : 's'}${d.metaCleared ? `, cleared ${d.metaCleared} leftover stamp${d.metaCleared === 1 ? '' : 's'}` : ''}.</span> <span class="muted">Now admin-only.</span>`;
         await loadUsers();
       }
     } catch (e) { if (el) el.innerHTML = `<span class="warn">${esc(e.message)}</span>`; }

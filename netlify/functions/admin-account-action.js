@@ -18,7 +18,7 @@
 
 const { getDb, admin }        = require("./_lib/firebase");
 const { res, checkRateLimit } = require("./_lib/http");
-const { requireAdmin, logAdminAudit } = require("./_lib/admin");
+const { requireAdmin, logAdminAudit, adminUids } = require("./_lib/admin");
 const { sendEmail, wrap, button, SUPPORT_EMAIL } = require("./_lib/email");
 const { MAX_MODS, findUserByEmail, grantDelegation, revokeDelegation } = require("./_lib/team");
 
@@ -78,11 +78,28 @@ exports.handler = async (event) => {
     // must still be assigned if Resend is down — and never mails you your own
     // action, since assigning yourself a streamer is not news.
     let emailed = false;
-    if (changed && manager && manager !== (adminUser.email || "") && process.env.RESEND_API_KEY) {
+    // Only ever mail an address that is actually on the admin roster. This
+    // message carries the customer's details and our internal notes about them,
+    // so a mistyped address would post that to a stranger.
+    let isKnownAdmin = false;
+    try {
+      const rec = await admin.auth().getUserByEmail(manager).catch(() => null);
+      const claimRole = rec && rec.customClaims && rec.customClaims.adminRole;
+      isKnownAdmin = !!rec && (claimRole === "owner" || claimRole === "staff" || adminUids().includes(rec.uid));
+    } catch { isKnownAdmin = false; }
+
+    if (changed && manager && manager !== (adminUser.email || "") && isKnownAdmin && process.env.RESEND_API_KEY) {
       try {
         const chan = s.kickChannel || s.displayName || uid;
         const who  = String(adminUser.email || "someone").split("@")[0];
-        const note = String(s.adminNotes || "").trim();
+        // Notes live in admin_notes now; the legacy field is emptied by the
+        // migration, so reading it here would quietly stop including them.
+        let note = "";
+        try {
+          const ns = await db.collection("admin_notes").doc(uid).collection("entries")
+            .orderBy("at", "desc").limit(1).get();
+          note = ns.empty ? String(s.adminNotes || "").trim() : String(ns.docs[0].data().text || "").trim();
+        } catch { note = String(s.adminNotes || "").trim(); }
         emailed = await sendEmail({
           to: manager,
           subject: `[WenBot] ${chan} is now yours to look after`,

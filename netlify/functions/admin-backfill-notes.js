@@ -45,27 +45,33 @@ exports.handler = async (event) => {
     return res(500, { error: "Audit scan failed: " + e.message });
   }
 
-  // Write into adminNotes where empty. Chunk into batches (500 writes max each).
+  // Import into admin_notes, NOT onto the streamer document.
+  //
+  // This used to write `adminNotes` onto streamers/{uid}, which the streamer and
+  // their moderators can read (firestore.rules grants read on the whole doc, and
+  // Firestore has no field-level reads). So an admin clicking "import old comp
+  // notes" published our internal comp rationale to the people it was about —
+  // and, after the notes migration, one click here would have silently undone it.
   const uids = Object.keys(latest);
   let imported = 0, skipped = 0;
-  for (let i = 0; i < uids.length; i += 400) {
-    const chunk = uids.slice(i, i + 400);
-    const batch = db.batch();
-    let n = 0;
-    for (const uid of chunk) {
-      const ref  = db.collection("streamers").doc(uid);
-      const snap = await ref.get();
-      if (!snap.exists) { skipped++; continue; }
-      const cur = snap.data();
-      if (cur.adminNotes && String(cur.adminNotes).trim()) { skipped++; continue; } // don't clobber
-      batch.set(ref, {
-        adminNotes:          latest[uid].reason,
-        adminNotesUpdatedBy: "imported from comp log",
-        adminNotesUpdatedAt: Date.now(),
-      }, { merge: true });
-      n++; imported++;
-    }
-    if (n) await batch.commit();
+  for (const uid of uids) {
+    const sref = db.collection("streamers").doc(uid);
+    const snap = await sref.get();
+    if (!snap.exists) { skipped++; continue; }
+
+    const nref    = db.collection("admin_notes").doc(uid);
+    const entries = nref.collection("entries");
+    // Don't clobber, and don't duplicate on a re-run.
+    const existing = await entries.limit(1).get();
+    if (!existing.empty) { skipped++; continue; }
+
+    const at = latest[uid].at || Date.now();
+    await entries.add({ text: latest[uid].reason, by: "imported from comp log", at, migrated: true });
+    await nref.set({
+      channel: snap.data().kickChannel || null,
+      latest: latest[uid].reason, at, by: "imported from comp log", count: 1,
+    }, { merge: true });
+    imported++;
   }
 
   logAdminAudit(db, adminUser.uid, "backfill_notes", { imported, skipped, candidates: uids.length });

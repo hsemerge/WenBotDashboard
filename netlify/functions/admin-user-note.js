@@ -57,16 +57,23 @@ exports.handler = async (event) => {
     const dry = body.dry !== false;
     const all = await db.collection("streamers").get();
     const pending = [];
+    const orphanMeta = [];
     all.forEach((d) => {
       const x = d.data();
       const text = String(x.adminNotes || "").trim();
-      if (text) pending.push({ uid: d.id, channel: x.kickChannel || d.id, text,
-                               by: x.adminNotesUpdatedBy || "unknown",
-                               at: Number(x.adminNotesUpdatedAt) || Date.now() });
+      if (text) {
+        pending.push({ uid: d.id, channel: x.kickChannel || d.id, text,
+                       by: x.adminNotesUpdatedBy || "unknown",
+                       at: Number(x.adminNotesUpdatedAt) || Date.now() });
+      } else if (x.adminNotesUpdatedBy || x.adminNotesUpdatedAt) {
+        // No text, but "who wrote about you and when" is still on a document the
+        // streamer can read. Less than the note itself, still not theirs to see.
+        orphanMeta.push(d.id);
+      }
     });
     if (dry) {
       return res(200, {
-        ok: true, dry: true, count: pending.length,
+        ok: true, dry: true, count: pending.length, orphanMeta: orphanMeta.length,
         accounts: pending.map((p) => ({ channel: p.channel, preview: p.text.replace(/\s+/g, " ").slice(0, 90) })),
       });
     }
@@ -85,8 +92,12 @@ exports.handler = async (event) => {
         .set({ adminNotes: "", adminNotesUpdatedAt: null, adminNotesUpdatedBy: null }, { merge: true });
       moved++;
     }
-    logAdminAudit(db, adminUser.uid, "admin_notes_migrated", { moved });
-    return res(200, { ok: true, dry: false, moved });
+    for (const uid of orphanMeta) {
+      await db.collection("streamers").doc(uid)
+        .set({ adminNotesUpdatedAt: null, adminNotesUpdatedBy: null }, { merge: true });
+    }
+    logAdminAudit(db, adminUser.uid, "admin_notes_migrated", { moved, metaCleared: orphanMeta.length });
+    return res(200, { ok: true, dry: false, moved, metaCleared: orphanMeta.length });
   }
 
   const targetUid = String(body.uid || "").trim();
