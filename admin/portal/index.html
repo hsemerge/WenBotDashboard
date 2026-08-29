@@ -1416,6 +1416,9 @@
     // in the header while the card below correctly said she pays in crypto.
     if (!onTrial) {
       const HERO_BILL = {
+        stripe: ['💳 stripe', 'rgba(var(--accent-rgb),.14)', 'var(--accent)',
+                 'Live Stripe subscription' + (u.stripeAmount ? ` — $${u.stripeAmount}/${u.stripeInterval || 'mo'}` : '')
+                 + (u.stripePeriodEnd ? `, renews ${date(u.stripePeriodEnd)}` : '')],
         crypto: ['🪙 crypto', 'rgba(85,239,176,.15)', 'var(--good)', 'Paying customer — invoiced, pays in crypto'],
         comp:   ['🎁 not billed', 'rgba(255,158,196,.15)', '#ff9ec4', 'Active plan, deliberately not being charged'],
         free:   u.accountType === 'internal'
@@ -1424,7 +1427,7 @@
       }[u.billingType];
       if (HERO_BILL) chips.push(`<span class="pill" style="background:${HERO_BILL[1]};color:${HERO_BILL[2]};" title="${esc(HERO_BILL[3])}">${HERO_BILL[0]}</span>`);
     }
-    if (u.subscriptionActive) chips.push('<span class="stat-chip done">subscribed</span>');
+    if (u.ghostSubscription) chips.push('<span class="pill" style="background:rgba(245,197,24,.16);color:var(--gold);" title="This account is flagged as having an active Stripe subscription, but no subscription ID is stored — so there is nothing to check it against and nothing can correct it. Almost always a leftover from an older record. The billing state below ignores it.">⚠ stale “subscribed” flag</span>');
     if (u.paymentFailed) chips.push('<span class="stat-chip blocked">payment failed</span>');
     if (!u.onboarded) chips.push('<span class="stat-chip in_progress">not onboarded</span>');
     if (u.archived) chips.push('<span class="pill" style="background:rgba(255,111,145,.12);color:#e2a1ad;">archived</span>');

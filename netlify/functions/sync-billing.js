@@ -61,10 +61,24 @@ exports.handler = async () => {
 
   let checked = 0, updated = 0, failed = 0;
   const changes = [];
+  let ghosts = [];        // declared out here because the response below reads it
 
   try {
     const snap = await db.collection("streamers").get();
     const subs = snap.docs.filter((d) => d.data().stripeSubscriptionId);
+
+    // Accounts flagged as having an active subscription with no subscription ID
+    // stored. This job reconciles against Stripe BY id, so these are exactly the
+    // records it can never check — they'd stay "subscribed" forever. Reported,
+    // not auto-cleared: the flag is money-adjacent, and an unattended job
+    // rewriting billing state is how a wrong guess becomes permanent. The portal
+    // shows the same thing on the account, where a human can act on it.
+    ghosts = snap.docs
+      .filter((d) => d.data().stripeSubscriptionActive === true && !d.data().stripeSubscriptionId)
+      .map((d) => d.data().kickChannel || d.id);
+    if (ghosts.length) {
+      console.warn(`[sync-billing] ${ghosts.length} account(s) flagged subscribed with no subscription id — unverifiable: ${ghosts.join(", ")}`);
+    }
 
     for (const d of subs) {
       const cur = d.data();
@@ -99,5 +113,5 @@ exports.handler = async () => {
   }
 
   console.log(`[sync-billing] checked ${checked}, updated ${updated}, unreachable ${failed}`);
-  return { statusCode: 200, body: JSON.stringify({ checked, updated, failed, changes }) };
+  return { statusCode: 200, body: JSON.stringify({ checked, updated, failed, changes, unverifiable: ghosts }) };
 };

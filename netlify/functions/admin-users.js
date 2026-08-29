@@ -32,10 +32,22 @@ function billingTypeOf(s) {
   // the owner or the team, so historic invoices on those channels shouldn't make
   // them read as paying customers — or as comps to review and reclaim.
   if (s.accountType === "internal") return "free";
-  if (s.stripeSubscriptionActive) return "stripe";
+  // Requires the subscription ID, not just the flag. EVERY path that legitimately
+  // sets stripeSubscriptionActive also writes stripeSubscriptionId (the webhook
+  // writes both together), so the flag alone is a leftover from an older record.
+  // Trusting it made an account with no Stripe subscription read as a Stripe
+  // customer — and sync-billing can never correct it, because it only reconciles
+  // docs that HAVE an id.
+  if (s.stripeSubscriptionActive && s.stripeSubscriptionId) return "stripe";
   if (s.cryptoBilling === true)   return "crypto";
   if (s.planManual)               return "comp";
   return "free";
+}
+
+// A `stripeSubscriptionActive` with no subscription behind it. Nothing can
+// reconcile it, so it has to be surfaced rather than silently believed.
+function isGhostSub(s) {
+  return s.stripeSubscriptionActive === true && !s.stripeSubscriptionId;
 }
 
 // Why billingTypeOf landed where it did, in words. "Work it out automatically"
@@ -44,7 +56,8 @@ function billingTypeOf(s) {
 function billingWhyOf(s) {
   if (s.billingMethod) return "set by hand — the automatic answer is being overridden";
   if (s.accountType === "internal") return "one of our own accounts, so it is never billed";
-  if (s.stripeSubscriptionActive)   return "they have a live Stripe subscription";
+  if (s.stripeSubscriptionActive && s.stripeSubscriptionId) return "they have a live Stripe subscription";
+  if (isGhostSub(s)) return "an old “subscribed” flag is set but there is no Stripe subscription behind it, so it is being ignored";
   if (s.cryptoBilling === true)     return "an invoice has been confirmed paid on this account";
   if (s.planManual)                 return "their plan was set by an admin and no payments are recorded";
   return "no subscription, no paid invoices and no admin-set plan";
@@ -88,7 +101,9 @@ exports.handler = async (event) => {
       // stream; anything else is unknown until someone says otherwise.
       accountType:        s.accountType || (s.kickChannel ? "streamer" : null),
       accountTypeStated:  !!s.accountType,
-      subscriptionActive: !!s.stripeSubscriptionActive,
+      subscriptionActive: !!(s.stripeSubscriptionActive && s.stripeSubscriptionId),
+      // Flagged, not hidden: the raw state so the UI can say the record is stale.
+      ghostSubscription:  isGhostSub(s),
       paymentFailed:      !!s.stripePaymentFailed,
       onboarded:          !!s.onboarded,
       archived:           s.archived === true,
