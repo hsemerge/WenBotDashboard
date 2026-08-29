@@ -329,7 +329,14 @@ exports.handler = async (event) => {
   // not moderator/internal accounts. A mod who signed up (or was manually set
   // mod-only) shouldn't inflate the streamer count or the plan mix — they remain
   // in `users` for the table + moderator filters, just not in these totals.
-  const streamers = users.filter((u) => u.accountType !== "moderator" && u.accountType !== "internal");
+  //
+  // isTeamAccount belongs in this rule too, and was missing: an account whose
+  // login holds a WenBot admin role is ours, so the owner's own channel was
+  // being counted as a streamer here while every client-side figure excluded it.
+  // The two disagreed by however many admins have channels, and nothing said so.
+  // (Set above, from the adminRole claim, so it is available by this point.)
+  const streamers = users.filter((u) =>
+    u.accountType !== "moderator" && u.accountType !== "internal" && !u.isTeamAccount);
   const stats = {
     total:        streamers.length,
     onboarded:    streamers.filter((u) => u.onboarded).length,
