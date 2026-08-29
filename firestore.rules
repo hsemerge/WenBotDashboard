@@ -416,6 +416,10 @@ service cloud.firestore {
     match /team_todos/{doc=**} { allow read, write: if false; }
     match /outreach/{doc=**}   { allow read, write: if false; }
     match /tickets/{doc=**}    { allow read, write: if false; }
+    // Per-admin portal state (how far each admin has read the ticket queue).
+    // Admin SDK only — a client that could write this could silence its own
+    // notifications, and reading it leaks who is watching what.
+    match /admin_prefs/{doc}   { allow read, write: if false; }
     // Custom-domain routing map — admin SDK only; baked into the edge function
     // at build time by scripts/bake-domains.js.
     match /custom_domains/{doc} { allow read, write: if false; }

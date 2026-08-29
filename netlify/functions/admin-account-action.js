@@ -42,6 +42,25 @@ exports.handler = async (event) => {
     return res(403, { error: `"${action}" is owner-only.` });
   }
 
+  // Who looks after this streamer day to day. Handled before the Auth lookup
+  // below because it's a property of the ACCOUNT, not of a login — an account
+  // whose Firebase user was removed still belongs to someone's book.
+  //
+  // Any admin can set it: deciding who covers whom is ops, not billing.
+  if (action === "set-manager") {
+    const manager = String(body.manager || "").trim().slice(0, 120);
+    if (manager && !manager.includes("@")) return res(400, { error: "Manager must be an admin email." });
+    const sref = db.collection("streamers").doc(uid);
+    if (!(await sref.get()).exists) return res(404, { error: "No such streamer." });
+    await sref.set({
+      accountManager:   manager || null,
+      accountManagerAt: manager ? Date.now() : null,
+      accountManagerBy: manager ? (adminUser.email || adminUser.uid) : null,
+    }, { merge: true });
+    logAdminAudit(db, adminUser.uid, "account_manager_set", { uid, manager: manager || null });
+    return res(200, { success: true, manager: manager || null });
+  }
+
   let user;
   try { user = await admin.auth().getUser(uid); }
   catch { return res(404, { error: "No login exists for that account." }); }

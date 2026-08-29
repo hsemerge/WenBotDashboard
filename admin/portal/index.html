@@ -158,6 +158,36 @@
   .thread { max-height:280px; overflow-y:auto; margin:6px 0 10px; }
   .thread .c { display:flex; gap:10px; padding:6px 0; border-bottom:1px solid rgba(126,170,195,.07); }
 
+  /* The expanded ticket body sits in a `colspan` cell of a table that scrolls
+     sideways, so it inherits the FULL table width — which pushed its buttons far
+     off to the right, out of the card. Sticking it to the left edge of the
+     scroller and capping its width keeps the whole editor on screen no matter
+     where the table is scrolled. */
+  .tk-detail { position:sticky; left:0; width:min(100%, 860px); padding:14px 16px 16px; }
+  .tk-head { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+  .tk-head .who { margin-left:auto; font-size:11px; color:var(--dim); }
+  /* Label + field + action as a stack, so the button lands under the box it
+     saves instead of beside it (a textarea and a button are both inline-block,
+     which is exactly how they ended up side by side). */
+  .tk-field { display:flex; flex-direction:column; gap:7px; margin-bottom:14px; }
+  .tk-field > textarea { display:block; width:100%; min-height:96px; resize:vertical; font-size:13px; line-height:1.55; padding:10px 12px; }
+  .tk-field .row { display:flex; gap:8px; align-items:center; }
+  .tk-field .row .hint { font-size:11px; color:var(--dim); }
+  .tk-saved { color:var(--good); font-size:11.5px; opacity:0; transition:opacity .2s; }
+  .tk-saved.on { opacity:1; }
+  .tk-reply { display:flex; gap:8px; flex-wrap:wrap; }
+  .tk-reply textarea { flex:1; min-width:240px; min-height:40px; resize:vertical; font-size:12.5px; padding:8px 10px; }
+
+  /* Sign-in notification: what moved on your plate since you last looked. */
+  .inbox { border:1px solid rgba(var(--accent-rgb),.45); background:linear-gradient(180deg, rgba(var(--accent-rgb),.10), rgba(var(--accent-rgb),.03)); border-radius:12px; padding:14px 16px; margin-bottom:16px; }
+  .inbox h3 { font-family:var(--disp); font-size:15px; color:var(--bright); margin:0 0 2px; }
+  .inbox .row { display:flex; gap:10px; align-items:baseline; padding:7px 0; border-top:1px solid rgba(var(--accent-rgb),.14); font-size:13px; }
+  .inbox .row:first-of-type { border-top:none; }
+  .inbox .row a { color:var(--accent); text-decoration:none; font-weight:600; }
+  .inbox .row a:hover { text-decoration:underline; }
+  .inbox .when { margin-left:auto; font-size:11px; color:var(--dim); white-space:nowrap; }
+  .navdot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--bad); margin-left:6px; vertical-align:middle; }
+
   /* Customer 360 */
   .c360grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
   @media (max-width:1080px){ .c360grid { grid-template-columns:1fr; } }
@@ -242,7 +272,7 @@
         <a href="#/ops"        data-route="ops"><span class="ico">📈</span> Revenue Ops</a>
         <a href="#/outreach"   data-route="outreach"><span class="ico">📣</span> Outreach</a>
         <div class="navgroup">Wenbot Team</div>
-        <a href="#/tickets"    data-route="tickets"><span class="ico">🎫</span> Tickets <span id="navTicketCount" class="navbadge hidden"></span></a>
+        <a href="#/tickets"    data-route="tickets"><span class="ico">🎫</span> Tickets <span id="navTicketDot" class="navdot hidden" title="Something on your plate moved"></span><span id="navTicketCount" class="navbadge hidden"></span></a>
         <a href="#/todo"       data-route="todo"><span class="ico">☑</span> To-Do List</a>
         <a href="#/security"   data-route="security"><span class="ico">🔐</span> Security</a>
       </nav>
@@ -266,6 +296,10 @@
 
         <!-- DASHBOARD -->
         <div id="dashView">
+          <!-- What moved on your plate since you last read the queue. Filled by
+               renderInbox() once tickets load; empty (and invisible) if you're
+               caught up. -->
+          <div id="inbox"></div>
           <div class="stats" id="dashTiles"></div>
           <div class="dashgrid">
             <div class="tablecard" style="padding:16px;">
@@ -275,6 +309,9 @@
               <div class="kicker" style="margin-top:18px;">Attention</div>
               <div class="panel-title">Needs a look</div>
               <div id="dashAttention" class="sub">—</div>
+              <div class="kicker" style="margin-top:18px;">Your book</div>
+              <div class="panel-title">My streamers</div>
+              <div id="dashBook" class="sub">—</div>
               <div class="kicker" style="margin-top:18px;">Team</div>
               <div class="panel-title">Portal access</div>
               <div id="dashTeam" class="sub">—</div>
@@ -319,7 +356,10 @@
               <option value="internal">🏢 Internal / test</option>
               <option value="ismod">🛡 Moderates a channel</option>
               <option value="hasmods">👥 Has moderators</option>
+              <option value="mine">🙋 My streamers</option>
+              <option value="unassigned">🫥 No account manager</option>
             </select>
+            <select id="mgrFilter" onchange="renderTable()" style="max-width:200px;" title="Filter by account manager"></select>
             <button class="btn-ghost" onclick="loadUsers()">↻ Refresh</button>
             <label class="sub" style="display:flex;align-items:center;gap:6px;cursor:pointer;align-self:center;">
               <input type="checkbox" id="showArchived" onchange="renderTable()" style="width:auto;"> Show archived
@@ -583,9 +623,11 @@
           <div class="tablecard" style="padding:16px;margin-bottom:16px;">
             <div class="kicker">Wenbot Team</div>
             <div class="panel-title">New ticket</div>
-            <div class="sub" style="margin-bottom:11px;">Work for the team — assign it to whoever owns it. Link a streamer channel when it's about one.</div>
+            <div class="sub" style="margin-bottom:11px;">Work for the team — assign it to whoever owns it. Link a streamer channel when it's about one. Whoever you assign it to gets an email.</div>
+            <input id="tkTitle" type="text" maxlength="200" placeholder="What needs doing?" style="width:100%;margin-bottom:9px;" onkeydown="if(event.key==='Enter')document.getElementById('tkBody').focus()">
+            <textarea id="tkBody" maxlength="4000" placeholder="Details — what's the context, what does done look like? (optional)"
+                      style="width:100%;display:block;min-height:84px;resize:vertical;font-size:13px;line-height:1.55;padding:10px 12px;margin-bottom:10px;"></textarea>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-              <input id="tkTitle" type="text" maxlength="200" placeholder="What needs doing?" style="flex:1;min-width:240px;" onkeydown="if(event.key==='Enter')tkCreate()">
               <select id="tkAssignee" style="max-width:190px;" title="Assign to"></select>
               <select id="tkPriority" style="max-width:130px;" title="Priority">
                 <option value="low">low</option>
@@ -593,9 +635,9 @@
                 <option value="high">high</option>
                 <option value="urgent">urgent</option>
               </select>
-              <input id="tkChannel" type="text" maxlength="60" placeholder="Streamer (optional)" style="max-width:190px;" onkeydown="if(event.key==='Enter')tkCreate()">
-              <button onclick="tkCreate()">＋ Create</button>
-              <button class="btn-ghost" onclick="loadTickets()">↻</button>
+              <input id="tkChannel" type="text" maxlength="60" placeholder="Streamer (optional)" style="max-width:190px;">
+              <button onclick="tkCreate()" style="margin-left:auto;">＋ Create ticket</button>
+              <button class="btn-ghost" onclick="loadTickets()" title="Refresh">↻</button>
             </div>
           </div>
           <div class="toolbar">
@@ -869,6 +911,9 @@
     if (name === 'todo' && !_todosLoaded) loadTodos();
     if (name === 'outreach' && !_outreachLoaded) loadOutreach();
     if (name === 'tickets' && !_ticketsLoaded) loadTickets();
+    // Opening the queue IS reading it — clear the sign-in banner (and the nav
+    // dot) so it only ever reports what changed while they were away.
+    if (name === 'tickets' && _ticketsLoaded) tkMarkSeen();
     if (name === 'ops') renderOps();
     if (name === 'channels') renderChannels();
     if (name === 'analytics') renderAnalytics();
@@ -935,6 +980,23 @@
     if (tkHot)  bits.push(`<a href="#/tickets">🎫 ${tkHot} high/urgent ticket${tkHot === 1 ? '' : 's'} open</a>`);
     if (tkMine) bits.push(`<a href="#/tickets" onclick="setTimeout(()=>{var m=document.getElementById('tkMineOnly');if(m){m.checked=true;renderTickets();}},50)">🙋 ${tkMine} ticket${tkMine === 1 ? '' : 's'} assigned to you</a>`);
     $('dashAttention').innerHTML = bits.length ? bits.map(b => `<div style="margin:5px 0;">${b}</div>`).join('') : '<span class="ok">Nothing urgent. 🎉</span>';
+
+    // Your book: the streamers you personally look after. Assigned from Customer
+    // 360, so support has continuity instead of whoever picks the ticket up.
+    const bookEl = $('dashBook');
+    if (bookEl) {
+      const book = _users.filter(u => u.accountManager && u.accountManager === _me && !u.archived);
+      const unowned = _users.filter(u => isCustomer(u) && !u.accountManager && !u.archived).length;
+      bookEl.innerHTML = (book.length
+        ? book.sort((a, b) => String(a.kickChannel || '').localeCompare(String(b.kickChannel || '')))
+              .map(u => `<div style="margin:4px 0;display:flex;align-items:center;gap:8px;">
+                <b style="color:var(--bright);cursor:pointer;" onclick="openCustomer('${esc(u.uid)}')">${esc(u.kickChannel || u.email || u.uid)}</b>
+                <span class="pill ${esc(u.plan || 'starter')}">${esc(u.plan || 'starter')}</span>
+                ${u.paymentFailed ? '<span class="muted" style="font-size:11px;color:var(--bad);">payment failed</span>' : ''}
+              </div>`).join('')
+        : '<span class="muted">No streamers assigned to you yet — set an account manager from Customer 360.</span>')
+        + (unowned ? `<div class="sub" style="margin-top:8px;">${unowned} account${unowned === 1 ? '' : 's'} with nobody assigned.</div>` : '');
+    }
 
     // Who can sign into this portal — the roster the pickers use.
     const teamEl = $('dashTeam');
@@ -1349,6 +1411,26 @@
           </div>`).join('')}` : ''}
       </div>`;
 
+    // Who on the team owns this relationship. A streamer with a name against
+    // them gets continuity — the same person every time they ask for something,
+    // instead of whoever happens to see the ticket.
+    const mgr = u.accountManager || '';
+    const managerHtml = `
+      <div class="tablecard" style="padding:16px;">
+        <div class="kicker">Support</div>
+        <div class="panel-title">Account manager</div>
+        <div class="sub" style="margin:6px 0 10px;">The admin who looks after ${esc(u.kickChannel || 'this account')} day to day. They see them in “My streamers”.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <select id="c360Mgr" style="min-width:200px;">
+            <option value="">— nobody yet —</option>
+            ${tkTeam().map(o => `<option value="${esc(o)}" ${o === mgr ? 'selected' : ''}>${esc(teamLabel(o))}</option>`).join('')}
+          </select>
+          <button class="btn-ghost" onclick="c360SetManager('${esc(uid)}')">Save</button>
+          ${mgr ? `<button class="btn-ghost" style="color:var(--dim);" onclick="c360SetManager('${esc(uid)}', true)">Unassign</button>` : ''}
+          <span class="tk-saved" id="c360MgrOk">Saved</span>
+        </div>
+      </div>`;
+
     // Login & support — the actions that otherwise mean opening the Firebase
     // console. Reset/verification links are emailed to the account holder, never
     // shown here, so "reset their password" can't become a takeover tool.
@@ -1414,7 +1496,7 @@
       </div>
       <div class="c360grid">
         <div style="display:flex;flex-direction:column;gap:16px;">${billing}${outreachHtml}</div>
-        <div style="display:flex;flex-direction:column;gap:16px;">${teamHtml}${ticketsHtml}${loginHtml}${notesHtml}${histHtml}</div>
+        <div style="display:flex;flex-direction:column;gap:16px;">${managerHtml}${teamHtml}${ticketsHtml}${loginHtml}${notesHtml}${histHtml}</div>
       </div>`;
   }
 
@@ -1428,6 +1510,25 @@
       if (!r.ok) throw new Error(d.error || 'Failed');
       flashOk(d.message || 'Done');
       await c360Load(uid);
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+
+  // Assign (or clear) the admin who owns this relationship. Updates the local
+  // roster copy too, so "My streamers" and the roster filter reflect it without
+  // a full reload of every account.
+  window.c360SetManager = async function (uid, clear) {
+    const sel = $('c360Mgr');
+    const manager = clear ? '' : (sel ? sel.value : '');
+    try {
+      const r = await authedPost('/api/admin-account-action', { uid, action: 'set-manager', manager });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      const u = _users.find(x => x.uid === uid);
+      if (u) u.accountManager = d.manager || null;
+      const ok = $('c360MgrOk');
+      if (ok) { ok.classList.add('on'); setTimeout(() => ok.classList.remove('on'), 1600); }
+      if (clear) await c360Load(uid);
+      renderDash(_lastStats || {});
     } catch (e) { alert('Failed: ' + e.message); }
   };
 
@@ -1945,7 +2046,7 @@
     el.innerHTML = `<div class="tablecard" style="padding:16px;margin-bottom:16px;border-left:3px solid var(--gold);">
       <div class="kicker" style="color:var(--gold);">New leads</div>
       <div class="panel-title">${_leads.length} agency enquir${_leads.length === 1 ? 'y' : 'ies'} waiting</div>
-      <div class="sub" style="margin-bottom:10px;">Straight from the contact form on the site. Add one to the pipeline and it stops showing here.</div>
+      <div class="sub" style="margin-bottom:10px;">Straight from the contact form on the site. Add one to the pipeline — or clear it once it's handled — and it stops showing here.</div>
       ${_leads.map(l => `<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;padding:10px 0;border-top:1px solid rgba(126,170,195,.09);">
         <div style="flex:1;min-width:240px;">
           <b style="color:var(--bright);">${esc(l.name || 'Unknown')}</b>
@@ -1953,11 +2054,29 @@
           <span class="muted" style="font-size:11.5px;margin-left:6px;">${l.at ? rel(l.at) : ''}</span>
           ${l.details ? `<div class="sub" style="margin-top:4px;">${esc(l.details)}</div>` : ''}
         </div>
-        <button class="btn-ghost" style="font-size:12px;padding:6px 12px;"
-          onclick="orFromLead('${esc(l.id)}')">＋ Add to pipeline</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn-ghost" style="font-size:12px;padding:6px 12px;"
+            onclick="orFromLead('${esc(l.id)}')">＋ Add to pipeline</button>
+          <button class="btn-ghost" style="font-size:12px;padding:6px 11px;color:var(--dim);"
+            title="Clear this enquiry — already handled, or not a fit"
+            onclick="orDismissLead('${esc(l.id)}','${esc(String(l.name || l.email || 'this enquiry').replace(/'/g, ''))}')">✕ Clear</button>
+        </div>
       </div>`).join('')}
     </div>`;
   }
+  // Clear a handled enquiry off the board. The record itself is kept (it's a
+  // real person's pitch, and this is a one-click ✕) — it just stops counting as
+  // waiting, which is what "waiting" should mean.
+  window.orDismissLead = async function (id, who) {
+    if (!confirm(`Clear the enquiry from ${who}?\n\nIt stops showing as waiting. Their details stay on record.`)) return;
+    try {
+      const r = await authedPost('/api/admin-outreach', { action: 'dismiss-inquiry', id });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      _leads = _leads.filter(x => x.id !== id);
+      renderLeads();
+      renderDash(_lastStats || {});     // the "leads waiting" alert follows
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
   // Turn an enquiry into a prospect card, carrying the email so the enquiry is
   // recognised as handled, and the enquiry text as the first timeline note.
   window.orFromLead = async function (id) {
@@ -2191,6 +2310,11 @@
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       _tickets = d.tickets || []; _ticketsLoaded = true;
+      // Only set on the FIRST load of a session. Re-reads happen constantly
+      // (every save calls loadTickets), and refreshing the marker from the
+      // server each time would clear the banner the moment you touched
+      // anything — including before you had read it.
+      if (_tkSeenAt === undefined) _tkSeenAt = d.seenAt || null;
       const sel = $('tkAssignee');
       if (sel) {
         const keep = sel.value;
@@ -2199,8 +2323,61 @@
         sel.value = keep || _me;
       }
       renderTickets();
+      renderInbox();
       renderDash(_lastStats || {});     // open-ticket tile + nav badge follow
     } catch (e) { $('ticketsTable').innerHTML = `<tr><td colspan="8" class="warn" style="text-align:center;padding:24px;">${esc(e.message)}</td></tr>`; }
+  };
+
+  // ── "While you were away" ──────────────────────────────────────────────────
+  // Tickets on YOUR plate that moved since you last read the queue. The email is
+  // the nudge for someone who isn't in the portal; this is what catches them the
+  // moment they sign in.
+  let _tkSeenAt;                        // undefined = not loaded yet; null = never looked
+  window.renderInbox = function () {
+    const el = $('inbox'); if (!el) return;
+    const since = _tkSeenAt;
+    const mine = _tickets.filter(t =>
+      t.assignee === _me && t.status !== 'done' &&
+      // "Never looked" would otherwise flag the entire backlog on first sign-in.
+      (since ? (t.lastActivityAt || 0) > since : (t.assignedAt || 0) > Date.now() - 7 * 864e5));
+
+    const dot = $('navTicketDot');
+    if (dot) dot.classList.toggle('hidden', !mine.length);
+    if (!mine.length) { el.innerHTML = ''; return; }
+
+    el.innerHTML = `<div class="inbox">
+      <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+        <div>
+          <h3>${mine.length} ticket${mine.length === 1 ? '' : 's'} need${mine.length === 1 ? 's' : ''} you</h3>
+          <div class="sub">Assigned to you and moved since you last read the queue.</div>
+        </div>
+        <button class="btn-ghost" style="margin-left:auto;" onclick="tkMarkSeen()">Mark all read</button>
+      </div>
+      <div style="margin-top:10px;">
+        ${mine.slice(0, 8).map(t => `<div class="row">
+          <span class="prio ${esc(t.priority || 'normal')}">${esc(t.priority || 'normal')}</span>
+          <a href="#/tickets" onclick="tkOpenFromInbox('${esc(t.id)}')">${esc(t.title)}</a>
+          ${t.relatedChannel ? `<span class="muted" style="font-size:11.5px;">· ${esc(t.relatedChannel)}</span>` : ''}
+          <span class="when">${rel(t.lastActivityAt)}</span>
+        </div>`).join('')}
+        ${mine.length > 8 ? `<div class="row"><a href="#/tickets">…and ${mine.length - 8} more</a></div>` : ''}
+      </div>
+    </div>`;
+  };
+
+  // Jump to the queue with that ticket already open.
+  window.tkOpenFromInbox = function (id) {
+    location.hash = '#/tickets';
+    setTimeout(() => { if (!_tkExpanded.has(id)) tkToggle(id); }, 60);
+  };
+
+  window.tkMarkSeen = async function () {
+    try {
+      const r = await authedPost('/api/admin-tickets', { action: 'seen' });
+      const d = await r.json().catch(() => ({}));
+      _tkSeenAt = d.seenAt || Date.now();
+    } catch { _tkSeenAt = Date.now(); }   // a failed write shouldn't nag them again this session
+    renderInbox();
   };
 
   window.renderTickets = function () {
@@ -2246,7 +2423,7 @@
         <td class="muted">${rel(t.lastActivityAt)}</td>
         <td><span title="Delete ticket" style="cursor:pointer;color:var(--dim);" onclick="tkDelete('${esc(t.id)}','${esc(String(t.title).replace(/'/g, ''))}')">✕</span></td>
       </tr>`;
-      return head + (open ? `<tr><td colspan="8" style="background:rgba(4,10,16,.6);">${tkDetailHtml(t)}</td></tr>` : '');
+      return head + (open ? `<tr><td colspan="8" style="background:rgba(4,10,16,.6);padding:0;">${tkDetailHtml(t)}</td></tr>` : '');
     }).join('');
   };
 
@@ -2264,27 +2441,37 @@
       return `<div class="c"><span class="mono muted" style="font-size:10.5px;white-space:nowrap;min-width:96px;">${when}</span><span><b style="color:var(--bright);">${who}</b> · ${body}</span></div>`;
     }).join('');
 
-    return `<div style="padding:12px 6px;font-size:12.5px;">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+    const id = esc(t.id);
+    return `<div class="tk-detail">
+      <div class="tk-head">
         <span class="muted">Assignee:</span>
-        <select id="tk-as-${esc(t.id)}" onchange="tkSetField('${esc(t.id)}','assignee',this.value)" style="width:190px;font-size:12px;padding:4px 8px;">
+        <select id="tk-as-${id}" onchange="tkSetField('${id}','assignee',this.value)" style="width:190px;font-size:12px;padding:4px 8px;">
           <option value="" ${!t.assignee ? 'selected' : ''}>unassigned</option>
           ${tkTeam().map(o => `<option value="${esc(o)}" ${o === t.assignee ? 'selected' : ''}>${esc(teamLabel(o))}</option>`).join('')}
         </select>
         <span class="muted">Streamer:</span>
-        <input id="tk-ch-${esc(t.id)}" value="${esc(t.relatedChannel || '')}" placeholder="channel" style="font-size:12px;padding:4px 8px;width:170px;">
-        <button class="btn-ghost" onclick="tkSetField('${esc(t.id)}','relatedChannel',document.getElementById('tk-ch-${esc(t.id)}').value)">Save</button>
-        <span class="muted" style="margin-left:auto;font-size:11px;">opened by ${esc(String(t.createdBy || '').split('@')[0])} · ${rel(t.createdAt)}</span>
+        <input id="tk-ch-${id}" value="${esc(t.relatedChannel || '')}" placeholder="channel" style="font-size:12px;padding:4px 8px;width:170px;">
+        <button class="btn-ghost" onclick="tkSetField('${id}','relatedChannel',document.getElementById('tk-ch-${id}').value)">Save</button>
+        <span class="who">opened by ${esc(String(t.createdBy || '').split('@')[0])} · ${rel(t.createdAt)}</span>
       </div>
-      <div style="margin-bottom:8px;">
-        <textarea id="tk-body-${esc(t.id)}" placeholder="Details…" style="min-height:54px;font-size:12px;resize:vertical;">${esc(t.body || '')}</textarea>
-        <button class="btn-ghost" style="margin-top:6px;" onclick="tkSetField('${esc(t.id)}','body',document.getElementById('tk-body-${esc(t.id)}').value)">Save details</button>
+
+      <div class="tk-field">
+        <div class="kicker">Details</div>
+        <textarea id="tk-body-${id}" placeholder="What's the context, and what does done look like?"
+                  onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();tkSaveBody('${id}');}">${esc(t.body || '')}</textarea>
+        <div class="row">
+          <button class="btn-ghost" onclick="tkSaveBody('${id}')">Save details</button>
+          <span class="tk-saved" id="tk-ok-${id}">Saved</span>
+          <span class="hint" style="margin-left:auto;">Ctrl/⌘ + Enter saves</span>
+        </div>
       </div>
+
       <div class="kicker">Thread</div>
       <div class="thread">${thread}</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input id="tk-c-${esc(t.id)}" placeholder="Add a comment…" style="flex:1;min-width:240px;font-size:12px;padding:6px 9px;" onkeydown="if(event.key==='Enter')tkComment('${esc(t.id)}')">
-        <button onclick="tkComment('${esc(t.id)}')">Comment</button>
+      <div class="tk-reply">
+        <textarea id="tk-c-${id}" placeholder="Add a comment…  (the assignee gets emailed)"
+                  onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();tkComment('${id}');}"></textarea>
+        <button onclick="tkComment('${id}')" style="align-self:flex-start;">Comment</button>
       </div>
     </div>`;
   }
@@ -2307,11 +2494,13 @@
     if (!title) return;
     try {
       const r = await authedPost('/api/admin-tickets', { action: 'create', title,
+        body: ($('tkBody')?.value || '').trim(),
         assignee: $('tkAssignee')?.value || '', priority: $('tkPriority')?.value || 'normal',
         relatedChannel: ($('tkChannel')?.value || '').trim() });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       $('tkTitle').value = ''; $('tkChannel').value = '';
+      if ($('tkBody')) $('tkBody').value = '';
       await loadTickets();
     } catch (e) { alert('Failed: ' + e.message); }
   };
@@ -2322,6 +2511,21 @@
       if (key === 'status') { delete _tkComments[id]; if (_tkExpanded.has(id)) { _tkExpanded.delete(id); await tkToggle(id); } }
       await loadTickets();
     } catch (e) { alert('Failed: ' + e.message); loadTickets(); }
+  };
+  // Details save WITHOUT a re-render: tkSetField reloads the whole queue, which
+  // tears the textarea out from under whoever is typing in it. Saving in place
+  // keeps focus and the cursor where they were, and flashes a confirmation.
+  window.tkSaveBody = async function (id) {
+    const el = $('tk-body-' + id); if (!el) return;
+    const value = el.value;
+    try {
+      const r = await authedPost('/api/admin-tickets', { action: 'update', id, fields: { body: value } });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      const t = _tickets.find(x => x.id === id);
+      if (t) t.body = value.trim() || null;      // keep the local copy honest for search
+      const ok = $('tk-ok-' + id);
+      if (ok) { ok.classList.add('on'); setTimeout(() => ok.classList.remove('on'), 1600); }
+    } catch (e) { alert('Failed: ' + e.message); }
   };
   window.tkComment = async function (id) {
     const el = $('tk-c-' + id); const text = (el?.value || '').trim();
@@ -2450,11 +2654,23 @@
         case 'internal':   return u.accountType === 'internal';
         case 'ismod':      return (u.moderates || []).length > 0;
         case 'hasmods':    return (u.mods || []).length > 0;
+        case 'mine':       return u.accountManager === _me;
+        case 'unassigned': return isCustomer(u) && !u.accountManager;
         default:           return true;
       }
     };
 
-    let rows = _users.filter(u => (showArch || !u.archived) && matchesFilter(u) && (!q ||
+    // Account-manager picker, filled from the roster the first time round.
+    const mgrSel = $('mgrFilter');
+    if (mgrSel && !mgrSel.dataset.filled && _team.length) {
+      mgrSel.innerHTML = '<option value="">Any manager</option>'
+        + _team.map(m => `<option value="${esc(m.email)}">${esc(m.name)}’s streamers</option>`).join('');
+      mgrSel.dataset.filled = '1';
+    }
+    const mgrPick = mgrSel ? mgrSel.value : '';
+
+    let rows = _users.filter(u => (showArch || !u.archived) && matchesFilter(u)
+      && (!mgrPick || u.accountManager === mgrPick) && (!q ||
       String(u.kickChannel||'').toLowerCase().includes(q) ||
       String(u.displayName||'').toLowerCase().includes(q) ||
       String(u.email||'').toLowerCase().includes(q) ||

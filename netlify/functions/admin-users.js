@@ -39,6 +39,9 @@ exports.handler = async (event) => {
       trialPlan:          s.trialPlan || null,
       trialEndsAt:        ms(s.trialEndsAt),
       trialExpiredAt:     ms(s.trialExpiredAt),          // set by the daily sweep when a trial lapses
+      // Who on the team owns this relationship (set from Customer 360). Drives
+      // the "my streamers" book on the dashboard and the roster filter.
+      accountManager:     s.accountManager || null,
       hasNote:            !!(s.adminNotes && String(s.adminNotes).trim()),
       noteSnippet:        s.adminNotes ? String(s.adminNotes).replace(/\s+/g, " ").trim().slice(0, 80) : null,
       provider:           s.activeProvider || s.casino || null,

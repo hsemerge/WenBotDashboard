@@ -59,8 +59,10 @@ exports.handler = async (event) => {
         const x = d.data();
         const at = x.submittedAt && x.submittedAt.toMillis ? x.submittedAt.toMillis()
                  : (typeof x.submittedAt === "number" ? x.submittedAt : null);
-        return { id: d.id, name: x.name || null, email: x.email || null, details: x.details || null, at };
-      }).filter((q) => !q.email || !seen.has(String(q.email).toLowerCase()));
+        return { id: d.id, name: x.name || null, email: x.email || null, details: x.details || null, at,
+                 dismissedAt: x.dismissedAt || null };
+      }).filter((q) => !q.dismissedAt)
+        .filter((q) => !q.email || !seen.has(String(q.email).toLowerCase()));
     } catch (e) { console.warn("[outreach] inquiries lookup:", e.message); }
 
     return res(200, { cards, inquiries, stages: STAGES });
@@ -68,6 +70,23 @@ exports.handler = async (event) => {
 
   let body = {}; try { body = JSON.parse(event.body || "{}"); } catch {}
   const action = String(body.action || "").trim();
+
+  // Clear a contact-form enquiry once it's been dealt with — signed up, added to
+  // the pipeline by hand, or simply not a fit — so the "waiting" banner means
+  // "still needs a human".
+  //
+  // Marked rather than destroyed: this is a real person's name, email and pitch,
+  // and the ✕ that clears it is one small click. The record stays for history and
+  // the banner is driven off the mark, so the visible result is the same.
+  if (action === "dismiss-inquiry") {
+    const iid = clean(body.id, 60);
+    if (!iid) return res(400, { error: "Missing enquiry id" });
+    const iref = db.collection("agency_inquiries").doc(iid);
+    if (!(await iref.get()).exists) return res(404, { error: "Enquiry not found" });
+    await iref.set({ dismissedAt: Date.now(), dismissedBy: me }, { merge: true });
+    logAdminAudit(db, adminUser.uid, "agency_inquiry_dismissed", { id: iid });
+    return res(200, { ok: true });
+  }
 
   if (action === "create") {
     const channel = clean(body.channel, 60).replace(/^@/, "");
