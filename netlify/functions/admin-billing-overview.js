@@ -13,10 +13,16 @@ const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 
 function summarize(docs) {
   let paidCount = 0, unpaidCount = 0, submittedCount = 0, latestPaidRecurringAt = 0, earliestUnpaidDueAt = 0, lastPaidAt = 0;
+  // Money actually collected outside Stripe. The invoices ARE the record for
+  // crypto/manual payers, so this is the honest figure — the dashboard used to
+  // show Stripe revenue only, which quietly wrote invoice customers out of the
+  // business.
+  let paidTotal = 0;
   docs.forEach((doc) => {
     const v = doc.data();
     if (v.status === "paid") {
       paidCount++;
+      paidTotal += Number(v.paidAmount != null ? v.paidAmount : v.amount) || 0;
       const pa = Number(v.paidAt) || 0;
       if (pa > lastPaidAt) lastPaidAt = pa;
       if (v.recurring && pa > latestPaidRecurringAt) latestPaidRecurringAt = pa;
@@ -30,7 +36,7 @@ function summarize(docs) {
   // Next payment = a month after the last PAID recurring invoice; if none paid yet,
   // fall back to the earliest unpaid invoice's due date.
   const nextDue = latestPaidRecurringAt ? latestPaidRecurringAt + MONTH_MS : (earliestUnpaidDueAt || null);
-  return { nextDue, paidCount, unpaidCount, submittedCount, hasUnpaid: unpaidCount > 0 };
+  return { nextDue, paidCount, unpaidCount, submittedCount, hasUnpaid: unpaidCount > 0, paidTotal, lastPaidAt: lastPaidAt || null };
 }
 
 exports.handler = async (event) => {

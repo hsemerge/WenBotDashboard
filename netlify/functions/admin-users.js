@@ -14,6 +14,26 @@ function ms(v) {
   return null;
 }
 
+// How an account actually pays.
+//
+// `planManual` was doing double duty: it marks a comp AND it's how an
+// invoice-paying customer's plan is held above Stripe. So a customer who pays
+// every month by crypto invoice was labelled "comp" and dropped out of revenue
+// — which is wrong about the money and wrong about the relationship.
+//
+// cryptoBilling is the explicit signal (admin-confirm-invoice sets it the first
+// time an invoice is confirmed), so it decides ahead of planManual. A live
+// Stripe subscription outranks both. `billingMethod` lets an admin correct any
+// account by hand when the history doesn't tell the truth.
+function billingTypeOf(s) {
+  const forced = s.billingMethod;
+  if (forced === "stripe" || forced === "crypto" || forced === "comp" || forced === "free") return forced;
+  if (s.stripeSubscriptionActive) return "stripe";
+  if (s.cryptoBilling === true)   return "crypto";
+  if (s.planManual)               return "comp";
+  return "free";
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return res(200, {});
   if (event.httpMethod !== "GET" && event.httpMethod !== "POST") return res(405, { error: "Method not allowed" });
@@ -56,6 +76,13 @@ exports.handler = async (event) => {
       archived:           s.archived === true,
       referredBy:         s.referredBy || null,
       referralCount:      s.referralCount || 0,
+      // How they pay — a CATEGORY, not an amount, so staff get it too. Without
+      // it a crypto customer is indistinguishable from a freebie.
+      billingType:        billingTypeOf(s),
+      billingMethodSet:   !!s.billingMethod,          // an admin said so by hand
+      // Free months already handed out for referrals that converted. Owed =
+      // converted - used (both computed below).
+      referralCreditsUsed: Number(s.referralCreditsUsed || 0),
       totalPaid:          s.totalPaid || 0,
       paymentCount:       s.paymentCount || 0,
       lastPaymentAt:      ms(s.lastPaymentAt),
@@ -130,6 +157,43 @@ exports.handler = async (event) => {
         users.forEach((u) => u.mods.forEach((m) => { if (!m.email && emails[m.uid]) m.email = emails[m.uid]; }));
       } catch (e) { console.warn("[admin-users] orphan mod lookup:", e.message); }
     }
+  }
+
+  // Referrals, both directions, with the bit that actually matters: which of the
+  // people someone referred are PAYING.
+  //
+  // referralCount on the doc counts sign-ups, and a sign-up earns nothing — the
+  // reward is a free month per referral that converts to a paying customer, so
+  // "3 referrals" was unanswerable as a question about credit. Computed here
+  // from the roster we already hold, so it costs no extra reads.
+  //
+  // "Paying" means money is actually arriving: a live Stripe subscription or a
+  // crypto/invoice customer. A comp or a trial is not a conversion.
+  {
+    const byUid = Object.fromEntries(users.map((u) => [u.uid, u]));
+    const paying = (u) => (u.billingType === "stripe" || u.billingType === "crypto") && !u.planTrial;
+    users.forEach((u) => { u.referrals = []; u.referralsConverted = 0; });
+    users.forEach((u) => {
+      // referredBy has been stored as a uid and, on older accounts, as a channel
+      // name — resolve either so historic referrals still count.
+      const ref = u.referredBy;
+      if (!ref) return;
+      const owner = byUid[ref]
+        || users.find((x) => String(x.kickChannel || "").toLowerCase() === String(ref).toLowerCase());
+      if (!owner || owner.uid === u.uid) return;
+      const converted = paying(u);
+      owner.referrals.push({
+        uid: u.uid, channel: u.kickChannel || u.email || u.uid,
+        plan: u.plan, converted, since: u.kickConnectedAt || null,
+      });
+      if (converted) owner.referralsConverted++;
+    });
+    users.forEach((u) => {
+      u.referralsSignedUp = u.referrals.length;
+      // Free months earned but not yet given. Never negative: handing out an
+      // extra month off-book shouldn't read as a debt the streamer owes us.
+      u.referralCreditsOwed = Math.max(0, u.referralsConverted - (u.referralCreditsUsed || 0));
+    });
   }
 
   // Bespoke portals and custom domains, from `custom_domains` (the same

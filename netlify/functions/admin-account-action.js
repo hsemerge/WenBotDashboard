@@ -61,6 +61,32 @@ exports.handler = async (event) => {
     return res(200, { success: true, manager: manager || null });
   }
 
+  // How this account pays, when the history can't tell the truth by itself —
+  // e.g. someone who used to be comped and now pays by invoice. "auto" clears
+  // the override and goes back to deriving it.
+  if (action === "set-billing-method") {
+    const m = String(body.method || "auto").trim();
+    if (!["auto", "stripe", "crypto", "comp", "free"].includes(m)) return res(400, { error: "Unknown billing method." });
+    const sref = db.collection("streamers").doc(uid);
+    if (!(await sref.get()).exists) return res(404, { error: "No such streamer." });
+    await sref.set({ billingMethod: m === "auto" ? null : m }, { merge: true });
+    logAdminAudit(db, adminUser.uid, "billing_method_set", { uid, method: m });
+    return res(200, { success: true, method: m });
+  }
+
+  // Free months already granted for referrals that converted. Owner-only: it's
+  // the ledger behind giving away paid time.
+  if (action === "set-referral-credits") {
+    if (adminUser.role !== "owner") return res(403, { error: "Owner only." });
+    const used = Math.max(0, Math.min(999, Math.floor(Number(body.used))));
+    if (!Number.isFinite(used)) return res(400, { error: "Credits used must be a number." });
+    const sref = db.collection("streamers").doc(uid);
+    if (!(await sref.get()).exists) return res(404, { error: "No such streamer." });
+    await sref.set({ referralCreditsUsed: used }, { merge: true });
+    logAdminAudit(db, adminUser.uid, "referral_credits_set", { uid, used });
+    return res(200, { success: true, used });
+  }
+
   let user;
   try { user = await admin.auth().getUser(uid); }
   catch { return res(404, { error: "No login exists for that account." }); }
