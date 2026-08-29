@@ -655,7 +655,8 @@
                 <option value="high">high</option>
                 <option value="urgent">urgent</option>
               </select>
-              <input id="tkChannel" type="text" maxlength="60" placeholder="Streamer (optional)" style="max-width:190px;">
+              <input id="tkChannel" type="text" list="tkStreamerList" maxlength="60" placeholder="Streamer (optional) — pick or type" style="max-width:190px;">
+              <datalist id="tkStreamerList"></datalist>
               <button onclick="tkCreate()" style="margin-left:auto;">＋ Create ticket</button>
               <button class="btn-ghost" onclick="loadTickets()" title="Refresh">↻</button>
             </div>
@@ -836,6 +837,19 @@
 
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  // Fill the New-ticket streamer picker (a datalist) with every known channel, so
+  // a ticket can be pointed at a streamer by picking rather than typing. Optional —
+  // a blank field still means "no streamer". Refreshed whenever the roster reloads.
+  function fillStreamerPicker() {
+    const dl = document.getElementById('tkStreamerList');
+    if (!dl) return;
+    const chans = [...new Set(_users
+      .filter(u => !u.archived && u.kickChannel && u.accountType !== 'moderator' && u.accountType !== 'internal')
+      .map(u => u.kickChannel))]
+      .sort((a, b) => a.localeCompare(b));
+    dl.innerHTML = chans.map(c => `<option value="${esc(c)}"></option>`).join('');
+  }
   const money = n => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const date = ms => ms ? new Date(ms).toLocaleDateString() : '—';
   const rel  = ms => { if (!ms) return '—'; const d = Math.floor((Date.now() - ms) / 86400000); return d <= 0 ? 'today' : d === 1 ? '1d ago' : d < 30 ? d + 'd ago' : d < 365 ? Math.floor(d / 30) + 'mo ago' : Math.floor(d / 365) + 'y ago'; };
@@ -900,6 +914,7 @@
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       _users = d.users || [];
+      fillStreamerPicker();   // refresh the New-ticket streamer picker with the roster
       _role = d.role || 'owner';
       document.body.classList.toggle('role-staff', _role !== 'owner');
       // A staff session must not carry (or display) an owner secret remembered
@@ -2396,6 +2411,9 @@
         sel.dataset.filled = '1';
       }
       renderOutreach();
+      // Follow-ups on the dashboard come from these cards, so refresh that panel
+      // once they land rather than leaving it a ticket-only view.
+      if (typeof renderInbox === 'function') renderInbox();
     } catch (e) { $('outreachTable').innerHTML = `<tr><td colspan="7" class="warn" style="text-align:center;padding:24px;">${esc(e.message)}</td></tr>`; }
   };
 
@@ -2439,7 +2457,7 @@
         <td class="muted">${rel(cd.updatedAt)}</td>
         <td><span class="del" title="Delete prospect" style="cursor:pointer;color:var(--dim);" onclick="orDelete('${esc(cd.id)}','${esc(cd.channel)}')">✕</span></td>
       </tr>`;
-      return head + (open ? `<tr><td colspan="7" style="background:rgba(4,10,16,.6);">${orDetailHtml(cd)}</td></tr>` : '');
+      return head + (open ? `<tr><td colspan="7" style="background:rgba(4,10,16,.6);padding:0;">${orDetailHtml(cd)}</td></tr>` : '');
     }).join('');
   };
 
@@ -2459,21 +2477,35 @@
         <span><b style="color:var(--bright);">${who}</b> · ${body}</span></div>`;
     }).join('');
 
-    return `<div style="padding:12px 6px;font-size:12.5px;">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
-        <span class="muted">Owner:</span>
-        <input id="or-owner-${esc(cd.id)}" value="${esc(cd.owner || '')}" style="font-size:12px;padding:4px 8px;width:200px;">
-        <span class="muted">Link:</span>
-        <input id="or-link-${esc(cd.id)}" value="${esc(cd.link || '')}" placeholder="profile URL" style="font-size:12px;padding:4px 8px;width:240px;">
-        <span class="muted">WenBot uid (if signed up):</span>
-        <input id="or-uid-${esc(cd.id)}" value="${esc(cd.streamerUid || '')}" placeholder="streamer uid" style="font-size:12px;padding:4px 8px;width:190px;">
-        <button class="btn-ghost" onclick="orSaveFields('${esc(cd.id)}')">Save</button>
+    // Same sticky, capped-width panel the tickets use: this sits in a colspan
+    // cell of a sideways-scrolling table, so without it the Save button ends up
+    // off the right edge of the card.
+    const id = esc(cd.id);
+    const field = (label, key, value, ph, w) =>
+      `<label style="display:flex;flex-direction:column;gap:3px;">
+         <span class="muted" style="font-size:11px;">${label}</span>
+         <input id="or-${key}-${id}" value="${esc(value || '')}" placeholder="${ph}"
+                style="font-size:12px;padding:5px 8px;width:${w};">
+       </label>`;
+    return `<div class="tk-detail">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;">
+        ${field('Channel / handle', 'channel', cd.channel, 'kickname', '160px')}
+        ${field('Display name', 'name', cd.displayName, 'how they sign it', '170px')}
+        ${field('Email', 'email', cd.email, 'name@example.com', '210px')}
+        ${field('Profile link', 'link', cd.link, 'https://…', '220px')}
+        ${field('Owner', 'owner', cd.owner, 'admin email', '200px')}
+        ${field('WenBot uid (once signed up)', 'uid', cd.streamerUid, 'streamer uid', '190px')}
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn-ghost" onclick="orSaveFields('${id}')">Save</button>
+          <span class="tk-saved" id="or-ok-${id}">Saved</span>
+        </div>
       </div>
-      <div class="kicker" style="margin-top:6px;">Timeline</div>
-      <div style="margin:6px 0 10px;max-height:260px;overflow-y:auto;">${timeline}</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input id="or-note-${esc(cd.id)}" placeholder="Where are they at? (note gets dated + signed)" style="flex:1;min-width:240px;font-size:12px;padding:6px 9px;" onkeydown="if(event.key==='Enter')orAddNote('${esc(cd.id)}')">
-        <button onclick="orAddNote('${esc(cd.id)}')">Add note</button>
+      <div class="kicker">Timeline</div>
+      <div class="thread">${timeline}</div>
+      <div class="tk-reply">
+        <textarea id="or-note-${id}" placeholder="Where are they at?  (dated and signed automatically)"
+                  onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();orAddNote('${id}');}"></textarea>
+        <button onclick="orAddNote('${id}')" style="align-self:flex-start;">Add note</button>
       </div>
     </div>`;
   }
@@ -2515,13 +2547,18 @@
   };
   window.orSaveFields = async function (id) {
     const fields = {
-      owner:       ($('or-owner-' + id)?.value || '').trim(),
-      link:        ($('or-link-'  + id)?.value || '').trim(),
-      streamerUid: ($('or-uid-'   + id)?.value || '').trim(),
+      channel:     ($('or-channel-' + id)?.value || '').trim(),
+      displayName: ($('or-name-'    + id)?.value || '').trim(),
+      email:       ($('or-email-'   + id)?.value || '').trim(),
+      owner:       ($('or-owner-'   + id)?.value || '').trim(),
+      link:        ($('or-link-'    + id)?.value || '').trim(),
+      streamerUid: ($('or-uid-'     + id)?.value || '').trim(),
     };
     try {
       const r = await authedPost('/api/admin-outreach', { action: 'update', id, fields });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      const ok = $('or-ok-' + id);
+      if (ok) { ok.classList.add('on'); setTimeout(() => ok.classList.remove('on'), 1600); }
       await loadOutreach();
     } catch (e) { alert('Failed: ' + e.message); }
   };
@@ -2627,7 +2664,16 @@
     const handed = _users.filter(u =>
       u.accountManager === _me && !u.archived && fresh(u.accountManagerAt));
 
-    const total = mine.length + handed.length;
+    // Your own prospects going cold. Unlike the two above, these aren't "new
+    // since you looked" — they're overdue, so they stay until someone actually
+    // works them rather than clearing on "mark read".
+    const STALE = 7 * 864e5;
+    const followUps = _outreach
+      .filter(c => c.owner === _me && c.stage !== 'won' && c.stage !== 'lost'
+                && (Date.now() - (c.updatedAt || c.createdAt || 0)) > STALE)
+      .sort((a, b) => (a.updatedAt || 0) - (b.updatedAt || 0));
+
+    const total = mine.length + handed.length + followUps.length;
     const dot = $('navTicketDot');
     if (dot) dot.classList.toggle('hidden', !mine.length);
     if (!total) { el.innerHTML = ''; return; }
@@ -2636,11 +2682,21 @@
       <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
         <div>
           <h3>${total} thing${total === 1 ? '' : 's'} need${total === 1 ? 's' : ''} you</h3>
-          <div class="sub">On your plate, and changed since you last read the queue.</div>
+          <div class="sub">Yours: new since you last looked, plus prospects going quiet.</div>
         </div>
-        <button class="btn-ghost" style="margin-left:auto;" onclick="tkMarkSeen()">Mark all read</button>
+        <button class="btn-ghost" style="margin-left:auto;" onclick="tkMarkSeen()" title="Clears the new items. Follow-ups stay until you work them.">Mark all read</button>
       </div>
       <div style="margin-top:10px;">
+        ${followUps.slice(0, 6).map(c => {
+          const days = Math.floor((Date.now() - (c.updatedAt || c.createdAt || 0)) / 864e5);
+          return `<div class="row">
+            <span class="prio ${days >= 21 ? 'urgent' : days >= 14 ? 'high' : 'normal'}">${esc(c.stage)}</span>
+            <a href="#/outreach" onclick="orOpenFromInbox('${esc(c.id)}')">${esc(c.channel)}</a>
+            <span class="muted" style="font-size:11.5px;">· no movement in ${days} days</span>
+            <span class="when">${rel(c.updatedAt || c.createdAt)}</span>
+          </div>`;
+        }).join('')}
+        ${followUps.length > 6 ? `<div class="row"><a href="#/outreach">…and ${followUps.length - 6} more prospect${followUps.length - 6 === 1 ? '' : 's'}</a></div>` : ''}
         ${handed.slice(0, 6).map(u => `<div class="row">
           <span class="prio normal" style="color:var(--good);border-color:rgba(85,239,176,.5);">new</span>
           <a href="#/customer/${esc(u.uid)}">${esc(u.kickChannel || u.email || u.uid)}</a>
@@ -2662,6 +2718,10 @@
   window.tkOpenFromInbox = function (id) {
     location.hash = '#/tickets';
     setTimeout(() => { if (!_tkExpanded.has(id)) tkToggle(id); }, 60);
+  };
+  window.orOpenFromInbox = function (id) {
+    location.hash = '#/outreach';
+    setTimeout(() => { if (!_orExpanded.has(id)) orToggle(id); }, 60);
   };
 
   window.tkMarkSeen = async function () {
@@ -2736,6 +2796,16 @@
 
     const id = esc(t.id);
     return `<div class="tk-detail">
+      <div class="tk-field" style="margin-bottom:12px;">
+        <div class="kicker">Title</div>
+        <div class="row">
+          <input id="tk-title-${id}" value="${esc(t.title || '')}" maxlength="200"
+                 style="flex:1;min-width:220px;font-size:13px;padding:7px 10px;"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();tkSaveTitle('${id}');}">
+          <button class="btn-ghost" onclick="tkSaveTitle('${id}')">Rename</button>
+          <span class="tk-saved" id="tk-tok-${id}">Saved</span>
+        </div>
+      </div>
       <div class="tk-head">
         <span class="muted">Assignee:</span>
         <select id="tk-as-${id}" onchange="tkSetField('${id}','assignee',this.value)" style="width:190px;font-size:12px;padding:4px 8px;">
@@ -2818,6 +2888,21 @@
       if (t) t.body = value.trim() || null;      // keep the local copy honest for search
       const ok = $('tk-ok-' + id);
       if (ok) { ok.classList.add('on'); setTimeout(() => ok.classList.remove('on'), 1600); }
+    } catch (e) { alert('Failed: ' + e.message); }
+  };
+  // Renaming re-renders (the row above shows the title), but only after the
+  // save lands, so the field isn't yanked out from under whoever is typing.
+  window.tkSaveTitle = async function (id) {
+    const el = $('tk-title-' + id); if (!el) return;
+    const title = (el.value || '').trim();
+    if (!title) { alert('A ticket needs a title.'); return; }
+    try {
+      const r = await authedPost('/api/admin-tickets', { action: 'update', id, fields: { title } });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed'); }
+      const t = _tickets.find(x => x.id === id); if (t) t.title = title;
+      const ok = $('tk-tok-' + id);
+      if (ok) { ok.classList.add('on'); setTimeout(() => ok.classList.remove('on'), 1600); }
+      renderTickets();
     } catch (e) { alert('Failed: ' + e.message); }
   };
   window.tkComment = async function (id) {

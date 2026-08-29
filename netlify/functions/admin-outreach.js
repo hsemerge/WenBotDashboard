@@ -164,6 +164,9 @@ exports.handler = async (event) => {
     if (f.platform    !== undefined) update.platform    = clean(f.platform, 30) || "kick";
     if (f.link        !== undefined) update.link        = clean(f.link, 300) || null;
     if (f.displayName !== undefined) update.displayName = clean(f.displayName, 80) || null;
+    // Lowercased to match how enquiries are deduped against the pipeline — a
+    // card carrying "Bob@x.com" would let the same lead show as new forever.
+    if (f.email       !== undefined) update.email       = clean(f.email, 160).toLowerCase() || null;
     if (f.streamerUid !== undefined) {
       update.streamerUid = clean(f.streamerUid, 60) || null;
       if (update.streamerUid) logAdminAudit(db, adminUser.uid, "outreach_link", { id, channel: cur.channel, streamerUid: update.streamerUid });
