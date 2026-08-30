@@ -62,6 +62,12 @@ exports.handler = async (event) => {
     const chanOf = {};
     streamers.docs.forEach((s) => { chanOf[s.id] = s.data().kickChannel || s.id; });
     // Read every streamer's invoices + payments subcollections in bounded batches.
+    // A read that fails is skipped rather than aborting the whole report, so the
+    // totals below can silently come back LOW. That was survivable when this only
+    // produced per-row status; now it feeds money the owner reads as fact, under
+    // copy promising it "cannot drift". Count the failures and report them so the
+    // portal can refuse to present an incomplete total as a complete one.
+    let readFailures = 0;
     const docs = streamers.docs;
     const BATCH = 25;
     for (let i = 0; i < docs.length; i += BATCH) {
@@ -73,7 +79,11 @@ exports.handler = async (event) => {
             s.ref.collection("payments").get(),
           ]);
           return { uid: s.id, invDocs: inv.docs, payDocs: pay.docs };
-        } catch (e) { console.warn("[admin-billing-overview] read failed", s.id, e.message); return null; }
+        } catch (e) {
+          readFailures++;
+          console.warn("[admin-billing-overview] read failed", s.id, e.message);
+          return null;
+        }
       }));
       results.forEach((r) => {
         if (!r) return;
@@ -118,6 +128,9 @@ exports.handler = async (event) => {
       work:         { total: work,         items: workItems.sort(byDate) },
       grandTotal, cryptoTotal,
       cryptoShare: grandTotal > 0 ? cryptoTotal / grandTotal : 0,
+      // Streamers whose records could not be read. Non-zero means every total
+      // above is a FLOOR, not the real figure.
+      partial: readFailures,
     };
     return res(200, { billing: out, collected });
   } catch (e) {

@@ -38,7 +38,10 @@ const db = {
       docs: Object.entries(DATA).map(([uid, v]) => ({
         id: uid,
         data: () => ({ kickChannel: v.chan }),
-        ref: { collection: (sub) => ({ get: async () => snap(sub === "invoices" ? v.invoices : v.payments) }) },
+        ref: { collection: (sub) => ({ get: async () => {
+          if (v.explode) throw new Error("UNAVAILABLE (simulated)");
+          return snap(sub === "invoices" ? v.invoices : v.payments);
+        } }) },
       })),
     }) };
   },
@@ -110,6 +113,24 @@ const ok = (label, cond, extra) => {
 
   console.log("\n== unpaid invoices never count as collected ==");
   ok("meg's unpaid 50 is excluded", c.grandTotal === 609, "unpaid leaked in");
+
+  console.log("\n== a healthy read reports nothing missing ==");
+  ok("partial is 0 when every record was read", c.partial === 0, c.partial);
+  ok("and stays 0 on the reduced set", c2.partial === 0, c2.partial);
+
+  console.log("\n== a partial read must ADMIT it, not silently understate ==");
+  // A failing subcollection read is skipped so one bad streamer can't take the
+  // whole report down — but the totals then come back low under copy promising
+  // they cannot drift. The count is what lets the portal withdraw that claim.
+  DATA.meg.explode = true;
+  delete require.cache[require.resolve(path.join(ROOT, "admin-billing-overview.js"))];
+  const { handler: h3 } = require(path.join(ROOT, "admin-billing-overview.js"));
+  const r3 = await h3({ httpMethod: "GET", headers: {} });
+  const c3 = JSON.parse(r3.body).collected;
+  ok("still returns 200 rather than failing the whole page", r3.statusCode === 200, r3.statusCode);
+  ok("reports exactly 1 unreadable account", c3.partial === 1, c3.partial);
+  ok("total really is short (meg's 450 is missing)", c3.grandTotal === 60, c3.grandTotal);
+  ok("a short read is never reported as complete", c3.partial > 0, "claimed complete while short");
 
   console.log(fails ? `\n${fails} FAILURE(S)\n` : "\nall collected-split behaviours correct\n");
   process.exit(fails ? 1 : 0);

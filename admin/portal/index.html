@@ -538,6 +538,10 @@
                the other — the money row lost, every time.
                Filters first: this is a working screen. -->
           <div class="stats" id="billingStatCards"></div>
+          <!-- Fires when the overview came back 200 but incomplete, so the money
+               row below is a floor rather than the real total. Warn, not error:
+               the request succeeded, the numbers are just short. -->
+          <div id="billingCollectedWarn" style="display:none;background:rgba(245,197,24,.1);border:1px solid var(--gold);color:#ffeab0;padding:9px 13px;border-radius:8px;margin-bottom:10px;font-size:12.5px;"></div>
           <div class="stats" id="billingCollectedCards"></div>
           <div class="toolbar" style="margin-bottom:6px;">
             <!-- Who is listed. "Billing now" is the invoice desk; "Everyone"
@@ -3744,6 +3748,12 @@
   window.showBreakdown = function (key) {
     const b = breakdownFor(key);
     if (!b) return;
+    // The collected breakdowns tell the reader the figure "cannot drift". That is
+    // only true when every record was actually read, so withdraw the claim here
+    // too rather than leaving the modal more confident than the page behind it.
+    const shortRead = key.indexOf('col_') === 0 ? (Number((_billingCollected || {}).partial) || 0) : 0;
+    if (shortRead) b.note = (b.note ? b.note + ' ' : '')
+      + `⚠ ${shortRead} account${shortRead === 1 ? '' : 's'} could not be read, so rows are missing and this total is a minimum.`;
     // What the TILE claims, so a drift between the two is visible rather than
     // silently believed. They are computed in different places.
     const shown = (() => {
@@ -4084,7 +4094,7 @@
         ? `<button class="btn-ghost" onclick="invAction('${esc(uid)}','${esc(v.id)}','unconfirm')">Unmark</button>`
         : `<button class="btn-ghost" style="border-color:var(--good);color:var(--good);" onclick="invAction('${esc(uid)}','${esc(v.id)}','confirm')">✓ Confirm paid</button>`;
       const tx = v.txHash ? `<div class="muted" style="font-size:11px;word-break:break-all;">tx: ${esc(v.txHash)}</div>` : '';
-      return `<tr><td class="muted">${date(v.paidAt||v.createdAt)}</td><td>🪙 ${esc(v.number||'—')} · ${esc(v.description||'')}${tx}</td><td>$${Number(v.amount||0).toFixed(2)}</td><td>${st}</td><td style="white-space:nowrap;"><button class="btn-ghost" onclick="previewReceipt('${esc(uid)}','${esc(v.id)}')">👁 Preview</button> ${btn} <button class="btn-ghost" style="border-color:var(--bad);color:var(--bad);" onclick="invAction('${esc(uid)}','${esc(v.id)}','delete')">🗑</button></td></tr>`;
+      return `<tr><td class="muted">${date(v.paidAt||v.createdAt)}</td><td>🪙 ${esc(v.number||'—')} · ${esc(v.description||'')}${v.recurring ? ' <span class="muted" style="font-size:10.5px;border:1px solid var(--line2);border-radius:99px;padding:1px 6px;white-space:nowrap;" title="Counts as an invoiced subscription and advances their next due date. Set when the invoice was raised and not editable afterwards — delete and re-raise if this is wrong.">↻ monthly</span>' : ''}${tx}</td><td>$${Number(v.amount||0).toFixed(2)}</td><td>${st}</td><td style="white-space:nowrap;"><button class="btn-ghost" onclick="previewReceipt('${esc(uid)}','${esc(v.id)}')">👁 Preview</button> ${btn} <button class="btn-ghost" style="border-color:var(--bad);color:var(--bad);" onclick="invAction('${esc(uid)}','${esc(v.id)}','delete')">🗑</button></td></tr>`;
     }).join('');
     const rows = (payRows + invR) || '<tr><td colspan="5" class="muted" style="padding:14px;">No invoices or receipts yet.</td></tr>';
     return `
@@ -4095,7 +4105,7 @@
         <input id="inv-amt-${esc(uid)}" type="number" value="${defAmt}" placeholder="Amount $" min="0.01" step="0.01" style="${IST}width:90px;">
         <input id="inv-desc-${esc(uid)}" value="${esc(defDesc)}" placeholder="Description" oninput="invSuggestRecurring('${esc(uid)}')" style="${IST}width:250px;">
         <input id="inv-due-${esc(uid)}" type="date" title="Due date" style="${IST}width:auto;">
-        <label class="muted" style="display:flex;gap:4px;align-items:center;cursor:pointer;"><input type="checkbox" id="inv-rec-${esc(uid)}" checked style="width:auto;"> monthly</label>
+        <label class="muted" style="display:flex;gap:4px;align-items:center;cursor:pointer;"><input type="checkbox" id="inv-rec-${esc(uid)}" checked onchange="this.dataset.manual='1'" style="width:auto;"> monthly</label>
         <label class="muted" style="display:flex;gap:4px;align-items:center;cursor:pointer;"><input type="checkbox" id="inv-paid-${esc(uid)}" style="width:auto;" onchange="var e=document.getElementById('inv-paiddate-${esc(uid)}');if(e)e.style.display=this.checked?'':'none';"> already paid</label>
         <input id="inv-paiddate-${esc(uid)}" type="date" title="Paid date (for historical receipts)" style="${IST}width:auto;display:none;">
         <button class="btn-ghost" style="border-color:var(--accent);color:var(--accent);" onclick="createInvoice('${esc(uid)}')">+ Create invoice</button>
@@ -4157,16 +4167,35 @@
     else renderBilling();
     setTimeout(() => { const el = document.getElementById('bill-row-' + uid); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 150);
   };
-  // Keep the "monthly" flag honest as the description is typed: one-off work
+  // Suggest the "monthly" flag from the description as it is typed: one-off work
   // (website / custom / design …) shouldn't land in the recurring subs bucket,
-  // and a plan/monthly description should. This drives the subs-vs-work split on
-  // the Billing page. The admin can still override by ticking the box afterward.
+  // and a plan/monthly description should.
+  //
+  // This is a GUESS driving a load-bearing financial flag, so it is deliberately
+  // timid. `recurring` decides the invoiced-subs vs one-off-work split, whether
+  // admin-confirm-invoice stamps the next due date, and therefore whether that
+  // customer ever appears in "due soon" again — and it cannot be edited after
+  // creation, only deleted and re-raised. A wrong guess is expensive and quiet,
+  // so it only ever fires where it is genuinely unambiguous:
+  //
+  //   - It runs on EVERY keystroke (oninput), so it must never overwrite a human.
+  //     Ticking the box sets data-manual and this returns from then on. Without
+  //     that, unticking "monthly" for a one-off and then editing the description
+  //     re-ticked it — the admin's explicit choice reverted with no indication.
+  //
+  //   - Both patterns matching is AMBIGUOUS, not a win for whichever is tested
+  //     first. "WenBot Pro Plan, Monthly + overlay setup" is a real subscription
+  //     that happens to mention setup work; testing one-off first silently booked
+  //     it as project work and froze the customer's billing cycle. Ambiguous now
+  //     leaves the box alone, so the default stands and the admin decides.
   window.invSuggestRecurring = function (uid) {
     const desc = ((document.getElementById('inv-desc-' + uid) || {}).value || '').toLowerCase();
     const cb = document.getElementById('inv-rec-' + uid);
-    if (!cb) return;
-    if (/\b(one[-\s]?off|custom|website|develop|design|setup|build|logo|art|overlay|graphic|banner|edit)\b/.test(desc)) cb.checked = false;
-    else if (/\b(plan|monthly|subscription|starter|pro|elite|agency)\b/.test(desc)) cb.checked = true;
+    if (!cb || cb.dataset.manual) return;          // an explicit choice is final
+    const oneOff = /\b(one[-\s]?off|custom|website|develop|design|setup|build|logo|art|overlay|graphic|banner|edit)\b/.test(desc);
+    const plan   = /\b(plan|monthly|subscription|starter|pro|elite|agency)\b/.test(desc);
+    if (oneOff === plan) return;                   // both, or neither — say nothing
+    cb.checked = plan;
   };
 
   window.createInvoice = async function (uid) {
@@ -4328,6 +4357,18 @@
       ['Website / work',   money((bc.work || {}).total || 0), 'one-off invoices', 'col_work'],
       ['Of which crypto',  money(bc.cryptoTotal || 0), `${Math.round((bc.cryptoShare || 0) * 100)}% of everything`, 'col_crypto'],
     ];
+    // If any streamer's records could not be read, every figure here is a floor
+    // rather than the truth. Say so on the tiles themselves — the request still
+    // returned 200, so the error banner never fires, and the breakdown copy
+    // promises these "cannot drift".
+    const short = Number(bc.partial) || 0;
+    const bcWarn = $('billingCollectedWarn');
+    if (bcWarn) {
+      bcWarn.style.display = short ? 'block' : 'none';
+      bcWarn.textContent = short
+        ? `⚠ ${short} account${short === 1 ? '' : 's'} could not be read just now, so every total below is a minimum, not the real figure. Reload to try again.`
+        : '';
+    }
     const bcEl = $('billingCollectedCards');
     if (bcEl) bcEl.innerHTML = bcCards.map(([l, n, sub, key]) =>
       `<div class="stat drill" onclick="showBreakdown('${key}')" tabindex="0" role="button"`
@@ -4407,7 +4448,12 @@
     // from it. Anywhere else and the header would describe a different list to
     // the one on screen.
     if (_billingFocus && BILLING_FOCUS[_billingFocus]) {
-      rows = rows.filter(r => BILLING_FOCUS[_billingFocus](r, now));
+      // The forced row is the account the owner just came here to invoice, pushed
+      // in from Customer 360. It is exempt: otherwise pressing "Invoice" while a
+      // tile filter happens to be on lands on an empty page with no hint that the
+      // account was filtered out rather than missing. It is already excluded from
+      // every count above, so exempting it moves no number.
+      rows = rows.filter(r => r.forced || BILLING_FOCUS[_billingFocus](r, now));
     }
     const st = $('billingScopeTabs');
     if (st) st.innerHTML = [['cycle', 'Billing now'], ['all', 'Everyone']]
@@ -4438,7 +4484,11 @@
         `<div class="stat${_billingFocus ? ' drill' : ''}"`
         + (_billingFocus ? ` onclick="setBillingFocus(null)" title="Clear the filter"` : '')
         + `><div class="n">${billingNow}</div><div class="l">Billing accounts${
-            _billingScope === 'all' ? ` · <small>of ${totalShown} shown</small>` : ''}</div></div>`
+            // "shown" was a lie whenever a tile filter was on: this count is taken
+            // before that filter (deliberately — see above), so it contradicted both
+            // the toolbar count and the table 40px below it. It is the size of the
+            // pool, so name it that.
+            _billingScope === 'all' ? ` · <small>of ${totalShown} customers</small>` : ''}</div></div>`
         + tile('overdue', counts.overdue, 'Overdue', counts.overdue ? 'bad' : '')
         + tile('soon',    counts.soon,    'Due within 7 days', counts.soon ? 'warn' : '')
         + tile('crypto',  counts.crypto,  'Crypto (manual)', '')
@@ -4713,13 +4763,17 @@
   window.checkNotesExposure = async function (force) {
     if (_role !== 'owner') return;
     if (_notesExposureChecked && !force) return;
-    _notesExposureChecked = true;
     const card = $('migrateNotesCard');
     if (!card) return;
     try {
       const r = await authedPost('/api/admin-user-note', { action: 'migrate-all', dry: true });
       const d = await r.json();
       if (!r.ok) return;                                  // stay hidden on error
+      // Latch only on a real answer. Setting it before the request meant one failed
+      // call retired the check for the whole session, and a privacy detector that
+      // fails closed is indistinguishable from one reporting all-clear — notes could
+      // be sitting on streamer-readable records with the card silently hidden.
+      _notesExposureChecked = true;
       const exposed = (d.count || 0) + (d.orphanMeta || 0);
       card.classList.toggle('hidden', exposed === 0);
       if (exposed) migrateNotes(true);                    // fill in the detail
