@@ -172,22 +172,30 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
-      // verified_users — only the admin SDK (server functions) may write.
-      // This prevents a streamer (or mod) from forging verified entries with
-      // underAffiliate: true. Mods can read + delete (they help manage the
-      // verified list day-to-day).
+      // verified_users — server-only for every write INCLUDING delete.
+      // Create/update were already blocked so nobody could forge an entry with
+      // underAffiliate: true.
+      //
+      // Delete used to be allowed for owner+mod, for day-to-day list tidying.
+      // That is now routed through /api/verified-remove, which does the same
+      // thing and archives the record's identifiers first. The difference
+      // matters: a delete carries connHash, kickUserId, providerUid and
+      // discordUserId with it, alt matching needs both halves of a pair, and
+      // mods can run /lookup — which names the accounts a viewer is linked to.
+      // A client-side delete therefore let the person best placed to see an alt
+      // flag about themselves erase it, from the browser, with no server record.
+      // Nothing in the app used it: removeVerifiedUser() in js/firebase-config.js
+      // is dead code, and the bulk-clear UI no longer exists.
       match /verified_users/{doc} {
-        allow read:   if isOwnerOrMod(uid);
-        allow delete: if isOwnerOrMod(uid);
-        allow create, update: if false;
+        allow read:  if isOwnerOrMod(uid);
+        allow write: if false;
       }
 
-      // discord_links — server-only writes. Mods can read + delete (same
-      // reasoning as verified_users).
+      // discord_links — same reasoning, same route. The Discord id is one of the
+      // identifiers alt matching depends on, and deleting the link drops it.
       match /discord_links/{doc} {
-        allow read:   if isOwnerOrMod(uid);
-        allow delete: if isOwnerOrMod(uid);
-        allow create, update: if false;
+        allow read:  if isOwnerOrMod(uid);
+        allow write: if false;
       }
 
       // viewers — owner + mods can read/write. The streamer (and their mods)

@@ -183,6 +183,11 @@ async function saveVerifiedUser(kickName, data) {
     .collection("verified_users").doc(key).set(data);
 }
 
+// DEAD, and cannot work: firestore.rules makes verified_users server-write-only,
+// deletes included. Removal goes through /api/verified-remove, which archives the
+// record's identifiers first so a removal cannot quietly erase an alt link.
+// Left in place rather than deleted because nothing calls it either way — but do
+// not wire it up; it will fail on permissions.
 async function removeVerifiedUser(kickName) {
   const uid = fb.activeUid;
   const key = kickName.toLowerCase();

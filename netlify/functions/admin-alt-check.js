@@ -283,7 +283,8 @@ exports.handler = async (event) => {
     // whichever one you look up, the hop is visible from its own side.
     const ALT_TYPES = { casino_shared: MEDIUM, discord_reused: MEDIUM, discord_in: MEDIUM,
                         discord_out: MEDIUM, conn_alt: MEDIUM, conn_shared: INFO };
-    const INFO_TYPES = { renamed: INFO, casino_rename: INFO, verify_released: INFO };
+    const INFO_TYPES = { renamed: INFO, casino_rename: INFO, verify_released: INFO,
+                         verify_removed_by_mod: INFO };
     for (const e of history) {
       const weight = ALT_TYPES[e.type] || INFO_TYPES[e.type];
       if (!weight) continue;                       // 'verified' etc: not a signal

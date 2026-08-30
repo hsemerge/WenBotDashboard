@@ -22586,11 +22586,19 @@ function formatActivityDetails(action, d) {
       return `Drew raffle: <strong>${escHtml(d.winner || '?')}</strong> won — ${d.totalEntrants || 0} entrants, ${d.totalTickets || 0} tickets (${escHtml(d.mode || '')})`;
     case 'verified_user_removed': {
       const who = d.kickName ? kick(d.kickName) : `<code style="font-size:11px;">${escHtml(d.docId || '?')}</code>`;
+      // Who did it, and whether the record carried a connection fingerprint.
+      // A removal is an action a named person took — if it turns out to have
+      // been self-serving, that name is the first thing you need, and it should
+      // not require digging to find.
+      const by = d.removedByEmail ? ` <span class="muted">by ${escHtml(d.removedByEmail)}</span>` : '';
+      const conn = d.hadConnection
+        ? ` · <span title="This record carried a connection fingerprint. It is archived, so alt checks still see it.">connection archived${d.connLabel ? ' (' + escHtml(d.connLabel) + ')' : ''}</span>`
+        : '';
       if (d.discordLinksRemoved > 0) {
         const names = (d.discordUsernames || []).map(n => '@' + escHtml(n)).join(', ');
-        return `Removed verified entry ${who} + unlinked Discord (${names || (d.discordLinksRemoved + ' link(s)')})`;
+        return `Removed verified entry ${who} + unlinked Discord (${names || (d.discordLinksRemoved + ' link(s)')})${by}${conn}`;
       }
-      return `Removed verified entry ${who}`;
+      return `Removed verified entry ${who}${by}${conn}`;
     }
     // A viewer undoing their own verification. Worth reading differently from a
     // mod removal: nobody on the team did it, and it is the action that clears

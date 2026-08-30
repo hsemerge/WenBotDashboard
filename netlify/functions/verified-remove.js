@@ -111,10 +111,65 @@ exports.handler = async (event) => {
       }
     }
 
+    // ── Keep the identifiers before the record goes ──────────────────────────
+    // Same contract as verify-unlink: the delete is real (the entry has to go),
+    // but connHash, kickUserId, providerUid and discordUserId are archived first
+    // into a collection nothing else queries and no client can write.
+    //
+    // This path matters MORE than the self-serve one. A mod can remove any
+    // viewer, mods can run /lookup, and /lookup names the accounts someone is
+    // linked to — so the person best placed to see an alt flag pointing at them
+    // is also the one holding the Remove button. Alt matching needs both halves
+    // of a pair, so removing one entry used to clear the link off the other too.
+    // Removal now costs the entry, not the evidence.
+    try {
+      await db.collection("streamers").doc(uid)
+        .collection("verified_released").doc(`${docId}_${Date.now()}`)
+        .set({
+          kickName:               kickName || null,
+          kickName_lower:         (kickName || "").toLowerCase() || null,
+          kickUserId:             v.kickUserId || null,
+          provider:               v.provider || null,
+          providerUsername:       v.providerUsername || null,
+          providerUsername_lower: v.providerUsername_lower || null,
+          providerUid:            v.providerUid || null,
+          discordUserId:          v.discordUserId || (linkInfo[0] || {}).discordUserId || null,
+          discordUsername:        v.discordUsername || (linkInfo[0] || {}).discordUsername || null,
+          connHash:               v.connHash || null,
+          connLabel:              v.connLabel || null,
+          verifiedAt:             v.verifiedAt || null,
+          releasedAt:             Date.now(),
+          releasedBy:             "mod",
+          // WHO removed it. The self-serve path cannot record this (the actor is
+          // the viewer); here it is the whole point — a removal is an action a
+          // named person took, and if it turns out to have been self-serving
+          // that name is the first thing you need.
+          removedByUid:           decoded.uid || null,
+          removedByEmail:         decoded.email || null,
+        });
+    } catch (e) {
+      // Never block a removal a streamer asked for because the archive failed.
+      console.warn("[verified-remove] release snapshot failed:", e.message);
+    }
+
     const batch = db.batch();
     batch.delete(ref);
     linkInfo.forEach((l) => batch.delete(l.ref));
     await batch.commit();
+
+    // Durable trail on the viewer, so /lookup and the alt check still show that
+    // this happened after the record itself is gone.
+    try {
+      const { recordViewerEvent } = require("./_lib/viewer-history");
+      if (kickName) {
+        await recordViewerEvent(db, uid, kickName, {
+          type: "verify_removed_by_mod",
+          text: `Verification removed by a moderator`
+              + (v.provider ? ` (${v.provider})` : "")
+              + (decoded.email ? ` — ${decoded.email}` : ""),
+        });
+      }
+    } catch { /* history is best-effort, never break the removal */ }
 
     // Awaited: Netlify freezes the container the moment the response returns.
     await logAudit(uid, "verified_user_removed", {
@@ -125,6 +180,12 @@ exports.handler = async (event) => {
       discordUsernames: linkInfo.map((l) => l.discordUsername).filter(Boolean),
       roleRevoked,
       stillVerifiedElsewhere,
+      // Named, so the Activity log answers "who removed this" without a lookup.
+      removedByEmail: decoded.email || null,
+      // Whether the record carried a connection fingerprint. The hash itself is
+      // never logged — only that one existed, and its coarse label.
+      hadConnection: !!v.connHash,
+      connLabel: v.connLabel || null,
     });
 
     return res(200, {
