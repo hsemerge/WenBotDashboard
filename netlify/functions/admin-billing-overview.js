@@ -52,20 +52,59 @@ exports.handler = async (event) => {
   try {
     const streamers = await db.collection("streamers").get();
     const out = {};
-    // Read every streamer's invoices subcollection in bounded batches.
+    // Itemised money-collected, summed from the real records (never a running
+    // counter), split three ways: Stripe charges (payments subcollection), crypto
+    // subscriptions (paid invoices flagged recurring) and one-off work (paid
+    // invoices not recurring). The Billing tab renders totals + these line items.
+    const stripeItems = [], cryptoSubItems = [], workItems = [];
+    const chanOf = {};
+    streamers.docs.forEach((s) => { chanOf[s.id] = s.data().kickChannel || s.id; });
+    // Read every streamer's invoices + payments subcollections in bounded batches.
     const docs = streamers.docs;
     const BATCH = 25;
     for (let i = 0; i < docs.length; i += BATCH) {
       const chunk = docs.slice(i, i + BATCH);
       const results = await Promise.all(chunk.map(async (s) => {
         try {
-          const inv = await s.ref.collection("invoices").get();
-          return inv.empty ? null : { uid: s.id, summary: summarize(inv.docs) };
-        } catch (e) { console.warn("[admin-billing-overview] invoices read failed", s.id, e.message); return null; }
+          const [inv, pay] = await Promise.all([
+            s.ref.collection("invoices").get(),
+            s.ref.collection("payments").get(),
+          ]);
+          return { uid: s.id, invDocs: inv.docs, payDocs: pay.docs };
+        } catch (e) { console.warn("[admin-billing-overview] read failed", s.id, e.message); return null; }
       }));
-      results.forEach((r) => { if (r) out[r.uid] = r.summary; });
+      results.forEach((r) => {
+        if (!r) return;
+        const channel = chanOf[r.uid];
+        if (r.invDocs.length) out[r.uid] = summarize(r.invDocs);
+        r.invDocs.forEach((d) => {
+          const v = d.data();
+          if (v.status !== "paid") return;
+          const amount = Number(v.paidAmount != null ? v.paidAmount : v.amount) || 0;
+          const item = { uid: r.uid, channel, number: v.number || null, amount,
+                         paidAt: Number(v.paidAt) || null, description: v.description || null };
+          (v.recurring ? cryptoSubItems : workItems).push(item);
+        });
+        r.payDocs.forEach((d) => {
+          const p = d.data();
+          const amount = Number(p.amount) || 0;
+          if (amount > 0) stripeItems.push({ uid: r.uid, channel, plan: p.plan || null, amount, paidAt: Number(p.paidAt) || null });
+        });
+      });
     }
-    return res(200, { billing: out });
+    const sum = (arr) => arr.reduce((acc, x) => acc + (x.amount || 0), 0);
+    const byDate = (a, b) => (b.paidAt || 0) - (a.paidAt || 0);
+    const stripeSubs = sum(stripeItems), cryptoSubs = sum(cryptoSubItems), work = sum(workItems);
+    const grandTotal = stripeSubs + cryptoSubs + work;
+    const cryptoTotal = cryptoSubs + work;
+    const collected = {
+      stripeSubs: { total: stripeSubs, items: stripeItems.sort(byDate) },
+      cryptoSubs: { total: cryptoSubs, items: cryptoSubItems.sort(byDate) },
+      work:       { total: work,       items: workItems.sort(byDate) },
+      grandTotal, cryptoTotal,
+      cryptoShare: grandTotal > 0 ? cryptoTotal / grandTotal : 0,
+    };
+    return res(200, { billing: out, collected });
   } catch (e) {
     console.error("[admin-billing-overview]", e.message);
     return res(500, { error: "Internal server error" });
