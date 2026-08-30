@@ -542,7 +542,12 @@
           <div class="tablecard">
             <div style="overflow-x:auto;">
               <table>
-                <thead><tr><th>Channel</th><th>Plan</th><th>Method</th><th>Next payment</th><th class="num">Lifetime</th><th>Last payment</th><th class="num">Referrals</th><th>Status</th><th></th></tr></thead>
+                <thead><tr id="billingHead">
+                  <th data-sort="channel">Channel</th><th data-sort="plan">Plan</th>
+                  <th data-sort="method">Method</th><th data-sort="due">Next payment</th>
+                  <th class="num" data-sort="paid">Lifetime</th><th data-sort="lastPayment">Last payment</th>
+                  <th class="num" data-sort="referrals">Referrals</th><th data-sort="state">Status</th><th></th>
+                </tr></thead>
                 <tbody id="billingTable"><tr><td colspan="9" class="muted" style="text-align:center;padding:24px;">Loading…</td></tr></tbody>
               </table>
             </div>
@@ -4170,6 +4175,37 @@
     renderBilling();
   };
 
+  // Click-to-sort, which the retired Billing lens had and the tab did not — the
+  // point of folding them together was to lose nothing.
+  //
+  // Rows here are {u, method, nextDue, ov}, not plain users, so the comparators
+  // read through .u. Status sorts by how much attention it wants rather than
+  // alphabetically: overdue first, then due soon, then a running trial, then
+  // everything quiet — clicking it should surface work.
+  const billingSort = createTableSort({
+    storageKey: 'wb.admin.billingSort',
+    head:       '#billingHead',
+    onChange:   () => renderBilling(),
+    columns: {
+      channel:     r => String(r.u.kickChannel || r.u.uid || '').toLowerCase(),
+      plan:        { get: r => PLAN_RANK[r.u.plan] ?? -1, dir: 'asc' },
+      method:      r => String(r.method || 'zz'),
+      due:         { get: r => (r.nextDue || null), dir: 'asc' },
+      paid:        { get: r => Number(r.u.totalPaid || 0), dir: 'desc' },
+      lastPayment: r => (r.u.lastPaymentAt || null),
+      referrals:   { get: r => Number(r.u.referralsConverted || 0) * 1000 + Number(r.u.referralsSignedUp || 0), dir: 'desc' },
+      state:       { dir: 'desc', get: (r) => {
+        const now = Date.now();
+        if (r.nextDue && r.nextDue < now) return 5;                                   // overdue
+        if (r.nextDue && (r.nextDue - now) <= 7 * 864e5) return 4;                     // due soon
+        if (r.u.planTrial && r.u.trialEndsAt && r.u.trialEndsAt > now) return 3;       // trial running
+        if (r.method === 'none' && !r.u.planManual) return 2;                          // never invoiced
+        if (r.method) return 1;                                                        // billing, healthy
+        return 0;
+      } },
+    },
+  });
+
   window.renderBilling = function () {
     const tbody = $('billingTable'); if (!tbody) return;
     if (_role !== 'owner') { tbody.innerHTML = ''; return; }
@@ -4208,8 +4244,15 @@
       const u = (_users || []).find(x => x.uid === uid);
       if (u) rows.push({ u, method: null, nextDue: null, forced: true });
     });
-    rows.sort((a, b) => (b.forced ? 1 : 0) - (a.forced ? 1 : 0)
-                     || (a.nextDue || Infinity) - (b.nextDue || Infinity));
+    // Soonest-due by default; a clicked header takes over from there. The forced
+    // row is then pinned back to the top — Array.sort is stable, so the chosen
+    // ordering survives within each group, and the account you navigated to from
+    // Customer 360 stays where scrollIntoView expects it.
+    rows.sort((a, b) => (a.nextDue || Infinity) - (b.nextDue || Infinity));
+    rows = billingSort.apply(rows);
+    if (rows.some(r => r.forced)) {
+      rows = rows.slice().sort((a, b) => (b.forced ? 1 : 0) - (a.forced ? 1 : 0));
+    }
 
     const overdue = rows.filter(r => r.nextDue && r.nextDue < now).length;
     const soon    = rows.filter(r => r.nextDue && r.nextDue >= now && (r.nextDue - now) <= 7 * DAY).length;
