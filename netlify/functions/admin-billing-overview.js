@@ -53,10 +53,12 @@ exports.handler = async (event) => {
     const streamers = await db.collection("streamers").get();
     const out = {};
     // Itemised money-collected, summed from the real records (never a running
-    // counter), split three ways: Stripe charges (payments subcollection), crypto
-    // subscriptions (paid invoices flagged recurring) and one-off work (paid
-    // invoices not recurring). The Billing tab renders totals + these line items.
-    const stripeItems = [], cryptoSubItems = [], workItems = [];
+    // counter), split three ways by WHAT WAS BOUGHT: Stripe charges (payments
+    // subcollection), invoiced subscriptions (paid invoices flagged recurring)
+    // and one-off work (paid invoices not recurring). These three partition every
+    // dollar exactly once — no gaps, no overlap — so they must always add to
+    // grandTotal. HOW it was paid is a separate axis, handled below.
+    const stripeItems = [], invoicedSubItems = [], workItems = [];
     const chanOf = {};
     streamers.docs.forEach((s) => { chanOf[s.id] = s.data().kickChannel || s.id; });
     // Read every streamer's invoices + payments subcollections in bounded batches.
@@ -81,9 +83,18 @@ exports.handler = async (event) => {
           const v = d.data();
           if (v.status !== "paid") return;
           const amount = Number(v.paidAmount != null ? v.paidAmount : v.amount) || 0;
+          // `recurring` and `method` are independent: recurring says whether this
+          // was the monthly plan or one-off work, method says which rail it was
+          // paid on. Routing on recurring alone filed a CARD invoice under a
+          // crypto heading and counted it toward the crypto share. Nothing moves
+          // today — admin-create-invoice defaults to crypto and the portal
+          // hardcodes it, so every existing invoice is crypto — but the split has
+          // to survive the first card invoice rather than quietly misreport it.
+          // Unset method reads as crypto, matching that create-time default.
           const item = { uid: r.uid, channel, number: v.number || null, amount,
-                         paidAt: Number(v.paidAt) || null, description: v.description || null };
-          (v.recurring ? cryptoSubItems : workItems).push(item);
+                         paidAt: Number(v.paidAt) || null, description: v.description || null,
+                         method: v.method === "card" ? "card" : "crypto" };
+          (v.recurring ? invoicedSubItems : workItems).push(item);
         });
         r.payDocs.forEach((d) => {
           const p = d.data();
@@ -94,13 +105,17 @@ exports.handler = async (event) => {
     }
     const sum = (arr) => arr.reduce((acc, x) => acc + (x.amount || 0), 0);
     const byDate = (a, b) => (b.paidAt || 0) - (a.paidAt || 0);
-    const stripeSubs = sum(stripeItems), cryptoSubs = sum(cryptoSubItems), work = sum(workItems);
-    const grandTotal = stripeSubs + cryptoSubs + work;
-    const cryptoTotal = cryptoSubs + work;
+    const stripeSubs = sum(stripeItems), invoicedSubs = sum(invoicedSubItems), work = sum(workItems);
+    const grandTotal = stripeSubs + invoicedSubs + work;
+    // Crypto is a CROSS-CUT of the three buckets above, never a fourth bucket:
+    // it re-slices the same money by payment rail. Adding it to the others would
+    // double-count. Stripe charges are by definition not crypto; invoices count
+    // unless they were raised as card.
+    const cryptoTotal = sum([...invoicedSubItems, ...workItems].filter((x) => x.method === "crypto"));
     const collected = {
-      stripeSubs: { total: stripeSubs, items: stripeItems.sort(byDate) },
-      cryptoSubs: { total: cryptoSubs, items: cryptoSubItems.sort(byDate) },
-      work:       { total: work,       items: workItems.sort(byDate) },
+      stripeSubs:   { total: stripeSubs,   items: stripeItems.sort(byDate) },
+      invoicedSubs: { total: invoicedSubs, items: invoicedSubItems.sort(byDate) },
+      work:         { total: work,         items: workItems.sort(byDate) },
       grandTotal, cryptoTotal,
       cryptoShare: grandTotal > 0 ? cryptoTotal / grandTotal : 0,
     };

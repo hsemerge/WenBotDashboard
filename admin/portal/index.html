@@ -3688,14 +3688,17 @@
                                  note: `${t.status}${t.assignee ? ' · ' + String(t.assignee).split('@')[0] : ' · unassigned'}` })),
           total: list.length, money: false };
       }
-      case 'col_stripe': case 'col_cryptosubs': case 'col_work': case 'col_total': case 'col_crypto': {
+      case 'col_stripe': case 'col_invoicedsubs': case 'col_work': case 'col_total': case 'col_crypto': {
         const c = _billingCollected || {};
         // One row per actual charge / paid invoice. Clicking the channel opens
-        // Customer 360, where crypto invoices can be viewed and confirmed.
+        // Customer 360, where invoices can be viewed and confirmed. The rail is
+        // spelled out on card rows so an invoice that is NOT crypto can be told
+        // apart here rather than being taken on trust from the tile it sits under.
         const itemRow = (it) => ({ uid: it.uid, name: it.channel || it.uid, amount: it.amount,
-          note: [it.number, it.plan, it.description, it.paidAt ? date(it.paidAt) : null].filter(Boolean).join(' · ') });
+          note: [it.number, it.plan, it.description, it.method === 'card' ? '💳 card' : null,
+                 it.paidAt ? date(it.paidAt) : null].filter(Boolean).join(' · ') });
         const S = (c.stripeSubs && c.stripeSubs.items) || [];
-        const CS = (c.cryptoSubs && c.cryptoSubs.items) || [];
+        const CS = (c.invoicedSubs && c.invoicedSubs.items) || [];
         const W = (c.work && c.work.items) || [];
         if (key === 'col_stripe') return {
           title: 'Stripe subscriptions collected', money: true,
@@ -3703,11 +3706,11 @@
           formula: 'sum( amount )  over every Stripe payment',
           rows: S.map(itemRow), total: (c.stripeSubs && c.stripeSubs.total) || 0,
           note: 'Click a channel to open their record.' };
-        if (key === 'col_cryptosubs') return {
-          title: 'Crypto subscriptions collected', money: true,
-          rule: 'Paid invoices flagged recurring — the monthly plan, paid by crypto. The crypto equivalent of a Stripe subscription.',
+        if (key === 'col_invoicedsubs') return {
+          title: 'Invoiced subscriptions collected', money: true,
+          rule: 'Paid invoices flagged recurring — the monthly plan billed by hand instead of by card on file. Today every one of these is settled in crypto; a card invoice would still belong here, and is marked as such.',
           formula: 'sum( paid invoice amount )  where  recurring = true',
-          rows: CS.map(itemRow), total: (c.cryptoSubs && c.cryptoSubs.total) || 0,
+          rows: CS.map(itemRow), total: (c.invoicedSubs && c.invoicedSubs.total) || 0,
           note: 'Click a channel to view or confirm their invoices.' };
         if (key === 'col_work') return {
           title: 'Website / other work collected', money: true,
@@ -3716,17 +3719,21 @@
           rows: W.map(itemRow), total: (c.work && c.work.total) || 0,
           note: 'Click a channel to view or confirm their invoices.' };
         if (key === 'col_crypto') {
-          const items = [...CS, ...W].sort((a, b) => (b.paidAt || 0) - (a.paidAt || 0));
+          // A cross-cut, not a fourth bucket: it re-slices the invoices above by
+          // payment rail, so it deliberately overlaps them and must never be added
+          // to them. Card invoices are excluded — that is the whole point of it.
+          const items = [...CS, ...W].filter(it => it.method !== 'card')
+            .sort((a, b) => (b.paidAt || 0) - (a.paidAt || 0));
           return { title: 'Collected via crypto (all)', money: true,
-            rule: 'Every paid crypto invoice — subscriptions and one-off work together — so you can see how much of the business runs on crypto.',
-            formula: 'crypto subscriptions  +  one-off work',
+            rule: 'Every paid invoice actually settled in crypto — subscriptions and one-off work together — so you can see how much of the business runs on crypto. This re-slices the invoices above by payment rail rather than adding to them.',
+            formula: 'sum( paid invoice amount )  where  method = crypto',
             rows: items.map(itemRow), total: c.cryptoTotal || 0,
             note: `${Math.round((c.cryptoShare || 0) * 100)}% of everything collected.` };
         }
         const items = [...S, ...CS, ...W].sort((a, b) => (b.paidAt || 0) - (a.paidAt || 0));
         return { title: 'Total collected (everything)', money: true,
-          rule: 'All money ever collected — Stripe subscriptions, crypto subscriptions and one-off work — summed from the actual charges and paid invoices, so it cannot drift.',
-          formula: 'Stripe subs  +  crypto subs  +  one-off work',
+          rule: 'All money ever collected — Stripe subscriptions, invoiced subscriptions and one-off work — summed from the actual charges and paid invoices, so it cannot drift. Those three cover every dollar exactly once; the crypto tile re-slices the same money by payment rail and is not added on top.',
+          formula: 'Stripe subs  +  invoiced subs  +  one-off work',
           rows: items.map(itemRow), total: c.grandTotal || 0,
           note: 'One row per charge or paid invoice. Click a channel to open their record.' };
       }
@@ -4314,7 +4321,10 @@
     const bcCards = [
       ['Total collected', money(bc.grandTotal || 0), 'everything, all types', 'col_total'],
       ['Stripe subs',      money((bc.stripeSubs || {}).total || 0), 'card subscriptions', 'col_stripe'],
-      ['Crypto subs',      money((bc.cryptoSubs || {}).total || 0), 'monthly invoices', 'col_cryptosubs'],
+      // Named for what was BOUGHT, not how it was paid — these three partition
+      // every dollar, and a monthly invoice belongs here whether it was settled
+      // in crypto or by card. The rail is the separate tile below.
+      ['Invoiced subs',    money((bc.invoicedSubs || {}).total || 0), 'monthly invoices', 'col_invoicedsubs'],
       ['Website / work',   money((bc.work || {}).total || 0), 'one-off invoices', 'col_work'],
       ['Of which crypto',  money(bc.cryptoTotal || 0), `${Math.round((bc.cryptoShare || 0) * 100)}% of everything`, 'col_crypto'],
     ];
