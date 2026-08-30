@@ -457,7 +457,13 @@
              transferring a viewer is a support action on a PERSON, not
              something you do to a streamer account. -->
         <div id="toolsView" class="hidden">
-          <div class="tablecard owner-only" style="padding:16px;margin-bottom:16px;">
+          <!-- Hidden once there is nothing left to move, and shown again if
+               anything ever puts a note back on a streamer record. Deleting it
+               outright would remove the DETECTOR as well as the fixer, and this
+               is a privacy regression worth still being able to notice — a
+               single bad write is all it takes for notes to become readable by
+               the people they describe again. -->
+          <div id="migrateNotesCard" class="tablecard owner-only hidden" style="padding:16px;margin-bottom:16px;">
             <div class="kicker">Privacy</div>
             <div class="panel-title">🔒 Move admin notes out of streamer records</div>
             <div class="sub" style="margin-bottom:11px;">
@@ -1061,6 +1067,9 @@
     if (name === 'billing') renderBilling();
     if (name === 'todo' && !_todosLoaded) loadTodos();
     if (name === 'suggestions' && !_sugLoaded) loadSuggestions();
+    // Opening Admin Tools asks, read-only, whether any notes are still exposed.
+    // The card only appears if the answer is yes.
+    if (name === 'tools') checkNotesExposure();
     if (name === 'outreach' && !_outreachLoaded) loadOutreach();
     if (name === 'tickets' && !_ticketsLoaded) loadTickets();
     // Opening the queue IS reading it — clear the sign-in banner (and the nav
@@ -4530,6 +4539,26 @@
   // One-time sweep of legacy notes, run from Admin Tools so nobody needs a
   // service-account key to fix data. Preview lists what would move; the real
   // run is idempotent, so a second click is harmless.
+  // Read-only. Shows the migration card only while something is still exposed,
+  // so a finished one-time job stops cluttering the page but still comes back if
+  // a note ever lands on a streamer record again.
+  let _notesExposureChecked = false;
+  window.checkNotesExposure = async function (force) {
+    if (_role !== 'owner') return;
+    if (_notesExposureChecked && !force) return;
+    _notesExposureChecked = true;
+    const card = $('migrateNotesCard');
+    if (!card) return;
+    try {
+      const r = await authedPost('/api/admin-user-note', { action: 'migrate-all', dry: true });
+      const d = await r.json();
+      if (!r.ok) return;                                  // stay hidden on error
+      const exposed = (d.count || 0) + (d.orphanMeta || 0);
+      card.classList.toggle('hidden', exposed === 0);
+      if (exposed) migrateNotes(true);                    // fill in the detail
+    } catch { /* leave it hidden — this is a nicety, not a gate */ }
+  };
+
   window.migrateNotes = async function (dry) {
     const el = $('migrateNotesMsg');
     if (!dry && !confirm('Move every remaining admin note off the streamer records?\n\nThey stay readable to the team, and stop being readable by the streamers they are about.')) return;
@@ -4549,6 +4578,8 @@
       } else {
         el.innerHTML = `<span class="ok">Moved ${d.moved} note${d.moved === 1 ? '' : 's'}${d.metaCleared ? `, cleared ${d.metaCleared} leftover stamp${d.metaCleared === 1 ? '' : 's'}` : ''}.</span> <span class="muted">Now admin-only.</span>`;
         await loadUsers();
+        // Nothing left to move → the card retires itself.
+        setTimeout(() => checkNotesExposure(true), 1200);
       }
     } catch (e) { if (el) el.innerHTML = `<span class="warn">${esc(e.message)}</span>`; }
   };
