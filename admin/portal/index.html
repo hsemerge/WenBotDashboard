@@ -532,8 +532,8 @@
           <div class="tablecard">
             <div style="overflow-x:auto;">
               <table>
-                <thead><tr><th>Channel</th><th>Plan</th><th>Method</th><th>Next payment</th><th>Status</th><th></th></tr></thead>
-                <tbody id="billingTable"><tr><td colspan="6" class="muted" style="text-align:center;padding:24px;">Loading…</td></tr></tbody>
+                <thead><tr><th>Channel</th><th>Plan</th><th>Method</th><th>Next payment</th><th class="num">Lifetime</th><th>Last payment</th><th>Status</th><th></th></tr></thead>
+                <tbody id="billingTable"><tr><td colspan="8" class="muted" style="text-align:center;padding:24px;">Loading…</td></tr></tbody>
               </table>
             </div>
           </div>
@@ -4177,7 +4177,7 @@
     const inList = new Set(rows.map(r => r.u.uid));
     _billingExpanded.forEach(uid => { if (!inList.has(uid)) { const u = (_users || []).find(x => x.uid === uid); if (u) rows.push({ u, method: null, nextDue: null }); } });
 
-    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:24px;">No active billing cycles yet.</td></tr>'; return; }
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px;">No active billing cycles yet.</td></tr>'; return; }
     tbody.innerHTML = rows.map(r => {
       const uid = r.u.uid, ch = esc(r.u.kickChannel || uid), open = _billingExpanded.has(uid);
       let method = '<span class="muted">—</span>', nextCell = '<span class="muted">—</span>', state = '<span class="muted">—</span>', action = '';
@@ -4208,8 +4208,8 @@
       const head = `<tr id="bill-row-${esc(uid)}" style="cursor:pointer;" onclick="toggleBillingDetail('${esc(uid)}')">
         <td><span class="muted" style="display:inline-block;width:12px;">${open ? '▾' : '▸'}</span> ${ch}</td>
         <td><span class="pill ${esc(r.u.plan)}">${esc(r.u.plan)}</span></td>
-        <td>${method}</td><td class="num">${nextCell}</td><td>${state}</td><td>${action}</td></tr>`;
-      const detail = open ? `<tr><td colspan="6" style="background:rgba(4,10,16,.6);padding:16px 20px;border-bottom:2px solid var(--accent);">${billingSectionHtml(uid, _detail[uid])}</td></tr>` : '';
+        <td>${method}</td><td class="num">${nextCell}</td><td class="num">${r.u.totalPaid ? money(r.u.totalPaid) : '<span class="muted">—</span>'}${r.u.paymentCount ? ` <small class="muted">· ${r.u.paymentCount}</small>` : ''}</td><td class="muted">${r.u.lastPaymentAt ? rel(r.u.lastPaymentAt) : '—'}</td><td>${state}</td><td>${action}</td></tr>`;
+      const detail = open ? `<tr><td colspan="8" style="background:rgba(4,10,16,.6);padding:16px 20px;border-bottom:2px solid var(--accent);">${billingSectionHtml(uid, _detail[uid])}</td></tr>` : '';
       return head + detail;
     }).join('');
   };
