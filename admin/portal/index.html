@@ -533,7 +533,12 @@
         <!-- BILLING (ported — ids unchanged; owner-only) -->
         <div id="billingView" class="hidden owner-only">
           <div id="billingErr" style="display:none;background:rgba(255,111,145,.1);border:1px solid var(--bad);color:#ffd7de;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;"></div>
+          <!-- Two rows, two jobs, two containers. They were both being written
+               into billingStatCards, and whichever ran second silently erased
+               the other — the money row lost, every time.
+               Filters first: this is a working screen. -->
           <div class="stats" id="billingStatCards"></div>
+          <div class="stats" id="billingCollectedCards"></div>
           <div class="toolbar" style="margin-bottom:6px;">
             <!-- Who is listed. "Billing now" is the invoice desk; "Everyone"
                  turns the same table into what used to be a separate Billing
@@ -877,7 +882,7 @@
 
   const app  = initializeApp(firebaseConfig);
   const auth = getAuth(app);
-  let _users = [], _adminSecret = '', _billingOverview = {}, _role = 'owner';
+  let _users = [], _adminSecret = '', _billingOverview = {}, _billingCollected = {}, _role = 'owner';
 
   // Interim convenience until per-account TOTP MFA replaces the shared secret:
   // remember it on this device (opt-in). The server still verifies every request.
@@ -897,7 +902,7 @@
       const r = await authedFetch('/api/admin-billing-overview');
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { _billingOverviewErr = 'Billing lookup failed (' + r.status + '): ' + (d.error || 'unknown'); }
-      else { _billingOverview = d.billing || {}; _billingOverviewErr = ''; }
+      else { _billingOverview = d.billing || {}; _billingCollected = d.collected || {}; _billingOverviewErr = ''; }
     } catch (e) { _billingOverviewErr = 'Billing lookup error: ' + e.message; }
     if (typeof renderBilling === 'function') renderBilling();
     // The crypto tiles are computed from these invoices, so refresh the
@@ -1174,9 +1179,9 @@
         ['— via crypto', money(mrrCrypto), `${cryptoPayers} invoice customer${cryptoPayers === 1 ? '' : 's'}`, '',
          'The part of MRR from customers you invoice and who pay in crypto. Recurring revenue just like a card subscription — it just arrives by hand.',
          'mrrcrypto'],
-        ['Crypto collected', money(cryptoLifetime), 'lifetime, from paid invoices', '',
-         'Every crypto/manual invoice ever marked paid, added up. The Stripe figure lives on the Billing page.',
-         'cryptolifetime'],
+        ['Total collected', money((_billingCollected && _billingCollected.grandTotal) || 0), 'all payments · split on Billing', '',
+         'Every dollar ever collected — Stripe subscriptions, crypto subscriptions and one-off work — from the real charges and paid invoices. Click for the breakdown; the full split lives on the Billing page.',
+         'col_total'],
       ] : []),
       ['Trials ending ≤7d', trialsSoon, '', trialsSoon ? 'warn' : '', '', 'trials7'],
       ['Payment failed', failed, '', failed ? 'bad' : '', '', 'failed'],
@@ -3683,6 +3688,48 @@
                                  note: `${t.status}${t.assignee ? ' · ' + String(t.assignee).split('@')[0] : ' · unassigned'}` })),
           total: list.length, money: false };
       }
+      case 'col_stripe': case 'col_cryptosubs': case 'col_work': case 'col_total': case 'col_crypto': {
+        const c = _billingCollected || {};
+        // One row per actual charge / paid invoice. Clicking the channel opens
+        // Customer 360, where crypto invoices can be viewed and confirmed.
+        const itemRow = (it) => ({ uid: it.uid, name: it.channel || it.uid, amount: it.amount,
+          note: [it.number, it.plan, it.description, it.paidAt ? date(it.paidAt) : null].filter(Boolean).join(' · ') });
+        const S = (c.stripeSubs && c.stripeSubs.items) || [];
+        const CS = (c.cryptoSubs && c.cryptoSubs.items) || [];
+        const W = (c.work && c.work.items) || [];
+        if (key === 'col_stripe') return {
+          title: 'Stripe subscriptions collected', money: true,
+          rule: 'Every Stripe card charge ever recorded, one row per charge, from the payments the webhook writes automatically — a since-cancelled subscription keeps the charges it already made.',
+          formula: 'sum( amount )  over every Stripe payment',
+          rows: S.map(itemRow), total: (c.stripeSubs && c.stripeSubs.total) || 0,
+          note: 'Click a channel to open their record.' };
+        if (key === 'col_cryptosubs') return {
+          title: 'Crypto subscriptions collected', money: true,
+          rule: 'Paid invoices flagged recurring — the monthly plan, paid by crypto. The crypto equivalent of a Stripe subscription.',
+          formula: 'sum( paid invoice amount )  where  recurring = true',
+          rows: CS.map(itemRow), total: (c.cryptoSubs && c.cryptoSubs.total) || 0,
+          note: 'Click a channel to view or confirm their invoices.' };
+        if (key === 'col_work') return {
+          title: 'Website / other work collected', money: true,
+          rule: 'Paid invoices flagged one-off (not recurring) — custom website builds, design and other project work, kept separate from the monthlies.',
+          formula: 'sum( paid invoice amount )  where  recurring = false',
+          rows: W.map(itemRow), total: (c.work && c.work.total) || 0,
+          note: 'Click a channel to view or confirm their invoices.' };
+        if (key === 'col_crypto') {
+          const items = [...CS, ...W].sort((a, b) => (b.paidAt || 0) - (a.paidAt || 0));
+          return { title: 'Collected via crypto (all)', money: true,
+            rule: 'Every paid crypto invoice — subscriptions and one-off work together — so you can see how much of the business runs on crypto.',
+            formula: 'crypto subscriptions  +  one-off work',
+            rows: items.map(itemRow), total: c.cryptoTotal || 0,
+            note: `${Math.round((c.cryptoShare || 0) * 100)}% of everything collected.` };
+        }
+        const items = [...S, ...CS, ...W].sort((a, b) => (b.paidAt || 0) - (a.paidAt || 0));
+        return { title: 'Total collected (everything)', money: true,
+          rule: 'All money ever collected — Stripe subscriptions, crypto subscriptions and one-off work — summed from the actual charges and paid invoices, so it cannot drift.',
+          formula: 'Stripe subs  +  crypto subs  +  one-off work',
+          rows: items.map(itemRow), total: c.grandTotal || 0,
+          note: 'One row per charge or paid invoice. Click a channel to open their record.' };
+      }
       default: return null;
     }
   }
@@ -3693,7 +3740,10 @@
     // What the TILE claims, so a drift between the two is visible rather than
     // silently believed. They are computed in different places.
     const shown = (() => {
-      const el = [...document.querySelectorAll('#dashTiles .stat')]
+      // Every container that renders a drillable tile has to be listed here. Miss
+      // one and `shown` comes back null, which counts as "agrees" — the drift
+      // check goes quiet for exactly the tiles it was built to police.
+      const el = [...document.querySelectorAll('#dashTiles .stat, #billingStatCards .stat, #billingCollectedCards .stat')]
         .find(e => e.getAttribute('onclick') === `showBreakdown('${key}')`);
       return el ? el.querySelector('.n').textContent.trim() : null;
     })();
@@ -4036,7 +4086,7 @@
       <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--line2);display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
         <span class="muted" style="width:100%;font-size:11px;">New crypto invoice (prefilled from their ${esc(PLAN_LABEL[plan] || plan)} plan):</span>
         <input id="inv-amt-${esc(uid)}" type="number" value="${defAmt}" placeholder="Amount $" min="0.01" step="0.01" style="${IST}width:90px;">
-        <input id="inv-desc-${esc(uid)}" value="${esc(defDesc)}" placeholder="Description" style="${IST}width:250px;">
+        <input id="inv-desc-${esc(uid)}" value="${esc(defDesc)}" placeholder="Description" oninput="invSuggestRecurring('${esc(uid)}')" style="${IST}width:250px;">
         <input id="inv-due-${esc(uid)}" type="date" title="Due date" style="${IST}width:auto;">
         <label class="muted" style="display:flex;gap:4px;align-items:center;cursor:pointer;"><input type="checkbox" id="inv-rec-${esc(uid)}" checked style="width:auto;"> monthly</label>
         <label class="muted" style="display:flex;gap:4px;align-items:center;cursor:pointer;"><input type="checkbox" id="inv-paid-${esc(uid)}" style="width:auto;" onchange="var e=document.getElementById('inv-paiddate-${esc(uid)}');if(e)e.style.display=this.checked?'':'none';"> already paid</label>
@@ -4100,6 +4150,18 @@
     else renderBilling();
     setTimeout(() => { const el = document.getElementById('bill-row-' + uid); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 150);
   };
+  // Keep the "monthly" flag honest as the description is typed: one-off work
+  // (website / custom / design …) shouldn't land in the recurring subs bucket,
+  // and a plan/monthly description should. This drives the subs-vs-work split on
+  // the Billing page. The admin can still override by ticking the box afterward.
+  window.invSuggestRecurring = function (uid) {
+    const desc = ((document.getElementById('inv-desc-' + uid) || {}).value || '').toLowerCase();
+    const cb = document.getElementById('inv-rec-' + uid);
+    if (!cb) return;
+    if (/\b(one[-\s]?off|custom|website|develop|design|setup|build|logo|art|overlay|graphic|banner|edit)\b/.test(desc)) cb.checked = false;
+    else if (/\b(plan|monthly|subscription|starter|pro|elite|agency)\b/.test(desc)) cb.checked = true;
+  };
+
   window.createInvoice = async function (uid) {
     const amount      = parseFloat(($('inv-amt-' + uid) || {}).value);
     const description = (($('inv-desc-' + uid) || {}).value || '').trim();
@@ -4246,6 +4308,21 @@
   window.renderBilling = function () {
     const tbody = $('billingTable'); if (!tbody) return;
     if (_role !== 'owner') { tbody.innerHTML = ''; return; }
+    // Money collected, split by type — summed from real charges + paid invoices
+    // (see /api/admin-billing-overview). Each tile drills into its line items.
+    const bc = _billingCollected || {};
+    const bcCards = [
+      ['Total collected', money(bc.grandTotal || 0), 'everything, all types', 'col_total'],
+      ['Stripe subs',      money((bc.stripeSubs || {}).total || 0), 'card subscriptions', 'col_stripe'],
+      ['Crypto subs',      money((bc.cryptoSubs || {}).total || 0), 'monthly invoices', 'col_cryptosubs'],
+      ['Website / work',   money((bc.work || {}).total || 0), 'one-off invoices', 'col_work'],
+      ['Of which crypto',  money(bc.cryptoTotal || 0), `${Math.round((bc.cryptoShare || 0) * 100)}% of everything`, 'col_crypto'],
+    ];
+    const bcEl = $('billingCollectedCards');
+    if (bcEl) bcEl.innerHTML = bcCards.map(([l, n, sub, key]) =>
+      `<div class="stat drill" onclick="showBreakdown('${key}')" tabindex="0" role="button"`
+      + ` onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showBreakdown('${key}');}">`
+      + `<div class="n">${esc(n)}</div><div class="l">${esc(l)}${sub ? ' · <small>' + esc(sub) + '</small>' : ''}</div></div>`).join('');
     const q = ($('billingSearch') && $('billingSearch').value || '').toLowerCase().trim();
     const dueOnly = !!($('billingDueOnly') && $('billingDueOnly').checked);
     const now = Date.now(), DAY = 864e5;
