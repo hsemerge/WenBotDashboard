@@ -352,8 +352,12 @@ exports.handler = async (event) => {
   // being counted as a streamer here while every client-side figure excluded it.
   // The two disagreed by however many admins have channels, and nothing said so.
   // (Set above, from the adminRole claim, so it is available by this point.)
+  // Archived belongs in this rule too. The roster hides archived accounts by
+  // default and every client-side figure drops them, so counting them here made
+  // the headline permanently disagree with the list beneath it — and with the
+  // tile breakdowns, which would have reported a drift on every single load.
   const streamers = users.filter((u) =>
-    u.accountType !== "moderator" && u.accountType !== "internal" && !u.isTeamAccount);
+    u.accountType !== "moderator" && u.accountType !== "internal" && !u.isTeamAccount && !u.archived);
   const stats = {
     total:        streamers.length,
     onboarded:    streamers.filter((u) => u.onboarded).length,

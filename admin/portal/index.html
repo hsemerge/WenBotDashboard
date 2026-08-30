@@ -547,7 +547,7 @@
               </table>
             </div>
           </div>
-          <div class="sub" style="margin-top:14px;">💳 Stripe subscriptions auto-renew (dates come from Stripe). 🪙 Crypto subs are manual, send an invoice near the due date. Only streamers with an active billing cycle appear here.</div>
+          <div class="sub" style="margin-top:14px;">💳 Stripe subscriptions auto-renew (dates come from Stripe). 🪙 Crypto subs are manual, send an invoice near the due date. Switch to <b>Everyone</b> to include customers you have never invoiced. Click any row for their invoice history and the form to send a new one.</div>
         </div>
 
         <!-- PORTALS & DOMAINS (owner) -->
@@ -3514,6 +3514,20 @@
 
   let _lens = 'overview';
   try { const L = localStorage.getItem('wb.admin.lens'); if (L && LENSES[L]) _lens = L; } catch {}
+  // A sort saved while the Billing LENS existed points at a column no remaining
+  // lens renders (paid / renewal / lastPayment). table-sort restores it because
+  // the comparators are still registered for the Billing tab, so the roster
+  // would come back ordered by an invisible column, with no arrow to explain it
+  // — and, because a sort is then active, the trial-deadline and live-first
+  // default orderings would both stay suppressed. Clear it once, on load.
+  // Must go through usersSort.clear(), not localStorage: the sorter was created
+  // above and has ALREADY restored the saved state into memory, so deleting the
+  // key alone would leave this session still sorted by the invisible column.
+  try {
+    const act = usersSort.active();
+    const visible = new Set(Object.values(LENSES).flatMap(d => d.cols.map(c => c[0])));
+    if (act && !visible.has(act.key)) usersSort.clear();
+  } catch {}
 
   function lensDef() {
     const d = LENSES[_lens];
@@ -4166,7 +4180,11 @@
     // Our own accounts are never billed, so they don't belong on a billing page
     // — the owner's channel was showing up as a crypto customer purely because
     // it has old invoices against it. Moderator logins aren't customers either.
-    let rows = (_users || []).filter(u => isCustomer(u)).map(u => {
+    // Archived too: every other roster surface pairs isCustomer with !archived.
+    // It barely showed under the cycle-only scope because an archived account
+    // rarely still bills — but Everyone puts all of them on the page, offering
+    // to invoice accounts that were deliberately shut down.
+    let rows = (_users || []).filter(u => isCustomer(u) && !u.archived).map(u => {
       const ov = _billingOverview[u.uid];
       const hasCrypto = !!ov || !!u.cryptoNextDue || !!u.cryptoBilling;
       const paidPlan  = PAID_PLANS.has(String(u.plan || '').toLowerCase());
@@ -4179,11 +4197,28 @@
     if (q) rows = rows.filter(r =>
       ((r.u.kickChannel || r.u.uid) + ' ' + (r.u.plan || '') + ' ' + (r.u.email || '')).toLowerCase().includes(q));
     if (dueOnly) rows = rows.filter(r => r.nextDue && (r.nextDue - now) <= 7 * DAY);
-    rows.sort((a, b) => (a.nextDue || Infinity) - (b.nextDue || Infinity));
+
+    // Force in any row the owner has open — typically one they reached from
+    // Customer 360's Invoice button, which may have no billing cycle at all.
+    // Done BEFORE the counts and the sort, so the header can't disagree with
+    // the table and the row they navigated to isn't dumped at the bottom.
+    const inList = new Set(rows.map(r => r.u.uid));
+    _billingExpanded.forEach(uid => {
+      if (inList.has(uid)) return;
+      const u = (_users || []).find(x => x.uid === uid);
+      if (u) rows.push({ u, method: null, nextDue: null, forced: true });
+    });
+    rows.sort((a, b) => (b.forced ? 1 : 0) - (a.forced ? 1 : 0)
+                     || (a.nextDue || Infinity) - (b.nextDue || Infinity));
 
     const overdue = rows.filter(r => r.nextDue && r.nextDue < now).length;
     const soon    = rows.filter(r => r.nextDue && r.nextDue >= now && (r.nextDue - now) <= 7 * DAY).length;
     const crypto  = rows.filter(r => r.method === 'crypto').length;
+    // In Everyone scope the list is no longer "billing accounts", so neither the
+    // tile nor the count may keep saying so — a headline of "84 Billing
+    // accounts" when 11 actually bill is worse than no headline, and the scope
+    // is remembered across sessions so it would be read cold on another day.
+    const billingNow = rows.filter(r => !!r.method).length;
     const st = $('billingScopeTabs');
     if (st) st.innerHTML = [['cycle', 'Billing now'], ['all', 'Everyone']]
       .map(([k, l]) => `<button class="${k === _billingScope ? '' : 'btn-ghost'}" onclick="setBillingScope('${k}')" style="padding:7px 14px;font-size:12.5px;">${l}</button>`).join('');
@@ -4192,19 +4227,19 @@
       ? 'Every customer, including ones you have never invoiced — spot who is worth billing.'
       : 'Only accounts with a live billing cycle.';
     const cnt = $('billingCount');
-    if (cnt) cnt.textContent = `${rows.length} account${rows.length === 1 ? '' : 's'}`;
+    if (cnt) cnt.textContent = _billingScope === 'all'
+      ? `${rows.length} shown · ${billingNow} billing`
+      : `${rows.length} account${rows.length === 1 ? '' : 's'}`;
 
     const eb = $('billingErr');
     if (eb) { eb.style.display = _billingOverviewErr ? 'block' : 'none'; eb.textContent = _billingOverviewErr; }
     const sc = $('billingStatCards');
     if (sc) sc.innerHTML =
-      `<div class="stat"><div class="n">${rows.length}</div><div class="l">Billing accounts</div></div>`
+      `<div class="stat"><div class="n">${billingNow}</div><div class="l">Billing accounts${
+        _billingScope === 'all' ? ` · <small>of ${rows.length} shown</small>` : ''}</div></div>`
       + `<div class="stat ${overdue ? 'bad' : ''}"><div class="n">${overdue}</div><div class="l">Overdue</div></div>`
       + `<div class="stat ${soon ? 'warn' : ''}"><div class="n">${soon}</div><div class="l">Due within 7 days</div></div>`
       + `<div class="stat"><div class="n">${crypto}</div><div class="l">Crypto (manual)</div></div>`;
-
-    const inList = new Set(rows.map(r => r.u.uid));
-    _billingExpanded.forEach(uid => { if (!inList.has(uid)) { const u = (_users || []).find(x => x.uid === uid); if (u) rows.push({ u, method: null, nextDue: null }); } });
 
     if (!rows.length) {
       tbody.innerHTML = `<tr><td colspan="9" class="muted" style="text-align:center;padding:24px;">${
@@ -4216,7 +4251,19 @@
       const uid = r.u.uid, ch = esc(r.u.kickChannel || uid), open = _billingExpanded.has(uid);
       let method = '<span class="muted">—</span>', nextCell = '<span class="muted">—</span>', state = '<span class="muted">—</span>', action = '';
       if (r.method === 'none') {
-        if (r.u.planManual) { method = '🎁 Comped'; state = '<span class="muted">free / comped</span>'; action = '<span class="muted">no billing</span>'; }
+        // TRIALS BEFORE COMPS. A trial is granted as a manual plan, so checking
+        // planManual first labelled a live trial "🎁 Comped · free / comped · no
+        // billing" — telling the owner to ignore the one row that most needs an
+        // invoice, on the screen whose whole job is catching that. billingState()
+        // was fixed for exactly this misreading; this renderer never was.
+        const onTrial = r.u.planTrial && r.u.trialEndsAt && r.u.trialEndsAt > Date.now();
+        if (onTrial) {
+          const left = Math.max(0, Math.ceil((r.u.trialEndsAt - Date.now()) / 864e5));
+          method = '🎁 Free trial';
+          state  = `<span class="${left <= 7 ? 'warn' : 'muted'}">${left} day${left === 1 ? '' : 's'} left</span>`;
+          action = `<span style="color:var(--gold);">converts or lapses ${date(r.u.trialEndsAt)} →</span>`;
+        }
+        else if (r.u.planManual) { method = '🎁 Comped'; state = '<span class="muted">free / not billed</span>'; action = '<span class="muted">no billing</span>'; }
         else { method = '<span class="muted">—</span>'; state = '<span class="warn">⚠ No invoice yet</span>'; action = '<span style="color:var(--gold);">send one →</span>'; }
       } else if (r.method) {
         const bs = billingState(r.u);
