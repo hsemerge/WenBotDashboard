@@ -3810,7 +3810,12 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
               </optgroup>
               <optgroup label="Admin">
                 <option value="verified_status_updated">Verified status updated</option>
-                <option value="verified_user_removed">Verified removed</option>
+                <option value="verified_user_removed">Verified removed (by a mod)</option>
+                <!-- A viewer releasing their OWN verification was already logged
+                     but had no filter and no renderer, so it dumped raw JSON and
+                     read as noise. It is the one removal a mod did not perform,
+                     which makes it the one most worth being able to find. -->
+                <option value="verify_self_unlink">Verification released (by the viewer)</option>
                 <option value="verified_users_cleared">Verified cleared (bulk)</option>
                 <option value="giveaway_started">Giveaways started</option>
                 <option value="giveaway_ended">Giveaways ended</option>
@@ -22586,6 +22591,25 @@ function formatActivityDetails(action, d) {
         return `Removed verified entry ${who} + unlinked Discord (${names || (d.discordLinksRemoved + ' link(s)')})`;
       }
       return `Removed verified entry ${who}`;
+    }
+    // A viewer undoing their own verification. Worth reading differently from a
+    // mod removal: nobody on the team did it, and it is the action that clears
+    // an account's shared-connection and shared-account links from the live
+    // records. Says what was given up and whether a connection was on file, so
+    // a release that lands right after someone was flagged stands out.
+    case 'verify_self_unlink': {
+      const casino = CASINO_NAMES[d.provider] || d.provider || 'a casino';
+      const claimed = d.providerUsername ? ` (${escHtml(d.providerUsername)})` : '';
+      const held = d.verifiedAt
+        ? ` — held it since ${new Date(d.verifiedAt).toLocaleDateString()}`
+        : '';
+      const dc = d.discordLinksRemoved > 0
+        ? ` · Discord unlinked${d.roleRevoked ? ' + role taken back' : ''}`
+        : (d.keptDiscordLink ? ' · still verified elsewhere, Discord kept' : '');
+      const conn = d.hadConnection
+        ? ` · <span title="Their connection fingerprint was on this record. It is archived, so alt checks still see it.">connection on file${d.connLabel ? ' (' + escHtml(d.connLabel) + ')' : ''}</span>`
+        : '';
+      return `${kick(d.kickUsername)} released their own ${escHtml(casino)} verification${claimed}${held}${dc}${conn}`;
     }
     case 'verified_users_cleared':
       return `Cleared <strong>${d.count || 0}</strong> verified users`;

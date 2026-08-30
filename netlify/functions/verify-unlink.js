@@ -121,10 +121,63 @@ exports.handler = async (event) => {
       if (r.ok) roleRevoked = true;
     }
 
+    // ── Keep the identifiers before the record goes ──────────────────────────
+    // The delete below stays a HARD delete, and that is right for the claim:
+    // releasing it is the entire point, and a tombstone left in verified_users
+    // would leak into the verified table, the verified count and giveaway
+    // eligibility — an account that had un-verified would still be treated as
+    // verified. So the claim really does go.
+    //
+    // What it also destroyed, though, was connHash, kickUserId, providerUid and
+    // discordUserId — the identifiers alt detection matches on. Because matching
+    // needs BOTH records, deleting one half breaks the link from both sides: a
+    // viewer who saw themselves flagged (mods can run /lookup, and the flag names
+    // the other account) could clear it off their alt too, by releasing whichever
+    // account nobody was looking at. Self-service evidence removal.
+    //
+    // Copied first into a collection no client can read or write, and that
+    // nothing else queries — so a release gives back the claim without also
+    // giving back a clean slate.
+    try {
+      await db.collection("streamers").doc(streamerUid)
+        .collection("verified_released").doc(`${kickKey}_${provider}_${Date.now()}`)
+        .set({
+          kickName:               record.kickName || kickUsername,
+          kickName_lower:         kickKey,
+          kickUserId:             record.kickUserId || null,
+          provider,
+          providerUsername:       record.providerUsername || null,
+          providerUsername_lower: record.providerUsername_lower || null,
+          providerUid:            record.providerUid || null,
+          discordUserId:          record.discordUserId || null,
+          discordUsername:        record.discordUsername || null,
+          connHash:               record.connHash || null,
+          connLabel:              record.connLabel || null,
+          verifiedAt:             record.verifiedAt || null,
+          releasedAt:             Date.now(),
+          releasedBy:             "self",
+        });
+    } catch (e) {
+      // Never block a release the viewer is entitled to because the archive of
+      // it failed. Loud in the logs, invisible to them.
+      console.warn("[verify-unlink] release snapshot failed:", e.message);
+    }
+
     const batch = db.batch();
     batch.delete(ref);
     linksSnap.docs.forEach((d) => batch.delete(d.ref));
     await batch.commit();
+
+    // Durable trail on the viewer, so /lookup shows the release alongside the
+    // rest of their history rather than it being visible only in the audit log.
+    try {
+      const { recordViewerEvent } = require("./_lib/viewer-history");
+      await recordViewerEvent(db, streamerUid, kickUsername, {
+        type: "verify_released",
+        text: `Released their ${CASINO_NAMES[provider]} verification`
+            + (record.providerUsername ? ` (${record.providerUsername})` : ""),
+      });
+    } catch { /* history is best-effort, never break the release */ }
 
     await logAudit(streamerUid, "verify_self_unlink", {
       kickUsername:     kickKey,
@@ -133,6 +186,12 @@ exports.handler = async (event) => {
       discordLinksRemoved: linksSnap.size,
       roleRevoked,
       keptDiscordLink: stillVerifiedElsewhere,
+      // Enough for someone reading the log to judge what was given up. The
+      // connection HASH is never included — only whether one existed and its
+      // coarse label.
+      hadConnection:    !!record.connHash,
+      connLabel:        record.connLabel || null,
+      verifiedAt:       record.verifiedAt || null,
     });
 
     return res(200, {

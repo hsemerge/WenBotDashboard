@@ -18,6 +18,7 @@ function stub(rel, exports) {
 let VERIFIED = [];
 let LINKS = [];
 let HISTORY = {};
+let RELEASED = [];
 
 function reset() {
   VERIFIED = [
@@ -47,6 +48,7 @@ function reset() {
     { id: "4001", kickUsername: "BigWin" },
     { id: "5001", kickUsername: "NewName" },
   ];
+  RELEASED = [];
   HISTORY = {
     sangamesh149: { events: [
       { ts: 1756500000000, type: "discord_out", text: "Discord @sanga moved to Kick user sanga_alt2" },
@@ -65,7 +67,8 @@ const db = {
       doc: () => ({
         get: async () => ({ exists: true, data: () => ({ kickChannel: "walter" }) }),
         collection: (sub) => ({
-          get: async () => snap(sub === "verified_users" ? VERIFIED : LINKS),
+          get: async () => snap(sub === "verified_users" ? VERIFIED
+                              : sub === "verified_released" ? RELEASED : LINKS),
           doc: (key) => ({ get: async () => ({ exists: !!HISTORY[key], data: () => HISTORY[key] || {} }) }),
         }),
       }),
@@ -169,6 +172,46 @@ const run = async (kickUsername) => {
   VERIFIED.forEach((r) => { r.connHash = "SECRET-HASH-" + r.id; });
   const p = await run("Sangamesh149");
   ok("connHash absent from the response", !JSON.stringify(p).includes("SECRET-HASH"), "hash leaked to the client");
+
+  // ── the evidence-tampering case ───────────────────────────────────────────
+  console.log("\n== un-verifying must NOT erase the link ==");
+  // The exact abuse path: a mod runs /lookup, sees the shared-connection flag
+  // naming their alt, and releases the alt's verification. That HARD-DELETES the
+  // record, and because matching needs both halves the link would vanish from
+  // the surviving account too. The archive is what stops that working.
+  reset();
+  VERIFIED.forEach((r) => { if (r.kickName_lower === "sangamesh149" || r.kickName_lower === "sanga_alt2") r.connHash = "HASH-S"; });
+  const beforeRelease = await run("Sangamesh149");
+  ok("linked before the release", beforeRelease.linkedNames.includes("sanga_alt2"), beforeRelease.linkedNames.join(","));
+
+  // Now the alt un-verifies: its live record is deleted, its snapshot archived.
+  const gone = VERIFIED.find((r) => r.kickName_lower === "sanga_alt2");
+  VERIFIED = VERIFIED.filter((r) => r.kickName_lower !== "sanga_alt2");
+  LINKS = LINKS.filter((l) => l.kickUsername !== "sanga_alt2");
+  RELEASED = [{ ...gone, id: "sanga_alt2_winovo_1756600000000", releasedAt: 1756600000000, releasedBy: "self" }];
+
+  const afterRelease = await run("Sangamesh149");
+  ok("STILL linked after the alt un-verified",
+     afterRelease.linkedNames.includes("sanga_alt2"), afterRelease.linkedNames.join(","));
+  ok("still names the shared casino account",
+     afterRelease.findings.some((f) => f.signal === "casino_uid_shared"),
+     afterRelease.findings.map((f) => f.signal).join(","));
+  ok("still a strong case", afterRelease.findings.some((f) => f.alt && f.weight === "strong"), "downgraded");
+  ok("flags that a release is involved",
+     afterRelease.findings.some((f) => f.signal === "released_record"),
+     afterRelease.findings.map((f) => f.signal).join(","));
+  ok("and points at the timing",
+     /Check the timing/.test((afterRelease.findings.find((f) => f.signal === "released_record") || {}).meaning || ""),
+     "no timing prompt");
+
+  console.log("\n== releasing YOUR OWN record does not make you your own alt ==");
+  reset();
+  const self = VERIFIED.find((r) => r.kickName_lower === "bigwin");
+  VERIFIED = VERIFIED.filter((r) => r.kickName_lower !== "bigwin");
+  RELEASED = [{ ...self, id: "bigwin_old", releasedAt: 1, releasedBy: "self" }];
+  const reV = await run("BigWin");
+  ok("no alt finding against themselves",
+     !reV.findings.some((f) => f.alt), reV.findings.map((f) => f.signal).join(","));
 
   console.log(fails ? `\n${fails} FAILURE(S)\n` : "\nalt-check reasoning correct\n");
   process.exit(fails ? 1 : 0);

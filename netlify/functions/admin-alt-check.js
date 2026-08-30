@@ -80,12 +80,20 @@ exports.handler = async (event) => {
     // `${kickName}_${provider}`, so verifying at two casinos makes two records.
     // Pull the whole collection once: it is per-streamer and small, and a scan
     // sidesteps every casing and doc-id-shape problem at once.
-    const [vuSnap, dlSnap] = await Promise.all([
+    const [vuSnap, dlSnap, relSnap] = await Promise.all([
       base.collection("verified_users").get(),
       base.collection("discord_links").get(),
+      // Snapshots taken when a viewer released their OWN verification. They have
+      // to be in the pool, because a release hard-deletes the live record and
+      // matching needs both halves of a pair: without these, anyone who saw
+      // themselves flagged could clear the flag off their alt as well, simply by
+      // un-verifying whichever account nobody was watching.
+      base.collection("verified_released").get().catch(() => ({ docs: [] })),
     ]);
 
-    const all = vuSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const live     = vuSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const released = relSnap.docs.map((d) => ({ id: d.id, ...d.data(), released: true }));
+    const all  = live.concat(released);
     const mine = all.filter((r) => lc(r.kickName_lower || r.kickName) === target);
 
     if (!mine.length && !dlSnap.docs.some((d) => lc(d.data().kickUsername) === target)) {
@@ -275,7 +283,7 @@ exports.handler = async (event) => {
     // whichever one you look up, the hop is visible from its own side.
     const ALT_TYPES = { casino_shared: MEDIUM, discord_reused: MEDIUM, discord_in: MEDIUM,
                         discord_out: MEDIUM, conn_alt: MEDIUM, conn_shared: INFO };
-    const INFO_TYPES = { renamed: INFO, casino_rename: INFO };
+    const INFO_TYPES = { renamed: INFO, casino_rename: INFO, verify_released: INFO };
     for (const e of history) {
       const weight = ALT_TYPES[e.type] || INFO_TYPES[e.type];
       if (!weight) continue;                       // 'verified' etc: not a signal
@@ -287,6 +295,21 @@ exports.handler = async (event) => {
         detail: e.text,
         meaning: `Recorded automatically on ${new Date(e.ts).toLocaleString("en-GB")}. This is the durable copy — the mod-feed alert for it has long scrolled away.`,
         others: [],
+      });
+    }
+
+    // Say so when the case rests partly on archived evidence. A release that
+    // lands shortly after an account was flagged is itself worth noticing —
+    // mods can run /lookup, and the flag names the other account.
+    const releasedNames = new Set(released.map((r) => lc(r.kickName_lower || r.kickName)).filter(Boolean));
+    const relevantReleases = [target, ...linked].filter((n) => releasedNames.has(n));
+    if (relevantReleases.length) {
+      findings.push({
+        signal: "released_record", weight: INFO, alt: false,
+        title: "Part of this comes from a released verification",
+        detail: `${relevantReleases.join(", ")} un-verified at some point. The identifiers above were archived at that moment.`,
+        meaning: "Releasing a verification deletes the live record, which would otherwise break the link from BOTH sides and hide it — so this is kept deliberately. Check the timing against when they would have seen themselves flagged.",
+        others: relevantReleases,
       });
     }
 

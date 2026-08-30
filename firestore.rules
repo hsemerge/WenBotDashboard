@@ -274,6 +274,18 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // Snapshots of verifications a viewer released, kept because releasing one
+      // hard-deletes the live record and would otherwise break an alt link from
+      // both sides. Same integrity contract as viewer_history, and for a sharper
+      // version of the same reason: this collection exists specifically so that
+      // un-verifying cannot erase an alt link — so a mod able to delete it could
+      // release their alt and then tidy away the archive, which is the whole
+      // attack it was written to stop. Server-written, never client-written.
+      match /verified_released/{doc} {
+        allow read:  if isOwnerOrMod(uid);
+        allow write: if false;
+      }
+
       match /giveaway_draws/{drawId} {
         allow read, write: if false;
       }
@@ -295,7 +307,8 @@ service cloud.firestore {
           && !(subcollection in [
             'referrals', 'payments', 'verified_users', 'discord_links', 'audit_logs',
             'bot_status', 'bb_votes', 'store_redemptions', 'bot_locks', 'invoices',
-            'mod_actions', 'mod_strikes', 'giveaway_draws', 'viewer_history'
+            'mod_actions', 'mod_strikes', 'giveaway_draws', 'viewer_history',
+            'verified_released'
           ]);
       }
     }
