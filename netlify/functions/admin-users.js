@@ -123,6 +123,9 @@ exports.handler = async (event) => {
       paymentCount:       s.paymentCount || 0,
       lastPaymentAt:      ms(s.lastPaymentAt),
       kickConnectedAt:    ms(s.kickConnectedAt),
+      // Overwritten below from the Firebase Auth creation time, which is the
+      // real signup moment. This is the fallback for an account with no login.
+      joinedAt:           ms(s.kickConnectedAt),
       // Channel health + platform usage. Cheap (already on the doc) and it powers
       // the Channels support view and the Analytics rollup without a second read.
       kickLive:           !!s.kickLive,
@@ -307,6 +310,20 @@ exports.handler = async (event) => {
         }
         const t = rec.metadata && rec.metadata.lastSignInTime;
         if (t) m[rec.uid] = new Date(t).getTime();
+        // When they actually signed up. Nothing carried this before: the roster
+        // only had kickConnectedAt, which happens AFTER signup and never at all
+        // for someone who stalls at the Kick step — so a brand-new account was
+        // indistinguishable from an old dormant one.
+        const c = rec.metadata && rec.metadata.creationTime;
+        const u = users.find((x) => x.uid === rec.uid);
+        if (u) {
+          if (c) u.joinedAt = new Date(c).getTime();
+          // The roster's email came only from the streamer document, so any
+          // account whose signup never wrote it there showed blank — while the
+          // login record had it the whole time. This is the same fallback the
+          // orphan-moderator lookup below already relies on.
+          if (!u.email && rec.email) u.email = rec.email;
+        }
       });
       for (const u of users.slice(i, i + 100)) u.lastLoginAt = Math.max(m[u.uid] || 0, u.lastLoginAt || 0) || null;
     }

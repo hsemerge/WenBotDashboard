@@ -416,6 +416,8 @@
               <option value="paid">💳 Paying</option>
               <option value="failed">⚠️ Payment failed</option>
               <option value="free">🆓 Starter / no sub</option>
+              <option value="new24">🆕 Joined in the last 24 hours</option>
+              <option value="new7">🆕 Joined this week</option>
               <option value="notOnboarded">🚧 Signed up, not onboarded</option>
               <option value="ismod">🛡 Moderates a channel</option>
               <option value="hasmods">👥 Has moderators</option>
@@ -1098,6 +1100,10 @@
     const trialsSoon  = active.filter(u => u.planTrial && u.trialEndsAt && u.trialEndsAt > now && (u.trialEndsAt - now) <= 7 * DAY).length;
     const failed      = active.filter(u => u.paymentFailed).length;
     const notOnboard  = active.filter(u => !u.onboarded).length;
+    // Brand-new accounts. Worth its own tile: a signup you notice on the day is
+    // one you can still greet, and it was invisible before — the roster had no
+    // signup date at all.
+    const newWeek = active.filter(u => u.joinedAt && (now - u.joinedAt) <= 7 * DAY);
     // MRR = Monthly Recurring Revenue: what the paying customers we have today
     // are worth every month if nothing changes. Plan price × paying customers.
     //
@@ -1122,6 +1128,9 @@
     const tiles = [
       ['Streamers', stats.total || 0, '', '', '', 'streamers'],
       ['Active subs', stats.activeSubs || 0, '', 'good', '', 'activesubs'],
+      ['New this week', newWeek.length, '', newWeek.length ? 'good' : '',
+       'Accounts created in the last 7 days, newest first. Signup time comes from the login record, so it is the real moment they joined — not when they connected Kick.',
+       'newweek'],
       ...(_role === 'owner' ? [
         ['MRR (approx)', money(mrr), 'every paying customer × plan price', '',
          'Monthly Recurring Revenue — what today\'s paying customers are worth per month if nothing changes. Plan price × paying customers, Stripe and crypto together. Comps and trials are not counted; someone cancelling still counts until their access actually ends.',
@@ -1164,6 +1173,7 @@
     const bits = [];
     if (failed)     bits.push(`<a href="#/streamers" onclick="setUserFilter('failed')">⚠ ${failed} payment${failed === 1 ? '' : 's'} failed</a>`);
     if (trialsSoon) bits.push(`<a href="#/streamers" onclick="setUserFilter('trial7')">⏳ ${trialsSoon} trial${trialsSoon === 1 ? '' : 's'} ending within 7 days</a>`);
+    if (newWeek.length) bits.push(`<a href="#/streamers" onclick="setUserFilter('new7')">🆕 ${newWeek.length} new signup${newWeek.length === 1 ? '' : 's'} this week</a>`);
     if (notOnboard) bits.push(`<a href="#/streamers" onclick="setUserFilter('notOnboarded')">🚧 ${notOnboard} signed up but not onboarded</a>`);
     // Outreach waiting on us — loaded lazily, so only shown once the board has been opened.
     const stale = _outreach.filter(c => c.stage !== 'won' && c.stage !== 'lost' && c.updatedAt && (now - c.updatedAt) > 7 * DAY).length;
@@ -3374,6 +3384,7 @@
       paid:        u => Number(u.totalPaid || 0),
       lastPayment: u => (u.lastPaymentAt || null),
       lastLogin:   u => (u.lastLoginAt || null),
+      joined:      u => (u.joinedAt || null),
       email:       u => String(u.email || '').toLowerCase(),
       // One sorter across every lens — the visible columns change, the table
       // doesn't, so the comparator map is the union of all three.
@@ -3418,16 +3429,21 @@
     overview: {
       label: 'Overview',
       note: 'Who they are, what they pay, who looks after them.',
+      // Email sat in the tenth and last column, which on any normal screen means
+      // off the right edge behind a horizontal scroll — so the roster looked
+      // like it had no email addresses at all. It is contact information; it
+      // belongs where you can see it.
       cols: [
         ['channel',  'Channel',  ''],
         ['plan',     'Plan',     ''],
         ['billing',  'Billing',  ''],
         ['status',   'Status',   ''],
-        ['manager',  'Manager',  ''],
-        ['onboarded','Onboarded',''],
-        ['referrals','Referrals','num'],
-        ['lastLogin','Last login',''],
         ['email',    'Email',    ''],
+        ['joined',   'Joined',   ''],
+        ['manager',  'Manager',  ''],
+        ['lastLogin','Last login',''],
+        ['referrals','Referrals','num'],
+        ['onboarded','Onboarded',''],
       ],
     },
     billing: {
@@ -3584,6 +3600,16 @@
           note: 'Counts invoices, not Stripe. Stripe revenue lives on the Billing page.',
         };
       }
+      case 'newweek': {
+        const list = cust.filter(u => u.joinedAt && (now - u.joinedAt) <= 7 * DAY)
+                         .sort((a, b) => (b.joinedAt || 0) - (a.joinedAt || 0));
+        return { title: 'Signed up in the last 7 days',
+          rule: 'Account creation time from their login record — the real signup moment, not when they connected Kick.',
+          formula: 'joinedAt within 7 days',
+          rows: list.map(u => row(u, null,
+            `${date(u.joinedAt)} · ${u.onboarded ? 'onboarded' : 'NOT onboarded'}${u.kickChannel ? '' : ' · no Kick yet'}`)),
+          total: list.length, money: false };
+      }
       case 'trials7': {
         const list = cust.filter(u => u.planTrial && u.trialEndsAt && u.trialEndsAt > now && (u.trialEndsAt - now) <= 7 * DAY);
         return { title: 'Trials ending within 7 days',
@@ -3710,6 +3736,8 @@
         case 'hasmods':    return (u.mods || []).length > 0;
         case 'mine':       return u.accountManager === _me;
         case 'unassigned': return isCustomer(u) && !u.accountManager;
+        case 'new24':      return !!u.joinedAt && (now - u.joinedAt) <= DAY;
+        case 'new7':       return !!u.joinedAt && (now - u.joinedAt) <= 7 * DAY;
         case 'notOnboarded': return isCustomer(u) && !u.onboarded;
         // Channel-health filters, from what used to be its own tab.
         case 'live':       return !!u.kickLive;
@@ -3905,6 +3933,14 @@
           const what = u.stripePeriodEnd ? 'renews' : u.cryptoNextDue ? 'invoice due' : onTrial ? 'trial ends' : '';
           const late = when && when < Date.now();
           return `<td class="${late ? 'warn' : 'muted'}" style="white-space:nowrap;">${when ? `${date(when)} <small style="opacity:.7;">${what}</small>` : '—'}</td>`;
+        },
+        joined:    () => {
+          const age = u.joinedAt ? (Date.now() - u.joinedAt) / 864e5 : null;
+          const fresh = age != null && age <= 7;
+          return `<td class="${fresh ? '' : 'muted'}" title="${esc(date(u.joinedAt))}" style="white-space:nowrap;">`
+            + `${u.joinedAt ? rel(u.joinedAt) : '<span class="muted">—</span>'}`
+            + (fresh ? ' <span class="pill" style="background:rgba(85,239,176,.16);color:var(--good);">new</span>' : '')
+            + '</td>';
         },
         lastLogin: () => `<td class="muted" title="${esc(date(u.lastLoginAt))}">${rel(u.lastLoginAt)}</td>`,
         email:     () => `<td class="muted">${esc(u.email || '—')}</td>`,
