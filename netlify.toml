@@ -499,6 +499,11 @@
   status = 200
 
 [[redirects]]
+  from   = "/api/admin-alt-check"
+  to     = "/.netlify/functions/admin-alt-check"
+  status = 200
+
+[[redirects]]
   from   = "/api/admin-set-plan"
   to     = "/.netlify/functions/admin-set-plan"
   status = 200

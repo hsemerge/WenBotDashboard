@@ -485,6 +485,16 @@
             <div id="migrateNotesMsg" class="sub" style="margin-top:10px;"></div>
           </div>
           <div class="tablecard" style="padding:16px;margin-bottom:16px;">
+            <div class="panel-title">🕵 Alt Check</div>
+            <div class="sub" style="margin-bottom:11px;">Look for other Kick accounts sharing this viewer's casino account, Kick account id or Discord. Read-only, and scoped to one channel — two accounts in the same community claiming one identity is what alting means, and another streamer's viewer list isn't ours to search. It reports evidence with the innocent explanation next to it, never a verdict: someone who simply renamed shows up as a rename.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <input id="acChannel" type="text" placeholder="Channel (e.g. walter)" style="min-width:150px;max-width:200px;">
+              <input id="acUser" type="text" placeholder="Kick username" style="min-width:150px;max-width:220px;">
+              <button onclick="altCheck()">Check</button>
+            </div>
+            <div id="acResult" style="margin-top:12px;"></div>
+          </div>
+          <div class="tablecard" style="padding:16px;margin-bottom:16px;">
             <div class="panel-title">🔁 Transfer Viewer</div>
             <div class="sub" style="margin-bottom:11px;">Move a viewer's points, verification, raffle tickets &amp; purchases from an old Kick username to a new one, across every channel they're in. Preview is read-only; confirm migrates.</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -3734,12 +3744,42 @@
             rows: items.map(itemRow), total: c.cryptoTotal || 0,
             note: `${Math.round((c.cryptoShare || 0) * 100)}% of everything collected.` };
         }
-        const items = [...S, ...CS, ...W].sort((a, b) => (b.paidAt || 0) - (a.paidAt || 0));
-        return { title: 'Total collected (everything)', money: true,
-          rule: 'All money ever collected — Stripe subscriptions, invoiced subscriptions and one-off work — summed from the actual charges and paid invoices, so it cannot drift. Those three cover every dollar exactly once; the crypto tile re-slices the same money by payment rail and is not added on top.',
-          formula: 'Stripe subs  +  invoiced subs  +  one-off work',
-          rows: items.map(itemRow), total: c.grandTotal || 0,
-          note: 'One row per charge or paid invoice. Click a channel to open their record.' };
+        // "Total collected" pops out BY TYPE — the lifetime mirror of how MRR
+        // breaks out — and each row drills into its own charges/invoices. Splitting
+        // the invoice buckets by payment rail keeps every dollar in exactly one
+        // row (they still sum to the grand total). Card rows only appear once a
+        // card invoice actually exists; the three crypto/stripe rows always show.
+        const meth = (arr, m) => arr.filter(x => (x.method || 'crypto') === m);
+        const sumOf = (arr) => arr.reduce((s, x) => s + (x.amount || 0), 0);
+        const cardMo = meth(CS, 'card'), cardWk = meth(W, 'card');
+        const typeRows = [
+          { name: 'Stripe subscriptions',   amount: (c.stripeSubs && c.stripeSubs.total) || 0, note: `${S.length} charge${S.length === 1 ? '' : 's'} · card, auto-renew`, drill: 'col_stripe' },
+          { name: 'Crypto subscriptions',   amount: sumOf(meth(CS, 'crypto')), note: `${meth(CS, 'crypto').length} invoice${meth(CS, 'crypto').length === 1 ? '' : 's'} · monthly`, drill: 'col_cryptomonthly' },
+          { name: 'Crypto website / other', amount: sumOf(meth(W, 'crypto')),  note: `${meth(W, 'crypto').length} invoice${meth(W, 'crypto').length === 1 ? '' : 's'} · one-off`, drill: 'col_cryptowork' },
+          ...(sumOf(cardMo) ? [{ name: 'Card-invoiced subscriptions', amount: sumOf(cardMo), note: `${cardMo.length} invoice${cardMo.length === 1 ? '' : 's'} · monthly`, drill: 'col_cardmonthly' }] : []),
+          ...(sumOf(cardWk) ? [{ name: 'Card-invoiced work',          amount: sumOf(cardWk), note: `${cardWk.length} invoice${cardWk.length === 1 ? '' : 's'} · one-off`, drill: 'col_cardwork' }] : []),
+        ];
+        return { title: 'Total collected — by type', money: true,
+          rule: 'All money ever collected, broken out by what it was and how it was paid. Click any type to see the individual charges and invoices behind it. Summed from the real records, so it cannot drift.',
+          formula: 'Stripe subs  +  crypto subs  +  crypto work  ( +  card invoices )',
+          rows: typeRows, total: c.grandTotal || 0,
+          note: `Every dollar appears in exactly one row. ${Math.round((c.cryptoShare || 0) * 100)}% of the total is crypto.` };
+      }
+      case 'col_cryptomonthly': case 'col_cryptowork': case 'col_cardmonthly': case 'col_cardwork': {
+        const c = _billingCollected || {};
+        const isWork = key.indexOf('work') !== -1;
+        const wantCard = key.indexOf('card') !== -1;
+        const rail = wantCard ? 'card' : 'crypto';
+        const src = isWork ? ((c.work && c.work.items) || []) : ((c.invoicedSubs && c.invoicedSubs.items) || []);
+        const items = src.filter(it => (it.method || 'crypto') === rail).sort((a, b) => (b.paidAt || 0) - (a.paidAt || 0));
+        const itemRow = (it) => ({ uid: it.uid, name: it.channel || it.uid, amount: it.amount,
+          note: [it.number, it.description, it.paidAt ? date(it.paidAt) : null].filter(Boolean).join(' · ') });
+        return {
+          title: `${wantCard ? 'Card-invoiced' : 'Crypto'} ${isWork ? 'website / other work' : 'subscriptions'} collected`, money: true,
+          rule: `Paid invoices ${isWork ? 'flagged one-off — custom website, design and other project work' : 'flagged recurring — the monthly plan billed by hand'}, settled by ${rail}.`,
+          formula: `sum( paid invoice amount )  where  recurring = ${isWork ? 'false' : 'true'}  AND  method = ${rail}`,
+          rows: items.map(itemRow), total: items.reduce((s, x) => s + (x.amount || 0), 0),
+          note: 'Click a channel to view or confirm their invoices.' };
       }
       default: return null;
     }
@@ -3779,7 +3819,9 @@
       </div>
       <div class="bd-body">
         ${b.rows.length ? `<table><tbody>${b.rows.map(r => `<tr>
-            <td>${r.uid ? `<span class="chan" onclick="document.querySelector('.bd-back')?.remove();openCustomer('${esc(r.uid)}')">${esc(r.name)}</span>` : esc(r.name)}</td>
+            <td>${r.drill ? `<span class="chan" onclick="document.querySelector('.bd-back')?.remove();showBreakdown('${esc(r.drill)}')">${esc(r.name)} ›</span>`
+                : r.uid ? `<span class="chan" onclick="document.querySelector('.bd-back')?.remove();openCustomer('${esc(r.uid)}')">${esc(r.name)}</span>`
+                : esc(r.name)}</td>
             <td class="muted">${esc(r.note || '')}</td>
             ${b.money ? `<td class="num">${money(r.amount)}</td>` : ''}
           </tr>`).join('')}</tbody></table>`
@@ -4847,6 +4889,37 @@
       return d;
     } catch (e) { out.innerHTML = '<span class="warn">' + mvEsc(e.message) + '</span>'; return null; }
   }
+  // Renders evidence, deliberately without a headline verdict. Every row carries
+  // its own weight and its innocent reading, because the moment this prints
+  // "ALT DETECTED" someone gets banned for changing their Kick name.
+  window.altCheck = async function () {
+    const channel = ($('acChannel').value || '').trim();
+    const kickUsername = ($('acUser').value || '').trim();
+    const out = $('acResult');
+    if (!channel || !kickUsername) { out.innerHTML = '<span class="warn">Enter a channel and a Kick username.</span>'; return; }
+    out.textContent = 'Checking…';
+    try {
+      const r = await authedPost('/api/admin-alt-check', { channel, kickUsername });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Failed');
+      const edge = { strong: 'var(--bad)', medium: 'var(--gold)', info: 'var(--line2)' };
+      out.innerHTML =
+        `<div style="margin-bottom:11px;font-size:13px;">${esc(d.summary)}</div>`
+        + (d.findings || []).map(f => `
+          <div style="border-left:3px solid ${edge[f.weight] || 'var(--line2)'};padding:8px 12px;margin-bottom:8px;background:var(--card2);border-radius:0 6px 6px 0;">
+            <div style="font-size:13px;"><b>${esc(f.title)}</b>
+              <span class="muted" style="font-size:11px;">· ${esc(f.weight)}${f.alt ? '' : ' · not an alt'}</span></div>
+            <div class="sub" style="margin-top:3px;">${esc(f.detail)}</div>
+            <div class="muted" style="font-size:11.5px;margin-top:5px;line-height:1.5;">${esc(f.meaning)}</div>
+          </div>`).join('')
+        + ((d.records || []).length
+            ? `<div class="muted" style="font-size:11px;margin-top:10px;">Records on file: `
+              + d.records.map(x => esc(`${x.provider || 'no casino'}${x.providerUsername ? ' (' + x.providerUsername + ')' : ''}`)).join(' · ')
+              + `${d.historyCount ? ` · ${d.historyCount} history event${d.historyCount === 1 ? '' : 's'}` : ''}</div>`
+            : '');
+    } catch (e) { out.innerHTML = '<span class="warn">' + esc(e.message) + '</span>'; }
+  };
+
   window.mvPreview = async function () { const d = await mvCall('preview'); if (d) mvRender(d, false); };
   window.mvCommit = async function () {
     const from = $('mvFrom').value.trim(), to = $('mvTo').value.trim();
