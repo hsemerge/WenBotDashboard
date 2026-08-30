@@ -522,18 +522,28 @@
         <div id="billingView" class="hidden owner-only">
           <div id="billingErr" style="display:none;background:rgba(255,111,145,.1);border:1px solid var(--bad);color:#ffd7de;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:13px;"></div>
           <div class="stats" id="billingStatCards"></div>
+          <div class="toolbar" style="margin-bottom:6px;">
+            <!-- Who is listed. "Billing now" is the invoice desk; "Everyone"
+                 turns the same table into what used to be a separate Billing
+                 lens under Users — every customer WITH their money attached, so
+                 an upgrade candidate and the invoice you'd send them are on the
+                 same screen instead of two tabs that half-overlapped. -->
+            <div class="tabs" id="billingScopeTabs" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+            <span class="sub" id="billingScopeNote" style="align-self:center;"></span>
+          </div>
           <div class="toolbar">
-            <input id="billingSearch" type="text" placeholder="Search channel / plan…" oninput="renderBilling()">
+            <input id="billingSearch" type="text" placeholder="Search channel / plan / email…" oninput="renderBilling()">
             <button class="btn-ghost" onclick="loadUsers()">↻ Refresh</button>
             <label class="sub" style="display:flex;align-items:center;gap:6px;cursor:pointer;align-self:center;">
               <input type="checkbox" id="billingDueOnly" onchange="renderBilling()" style="width:auto;"> Due soon / overdue only
             </label>
+            <span id="billingCount" class="sub" style="align-self:center;"></span>
           </div>
           <div class="tablecard">
             <div style="overflow-x:auto;">
               <table>
-                <thead><tr><th>Channel</th><th>Plan</th><th>Method</th><th>Next payment</th><th class="num">Lifetime</th><th>Last payment</th><th>Status</th><th></th></tr></thead>
-                <tbody id="billingTable"><tr><td colspan="8" class="muted" style="text-align:center;padding:24px;">Loading…</td></tr></tbody>
+                <thead><tr><th>Channel</th><th>Plan</th><th>Method</th><th>Next payment</th><th class="num">Lifetime</th><th>Last payment</th><th class="num">Referrals</th><th>Status</th><th></th></tr></thead>
+                <tbody id="billingTable"><tr><td colspan="9" class="muted" style="text-align:center;padding:24px;">Loading…</td></tr></tbody>
               </table>
             </div>
           </div>
@@ -1528,7 +1538,7 @@
           ${(d.payments || []).slice(0, 8).map(p => `<tr><td class="muted">${date(p.paidAt)}</td><td>💳 ${esc(p.plan || '—')}</td><td class="num">${money(p.amount)}</td><td class="ok">paid</td></tr>`).join('')}
           ${(d.invoices || []).slice(0, 8).map(v => `<tr><td class="muted">${date(v.paidAt || v.createdAt)}</td><td>🪙 ${esc(v.number || '—')}</td><td class="num">${money(v.amount)}</td><td>${v.status === 'paid' ? '<span class="ok">paid</span>' : '<span class="warn">unpaid</span>'}</td></tr>`).join('')}
         </tbody></table>` : '<div class="sub">No payments or invoices recorded.</div>'}
-        <button class="btn-ghost" style="margin-top:10px;" onclick="gotoBilling('${esc(uid)}')">💳 Manage billing →</button>
+        <button class="btn-ghost" style="margin-top:10px;" onclick="gotoBilling('${esc(uid)}')">🧾 Invoices &amp; send a new one →</button>
       </div>`;
 
     // Outreach — how we got them.
@@ -1808,6 +1818,10 @@
           <a class="btn-ghost" style="text-decoration:none;padding:9px 16px;border-radius:9px;" href="/${esc(u.kickChannel || '')}" target="_blank" rel="noopener">↗ Portal</a>
           <button class="btn-ghost" style="border-color:var(--accent);color:var(--accent);" title="Open their dashboard as them, to change settings on their behalf. Logged to the team activity feed, and to this account's admin trail." onclick="manageStreamer('${esc(uid)}','${esc(u.kickChannel || '')}')">🎛 Switch in</button>
           <button class="btn-ghost" onclick="c360NewTicket('${esc(uid)}','${esc(u.kickChannel || '')}')">🎫 New ticket</button>
+          <!-- Straight to their invoice form. gotoBilling force-adds the row even
+               for someone with no billing cycle, so it works for a starter you
+               have decided to start charging. -->
+          <button class="btn-ghost owner-only" onclick="gotoBilling('${esc(uid)}')">🧾 Invoice</button>
           <span style="width:1px;height:26px;background:var(--line2);margin:0 2px;"></span>
           <button class="btn-ghost" style="border-color:var(--purple);color:var(--purple);" onclick="giveTrial('${esc(uid)}','pro')">🎁 Pro trial</button>
           <button class="btn-ghost" style="border-color:var(--gold);color:var(--gold);" onclick="giveTrial('${esc(uid)}','elite')">🎁 Elite trial</button>
@@ -3446,20 +3460,12 @@
         ['onboarded','Onboarded',''],
       ],
     },
-    billing: {
-      label: 'Billing', owner: true,
-      note: 'What each account is worth and when it next pays.',
-      cols: [
-        ['channel',  'Channel',  ''],
-        ['plan',     'Plan',     ''],
-        ['billing',  'Method',   ''],
-        ['status',   'Status',   ''],
-        ['renewal',  'Renews / due', ''],
-        ['paid',     'Lifetime', 'num'],
-        ['lastPayment','Last payment',''],
-        ['referrals','Referrals','num'],
-      ],
-    },
+    // A Billing lens lived here. It duplicated five of the Billing tab's columns
+    // while listing a different population, which is precisely what made the two
+    // surfaces confusing. The tab now carries lifetime, last payment and
+    // referrals, and its Everyone toggle covers the non-payers this lens existed
+    // to show — so it had nothing of its own left to do. Look and act in one
+    // place instead of looking in one and acting in another.
     health: {
       label: 'Channel health',
       note: 'Setup lists what a channel is missing. ★ custom is a bespoke portal on their own domain, which counts as a portal.',
@@ -4138,6 +4144,18 @@
     } catch (e) { alert('Failed: ' + e.message); }
   };
 
+  // Who the Billing tab lists. 'cycle' is the invoice desk — accounts that
+  // actually bill. 'all' is what used to be a separate Billing lens under
+  // Users: every customer with their money attached, so someone worth upgrading
+  // and the invoice you'd send them are on one screen.
+  let _billingScope = 'cycle';
+  try { const v = localStorage.getItem('wb.admin.billingScope'); if (v === 'all' || v === 'cycle') _billingScope = v; } catch {}
+  window.setBillingScope = function (v) {
+    _billingScope = (v === 'all') ? 'all' : 'cycle';
+    try { localStorage.setItem('wb.admin.billingScope', _billingScope); } catch {}
+    renderBilling();
+  };
+
   window.renderBilling = function () {
     const tbody = $('billingTable'); if (!tbody) return;
     if (_role !== 'owner') { tbody.innerHTML = ''; return; }
@@ -4157,14 +4175,25 @@
       else if (hasCrypto)     { method = 'crypto'; nextDue = ov ? ov.nextDue : (u.cryptoNextDue || null); }
       else if (paidPlan)      { method = 'none';   nextDue = null; }
       return { u, method, nextDue, ov };
-    }).filter(r => r.method);
-    if (q) rows = rows.filter(r => ((r.u.kickChannel || r.u.uid) + ' ' + r.u.plan).toLowerCase().includes(q));
+    }).filter(r => _billingScope === 'all' ? true : !!r.method);
+    if (q) rows = rows.filter(r =>
+      ((r.u.kickChannel || r.u.uid) + ' ' + (r.u.plan || '') + ' ' + (r.u.email || '')).toLowerCase().includes(q));
     if (dueOnly) rows = rows.filter(r => r.nextDue && (r.nextDue - now) <= 7 * DAY);
     rows.sort((a, b) => (a.nextDue || Infinity) - (b.nextDue || Infinity));
 
     const overdue = rows.filter(r => r.nextDue && r.nextDue < now).length;
     const soon    = rows.filter(r => r.nextDue && r.nextDue >= now && (r.nextDue - now) <= 7 * DAY).length;
     const crypto  = rows.filter(r => r.method === 'crypto').length;
+    const st = $('billingScopeTabs');
+    if (st) st.innerHTML = [['cycle', 'Billing now'], ['all', 'Everyone']]
+      .map(([k, l]) => `<button class="${k === _billingScope ? '' : 'btn-ghost'}" onclick="setBillingScope('${k}')" style="padding:7px 14px;font-size:12.5px;">${l}</button>`).join('');
+    const sn = $('billingScopeNote');
+    if (sn) sn.textContent = _billingScope === 'all'
+      ? 'Every customer, including ones you have never invoiced — spot who is worth billing.'
+      : 'Only accounts with a live billing cycle.';
+    const cnt = $('billingCount');
+    if (cnt) cnt.textContent = `${rows.length} account${rows.length === 1 ? '' : 's'}`;
+
     const eb = $('billingErr');
     if (eb) { eb.style.display = _billingOverviewErr ? 'block' : 'none'; eb.textContent = _billingOverviewErr; }
     const sc = $('billingStatCards');
@@ -4177,7 +4206,12 @@
     const inList = new Set(rows.map(r => r.u.uid));
     _billingExpanded.forEach(uid => { if (!inList.has(uid)) { const u = (_users || []).find(x => x.uid === uid); if (u) rows.push({ u, method: null, nextDue: null }); } });
 
-    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center;padding:24px;">No active billing cycles yet.</td></tr>'; return; }
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="9" class="muted" style="text-align:center;padding:24px;">${
+        _billingScope === 'all' ? 'No accounts match.'
+                                : 'No active billing cycles yet — switch to Everyone to see who could be billed.'}</td></tr>`;
+      return;
+    }
     tbody.innerHTML = rows.map(r => {
       const uid = r.u.uid, ch = esc(r.u.kickChannel || uid), open = _billingExpanded.has(uid);
       let method = '<span class="muted">—</span>', nextCell = '<span class="muted">—</span>', state = '<span class="muted">—</span>', action = '';
@@ -4208,8 +4242,17 @@
       const head = `<tr id="bill-row-${esc(uid)}" style="cursor:pointer;" onclick="toggleBillingDetail('${esc(uid)}')">
         <td><span class="muted" style="display:inline-block;width:12px;">${open ? '▾' : '▸'}</span> ${ch}</td>
         <td><span class="pill ${esc(r.u.plan)}">${esc(r.u.plan)}</span></td>
-        <td>${method}</td><td class="num">${nextCell}</td><td class="num">${r.u.totalPaid ? money(r.u.totalPaid) : '<span class="muted">—</span>'}${r.u.paymentCount ? ` <small class="muted">· ${r.u.paymentCount}</small>` : ''}</td><td class="muted">${r.u.lastPaymentAt ? rel(r.u.lastPaymentAt) : '—'}</td><td>${state}</td><td>${action}</td></tr>`;
-      const detail = open ? `<tr><td colspan="8" style="background:rgba(4,10,16,.6);padding:16px 20px;border-bottom:2px solid var(--accent);">${billingSectionHtml(uid, _detail[uid])}</td></tr>` : '';
+        <td>${method}</td><td class="num">${nextCell}</td><td class="num">${r.u.totalPaid ? money(r.u.totalPaid) : '<span class="muted">—</span>'}${r.u.paymentCount ? ` <small class="muted">· ${r.u.paymentCount}</small>` : ''}</td><td class="muted">${r.u.lastPaymentAt ? rel(r.u.lastPaymentAt) : '—'}</td><td class="num" style="white-space:nowrap;">${(() => {
+          // Same reading as the roster: sign-ups earn nothing, a converted one
+          // earns a free month, so the second number is the one that matters.
+          const n = r.u.referralsSignedUp != null ? r.u.referralsSignedUp : (r.u.referralCount || 0);
+          if (!n) return '<span class="muted">—</span>';
+          const conv = r.u.referralsConverted || 0, owed = r.u.referralCreditsOwed || 0;
+          return `${n}`
+            + (conv ? ` <span class="ok">· ${conv} paying</span>` : '')
+            + (owed ? ` <span class="pill" style="background:rgba(245,197,24,.16);color:var(--gold);" title="${owed} free month(s) earned, not yet given">${owed} owed</span>` : '');
+        })()}</td><td>${state}</td><td>${action}</td></tr>`;
+      const detail = open ? `<tr><td colspan="9" style="background:rgba(4,10,16,.6);padding:16px 20px;border-bottom:2px solid var(--accent);">${billingSectionHtml(uid, _detail[uid])}</td></tr>` : '';
       return head + detail;
     }).join('');
   };
