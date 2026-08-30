@@ -13904,6 +13904,8 @@ function loadVerifiedUsers() {
     // tick (which reads all of them) said they were verified.
     .get().then(snap => {
       verifiedCache = snap.docs.map(d => ({ id: d.id, data: d.data() }));
+      // Needs the whole list, so it runs here rather than per row.
+      verifiedAltMap = computeVerifiedAltLinks(verifiedCache);
       // Distinct VIEWERS, not documents. Verifications are one doc per board, so
       // on a multi-board channel someone verified on both counted twice and the
       // stat over-reported. Single-board channels have one doc per viewer, so this
@@ -13914,6 +13916,72 @@ function loadVerifiedUsers() {
     }).catch(e => {
       tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--red);padding:16px;">Error: ${escHtml(e.message)}</td></tr>`;
     });
+}
+
+// ── Alt linkage across the verified list ────────────────────────────────────
+// Computed from the records the table is already built from, so it costs no
+// extra reads and updates whenever the cache reloads.
+//
+// The hard part is who counts as "another account". Two records sharing a Kick
+// ACCOUNT ID are one person who renamed — and a renamed viewer necessarily
+// shares their casino account, Discord and connection with their own former
+// name. Excluding those pairs first is what stops every rename on the channel
+// reporting as an alt.
+//
+// Weighting mirrors the server (see _lib/verify-log.js). A shared connection
+// ALONE is routinely innocent: one household, one router, halls, or a mobile
+// network putting strangers behind one address. It escalates only when the same
+// other account also shares a Discord or casino account — one signal is a
+// coincidence, two is a pattern.
+let verifiedAltMap = {};
+
+function computeVerifiedAltLinks(cache) {
+  const map = {};
+  const keyOf  = r => String(r.data.kickName_lower || r.data.kickName || r.id || '').toLowerCase();
+  const shown  = {};
+  cache.forEach(r => { const k = keyOf(r); if (k && !shown[k]) shown[k] = r.data.kickName || k; });
+
+  // Same Kick account id ⇒ same person. Every name maps to the set of its own aliases.
+  const alias = {}, byKickId = {};
+  cache.forEach(r => {
+    const kid = r.data.kickUserId ? String(r.data.kickUserId) : null;
+    if (!kid) return;
+    (byKickId[kid] = byKickId[kid] || new Set()).add(keyOf(r));
+  });
+  Object.values(byKickId).forEach(set => set.forEach(k => { alias[k] = set; }));
+
+  // Bucket every name by each identifier it carries.
+  const FIELDS = [
+    ['casino',     r => r.data.providerUid            ? 'uid:' + r.data.providerUid : null],
+    ['casino',     r => r.data.providerUsername_lower ? 'cu:'  + r.data.providerUsername_lower : null],
+    ['discord',    r => r.data.discordUserId          ? 'dc:'  + String(r.data.discordUserId) : null],
+    ['connection', r => r.data.connHash               ? 'ch:'  + r.data.connHash : null],
+  ];
+  const buckets = {};
+  FIELDS.forEach(([kind, fn]) => cache.forEach(r => {
+    const k = fn(r); if (!k) return;
+    (buckets[k] = buckets[k] || { kind, names: new Set() }).names.add(keyOf(r));
+  }));
+
+  const all = Object.values(buckets);
+  Object.keys(shown).forEach(me => {
+    const mine = alias[me] || new Set([me]);
+    const shared = {};
+    all.forEach(b => {
+      if (!b.names.has(me)) return;
+      b.names.forEach(other => {
+        if (mine.has(other)) return;               // themselves, or their own old name
+        (shared[other] = shared[other] || new Set()).add(b.kind);
+      });
+    });
+    const others = Object.keys(shared);
+    if (!others.length) return;
+    // Strong when one other account shares an identity they cannot easily
+    // duplicate (casino or Discord), or corroborates across two kinds at once.
+    const strong = others.some(o => shared[o].has('casino') || shared[o].has('discord') || shared[o].size > 1);
+    map[me] = { strong, names: others.map(o => shown[o] || o) };
+  });
+  return map;
 }
 
 function renderVerifiedFromCache() {
@@ -13977,8 +14045,23 @@ function renderVerifiedFromCache() {
       ? `<span style="color:#5865F2;font-weight:600;font-size:12px;">@${escHtml(discordUser)}</span>`
       : `<span style="color:var(--text-dim);font-size:12px;">—</span>`;
     const rowStyle = v.underAffiliate ? 'background:rgba(0,255,136,0.02);' : '';
+    // Deliberately worded as a link, not an accusation. "Likely alt" is as far as
+    // it goes even on the strong path, and the tooltip names the other accounts
+    // and the innocent explanation so nobody acts on the badge alone.
+    const alt = verifiedAltMap[String(v.kickName || id).toLowerCase()];
+    const altBadge = !alt ? '' : (() => {
+      const n = alt.names.length;
+      const who = alt.names.slice(0, 6).join(', ') + (n > 6 ? ` and ${n - 6} more` : '');
+      const tip = alt.strong
+        ? `Shares a casino account, Discord, or two separate identifiers with: ${who}. Two accounts claiming one identity is the usual sign of an alt — but a shared household or a name change we could not follow look the same. Check before acting.`
+        : `Verified from the same connection as: ${who}. On its own this is weak — one house, one router, or a mobile network can put unrelated people behind one address. A reason to look, not a finding.`;
+      const c = alt.strong ? { bg: 'rgba(255,90,120,0.15)', fg: '#ff5a78', bd: 'rgba(255,90,120,0.45)' }
+                           : { bg: 'rgba(245,197,24,0.13)', fg: '#f5c518', bd: 'rgba(245,197,24,0.4)' };
+      return `<span title="${escHtml(tip)}" style="margin-left:6px;background:${c.bg};color:${c.fg};border:1px solid ${c.bd};border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap;">${
+        alt.strong ? 'Likely alt' : 'Shared conn'} · ${n}</span>`;
+    })();
     return `<tr style="${rowStyle}">
-      <td class="td-highlight">${vpName(v.kickName || id)}</td>
+      <td class="td-highlight">${vpName(v.kickName || id)}${altBadge}</td>
       <td>${escHtml(v.providerUsername || '—')}</td>
       <td style="color:var(--text-dim);font-size:12px;">${escHtml(casinoName)}</td>
       <td>${statusBadge}</td>

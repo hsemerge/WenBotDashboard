@@ -209,6 +209,53 @@ exports.handler = async (event) => {
       }
     }
 
+    // ── Same connection as another account ───────────────────────────────────
+    // connHash is a SALTED HASH of the IP the account verified from — never the
+    // raw IP, and never shown. Mirrors the corroboration rule verify-log.js
+    // already applies at verification time, because the distinction is the whole
+    // point: a shared connection ALONE is routinely innocent (siblings, a
+    // household, halls, CGNAT putting strangers behind one address), so on its
+    // own it is the soft "shared connection" flag. When the same account ALSO
+    // shares a Discord or casino account, one coincidence has become a pattern
+    // and it escalates. Reporting a lone IP match as an alt would flag every
+    // sibling on the channel.
+    const myHashes = [...new Set(mine.map((r) => r.connHash).filter(Boolean))];
+    for (const h of myHashes) {
+      const sharers = new Map();       // otherName -> corroborating signal
+      for (const o of all) {
+        if (o.connHash !== h) continue;
+        const name = o.kickName || o.kickName_lower;
+        if (!isOtherPerson(name)) continue;
+        const rec = sharers.get(lc(name)) || { name, discord: false, casino: false };
+        if (mine.some((r) => r.discordUserId && o.discordUserId
+                          && String(r.discordUserId) === String(o.discordUserId))) rec.discord = true;
+        if (mine.some((r) => (r.providerUid && o.providerUid && r.providerUid === o.providerUid)
+                          || (r.providerUsername_lower && o.providerUsername_lower
+                              && r.providerUsername_lower === o.providerUsername_lower))) rec.casino = true;
+        sharers.set(lc(name), rec);
+      }
+      if (!sharers.size) continue;
+      const list = [...sharers.values()];
+      const names = list.map((r) => r.name);
+      names.forEach(noteOther);
+      const corroborated = list.some((r) => r.discord || r.casino);
+      const also = list.some((r) => r.discord) ? "Discord account"
+                 : list.some((r) => r.casino)  ? "casino account" : null;
+      const label = mine.find((r) => r.connHash === h && r.connLabel);
+      findings.push({
+        signal: corroborated ? "conn_alt" : "conn_shared",
+        weight: corroborated ? STRONG : MEDIUM,
+        alt: true,
+        title: corroborated ? "Same connection AND the same account details" : "Verified from the same connection",
+        detail: `Verified from the same connection${label ? ` (${label.connLabel})` : ""} as ${names.join(", ")}`
+              + (corroborated ? `, and shares the same ${also}.` : "."),
+        meaning: corroborated
+          ? "Two independent signals agreeing. One is a coincidence; two on the same pair of accounts is a pattern. This is the strongest combination the data can produce."
+          : "On its own this is weak. A shared house, a shared router, halls of residence, or a mobile network putting strangers behind one address all produce it. Treat it as a reason to look, not a finding.",
+        others: names,
+      });
+    }
+
     // ── The durable trail written when something was flagged before ──────────
     // detectAnomalies() and handleDiscordMove() both write here, on BOTH accounts
     // involved, so this survives the mod-feed message scrolling away and covers
@@ -226,7 +273,8 @@ exports.handler = async (event) => {
     // The types that bear on alting. discord_in / discord_out are the two halves
     // of a Discord hopping between Kick names — written on BOTH accounts, so
     // whichever one you look up, the hop is visible from its own side.
-    const ALT_TYPES = { casino_shared: MEDIUM, discord_reused: MEDIUM, discord_in: MEDIUM, discord_out: MEDIUM };
+    const ALT_TYPES = { casino_shared: MEDIUM, discord_reused: MEDIUM, discord_in: MEDIUM,
+                        discord_out: MEDIUM, conn_alt: MEDIUM, conn_shared: INFO };
     const INFO_TYPES = { renamed: INFO, casino_rename: INFO };
     for (const e of history) {
       const weight = ALT_TYPES[e.type] || INFO_TYPES[e.type];
@@ -243,7 +291,10 @@ exports.handler = async (event) => {
     }
 
     const strong = findings.filter((f) => f.weight === STRONG && f.alt).length;
-    const medium = findings.filter((f) => f.weight === MEDIUM && f.alt).length;
+    // Everything alt-relevant that is not strong, medium and info alike — a lone
+    // shared connection is weak but it is still a reason to look, and counting
+    // only MEDIUM would report "0 softer links" on a page that is showing one.
+    const medium = findings.filter((f) => f.alt && f.weight !== STRONG).length;
     const renameOnly = findings.length > 0 && findings.every((f) => !f.alt);
 
     let summary;
@@ -271,6 +322,10 @@ exports.handler = async (event) => {
         kickName: r.kickName || null,
         discordUserId: r.discordUserId || null,
         discordUsername: r.discordUsername || null,
+        // The human-readable half only. connHash is a salted hash of their IP and
+        // never leaves the server — the label is a coarse descriptor, the hash is
+        // the thing that must not be shipped to a browser.
+        connLabel: r.connLabel || null,
         verifiedAt: r.verifiedAt || null,
       })),
       findings, linkedNames: [...linked], summary,

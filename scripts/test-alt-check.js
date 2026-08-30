@@ -129,6 +129,47 @@ const run = async (kickUsername) => {
   ok("uid match reported once", uidHits === 1, uidHits);
   ok("username match suppressed when the uid already matched", nameHits === 0, nameHits);
 
+  // ── the connection fingerprint, and why a lone match must stay soft ────────
+  console.log("\n== shared connection ALONE stays soft (siblings, one router, CGNAT) ==");
+  reset();
+  // Two unrelated viewers behind one address: same connHash, nothing else shared.
+  VERIFIED.push({ id: "sibA_winovo", kickName: "SibA", kickName_lower: "siba", kickUserId: "700",
+    provider: "winovo", providerUsername: "sib_a", providerUsername_lower: "sib_a", providerUid: "W-A",
+    discordUserId: "8001", connHash: "HASH-HOME", connLabel: "UK mobile", verifiedAt: 1 });
+  VERIFIED.push({ id: "sibB_winovo", kickName: "SibB", kickName_lower: "sibb", kickUserId: "701",
+    provider: "winovo", providerUsername: "sib_b", providerUsername_lower: "sib_b", providerUid: "W-B",
+    discordUserId: "8002", connHash: "HASH-HOME", connLabel: "UK mobile", verifiedAt: 1 });
+  const s = await run("SibA");
+  const sConn = s.findings.filter((f) => f.signal === "conn_shared");
+  ok("reports the shared connection", sConn.length === 1, s.findings.map((f) => f.signal).join(","));
+  ok("but NOT as a strong signal", sConn.every((f) => f.weight === "medium"), sConn.map((f) => f.weight).join(","));
+  ok("no strong finding at all", !s.findings.some((f) => f.weight === "strong"), "escalated on IP alone");
+  ok("explains the innocent reading", /shared house|shared router|mobile network/i.test(sConn[0].meaning), sConn[0].meaning);
+
+  console.log("\n== connection + a second shared signal DOES escalate ==");
+  reset();
+  VERIFIED.forEach((r) => { if (r.kickName_lower === "sangamesh149" || r.kickName_lower === "sanga_alt2") r.connHash = "HASH-SANGA"; });
+  const e = await run("Sangamesh149");
+  const eConn = e.findings.filter((f) => f.signal === "conn_alt");
+  ok("escalates to conn_alt", eConn.length === 1, e.findings.map((f) => f.signal).join(","));
+  ok("rated strong", eConn.every((f) => f.weight === "strong"), eConn.map((f) => f.weight).join(","));
+  ok("names the corroborating signal", /Discord account|casino account/.test(eConn[0].detail), eConn[0].detail);
+
+  console.log("\n== a rename sharing its own connection is still not an alt ==");
+  reset();
+  VERIFIED.forEach((r) => { if (r.kickUserId === "553000") r.connHash = "HASH-RENAMER"; });
+  const rn = await run("NewName");
+  ok("no connection finding against its own former name",
+     !rn.findings.some((f) => f.signal === "conn_alt" || f.signal === "conn_shared"),
+     rn.findings.map((f) => f.signal).join(","));
+  ok("still reads as a rename", /rename, not an alt/.test(rn.summary), rn.summary);
+
+  console.log("\n== the raw IP hash never leaves the server ==");
+  reset();
+  VERIFIED.forEach((r) => { r.connHash = "SECRET-HASH-" + r.id; });
+  const p = await run("Sangamesh149");
+  ok("connHash absent from the response", !JSON.stringify(p).includes("SECRET-HASH"), "hash leaked to the client");
+
   console.log(fails ? `\n${fails} FAILURE(S)\n` : "\nalt-check reasoning correct\n");
   process.exit(fails ? 1 : 0);
 })().catch((e) => { console.error("threw:", e); process.exit(1); });
