@@ -13979,7 +13979,26 @@ function computeVerifiedAltLinks(cache) {
     // Strong when one other account shares an identity they cannot easily
     // duplicate (casino or Discord), or corroborates across two kinds at once.
     const strong = others.some(o => shared[o].has('casino') || shared[o].has('discord') || shared[o].size > 1);
-    map[me] = { strong, names: others.map(o => shown[o] || o) };
+    // Keep WHAT is shared with WHICH account. Without this the badge can only
+    // list the possibilities ("a casino account, Discord, or two identifiers"),
+    // which tells a mod nothing they can act on — the whole question they have
+    // is which one it is.
+    const ORDER = { casino: 0, discord: 1, connection: 2 };
+    const isStrongLink = o => shared[o].has('casino') || shared[o].has('discord') || shared[o].size > 1;
+    map[me] = {
+      strong,
+      names: others.map(o => shown[o] || o),
+      // The badge counts only the accounts carrying a real signal. Someone who
+      // shares a Discord with one account and merely a connection with a
+      // housemate is linked to one suspicious account, not two — counting both
+      // under "Likely alt" inflates the number that gets acted on. The housemate
+      // still appears in the tooltip, labelled for what it is.
+      strongCount: others.filter(isStrongLink).length,
+      links: others.map(o => ({
+        name: shown[o] || o,
+        kinds: [...shared[o]].sort((a, b) => ORDER[a] - ORDER[b]),
+      })).sort((a, b) => b.kinds.length - a.kinds.length),
+    };
   });
   return map;
 }
@@ -14051,14 +14070,21 @@ function renderVerifiedFromCache() {
     const alt = verifiedAltMap[String(v.kickName || id).toLowerCase()];
     const altBadge = !alt ? '' : (() => {
       const n = alt.names.length;
-      const who = alt.names.slice(0, 6).join(', ') + (n > 6 ? ` and ${n - 6} more` : '');
-      const tip = alt.strong
-        ? `Shares a casino account, Discord, or two separate identifiers with: ${who}. Two accounts claiming one identity is the usual sign of an alt — but a shared household or a name change we could not follow look the same. Check before acting.`
-        : `Verified from the same connection as: ${who}. On its own this is weak — one house, one router, or a mobile network can put unrelated people behind one address. A reason to look, not a finding.`;
+      const WORD = { casino: 'casino account', discord: 'Discord', connection: 'connection' };
+      // One line per linked account naming exactly what it shares, so the reason
+      // is readable without opening anything.
+      const lines = (alt.links || []).slice(0, 8)
+        .map(l => `• ${l.name} — same ${l.kinds.map(k => WORD[k]).join(' + same ')}`).join('\n');
+      const more = n > 8 ? `\n• …and ${n - 8} more` : '';
+      const tip = (alt.strong ? 'Shares an identity with:\n' : 'Verified from the same connection as:\n')
+        + lines + more + '\n\n'
+        + (alt.strong
+            ? 'Two accounts claiming one identity is the usual sign of an alt — but a shared household, or a rename we could not follow, look exactly the same. Check before acting.'
+            : 'Weak on its own: one house, one router, or a mobile network can put unrelated people behind one address. A reason to look, not a finding.');
       const c = alt.strong ? { bg: 'rgba(255,90,120,0.15)', fg: '#ff5a78', bd: 'rgba(255,90,120,0.45)' }
                            : { bg: 'rgba(245,197,24,0.13)', fg: '#f5c518', bd: 'rgba(245,197,24,0.4)' };
       return `<span title="${escHtml(tip)}" style="margin-left:6px;background:${c.bg};color:${c.fg};border:1px solid ${c.bd};border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap;">${
-        alt.strong ? 'Likely alt' : 'Shared conn'} · ${n}</span>`;
+        alt.strong ? `Likely alt · ${alt.strongCount}` : `Shared conn · ${n}`}</span>`;
     })();
     return `<tr style="${rowStyle}">
       <td class="td-highlight">${vpName(v.kickName || id)}${altBadge}</td>

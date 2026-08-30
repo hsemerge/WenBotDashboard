@@ -73,6 +73,25 @@ m = computeVerifiedAltLinks([
 ok("their two records are not each other", m["multi"].names.every((n) => n.toLowerCase() !== "multi"), m["multi"].names.join(","));
 ok("the real alt is found once", m["multi"].names.length === 1 && m["multi"].names[0] === "MultiAlt", m["multi"].names.join(","));
 
+console.log("\n== the badge count must not inflate a weak link into an alt ==");
+// Main shares a Discord with AltOne (real signal) and merely a connection with
+// Roommate (a housemate). Counting both as "Likely alt · 2" overstates it, and
+// Roommate must not be accused just for being on the same router.
+m = computeVerifiedAltLinks([
+  R("Main",     { kickUserId: "20", providerUid: "M1", discordUserId: "DM", connHash: "HC" }),
+  R("AltOne",   { kickUserId: "21", providerUid: "M9", discordUserId: "DM", connHash: "HX" }),
+  R("Roommate", { kickUserId: "22", providerUid: "M8", discordUserId: "DR", connHash: "HC" }),
+]);
+ok("Main reads as strong", m["main"].strong === true, "not strong");
+ok("but counts only the ONE real link", m["main"].strongCount === 1, m["main"].strongCount);
+ok("while still listing the housemate", m["main"].names.length === 2, m["main"].names.join(","));
+ok("and labelling each link's actual reason",
+   m["main"].links.find((l) => l.name === "AltOne").kinds.join() === "discord"
+   && m["main"].links.find((l) => l.name === "Roommate").kinds.join() === "connection",
+   JSON.stringify(m["main"].links));
+ok("the housemate is NOT accused", m["roommate"].strong === false, "roommate flagged as likely alt");
+ok("strongest link is listed first", m["main"].links[0].name === "AltOne", m["main"].links[0].name);
+
 console.log("\n== a viewer with no Kick account id still resolves ==");
 // kickUserId predates some records; without it there is no alias set, so the
 // viewer must fall back to being their own only alias rather than crashing.
