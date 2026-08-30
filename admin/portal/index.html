@@ -209,6 +209,12 @@
     font-size:11px; color:var(--dim); opacity:0; transition:opacity .12s;
   }
   .stat.drill:hover::after, .stat.drill:focus-visible::after { opacity:.75; }
+  /* A tile being used as an active filter. It has to be unmistakable — the
+     table below is showing a subset, and not realising that is how a number
+     gets misread. */
+  .stat.focused { border-color:var(--accent); background:rgba(var(--accent-rgb),.09); }
+  .stat.focused::after { content:'✕'; opacity:.9; color:var(--accent); }
+  .stat.focused .l::after { content:' · filtering'; color:var(--accent); font-weight:600; }
   .stat { position:relative; }
 
   .bd-back { position:fixed; inset:0; background:rgba(2,6,10,.72); z-index:700;
@@ -542,6 +548,10 @@
             <button class="btn-ghost" onclick="loadUsers()">↻ Refresh</button>
             <label class="sub" style="display:flex;align-items:center;gap:6px;cursor:pointer;align-self:center;">
               <input type="checkbox" id="billingDueOnly" onchange="renderBilling()" style="width:auto;"> Due soon / overdue only
+            </label>
+            <label class="sub" style="display:flex;align-items:center;gap:6px;cursor:pointer;align-self:center;"
+                   title="Hides subscriptions that have been cancelled — both those still inside their paid period and those whose access has ended.">
+              <input type="checkbox" id="billingHideCancelled" onchange="renderBilling()" style="width:auto;"> Hide cancelled
             </label>
             <span id="billingCount" class="sub" style="align-self:center;"></span>
           </div>
@@ -4184,6 +4194,24 @@
     renderBilling();
   };
 
+  // The stat tiles double as one-click filters. On the dashboard a tile opens a
+  // breakdown, because there is no list underneath it; here the list IS the
+  // page, so "2 overdue" should just show you the two.
+  let _billingFocus = null;   // null | overdue | soon | crypto | stripe | trial
+  window.setBillingFocus = function (k) {
+    _billingFocus = (_billingFocus === k) ? null : k;   // clicking the active one clears it
+    renderBilling();
+  };
+  // One definition per focus, used for BOTH the tile count and the filter, so a
+  // tile can never claim a number the table then fails to show.
+  const BILLING_FOCUS = {
+    overdue: (r, now) => !!r.nextDue && r.nextDue < now,
+    soon:    (r, now) => !!r.nextDue && r.nextDue >= now && (r.nextDue - now) <= 7 * 864e5,
+    crypto:  (r)      => r.method === 'crypto',
+    stripe:  (r)      => r.method === 'stripe',
+    trial:   (r)      => !!(r.u.planTrial && r.u.trialEndsAt && r.u.trialEndsAt > Date.now()),
+  };
+
   // Click-to-sort, which the retired Billing lens had and the tab did not — the
   // point of folding them together was to lose nothing.
   //
@@ -4242,6 +4270,13 @@
     if (q) rows = rows.filter(r =>
       ((r.u.kickChannel || r.u.uid) + ' ' + (r.u.plan || '') + ' ' + (r.u.email || '')).toLowerCase().includes(q));
     if (dueOnly) rows = rows.filter(r => r.nextDue && (r.nextDue - now) <= 7 * DAY);
+    // Cancelled subscriptions still show a next-payment date and an overdue
+    // count, which is noise once you have accepted they are gone — but they must
+    // stay visible by default, because someone inside their paid period is the
+    // one customer you can still save.
+    if ($('billingHideCancelled') && $('billingHideCancelled').checked) {
+      rows = rows.filter(r => !(r.u.stripeSubscribed && r.u.stripeAutoRenew === false));
+    }
 
     // Force in any row the owner has open — typically one they reached from
     // Customer 360's Invoice button, which may have no billing cycle at all.
@@ -4263,14 +4298,30 @@
       rows = rows.slice().sort((a, b) => (b.forced ? 1 : 0) - (a.forced ? 1 : 0));
     }
 
-    const overdue = rows.filter(r => r.nextDue && r.nextDue < now).length;
-    const soon    = rows.filter(r => r.nextDue && r.nextDue >= now && (r.nextDue - now) <= 7 * DAY).length;
-    const crypto  = rows.filter(r => r.method === 'crypto').length;
+    // Counts come from the rows BEFORE the tile filter, so the tiles keep
+    // showing what is available rather than collapsing to the one you clicked.
+    const counts = {
+      overdue: rows.filter(r => BILLING_FOCUS.overdue(r, now)).length,
+      soon:    rows.filter(r => BILLING_FOCUS.soon(r, now)).length,
+      crypto:  rows.filter(r => BILLING_FOCUS.crypto(r)).length,
+      stripe:  rows.filter(r => BILLING_FOCUS.stripe(r)).length,
+      trial:   rows.filter(r => BILLING_FOCUS.trial(r)).length,
+    };
+    const overdue = counts.overdue, soon = counts.soon, crypto = counts.crypto;
     // In Everyone scope the list is no longer "billing accounts", so neither the
     // tile nor the count may keep saying so — a headline of "84 Billing
     // accounts" when 11 actually bill is worse than no headline, and the scope
     // is remembered across sessions so it would be read cold on another day.
     const billingNow = rows.filter(r => !!r.method).length;
+    const totalShown = rows.length;   // before the tile filter, for "of N shown"
+
+    // Tile filter applies HERE — after every count above is taken from the full
+    // set, and before the row count, the empty state and the table are built
+    // from it. Anywhere else and the header would describe a different list to
+    // the one on screen.
+    if (_billingFocus && BILLING_FOCUS[_billingFocus]) {
+      rows = rows.filter(r => BILLING_FOCUS[_billingFocus](r, now));
+    }
     const st = $('billingScopeTabs');
     if (st) st.innerHTML = [['cycle', 'Billing now'], ['all', 'Everyone']]
       .map(([k, l]) => `<button class="${k === _billingScope ? '' : 'btn-ghost'}" onclick="setBillingScope('${k}')" style="padding:7px 14px;font-size:12.5px;">${l}</button>`).join('');
@@ -4286,12 +4337,28 @@
     const eb = $('billingErr');
     if (eb) { eb.style.display = _billingOverviewErr ? 'block' : 'none'; eb.textContent = _billingOverviewErr; }
     const sc = $('billingStatCards');
-    if (sc) sc.innerHTML =
-      `<div class="stat"><div class="n">${billingNow}</div><div class="l">Billing accounts${
-        _billingScope === 'all' ? ` · <small>of ${rows.length} shown</small>` : ''}</div></div>`
-      + `<div class="stat ${overdue ? 'bad' : ''}"><div class="n">${overdue}</div><div class="l">Overdue</div></div>`
-      + `<div class="stat ${soon ? 'warn' : ''}"><div class="n">${soon}</div><div class="l">Due within 7 days</div></div>`
-      + `<div class="stat"><div class="n">${crypto}</div><div class="l">Crypto (manual)</div></div>`;
+    if (sc) {
+      const tile = (key, n, label, tone) => {
+        const on = _billingFocus === key;
+        return `<div class="stat ${tone || ''} drill${on ? ' focused' : ''}"`
+          + ` onclick="setBillingFocus('${key}')" tabindex="0" role="button"`
+          + ` onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setBillingFocus('${key}');}"`
+          + ` title="${on ? 'Showing only these — click to clear' : 'Click to show only these'}">`
+          + `<div class="n">${n}</div><div class="l">${label}</div></div>`;
+      };
+      sc.innerHTML =
+        // While a filter is on, this tile becomes the way back out.
+        `<div class="stat${_billingFocus ? ' drill' : ''}"`
+        + (_billingFocus ? ` onclick="setBillingFocus(null)" title="Clear the filter"` : '')
+        + `><div class="n">${billingNow}</div><div class="l">Billing accounts${
+            _billingScope === 'all' ? ` · <small>of ${totalShown} shown</small>` : ''}</div></div>`
+        + tile('overdue', counts.overdue, 'Overdue', counts.overdue ? 'bad' : '')
+        + tile('soon',    counts.soon,    'Due within 7 days', counts.soon ? 'warn' : '')
+        + tile('crypto',  counts.crypto,  'Crypto (manual)', '')
+        + tile('stripe',  counts.stripe,  'Stripe (auto)', '')
+        + tile('trial',   counts.trial,   'On a free trial', counts.trial ? 'warn' : '');
+    }
+
 
     if (!rows.length) {
       tbody.innerHTML = `<tr><td colspan="9" class="muted" style="text-align:center;padding:24px;">${
@@ -4327,19 +4394,32 @@
               ? `<span class="warn">⚠ ${esc(bs.label)}${bs.detail ? ' · ' + esc(bs.detail) : ''}</span>`
               : `<span class="muted">auto-renews${bs.amt ? ' · ' + esc(bs.amt) : ''}</span>`)
           : '<span class="muted">manual</span>';
-        const unpaid = r.method === 'crypto' && r.ov && r.ov.hasUnpaid && !(r.ov.paidCount > 0);
-        if (unpaid) {
-          const sub = r.ov.submittedCount > 0 ? ' · ✋ paid, needs confirm' : '';
-          state  = `<span class="warn">⚠ Unpaid invoice${sub}</span>`;
-          nextCell = r.nextDue ? date(r.nextDue) : '<span class="muted">—</span>';
-        } else if (r.nextDue) {
+        // Whether an invoice is already out. This used to be gated on
+        // `!(paidCount > 0)`, so it only ever showed for someone who had NEVER
+        // paid — an existing customer with an invoice sitting unpaid looked
+        // identical to one you hadn't billed yet, which is backwards: knowing
+        // you already sent it is the whole point of looking at this row.
+        const openInv = r.ov && r.ov.hasUnpaid;
+        const invTag = !openInv ? ''
+          : (r.ov.submittedCount > 0
+              ? ` <span class="pill" style="background:rgba(85,239,176,.16);color:var(--good);" title="They say they have paid — confirm it to close the invoice">✋ paid, confirm it</span>`
+              : ` <span class="pill" style="background:rgba(var(--accent-rgb),.14);color:var(--accent);" title="${r.ov.unpaidCount} invoice(s) sent and not yet paid">🧾 invoice sent</span>`);
+
+        if (r.nextDue) {
           const days = Math.ceil((r.nextDue - now) / DAY);
-          state  = days < 0 ? `<span class="warn">⚠ Overdue ${-days}d</span>` : days <= 7 ? `<span style="color:var(--gold);">Due in ${days}d</span>` : `<span class="ok">in ${days}d</span>`;
+          state  = days < 0 ? `<span class="warn">⚠ Overdue ${-days}d</span>`
+                 : days <= 7 ? `<span style="color:var(--gold);">Due in ${days}d</span>`
+                 : `<span class="ok">in ${days}d</span>`;
           nextCell = date(r.nextDue);
+        } else if (openInv) {
+          state = '<span class="warn">⚠ Unpaid invoice</span>';
         } else { state = '<span class="muted">no confirmed cycle</span>'; }
+        state += invTag;
       }
       const head = `<tr id="bill-row-${esc(uid)}" style="cursor:pointer;" onclick="toggleBillingDetail('${esc(uid)}')">
-        <td><span class="muted" style="display:inline-block;width:12px;">${open ? '▾' : '▸'}</span> ${ch}</td>
+        <td><span class="muted" style="display:inline-block;width:12px;" title="${open ? 'Hide' : 'Show'} invoices">${open ? '▾' : '▸'}</span> <span class="chan"
+              title="Open ${ch}'s Customer 360"
+              onclick="event.stopPropagation();openCustomer('${esc(uid)}')">${ch}</span></td>
         <td><span class="pill ${esc(r.u.plan)}">${esc(r.u.plan)}</span></td>
         <td>${method}</td><td class="num">${nextCell}</td><td class="num">${r.u.totalPaid ? money(r.u.totalPaid) : '<span class="muted">—</span>'}${r.u.paymentCount ? ` <small class="muted">· ${r.u.paymentCount}</small>` : ''}</td><td class="muted">${r.u.lastPaymentAt ? rel(r.u.lastPaymentAt) : '—'}</td><td class="num" style="white-space:nowrap;">${(() => {
           // Same reading as the roster: sign-ups earn nothing, a converted one
