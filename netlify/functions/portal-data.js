@@ -284,7 +284,11 @@ const PORTAL_PRESETS = {
             { wager: "$100,000", reward: "$700" },
             { wager: "$250,000", reward: "TiltBros VIP (open a ticket)" },
           ],
-          note: "Milestones reset at the start of each month. Claim by opening a ticket in Discord once you hit a tier.",
+          // "Each month" was the wrong reading: milestones follow the LEADERBOARD
+          // cycle, which is monthly but not calendar-aligned (it has run 13 Aug -
+          // 12 Sep, for instance). The portal appends the live dates underneath
+          // this, so the note says what the rule is and the page says when.
+          note: "Milestones follow the leaderboard cycle and reset when it renews. Claim by opening a ticket in Discord once you hit a tier.",
         },
         {
           type: "list", title: "Getting Started",

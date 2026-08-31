@@ -1385,9 +1385,35 @@
         }).join('') + '</div>';
       }
       if (sec.type === 'tiers') {
+        // Spell out the window these milestones are measured over.
+        //
+        // "Monthly" is ambiguous and the two readings differ by real money: the
+        // cycle is the LEADERBOARD month, which currently runs 13 Aug - 12 Sep,
+        // not calendar August. A viewer totting up their own month would
+        // otherwise expect the 1st to the 31st, see a smaller number and think
+        // it was wrong — when it is measuring exactly what it should.
+        //
+        // Read from the live timer rather than written into the note, so it
+        // stays true when the cycle renews instead of going stale every month.
+        // Formatted in UTC, not the viewer's zone. Race boundaries are defined
+        // with Date.UTC server-side (see portal-data.js) and the streamer quotes
+        // them that way, so a local-time render shifted every date by a day for
+        // anyone west of UTC — the page would have said "12 Aug" for a cycle
+        // everyone else calls the 13th.
+        var _t = s.leaderboardTimer || {};
+        var _utcDay = function (ts) {
+          var d = new Date(ts);
+          if (isNaN(d.getTime())) return '';
+          return d.toLocaleDateString(undefined, { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' });
+        };
+        var _cycle = (_t.startAt && _t.endAt)
+          ? 'This cycle runs ' + _utcDay(_t.startAt) + ' – ' + _utcDay(_t.endAt)
+            + ' (UTC), the same window as the leaderboard. Progress resets when it renews.'
+          : '';
+        var _note = [sec.note || '', _cycle].filter(Boolean).join(' ');
         return head + '<div class="tbl-wrap">' + (sec.tiers || []).map(function (t) {
           return '<div class="tier-row"><span class="tw">' + esc(t.wager) + '</span><span class="tr">' + esc(t.reward) + '</span></div>';
-        }).join('') + '</div>' + (sec.note ? '<div class="note">' + esc(sec.note) + '</div>' : '');
+        }).join('') + '</div>' + (_note ? '<div class="note">' + esc(_note) + '</div>' : '');
       }
       if (sec.type === 'cards') {
         return head + '<div class="grid g3">' + (sec.cards || []).map(function (cd) {
