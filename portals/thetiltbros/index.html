@@ -1505,6 +1505,11 @@
       if (ra) ra.addEventListener('click', function () {
         // Drop the dead session first, so the callback writes a clean one.
         try { if (typeof clearKickViewerSession === 'function') clearKickViewerSession(); } catch (e) {}
+        // Same stash the first-time sign-in button does. Without it, re-signing
+        // in from this panel returned to the leaderboard — the one button most
+        // likely to be pressed FROM the bonuses page was the one that did not
+        // remember it.
+        try { localStorage.setItem('tb_return_view', 'bonuses'); } catch (e) {}
         initiateKickAuth('viewer', CHANNEL);
       });
       var so = $('msOut');
@@ -1583,9 +1588,20 @@
   }
 
   // Fetches the viewer's own figure once a Kick session exists.
+  // Guards against overlapping lookups clobbering each other. load() fires one,
+  // the 60s refresh fires one, "Check again" fires one, and the wager round trip
+  // takes 4-6.5s — so two are routinely in flight, writing to the same
+  // _msViewer. Without this the LAST to land wins rather than the NEWEST, and a
+  // lookup that started before sign-in could overwrite one that started after.
+  var _msSeq = 0;
+
   async function loadViewerWager() {
+    var seq = ++_msSeq;
     var session = (typeof getKickViewerSession === 'function') ? getKickViewerSession() : null;
-    if (!session || !session.accessToken) { _msViewer = null; return; }
+    if (!session || !session.accessToken) {
+      if (seq === _msSeq) _msViewer = null;
+      return;
+    }
     try {
       var r = await fetch('/api/viewer-wager', {
         method: 'POST',
@@ -1593,6 +1609,9 @@
         body: JSON.stringify({ channel: CHANNEL, kickAccessToken: session.accessToken }),
       });
       var d = await r.json();
+      // A newer lookup started while this one was in flight — its answer is the
+      // current one, so drop this reply rather than overwriting it.
+      if (seq !== _msSeq) return;
       // Deliberately does NOT clear the session on 401. This endpoint 401s
       // whenever it cannot resolve the Kick token, transient failures included,
       // and clearing here signed people out moments after they signed in. If the
@@ -1601,7 +1620,10 @@
       _msViewer = (r.ok && d && !d.error) ? d : null;
       _msError  = (!r.ok || !d || !!d.error) ? ((d && d.error) || ('HTTP ' + r.status)) : null;
       _msStatus = r.status;
-    } catch (e) { _msViewer = null; _msError = 'network'; _msStatus = 0; }
+    } catch (e) {
+      if (seq !== _msSeq) return;
+      _msViewer = null; _msError = 'network'; _msStatus = 0;
+    }
   }
 
   // Live "running for" clock under the wager raffle. Cleared and restarted on
@@ -1976,34 +1998,45 @@
   var RETURN_KEY = 'tb_return_view';
 
   (async () => {
-    // The board goes first and waits for nothing.
+    // Claim the sign-in handoff FIRST, before anything paints or fetches.
     //
-    // This used to sit at the END of the sequence, behind `await
-    // loadViewerWager()`. That call asks the casino for ONE viewer's own total,
-    // which means a live Duelbits round trip measured at 4 to 6.5 seconds - and
-    // every signed-in visitor sat on "Loading the board..." for the whole of it,
-    // for a figure that is not even part of the board. /api/portal-data answers
-    // in about 0.25s, so the page was ten times slower than its own data.
-    // Paint the last known board first so the page is never empty while the
-    // fetch — and any cold start behind it — completes.
+    // It used to run after load(), on the reasoning that it only had to beat the
+    // standalone loadViewerWager() further down. But load() runs its OWN
+    // loadViewerWager(), so on the hop back from sign-in that lookup fired
+    // before the ?s= code had been exchanged. With no session yet it resolved to
+    // null, and renderProgress — which reads the session directly — painted
+    // "Sign in with Kick" over someone who had just signed in. Two lookups then
+    // raced to write _msViewer and the last to land won, not the newest. Sign
+    // in, come back, get asked to sign in again.
+    //
+    // Costs nothing on an ordinary visit: with no ?s= in the URL this returns
+    // immediately, and the cached board still paints on the very next line.
+    await initViewer();
+
+    // The board paints from cache first and waits for nothing. A viewer's own
+    // total is a live Duelbits round trip of 4 to 6.5 seconds, against about
+    // 0.25s for /api/portal-data — so the board must never queue behind it.
+    // load() kicks that lookup off itself and re-renders when it answers.
+
     var __cached = readPortalCache();
     if (__cached) { showStaleChip(true); try { load(__cached); } catch (e) { console.warn('cached paint failed', e); } }
     load();
     setInterval(load, 60000);
 
-    // Must finish before the wager lookup: it exchanges the ?s= handoff that
-    // creates the session that lookup authenticates with.
-    await initViewer();
-
+    // Restore the view they signed in from. The URL hash now survives the round
+    // trip too (kick-auth sends the full page URL as returnOrigin), so this is
+    // the fallback for a browser where localStorage is unavailable rather than
+    // the only mechanism — but it still runs after the routing above, so it wins
+    // when both are present.
     var back = null;
     try { back = localStorage.getItem(RETURN_KEY); localStorage.removeItem(RETURN_KEY); } catch (e) {}
     if (back && VIEWS.indexOf(back) !== -1) showView(back);
 
-    // Personal progress lands when it lands. The panel already says "Checking
-    // your progress…" in the meantime, so nothing else has to wait on it.
-    loadViewerWager().then(function () {
-      if (window.__S) renderProgress(window.__S);
-    });
+    // No standalone wager lookup here any more. load() already starts one and
+    // re-renders when it answers, and this second call duplicated a 4-6.5s
+    // Duelbits round trip on every page load. It was also guarded by
+    // `if (window.__S)` — undefined until load() finishes — so on a slow board
+    // fetch the one render that would have corrected the panel was skipped.
   })();
 })();
 </script>

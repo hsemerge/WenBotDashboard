@@ -125,7 +125,17 @@ async function initiateKickAuth(purpose = "streamer", payload = "") {
     if (here !== authOrigin) {
       const u = new URL(authOrigin + "/auth/kick/start.html");
       u.searchParams.set("channel", channel);
-      u.searchParams.set("returnOrigin", here);
+      // Carry the whole page URL, not just the origin. The callback redirects to
+      // whatever this holds, so sending a bare origin dropped the viewer on the
+      // portal root — signing in from Bonuses returned them to the leaderboard.
+      // The hash survives the round trip (the callback only appends ?s=), so the
+      // portal's own routing puts them back on the right view without relying on
+      // localStorage, which a private window or blocked storage can take away.
+      //
+      // Safe for the allowlist: kick-session-mint validates new URL(x).host, so a
+      // path changes nothing about which hosts are accepted, and the redirect
+      // still cannot leave the approved host.
+      u.searchParams.set("returnOrigin", here + window.location.pathname + window.location.hash);
       window.location.href = u.toString();
       return;
     }
