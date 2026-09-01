@@ -127,7 +127,54 @@ exports.handler = async (event) => {
     if (!provider || !CASINO_NAMES[provider]) return res(400, { error: "This channel hasn't set a casino yet." });
 
     // Period/countdown config for the public page (set from the dashboard).
-    const period = streamerData.leaderboardPeriod || null;
+    //
+    // leaderboardPeriod describes the PRIMARY casino and nothing else. Applying
+    // it to an additional board is not merely imprecise — applyPeriod SEEDS its
+    // result from the period's carryover, so the primary's banked players and
+    // their primary wagers get injected into the other casino's board, and any
+    // name that appears on both has the two added together.
+    //
+    // SKSlots asked for Winovo and got 29 Gambulls players at Gambulls amounts:
+    // his real Winovo race was 5 players and $513, but the response came back
+    // $28,518 with Bowenmango at $9,313 — his Gambulls figure. The masked
+    // Gambulls names were even overwritten by the unmasked Winovo ones where
+    // keys collided, so it read as a clean Winovo board.
+    //
+    // portal-data has always resolved this per board (see periodOfBoard). This
+    // brings the endpoint the DASHBOARD reads into line with it.
+    let period = streamerData.leaderboardPeriod || null;
+    if (provider !== String(streamerData.activeProvider || "").toLowerCase()) {
+      try {
+        const bSnap = await db.collection("streamers").doc(streamerDoc.id).collection("leaderboards").get();
+        const brd = sortBoards(bSnap.docs.map((d) => normalizeBoard(d.data(), d.id)))
+          .find((x) => x.provider === provider);
+        if (brd) {
+          const win = boardWindow(brd);
+          period = {
+            active:       brd.period.active,
+            duration:     brd.period.duration,
+            autoRenew:    brd.period.autoRenew,
+            startAt:      win ? win.from : brd.period.startAt,
+            endAt:        win ? win.to   : brd.period.endAt,
+            baselines:    brd.baselines,
+            dayBaselines: brd.dayBaselines,
+            carryover:    brd.carryover,
+            liveSnapshot: brd.liveSnapshot,
+            excluded:     brd.excluded,
+            anchorMonth:  brd.anchorMonth,
+            carryMonth:   brd.carryMonth,
+          };
+        } else {
+          // No board configured for this casino means nothing describes its
+          // window. Raw totals are wrong, but they are honestly wrong — the
+          // primary's carryover would be another casino's money.
+          period = null;
+        }
+      } catch (e) {
+        console.warn("[leaderboard-live] board period lookup failed:", e.message);
+        period = null;
+      }
+    }
 
     // For public viewers, check leaderboard is enabled; internal=1 bypasses (dashboard)
     const isInternal = event.queryStringParameters?.internal === "1";
