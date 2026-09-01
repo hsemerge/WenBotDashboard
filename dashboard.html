@@ -8709,7 +8709,17 @@ function updatePlatformDisplays() {
   const el   = (id) => document.getElementById(id);
   if (el('statPlatform'))    el('statPlatform').textContent    = name;
   if (el('gwPlatformName'))  el('gwPlatformName').textContent  = name;
-  if (el('lbPlatformNote'))  el('lbPlatformNote').textContent  = p ? `📡 ${name}` : '';
+  // Wager Rankings has its own casino picker, and this note sits right beside it.
+  // Reading activeProvider unconditionally meant selecting a second board still
+  // said "Gambulls" — the label contradicting the dropdown two inches away, on a
+  // panel whose whole job is showing which casino's numbers these are. The data
+  // query already honours the picker (see loadWagerRankings), so only the label
+  // was lying. Falls back to the primary when no board is selected.
+  if (el('lbPlatformNote')) {
+    const sel  = el('lbBoardSelect');
+    const shown = (sel && sel.value) || p;
+    el('lbPlatformNote').textContent = shown ? `📡 ${PLATFORM_NAMES[shown] || shown}` : '';
+  }
 }
 
 function srProviderChange() {
@@ -14863,6 +14873,9 @@ async function loadWagerRankings() {
   // the streamer runs more than one, so single-board channels fall straight through
   // to activeProvider exactly as before.
   const casino  = document.getElementById('lbBoardSelect')?.value || profile?.activeProvider || '';
+  // Repoint the casino label beside the picker. It is only recomputed here
+  // because this is the one function that runs on every change to the selector.
+  try { if (typeof updatePlatformDisplays === 'function') updatePlatformDisplays(); } catch (e) {}
   if (!channel) { wrap.innerHTML = '<div style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px;">Set your Kick channel in Settings first.</div>'; return; }
   const periodVal = document.getElementById('lbPeriodSelect')?.value || '';
   const countSel  = document.getElementById('lbCountSelect')?.value || '15';

@@ -701,8 +701,30 @@
     const label = b.label || 'Winovo';
     document.getElementById('wvTitle').textContent = (label + ' Wager Race').toUpperCase();
     document.getElementById('wvHeading').textContent = label + ' Leaderboard';
+    // State when THIS race ends.
+    //
+    // The hero countdown is wired to leaderboardTimer, which belongs to the
+    // PRIMARY board — so a streamer running their headline race as an additional
+    // board had a page with no end date anywhere on it, and viewers had no way
+    // to know when it closed. Additional boards carry their own startAt/endAt in
+    // portal-data; this reads them.
+    //
+    // Formatted in UTC because the window is stored as UTC instants and the
+    // streamer quotes it that way; rendering per-viewer would give two people
+    // different closing dates for the same race.
+    const _wvEnd = Number(b.endAt) || 0;
+    const _wvWhen = _wvEnd
+      ? new Date(_wvEnd).toLocaleString(undefined, {
+          timeZone: 'UTC', day: 'numeric', month: 'short',
+          hour: '2-digit', minute: '2-digit', hour12: false,
+        }) + ' UTC'
+      : '';
+    const _wvLive = _wvEnd && _wvEnd > Date.now();
     document.getElementById('wvIntro').textContent =
       'Wager under code ' + (s.portal?.hero?.code || 'SKSlots') + ' on Winovo to climb this board. ' +
+      (_wvWhen
+        ? (_wvLive ? 'This race ends ' + _wvWhen + '. ' : 'This race closed ' + _wvWhen + '. ')
+        : '') +
       'Standings update automatically while the race runs.';
 
     const pool = Number(b.prizePool || 0);
@@ -1174,7 +1196,20 @@
       document.body.style.background = `linear-gradient(rgba(8,7,13,.88),rgba(8,7,13,.95)), url("${portal.bgImage}") center/cover fixed no-repeat`;
     }
 
-    startCountdown(s.leaderboardTimer && s.leaderboardTimer.active ? s.leaderboardTimer.endAt : null);
+    // The main race owns the hero countdown, but it is not always the one still
+    // running. leaderboardTimer belongs to the PRIMARY board only, so a portal
+    // whose live race is an additional board showed no countdown at all — the
+    // section stayed display:none and the page read as a race with no end date.
+    // Fall back to the soonest additional board that has not closed yet.
+    const _cdNow = Date.now();
+    const _cdMain = (s.leaderboardTimer && s.leaderboardTimer.active
+                     && Number(s.leaderboardTimer.endAt) > _cdNow)
+      ? Number(s.leaderboardTimer.endAt) : null;
+    const _cdBoard = (s.boards || [])
+      .map(b => Number(b && b.endAt) || 0)
+      .filter(t => t > _cdNow)
+      .sort((a, b) => a - b)[0] || null;
+    startCountdown(_cdMain || _cdBoard || null);
 
     const lb = s.leaderboard || {};
     const cadence = hero.cadence ? hero.cadence + ' ' : '';
