@@ -1431,13 +1431,31 @@ exports.handler = async (event) => {
           try {
             // Credential on the board wins; otherwise inherit providers/{provider}
             // so a streamer who already configured that casino doesn't re-enter a key.
-            let cred = (b.credential && (b.credential.apiKey || b.credential.refCode
+            // Resolve BOTH credentials, board-first, and keep the other as a
+            // fallback to retry with.
+            //
+            // This used to stop at the board's own key. leaderboard-live resolves
+            // the SAME board the opposite way round — providers/ first, board
+            // second (see its winovo branch) — so when a streamer has a key in
+            // both places and one of them is stale, the two disagree about which
+            // is authoritative and show different boards for one race. SKSlots hit
+            // exactly that: the dashboard listed 30 Winovo players while the
+            // public portal showed an empty board, because each was reading a
+            // different key.
+            //
+            // Trying the second one only when the first yields nothing keeps the
+            // normal path a single fetch, and means a stale key in either place
+            // can no longer empty a live board.
+            const boardCred = (b.credential && (b.credential.apiKey || b.credential.refCode
               || b.credential.apiToken || b.credential.token)) || null;
-            if (!cred) {
+            let provCred = null;
+            try {
               const pd = await db.collection("streamers").doc(uid).collection("providers").doc(b.provider).get();
-              if (pd.exists) cred = pd.data().apiKey || pd.data().referralCode || pd.data().token || null;
-            }
-            if (!cred) { extraBoards.push(entry); continue; } // configured but unusable — still list it
+              if (pd.exists) provCred = pd.data().apiKey || pd.data().referralCode || pd.data().token || null;
+            } catch { /* providers/ is optional for an extra board */ }
+            const credCandidates = [boardCred, provCred].filter((c, i, a) => c && a.indexOf(c) === i);
+            if (!credCandidates.length) { extraBoards.push(entry); continue; } // configured but unusable — still list it
+            let cred = credCandidates[0];
 
             // Cached per board+window: extra boards are polled by every portal
             // visitor, and none of these APIs should be hit once per page view.
@@ -1448,6 +1466,11 @@ exports.handler = async (event) => {
             if (cdoc && cdoc.data && (Date.now() - cdoc.cachedAt) < 5 * 60 * 1000) data = cdoc.data;
 
             if (!data) {
+             // One pass per credential, stopping at the first that returns real
+             // standings. With a single key configured this runs exactly once and
+             // behaves exactly as it did before.
+             for (let _ci = 0; _ci < credCandidates.length; _ci++) {
+              cred = credCandidates[_ci];
               if (b.provider === "degen") {
                 const race = await fetchDegenRace(cred);
                 if (race) data = { rankings: race.rankings.map((r) => ({ rank: r.rank, username: r.username, wagered: r.wagered, avatarUrl: r.avatarUrl })), totalUsers: race.totalUsers, totalWagered: race.totalWagered };
@@ -1508,6 +1531,12 @@ exports.handler = async (event) => {
                   }
                 }
               }
+              if (data && (data.rankings || []).length) break;
+              // An empty answer from this key is not proof the race is empty —
+              // the other key may be the live one. Only discard it if there is
+              // another to try, so a genuinely empty board still reports empty.
+              if (_ci < credCandidates.length - 1) data = null;
+             }
               if (data) { try { await cref.set({ cachedAt: Date.now(), data }); } catch {} }
               else if (cdoc && cdoc.data) data = cdoc.data;   // serve stale over blank
             }
