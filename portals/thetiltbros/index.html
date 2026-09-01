@@ -1249,9 +1249,33 @@
     { names: '@Md***1, @An***a, @zA***t', prize: '50/50 $200 buy', date: 'Jul 27' },
   ];
 
-  function renderRaffleWinners(s) {
+  function renderRaffleWinners(s, content) {
     var list = s.pastWinners || [];
-    var live = list.map(function (w) { return winnerRow(w.winner, w.itemName, w.drawnAt); }).join('');
+    var defName = (content && content.raffles && content.raffles.prizeShort) || null;
+    // Collapse draws into one titled entry per raffle: same calendar day + same
+    // name = one raffle (a session pulls its winners seconds apart). The source
+    // list is drawnAt-descending, so first-seen order keeps groups newest-first.
+    // Renders like the historic rows — names, then prize · date — instead of one
+    // avatar row per winner.
+    var groups = [], byKey = {};
+    list.forEach(function (w) {
+      var d = new Date(w.drawnAt || 0);
+      var name = w.itemName || defName || (w.mode === 'wager' ? 'Wager raffle' : 'Raffle');
+      var key = d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate() + '|' + name;
+      var g = byKey[key];
+      if (!g) { g = byKey[key] = { names: [], prize: name, ts: w.drawnAt || 0 }; groups.push(g); }
+      g.names.push(w.winner);
+      if ((w.drawnAt || 0) > g.ts) g.ts = w.drawnAt || 0;
+    });
+    var live = groups.map(function (g) {
+      var names = g.names.map(function (n) { return '@' + esc(n); }).join(', ');
+      var dstr = new Date(g.ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      return '<div class="win-row">'
+        + '<div class="w-nm">' + names + '</div>'
+        + '<div class="w-when" style="color:var(--money);font-weight:800;">'
+        +   esc(g.prize) + ' &middot; ' + esc(dstr) + '</div>'
+        + '</div>';
+    }).join('');
     var past = HISTORIC_RAFFLES.map(function (h) {
       return '<div class="win-row">'
         + '<div class="w-nm">' + esc(h.names) + '</div>'
@@ -1965,7 +1989,7 @@
     renderNav(portal.pages || []);
     renderRaffles(s, content);
     renderPastRaces(s);
-    renderRaffleWinners(s);
+    renderRaffleWinners(s, content);
     renderGiveaways(s, content);
     renderPromo(s, content);
     renderBonuses(s);

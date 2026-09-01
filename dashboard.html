@@ -6296,6 +6296,9 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           <div class="card-title">🎰 Draw Wager Raffle Winner</div>
           <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
             <div id="wrEntryCount" style="font-size:13px;color:var(--text-dim);">No entries loaded.</div>
+            <input type="text" id="wrRaffleName" maxlength="60" placeholder="Raffle name / prize (e.g. 50/50 $200 buy)"
+              title="Shown on your portal's Recent Raffle Winners. Winners drawn the same day under the same name group into one titled entry. Leave blank to use your portal's default."
+              style="flex:1;min-width:200px;max-width:320px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:13px;padding:8px 10px;font-family:'Inter',sans-serif;">
             <button class="btn btn-ghost btn-sm" id="wrClearExclBtn" onclick="clearWagerExclusions()" style="display:none;" title="Re-include everyone you've excluded from this period's draws">Clear exclusions</button>
             <button class="btn btn-accent" id="wrDrawBtn" onclick="drawRaffleWinner('wager')" disabled>🎰 Draw Winner</button>
           </div>
@@ -22057,6 +22060,10 @@ async function drawRaffleWinner(mode) {
   let itemName = null;
   if (mode === 'point' && selectedRaffleItemId) {
     itemName = raffleItemsList.find(i => i.id === selectedRaffleItemId)?.name || null;
+  } else if (mode === 'wager') {
+    // Optional name for the wager raffle (e.g. "50/50 $200 buy"). Stored on every
+    // draw this session so the portal groups them under one titled entry.
+    itemName = (document.getElementById('wrRaffleName')?.value || '').trim() || null;
   }
 
   // Fire raffleTrigger for OBS overlay (same giveaway_state doc, separate key)
