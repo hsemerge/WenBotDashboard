@@ -514,6 +514,69 @@ exports.handler = async (event) => {
     // range IS the period, so no baselines/carryover; only WenBot's manual
     // exclusions apply on top. Cached 6 min per channel+range to respect the
     // provider's 5-minute per-key cooldown.
+    // ── Thrill ───────────────────────────────────────────────────────────────
+    // Queried by date range, so the response already belongs to the race window —
+    // no baselines or carryover, same shape as Rainbet and Hype.bet.
+    //
+    // Two things make it unlike the others. Its credential is a SESSION COOKIE the
+    // streamer copies from their browser, so it expires and has to be replaced;
+    // and Thrill caps calls at ONE EVERY TWO MINUTES, warning that going over gets
+    // access revoked. The cache TTL below is therefore a hard floor, not a tuning
+    // knob — lowering it risks the streamer's access, not just a slow page.
+    if (provider === "thrill") {
+      const { fetchThrillBoard, ThrillAuthError } = require("./_lib/thrill");
+      // Board first (that is where the extra-board editor writes it), then
+      // providers/ for a streamer running Thrill as their primary casino.
+      let token = "";
+      try {
+        const bSnap = await db.collection("streamers").doc(streamerDoc.id).collection("leaderboards").get();
+        const brd = sortBoards(bSnap.docs.map((d) => normalizeBoard(d.data(), d.id))).find((x) => x.provider === "thrill");
+        token = (brd && brd.credential && (brd.credential.apiKey || brd.credential.token)) || "";
+      } catch { /* fall through to providers/ */ }
+      if (!token) {
+        const pd = await db.collection("streamers").doc(streamerDoc.id).collection("providers").doc("thrill").get();
+        token = pd.exists ? (pd.data().apiKey || pd.data().token || "") : "";
+      }
+      if (!token) return res(400, { error: "Streamer hasn't connected their Thrill account yet." });
+
+      const win = (period && period.startAt && period.endAt)
+        ? { from: period.startAt, to: period.endAt }
+        : { from: Date.now() - 30 * 86400000, to: Date.now() };
+
+      const cacheRef = db.collection("_cache")
+        .doc(`lb_${channel.toLowerCase()}_thrill_${win.from}-${win.to}`);
+      let data = null, cached = null;
+      try {
+        const doc = await cacheRef.get();
+        if (doc.exists) {
+          cached = doc.data();
+          // 3 minutes, comfortably outside Thrill's 2-minute floor.
+          if (cached.data && cached.cachedAt && (Date.now() - cached.cachedAt) < 3 * 60 * 1000) data = cached.data;
+        }
+      } catch { /* fall through to a live fetch */ }
+
+      if (!data) {
+        try {
+          data = await fetchThrillBoard(token, win.from, win.to);
+        } catch (e) {
+          if (e instanceof ThrillAuthError || e.authFailed) {
+            // Say what actually happened. "No data" would send the streamer
+            // hunting a wager problem when the fix is to paste a new cookie.
+            return res(401, { error: "Your Thrill session has expired — reconnect Thrill in your dashboard.", needsReconnect: true });
+          }
+          throw e;
+        }
+        if (data) { try { await cacheRef.set({ cachedAt: Date.now(), data }); } catch {} }
+        else if (cached?.data) data = cached.data;   // serve stale rather than fail
+      }
+      if (!data) return res(502, { error: "Failed to fetch from Thrill." });
+
+      return res(200, {
+        success: true, casino: provider, casinoName: CASINO_NAMES[provider] || "Thrill", period,
+        rankings: data.rankings, totalWagered: data.totalWagered, totalUsers: data.totalUsers,
+      });
+    }
+
     if (provider === "hypebet") {
       const provDoc = await db.collection("streamers").doc(streamerDoc.id)
         .collection("providers").doc("hypebet").get();

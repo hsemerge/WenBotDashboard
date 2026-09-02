@@ -1512,6 +1512,29 @@ exports.handler = async (event) => {
                   rankings: (wv.rankings || []).map((r) => ({ rank: r.rank, username: r.username, wagered: r.wagered, avatarUrl: r.avatarUrl })),
                   totalUsers: wv.totalUsers, totalWagered: wv.totalWagered,
                 };
+              } else if (b.provider === "thrill" && from && to) {
+                // Thrill is queried BY DATE RANGE, so its numbers already belong
+                // to this race — no baselines, like Rainbet and Hype.bet.
+                //
+                // Its credential is a session cookie the streamer copies out of
+                // their browser, not an API key, so it eventually expires. A dead
+                // cookie throws rather than returning empty: an expired login and
+                // a race nobody entered look identical in the data, and quietly
+                // publishing the second when it is really the first hides the one
+                // thing the streamer needs to act on.
+                const { fetchThrillBoard, ThrillAuthError } = require("./_lib/thrill");
+                try {
+                  const th = await fetchThrillBoard(cred, from, to);
+                  if (th) data = {
+                    rankings: (th.rankings || []).map((r) => ({ rank: r.rank, username: r.username, wagered: r.wagered, avatarUrl: null })),
+                    totalUsers: th.totalUsers, totalWagered: th.totalWagered,
+                  };
+                } catch (e) {
+                  if (e instanceof ThrillAuthError || e.authFailed) {
+                    entry.needsReconnect = true;
+                    console.warn(`[portal-data] thrill board ${b.id}: session cookie rejected — streamer must paste a fresh one`);
+                  } else { throw e; }
+                }
               } else if (b.provider === "gamba") {
                 // Same passthrough as Clash: the Gamba race carries its own
                 // window and prize ladder, so the board inherits them.
