@@ -55,11 +55,23 @@ exports.handler = async (event) => {
   if (event.httpMethod !== "POST")    return res(405, { error: "Method not allowed" });
 
   const db = getDb();
-  const ip = event.headers["x-forwarded-for"]?.split(",")[0].trim() || "unknown";
-  if (!(await checkRateLimit(db, ip, "admin_merge_viewer", 20, 60))) return res(429, { error: "Too many requests" });
+  // Internal trigger: the bot reconciles Kick renames automatically (see
+  // WenBotServer points.js). It cannot hold an admin login, so a shared-secret
+  // header stands in for one. The merge below is byte-for-byte the same either
+  // way, so there is ONE implementation of moving a viewer's balance, not two.
+  const internalSecret = process.env.INTERNAL_MERGE_SECRET;
+  const internalCall = !!internalSecret && event.headers["x-internal-secret"] === internalSecret;
 
-  const adminUser = await requireAdmin(event);
-  if (!adminUser) return res(403, { error: "Not authorized" });
+  const ip = event.headers["x-forwarded-for"]?.split(",")[0].trim() || "unknown";
+  if (!internalCall && !(await checkRateLimit(db, ip, "admin_merge_viewer", 20, 60))) return res(429, { error: "Too many requests" });
+
+  let adminUser;
+  if (internalCall) {
+    adminUser = { uid: "bot-auto-rename", email: "wenbot (auto rename)" };
+  } else {
+    adminUser = await requireAdmin(event);
+    if (!adminUser) return res(403, { error: "Not authorized" });
+  }
 
   let body = {}; try { body = JSON.parse(event.body || "{}"); } catch {}
   const fromName = String(body.fromUsername || "").trim();
@@ -252,6 +264,18 @@ async function migrateChannel(db, base, { fromKey, toKey, fromName, toName, vOld
     if (lc(d.data().kickUsername) !== fromKey) continue;
     await d.ref.update({ kickUsername: toName });
   }
+
+  // 8) Mod-trail marker under the NEW name, so a rename is visible in lookup
+  //    (the trail otherwise reads as a fresh viewer). arrayUnion is safe whether
+  //    or not a history doc/array already exists.
+  try {
+    await base.collection("viewer_history").doc(toKey).set({
+      events: admin.firestore.FieldValue.arrayUnion({
+        ts: Date.now(), type: "name_change",
+        text: `Kick name change: ${fromName} to ${toName}`,
+      }),
+    }, { merge: true });
+  } catch { /* the trail marker is a nicety, never fail the merge for it */ }
 }
 
 // WenPoints is the community-wide currency: one top-level ledger per viewer,

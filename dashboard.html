@@ -4888,6 +4888,15 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           </div>
 
           <div class="card help-section" style="margin-bottom:0;">
+            <h3>🔄 Kick name changes</h3>
+            <div style="font-size:12.5px;color:var(--text);line-height:1.7;">
+              <p style="margin:0 0 8px;">Viewers can rename their Kick account, and points are tracked by name, so a rename would normally leave a viewer's balance behind. WenBot handles it for you: it recognises the same person by their permanent Kick account id and carries everything over to the new name automatically, their points, verification, raffle tickets and store purchases, on every channel they play in.</p>
+              <p style="margin:0 0 8px;"><strong style="color:var(--bright);">When it happens:</strong> if they rename while the bot is live, it moves over right away. If they renamed while the bot was offline, it moves the next time they chat.</p>
+              <p style="margin:0;"><strong style="color:var(--bright);">Nothing is lost:</strong> the old record is kept, and the change is written into that viewer's history so your mods can see it. If an older case ever slips through, ask in the <a href="https://discord.gg/RQDXGYBt6F" target="_blank" rel="noopener" style="color:var(--accent);">WenBot Discord</a> and we will sort it.</p>
+            </div>
+          </div>
+
+          <div class="card help-section" style="margin-bottom:0;">
             <h3>🎲 Chat Games <span style="font-size:10px;background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:var(--accent);padding:2px 8px;border-radius:999px;font-weight:800;vertical-align:middle;">BETA</span></h3>
             <div class="cmd-list">
               <div class="cmd-row"><div class="cmd-name">!games on / off</div><div class="cmd-desc">Turn chat games on or off (same switch as the Points page card).</div><div class="cmd-who who-mod">MOD</div></div>
@@ -6296,8 +6305,8 @@ if(localStorage.getItem('wbNav')!=='list')document.documentElement.setAttribute(
           <div class="card-title">🎰 Draw Wager Raffle Winner</div>
           <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
             <div id="wrEntryCount" style="font-size:13px;color:var(--text-dim);">No entries loaded.</div>
-            <input type="text" id="wrRaffleName" maxlength="60" placeholder="Raffle name / prize (e.g. 50/50 $200 buy)"
-              title="Shown on your portal's Recent Raffle Winners. Winners drawn the same day under the same name group into one titled entry. Leave blank to use your portal's default."
+            <input type="text" id="wrRaffleName" maxlength="60" placeholder="Raffle name / prize (e.g. 50/50 $200 buy)" onchange="saveWagerRaffleName()"
+              title="Shown on your portal's Recent Raffle Winners. Winners drawn the same day under the same name group into one titled entry. Leave blank to use your portal's default. Saved automatically."
               style="flex:1;min-width:200px;max-width:320px;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;color:var(--bright);font-size:13px;padding:8px 10px;font-family:'Inter',sans-serif;">
             <button class="btn btn-ghost btn-sm" id="wrClearExclBtn" onclick="clearWagerExclusions()" style="display:none;" title="Re-include everyone you've excluded from this period's draws">Clear exclusions</button>
             <button class="btn btn-accent" id="wrDrawBtn" onclick="drawRaffleWinner('wager')" disabled>🎰 Draw Winner</button>
@@ -21459,6 +21468,8 @@ function loadRafflePage() {
 
 async function loadWagerRafflePanel() {
   const wr = profile?.wagerRaffle || {};
+  const _rn = document.getElementById('wrRaffleName');
+  if (_rn) _rn.value = profile?.wagerRaffleName || '';   // persisted raffle title
   document.getElementById('wrThreshold').value    = wr.threshold || '';
   const _wrProv = String(profile?.activeProvider || '').toLowerCase();
   document.getElementById('wrProviderLabel').textContent = _wrProv || '—';
@@ -21486,6 +21497,17 @@ async function loadWagerRafflePanel() {
     document.getElementById('wrPeriodInfo').textContent = 'No active period. Start one to begin tracking wager tickets.';
     if (endBtn) endBtn.style.display = 'none';
   }
+}
+
+// Persist the wager-raffle title so it survives a refresh (and is there next
+// time). Stored top-level on the profile; the draw still reads the live input,
+// and the portal falls back to its default name when this is blank.
+async function saveWagerRaffleName() {
+  const name = (document.getElementById('wrRaffleName')?.value || '').trim().slice(0, 60);
+  try {
+    await saveStreamerProfile({ wagerRaffleName: name });
+    if (profile) profile.wagerRaffleName = name;
+  } catch (e) { flash('Could not save the raffle name: ' + e.message, 'error'); }
 }
 
 async function saveWagerRaffleConfig() {
