@@ -18,6 +18,12 @@
 [functions."leaderboard-discord-cron"]
   schedule = "@hourly"
 
+# Every 2 minutes, refresh the per-channel portal payload before its own 150s
+# cache can expire. Without this the first viewer to arrive on a cold cache pays
+# for the whole recompute and watches "Loading the board..." while it runs.
+[functions."warm-portal-cache"]
+  schedule = "*/2 * * * *"
+
 # Two-role server gate. WenBot has no Discord gateway connection, so it never
 # sees a role being added by another bot — this notices when someone completes
 # their OTHER verification after ours. Only runs for streamers who enabled it.
