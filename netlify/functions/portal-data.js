@@ -613,6 +613,10 @@ exports.handler = async (event) => {
     return res(404, { error: "Channel not found on WenBot" });
   }
 
+  // Last good payload for this channel, kept across the try/catch so an upstream
+  // failure can serve it instead of a 500. Null until the cache read finds one.
+  let stalePayload = null;
+
   try {
     const db = getDb();
     // COST GUARD: portals poll this every 60s; with many open portals each poll
@@ -630,7 +634,14 @@ exports.handler = async (event) => {
     const cacheRef = db.collection("_cache").doc(`portal_${channel}`);
     try {
       const c = await cacheRef.get();
-      if (c.exists && c.data().data && (Date.now() - c.data().cachedAt) < PORTAL_CACHE_TTL_MS) return res(200, c.data().data);
+      if (c.exists && c.data().data) {
+        if ((Date.now() - c.data().cachedAt) < PORTAL_CACHE_TTL_MS) return res(200, c.data().data);
+        // Expired, but keep it: if the recompute below throws (an upstream
+        // casino hanging or erroring), a board a few minutes stale beats the
+        // 500 that used to go out, which the portal renders as "currently
+        // unavailable" over an empty page.
+        stalePayload = c.data().data;
+      }
     } catch { /* cache miss → compute fresh */ }
 
     let snap = await db.collection("streamers")
@@ -1735,6 +1746,10 @@ exports.handler = async (event) => {
 
   } catch (err) {
     console.error("[portal-data] error:", err.message);
+    if (stalePayload) {
+      console.warn("[portal-data] serving stale cache for", channel);
+      return res(200, stalePayload);
+    }
     return res(500, { error: "Internal server error" });
   }
 };

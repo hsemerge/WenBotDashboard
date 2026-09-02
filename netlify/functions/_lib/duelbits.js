@@ -27,6 +27,9 @@
 
 const ENDPOINT = "https://ws.duelbits.com/affiliate-leaderboards";
 
+// Ceiling for one affiliate-leaderboards call. See the fetch below.
+const DUELBITS_TIMEOUT_MS = 8000;
+
 function authHeader(affiliateId, password) {
   return "Basic " + Buffer.from(`${affiliateId}:${password}`).toString("base64");
 }
@@ -66,8 +69,15 @@ async function fetchDuelbits(affiliateId, password, from, to) {
       params.push(`startDate=${encodeURIComponent(from)}`, `endDate=${encodeURIComponent(to)}`);
     }
     const qs = `?${params.join("&")}`;
+    // HARD TIME LIMIT. Without one this fetch can hang indefinitely, and the
+    // portal-data request that awaits it hangs too: the board sits on
+    // "Loading the board..." until the platform kills the function, which is
+    // what a cold-start stall looked like from a viewer's side. 8s is well
+    // clear of a normal 4-6.5s response, and timing out returns null — the
+    // path callers already handle by falling back to the last cached board.
     const r = await fetch(`${ENDPOINT}/${encodeURIComponent(affiliateId)}${qs}`, {
       headers: { Authorization: authHeader(affiliateId, password) },
+      signal: AbortSignal.timeout(DUELBITS_TIMEOUT_MS),
     });
     if (!r.ok) {
       console.warn("[duelbits] HTTP", r.status, (await r.text().catch(() => "")).slice(0, 200));
