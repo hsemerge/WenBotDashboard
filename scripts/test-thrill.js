@@ -68,6 +68,27 @@ const { fetchThrillBoard, fromAtomic, ThrillAuthError } = require(path.join(ROOT
   // the final day never counts.
   ok("toDate is start-of-next-day (exclusive end handled)", /toDate=2026-09-03/.test(lastUrl), lastUrl);
 
+  console.log("\n== both window styles map onto the exclusive toDate ==");
+  // A race stored with an INCLUSIVE end (last day 2 Sep, 10:59) must include the
+  // 2nd; a first-to-first monthly race ENDS at midnight on the 1st, so the 1st
+  // must be excluded. One rule has to serve both, or one of them is off by a day
+  // — and a day at the end of a race is the day that decides the winner.
+  await fetchThrillBoard("T", Date.UTC(2026, 7, 26, 11, 0, 0), Date.UTC(2026, 8, 2, 10, 59, 0));
+  ok("inclusive end (2 Sep 10:59) -> toDate 3 Sep, so the 2nd counts",
+     /toDate=2026-09-03/.test(lastUrl), lastUrl.split("?")[1]);
+
+  await fetchThrillBoard("T", Date.UTC(2026, 8, 1, 0, 0, 0), Date.UTC(2026, 9, 1, 0, 0, 0));
+  ok("first-to-first (1 Sep -> 1 Oct) -> toDate 1 Oct, so 1 Oct does NOT count",
+     /fromDate=2026-09-01&toDate=2026-10-01/.test(lastUrl), lastUrl.split("?")[1]);
+
+  await fetchThrillBoard("T", Date.UTC(2026, 8, 16, 0, 0, 0), Date.UTC(2026, 9, 16, 0, 0, 0));
+  ok("16th-to-16th cycle -> toDate 16 Oct exactly",
+     /fromDate=2026-09-16&toDate=2026-10-16/.test(lastUrl), lastUrl.split("?")[1]);
+
+  await fetchThrillBoard("T", Date.UTC(2026, 8, 1, 0, 0, 0), Date.UTC(2026, 8, 1, 0, 0, 1));
+  ok("a one-second-past-midnight end still rounds up to the next day",
+     /toDate=2026-09-02/.test(lastUrl), lastUrl.split("?")[1]);
+
   console.log("\n== an expired session must be loud, not empty ==");
   mode = "expired";
   let threw = null;

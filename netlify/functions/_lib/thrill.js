@@ -86,10 +86,21 @@ async function fetchThrillBoard(token, fromMs, toMs) {
 
   const from = ymd(fromMs);
   // toDate is EXCLUSIVE per Thrill's docs ("2025-09-01 to 2025-09-18 includes
-  // 01 September but not 18 September"). Our windows are inclusive-end, so add a
-  // day — without this every race loses its last day, which is the day that
-  // decides the winner.
-  const to = ymd(toMs + 24 * 60 * 60 * 1000);
+  // 01 September but not 18 September"), so it must be the first day NOT in the
+  // race. Round the end UP to a day boundary rather than blindly adding a day,
+  // because our two window styles put endAt in different places:
+  //
+  //   endAt 2026-10-01 00:00  a first-to-first monthly race ENDS at midnight, so
+  //                           the 1st is already the first excluded day. Adding a
+  //                           day here would count 1 October into September.
+  //   endAt 2026-09-02 10:59  a race whose last day is the 2nd. Rounding up gives
+  //                           the 3rd, so the 2nd is included — the day that
+  //                           decides the winner.
+  //
+  // A midnight end is exactly on the boundary and rounds to itself, which is what
+  // makes one rule cover both.
+  const DAY = 24 * 60 * 60 * 1000;
+  const to = ymd(Math.ceil(toMs / DAY) * DAY);
   if (!from || !to) return null;
 
   const url = `${BASE}/referral/v1/referral-links/streamers`
