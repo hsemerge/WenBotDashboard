@@ -32,7 +32,26 @@
 // and takes the whole deploy with it.
 import { HOST_TO_SLUG, SLUG_TO_PAGE } from "../edge-shared/domains.generated.js";
 
+// This function runs on EVERY request to the site, and an uncaught throw here is
+// not a broken feature — it is Netlify's "This edge function has crashed" page
+// where the streamer's site should be. There is no partial failure mode: the
+// whole domain goes down for that request.
+//
+// So the real handler is wrapped. Anything unexpected falls back to passing the
+// request through untouched, which for a custom domain serves the wrong page but
+// still serves A page — and it logs, so a recurring fault is findable instead of
+// showing up as an intermittent crash screen nobody can reproduce.
 export default async (request, context) => {
+  try {
+    return await route(request, context);
+  } catch (e) {
+    console.error("[custom-domain] unhandled error, passing request through:",
+                  (e && e.stack) || (e && e.message) || e);
+    return;   // undefined = leave routing alone rather than crash
+  }
+};
+
+const route = async (request, context) => {
   const url   = new URL(request.url);
   const host  = url.host.toLowerCase();
   const slug  = HOST_TO_SLUG[host];
@@ -98,18 +117,35 @@ export default async (request, context) => {
       slugs: new Set(["meggambles"]),
     };
     if (path === "/csgobig" && CSGOBIG_OG.slugs.has(slug)) {
-      const res  = await context.rewrite(url.toString());
-      let   html = await res.text();
-      const origin = `${url.protocol}//${host}`;
-      html = html
-        .split(`${origin}/portals/${slug}/assets/megrewards-poster.jpg`)
-        .join(`${origin}/portals/${slug}/assets/csgobig-og.png`)
-        .split("MegRewards — Wager Race")
-        .join("MegRewards × CSGOBig — Monthly Coin Race");
-      const headers = new Headers(res.headers);
-      headers.delete("content-length");   // body length changed
-      headers.delete("content-encoding"); // body is now decoded text
-      return new Response(html, { status: res.status, headers });
+      // Best-effort, and deliberately so.
+      //
+      // This is the only path in this function that BUFFERS the response instead
+      // of streaming it — everything else hands the rewrite straight back. That
+      // makes it the only one that can fail on something other than routing: the
+      // body read, a rewrite that resolves to an error page mid-deploy, memory
+      // pressure on a cold isolate. Nothing here was caught, and an uncaught
+      // throw in an edge function is not a degraded page, it is Netlify's crash
+      // screen instead of the site.
+      //
+      // What is at stake if this fails is the link-unfurl artwork on Discord and
+      // X. What was at stake without the catch was the page. Serve the page.
+      try {
+        const res  = await context.rewrite(url.toString());
+        let   html = await res.text();
+        const origin = `${url.protocol}//${host}`;
+        html = html
+          .split(`${origin}/portals/${slug}/assets/megrewards-poster.jpg`)
+          .join(`${origin}/portals/${slug}/assets/csgobig-og.png`)
+          .split("MegRewards — Wager Race")
+          .join("MegRewards × CSGOBig — Monthly Coin Race");
+        const headers = new Headers(res.headers);
+        headers.delete("content-length");   // body length changed
+        headers.delete("content-encoding"); // body is now decoded text
+        return new Response(html, { status: res.status, headers });
+      } catch (e) {
+        console.error("[custom-domain] csgobig og rewrite failed, serving the plain page:", e && e.message);
+        return context.rewrite(url.toString());
+      }
     }
 
     return context.rewrite(url.toString());
