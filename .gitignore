@@ -15,3 +15,7 @@ Games/
 # Firebase emulator / debug logs
 firestore-debug.log
 *-debug.log
+
+# Casino session tokens dropped here for setup — never commit one.
+token.txt
+*.token

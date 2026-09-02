@@ -1168,6 +1168,63 @@ exports.handler = async (event) => {
           }
         }
       }
+      // Thrill as the streamer's PRIMARY casino. Date-range API, so the response
+      // is already scoped to the race — no baselines, like Hype.bet above.
+      else if (provider === "thrill") {
+        const provDoc = await db.collection("streamers").doc(uid)
+          .collection("providers").doc("thrill").get();
+        const thToken = provDoc.exists ? (provDoc.data().apiKey || provDoc.data().token || "") : "";
+        // Without a window there is nothing to ask Thrill for — it has no
+        // "current race" of its own, unlike Clash or Gamba.
+        const thWin = mainPeriod && mainPeriod.startAt && mainPeriod.endAt
+          ? { from: mainPeriod.startAt, to: mainPeriod.endAt }
+          : null;
+        if (thToken && thWin) {
+          const { fetchThrillBoard, ThrillAuthError } = require("./_lib/thrill");
+          try {
+            // 3 minutes, against Thrill's stated one-call-per-2-minutes limit.
+            // They revoke access for exceeding it, so this is a floor.
+            const cacheRef = db.collection("_cache").doc(`lb_${channel}_thrill_${thWin.from}-${thWin.to}`);
+            let data = null, cachedDoc = null;
+            try {
+              const c = await cacheRef.get();
+              if (c.exists) {
+                cachedDoc = c.data();
+                if (cachedDoc.data && cachedDoc.cachedAt && (Date.now() - cachedDoc.cachedAt) < 180_000) data = cachedDoc.data;
+              }
+            } catch {}
+            if (!data) {
+              data = await fetchThrillBoard(thToken, thWin.from, thWin.to);
+              if (data) { try { await cacheRef.set({ cachedAt: Date.now(), data }); } catch {} }
+              else if (cachedDoc?.data) data = cachedDoc.data;   // stale beats blank
+            }
+            if (data) {
+              const lbPrizes = Array.isArray(profile.leaderboardPrizes) ? profile.leaderboardPrizes : [];
+              leaderboard = {
+                period:   { from: thWin.from, to: thWin.to },
+                rankings: (data.rankings || []).map((r) => ({
+                  rank:        r.rank,
+                  name:        r.username,
+                  wagerAmount: r.wagered || 0,
+                  avatarUrl:   null,
+                  prize:       Number(lbPrizes[r.rank - 1]) > 0 ? Number(lbPrizes[r.rank - 1]) : 0,
+                })),
+                totalUsers:   data.totalUsers,
+                totalWagered: data.totalWagered,
+              };
+            }
+          } catch (err) {
+            if (err instanceof ThrillAuthError || err.authFailed) {
+              // Distinct from "no wager": the streamer has to paste a fresh
+              // session token. Leaving the board silently empty would send them
+              // looking for a problem with their players instead.
+              console.warn(`[portal-data] thrill session rejected for ${channel} — needs a fresh token`);
+            } else {
+              console.warn("[portal-data] thrill fetch failed:", err.message);
+            }
+          }
+        }
+      }
       else if (provider === "duelbits") {
         const provDoc = await db.collection("streamers").doc(uid)
           .collection("providers").doc("duelbits").get();
