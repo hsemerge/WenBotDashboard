@@ -357,7 +357,6 @@
   .linkbar a.lk-daily-off   { opacity:.6; }
   .linkbar a[data-board='degen'].lk-active   { color:#ffffff; }
   .linkbar a[data-board='csgobig'].lk-active { color:#e8b33c; }
-  .linkbar a[data-board='clash'].lk-active   { color:#ffc400; }
   .linkbar a[data-board='ethbet'].lk-active  { color:#1b6cf5; }
   @media (max-width:1150px) { .linkbar { gap:16px; } .linkbar a { font-size:13.5px; }
     .linkbar a.lk-ext { font-size:12.5px; padding-left:12px; padding-right:12px; } }
@@ -486,25 +485,6 @@
     box-shadow:0 0 26px rgba(255,255,255,.28);
   }
 
-  /* Clash.gg: gold, taken from the new artwork.
-     It was violet, from the previous art. The room is gold now, which puts it
-     next to CSGOBig, so the two are deliberately separated: Clash takes the
-     BRIGHT saturated yellow of its own piece (#ffc400) on a cool near-black,
-     where CSGOBig keeps its softer antique gold (#e8b33c) on a warm one. Side by
-     side they read as two different rooms rather than one repeated. */
-  body.theme-clash {
-    --accent:#ffc400; --accent2:#ffe27a; --gold:#ffc400;
-    --bg:#07070a; --bg-card:#15140d; --border:#4a4118;
-    --text:#f3ecd8; --dim:#aaa383; --bright:#ffffff;
-  }
-  body.theme-clash .hero-banner { box-shadow:0 0 60px rgba(255,196,0,.24); }
-  body.theme-clash .linkbar a:hover { border-color:var(--accent); background:rgba(255,196,0,.13); }
-  body.theme-clash .hero .prize { text-shadow:0 0 30px rgba(255,196,0,.45); }
-  body.theme-clash .bonus {
-    color:#1a1400; background:linear-gradient(90deg,var(--accent2),var(--accent));
-    box-shadow:0 0 26px rgba(255,196,0,.42);
-  }
-
   /* EthBet: electric blue on near black, from ethbet.png. */
   body.theme-ethbet {
     --accent:#1b6cf5; --accent2:#7fb0ff; --gold:#ffcf5c;
@@ -563,7 +543,6 @@
   /* The gem is a transparent octahedron, so it keeps its own shape. Slightly
      smaller than the coin because its points reach the edges of the artwork,
      which makes it read larger at the same box size. */
-  .gem-ic { border-radius:0; width:0.95em; height:0.95em; vertical-align:-0.14em; }
   /* Soften the theme swap. */
   body, .cd-cell, .pod, .linkbar, .linkbar a, .lb-row, nav, footer { transition:background-color .35s, border-color .35s, color .35s; }
 
@@ -571,24 +550,6 @@
      the body keeps whatever background it was first given. */
   html { background-color:#0b0613; }
   body { background-color:var(--bg); }
-
-  /* ── INTRO ───────────────────────────────────────────────────────────────
-     Full-screen film that plays before the landing page is revealed. It is in
-     the markup, not injected by script, and paints black from the very first
-     frame: the last version of this idea showed the site for a beat before the
-     video took over, which is exactly what it must not do.
-     Landing page only, once per browser session. */
-  #introGate { position:fixed; inset:0; z-index:9999; background:#000;
-    display:flex; align-items:center; justify-content:center; }
-  #introGate.gone { display:none; }
-  html.intro-open, html.intro-open body { overflow:hidden; }
-  #introVid { width:100%; height:100%; object-fit:contain; background:#000; }
-  .intro-btns { position:absolute; right:18px; bottom:18px; display:flex; gap:9px; align-items:center; }
-  .intro-btn { font-family:'Exo 2',sans-serif; font-weight:800; font-size:13px; letter-spacing:.06em;
-    color:#fff; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.35);
-    border-radius:999px; padding:9px 18px; cursor:pointer; backdrop-filter:blur(6px); transition:.15s; }
-  .intro-btn:hover { background:rgba(255,255,255,.16); border-color:#fff; }
-  @media (max-width:600px) { .intro-btns { right:12px; bottom:12px; } .intro-btn { font-size:12px; padding:8px 14px; } }
 
   /* ── PHONES ──────────────────────────────────────────────────────────────
      The older sections already had breakpoints; these cover the pieces added
@@ -675,87 +636,6 @@
 </style>
 </head>
 <body>
-<div id="introGate" class="gone">
-  <!-- Same reasoning as the daily video: the source is attached only when the
-       gate actually opens, below. Otherwise every repeat visit in a session
-       silently pulled 7.4MB for a film it had already decided not to show. -->
-  <video id="introVid" playsinline muted preload="none"></video>
-  <div class="intro-btns">
-    <button class="intro-btn" id="introSound" type="button">🔇 Sound on</button>
-    <button class="intro-btn" id="introSkip" type="button">Skip ▸</button>
-  </div>
-</div>
-<script>
-  // Decide BEFORE anything paints. The gate ships hidden so a viewer who is not
-  // getting the intro never sees a black flash; it is only opened here.
-  (function () {
-    try {
-      // Landing page only. In production the edge function rewrites every path
-      // on her domain to this file, so read the route the same way the router
-      // does: strip the /portals/<slug> prefix a local preview adds.
-      var p = location.pathname.replace(/^\/portals\/[^/]+/, '').replace(/\/+$/, '');
-      if (p || location.hash) return;
-      if (sessionStorage.getItem('meg_intro_seen')) return;
-    } catch (e) { return; }
-
-    var gate = document.getElementById('introGate');
-    var vid  = document.getElementById('introVid');
-    // Only now, having decided the intro IS running, does the file get fetched.
-    if (!vid.querySelector('source')) {
-      var isrc = document.createElement('source');
-      isrc.src = '/portals/meggambles/assets/Megclashintro.mp4';
-      isrc.type = 'video/mp4';
-      vid.appendChild(isrc);
-      vid.load();
-    }
-    gate.classList.remove('gone');
-    document.documentElement.classList.add('intro-open');
-
-    var done = false;
-    function finish() {
-      if (done) return;
-      done = true;
-      try { sessionStorage.setItem('meg_intro_seen', '1'); } catch (e) {}
-      try { vid.pause(); } catch (e) {}
-      gate.classList.add('gone');
-      document.documentElement.classList.remove('intro-open');
-    }
-
-    vid.addEventListener('ended', finish);
-    // A file that will not play must not lock the viewer out of the site.
-    vid.addEventListener('error', finish);
-    document.getElementById('introSkip').addEventListener('click', finish);
-
-    // Autoplay is only allowed muted, so it starts muted and the viewer can turn
-    // sound on. If even the muted play is refused, drop the gate rather than
-    // sitting on a frozen frame.
-    var snd = document.getElementById('introSound');
-    snd.addEventListener('click', function () {
-      vid.muted = !vid.muted;
-      snd.textContent = vid.muted ? '🔇 Sound on' : '🔊 Sound off';
-      if (!vid.muted) vid.play().catch(function () {});
-    });
-
-    // Sound on by default where the browser allows it. Chrome and Safari refuse
-    // unmuted autoplay until a site earns enough engagement, so a refusal drops
-    // to muted and leaves the toggle for the viewer, rather than killing the
-    // intro or sitting on a silent frozen frame.
-    vid.muted = false;
-    snd.textContent = '🔊 Sound off';
-    var play = vid.play();
-    if (play && play.catch) {
-      play.catch(function () {
-        vid.muted = true;
-        snd.textContent = '🔇 Sound on';
-        var retry = vid.play();
-        if (retry && retry.catch) retry.catch(finish);
-      });
-    }
-    // Backstop: if metadata never arrives the viewer is staring at black.
-    setTimeout(function () { if (!vid.currentTime && !done) finish(); }, 6000);
-  })();
-</script>
-
 <canvas id="starfield"></canvas>
 <script>
   // Deep-linked CSGOBig — either the /csgobig path (shareable, unfurl-friendly)
@@ -1006,13 +886,10 @@
   // wagerTotal is in site COINS (confirmed by their devs) — never show a $.
   // Coin icon is Meg's CSGOBig chip art (csgocoin.png).
   const COIN_IMG = '<img class="coin-ic" src="/portals/meggambles/assets/csgocoin.png" alt="coins">';
-  // Clash pays in gems. Her gem art rather than the 💎 emoji, which renders as a
-  // different shape and colour on every platform.
-  const GEM_IMG  = '<img class="coin-ic gem-ic" src="/portals/meggambles/assets/gems.png" alt="gems">';
-  // Not every room pays in dollars. CSGOBig runs on coins and Clash on gems, so
-  // printing a $ against those figures would state a currency Clash never said.
-  // Rooms not listed here are dollars.
-  const BOARD_UNITS = { csgobig: 'coins', clash: 'gems' };
+  // Not every room pays in dollars: CSGOBig runs on coins, so printing a $
+  // against those figures would state a currency CSGOBig never said. Rooms not
+  // listed here are dollars.
+  const BOARD_UNITS = { csgobig: 'coins' };
   const plain = n => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
   // An amount in a given ROOM's currency. Returns HTML, so callers must not
   // escape it and must assign with innerHTML. Pass the room key explicitly
@@ -1022,13 +899,11 @@
     const unit = BOARD_UNITS[key];
     const num  = Number(n || 0).toLocaleString('en-US');
     if (unit === 'coins') return COIN_IMG + ' ' + num;
-    if (unit === 'gems')  return GEM_IMG  + ' ' + num;
     return '$' + num;
   };
   const fmtWager = (n) => {
     const unit = BOARD_UNITS[window.__activeBoard];
     if (unit === 'coins') return COIN_IMG + ' ' + plain(n);
-    if (unit === 'gems')  return GEM_IMG + ' ' + plain(n);
     return money(n);
   };
   const initials = s => (s || '?').slice(0, 2).toUpperCase();
@@ -1049,7 +924,6 @@
       home:    ['#c43bff', '#ff4fd8', '#ffd84d', '#e9b8ff', '#ffffff'],
       degen:   ['#ffffff', '#d7dde4', '#ffd84d', '#8f98a3', '#ffffff'],
       csgobig: ['#e8b33c', '#f7cf6b', '#ffd76a', '#c9974a', '#ffffff'],
-      clash:   ['#ffc400', '#ffe27a', '#f5a623', '#b08600', '#ffffff'],
       ethbet:  ['#1b6cf5', '#7fb0ff', '#ffcf5c', '#0f4bb0', '#ffffff'],
     })[which] || ({
       home: ['#c43bff', '#ff4fd8', '#ffd84d', '#e9b8ff', '#ffffff'] }).home;
@@ -1214,7 +1088,7 @@
   window.navBoard = function (which) {
     renderBoard(which);
     showView('main');
-    // Clash and EthBet have no board yet. They still get a page, themed and
+    // EthBet has no board yet. It still gets a page, themed and
     // bannered, because a link that goes nowhere is worse than one that says
     // "not open yet".
     // Always the PATH, never a hash. The old version only wrote a path when the
@@ -1232,7 +1106,7 @@
   // Store / Past Winners / Wager Rewards their OWN sections (like the wager page)
   // instead of stacking under the leaderboard.
   // 'home' is the casino-agnostic landing page; 'main' is now a BOARD page,
-  // shown for /degen, /csgobig, /clash and /ethbet. Everything else is unchanged.
+  // shown for /degen, /csgobig and /ethbet. Everything else is unchanged.
   const PAGE_VIEWS = { home: 'landingView', rewards: 'rewardsView', store: 'storeView', winners: 'winnersView' };
   const PAGE_IDS = new Set(Object.keys(PAGE_VIEWS));
   // Always write an ABSOLUTE path. Passing a bare "#store" to replaceState
@@ -1271,7 +1145,7 @@
 
   function showView(name) {
     const main = document.getElementById('mainView');
-    const themes = ['theme-degen', 'theme-csgobig', 'theme-clash', 'theme-ethbet'];
+    const themes = ['theme-degen', 'theme-csgobig', 'theme-ethbet'];
     // Every page has ONE fixed palette, and never borrows another page's:
     //   home, store, winners, rewards -> MegRewards purple (no theme class)
     //   a board page                  -> that casino's own colours
@@ -1359,7 +1233,7 @@
   function prizeFor(rank, prizes) { return (prizes && prizes[rank - 1]) || ''; }
 
   // Prize display follows the room's own currency (see BOARD_UNITS): Degen pays
-  // DOLLARS, CSGOBig COINS, Clash GEMS. Non-numeric configured prizes pass
+  // DOLLARS, CSGOBig COINS. Non-numeric configured prizes pass
   // through untouched. Returns HTML (escapes its own input) — do NOT re-escape.
   function fmtPrize(p) {
     if (p == null || p === '') return '';
@@ -1368,7 +1242,6 @@
     const num = Number(p).toLocaleString('en-US');
     const unit = BOARD_UNITS[window.__activeBoard];
     if (unit === 'coins') return `${COIN_IMG} ${num}`;
-    if (unit === 'gems')  return `${GEM_IMG} ${num}`;
     return '$' + num;
   }
 
@@ -1463,17 +1336,6 @@
                  'Daily giveaways',
                  'Bi-weekly leaderboard',
                ] } },
-    clash:   { name:'Clash.gg', tag:'Case opening',        code:'MEG', url:'https://clash.gg/r/meg',
-               banner:'/portals/meggambles/assets/megnew1.png', logo:'/portals/meggambles/assets/megnew1.png',
-               theme:'theme-clash', live:true,
-               blurb:'Cases, upgrades and battles, with her Clash.gg wager race.',
-               // Front-page offer: what viewers get signing up under code MEG on Clash.gg.
-               offer: { benefits: [
-                 'Sign up, get 3 free cases',
-                 'Daily community free battle',
-                 'Bi-weekly leaderboard',
-                 'Weekly giveaway',
-               ] } },
     // No url: EthBet has not opened, so nothing links out to it yet. `url` is
     // what the room card and the opening-soon panel link to, and an empty one
     // makes both render as plain "Coming soon" instead. The domain is .gg.
@@ -1490,7 +1352,7 @@
                  'Daily battle',
                ] } },
   };
-  const CASINO_ORDER = ['degen', 'csgobig', 'clash', 'ethbet'];
+  const CASINO_ORDER = ['degen', 'csgobig', 'ethbet'];
 
   // Header mark for every page that is not a casino room. Taken from her current
   // MegRewards banner, so the neutral pages carry the brand the site is actually
@@ -1515,7 +1377,7 @@
       const cls  = c.live ? 'lp-go-live' : 'lp-go-soon';
       // Colour comes from the casino, not the page, so a row of four reads as
       // four brands rather than four purple cards.
-      const tint = { degen:'#d9dee5', csgobig:'#e8b33c', clash:'#ffc400', ethbet:'#1b6cf5' }[k];
+      const tint = { degen:'#d9dee5', csgobig:'#e8b33c', ethbet:'#1b6cf5' }[k];
       // Without a destination it renders as a card, not a link, so nobody
       // clicks through to a site that is not open.
       const tag = href ? 'a' : 'div';
@@ -1571,7 +1433,7 @@
   function renderBoard(which) {
     const s = window.__S || {};
     const boards = window.__boards || {};
-    // A casino we know about but have no board for (Clash, EthBet) still opens
+    // A casino we know about but have no board for (EthBet) still opens
     // its own page. Only an unknown key falls back to Degen.
     if (!CASINOS[which]) which = 'degen';
     window.__activeBoard = which;
@@ -1594,8 +1456,8 @@
       still.src = cfg.banner || '';
       still.alt = (cfg.name || '') + ' banner';
       // A room can show both. CSGOBig's video IS its artwork, so its still would
-      // just be the same picture twice; Clash's flyer and its animation are two
-      // different pieces and she wants the flyer leading.
+      // just be the same picture twice; a room whose flyer and animation are two
+      // different pieces leads with the flyer.
       still.style.display = (cfg.video && !cfg.stillWithVideo) ? 'none' : '';
     }
     if (vid) {
@@ -2343,7 +2205,7 @@
     // Store both and let the viewer switch tabs; renderBoard() owns the countdown,
     // hero prize, heading, podium + table for whichever board is active.
     window.__boards = { degen: s.leaderboard || null, csgobig: s.leaderboard2 || null };
-    // Any further board (Clash today, whatever she signs next) arrives in the
+    // Any further board (whatever she signs next) arrives in the
     // generic `boards` array keyed by its document id. Matching that id against
     // the room keys means a new room needs a CASINOS entry and nothing else.
     (s.boards || []).forEach(function (b) {
