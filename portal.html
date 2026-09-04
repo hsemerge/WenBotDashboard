@@ -753,9 +753,13 @@
     // Socials
     const socials = document.getElementById('heroSocials');
     const links = [];
-    if (s.streamer.socials.discord) links.push(socialPill('Discord', s.streamer.socials.discord));
-    if (s.streamer.socials.youtube) links.push(socialPill('YouTube', s.streamer.socials.youtube));
-    if (s.streamer.socials.twitter) links.push(socialPill('Twitter', s.streamer.socials.twitter));
+    if (s.streamer.socials.discord)   links.push(socialPill('Discord',   s.streamer.socials.discord));
+    if (s.streamer.socials.youtube)   links.push(socialPill('YouTube',   s.streamer.socials.youtube));
+    // Labelled X — the platform renamed, and the accounts streamers give are x.com links.
+    if (s.streamer.socials.twitter)   links.push(socialPill('X',         s.streamer.socials.twitter));
+    // Instagram reaches the API now, so every portal can show it rather than
+    // only the bespoke ones that happened to read the field.
+    if (s.streamer.socials.instagram) links.push(socialPill('Instagram', s.streamer.socials.instagram));
     socials.innerHTML = links.join('');
   }
 

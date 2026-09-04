@@ -791,11 +791,17 @@ exports.handler = async (event) => {
       // Theme color only honored for Elite+ — keeps the upsell intact while
       // Starter/Pro see the default brand color.
       themeColor:  tier >= TIER_RANK.elite ? (profile.themeColor || null) : null,
+      // An explicit allowlist rather than a passthrough of profile.socials, so a
+      // stray field on the streamer record can never end up rendered as a link.
+      // The cost is that a platform missing from this list is silently dropped
+      // however carefully it was set — Instagram was, so a streamer could fill it
+      // in and nothing anywhere would show it.
       socials: {
-        kick:    `https://kick.com/${encodeURIComponent(profile.kickChannel)}`,
-        discord: profile.socials?.discord || null,
-        youtube: profile.socials?.youtube || null,
-        twitter: profile.socials?.twitter || null,
+        kick:      `https://kick.com/${encodeURIComponent(profile.kickChannel)}`,
+        discord:   profile.socials?.discord   || null,
+        youtube:   profile.socials?.youtube   || null,
+        twitter:   profile.socials?.twitter   || null,
+        instagram: profile.socials?.instagram || null,
       },
     };
 
