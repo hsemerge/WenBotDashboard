@@ -47,14 +47,23 @@ rewroteTo = null;
 await handler(req("https://megrewards.com/api/portal-data"), capture);
 ok("/api/* is not rewritten", rewroteTo === null, rewroteTo);
 
-console.log("\n== the crash Meg hit: /csgobig buffers the body ==");
-// Every way that buffered path can fail. Before the fix, each of these threw out
-// of the handler and Netlify replaced the site with its crash screen.
+console.log("\n== nothing buffers the response ==");
+// The crash Meg hit came from /csgobig reading the whole page into memory to
+// rewrite its OpenGraph tags. That was the only non-streaming path here, and so
+// the only one that could fail for a reason other than routing. It is gone.
+//
+// Asserted against the SOURCE, not behaviour: a reintroduced buffer would pass
+// every behavioural test below right up until the day it throws in production.
+const src = await (await import("node:fs/promises")).readFile(
+  path.join(process.cwd(), "netlify/edge-functions/custom-domain.js"), "utf8");
+ok("no .text() on a rewrite result", !/\.text\(\)/.test(src), "something buffers the body again");
+ok("no hand-built Response", !/new Response\(/.test(src), "a path builds its own Response");
+
+// And the handler still survives a rewrite that misbehaves, whatever the path.
 const breakages = [
-  ["rewrite() rejects",        ctx(async () => { throw new Error("rewrite blew up"); })],
-  ["response body read fails", ctx(async () => ({ status: 200, headers: new Headers(), text: async () => { throw new Error("body read failed"); } }))],
-  ["rewrite() returns null",   ctx(async () => null)],
-  ["rewrite() returns junk",   ctx(async () => 42)],
+  ["rewrite() rejects",      ctx(async () => { throw new Error("rewrite blew up"); })],
+  ["rewrite() returns null", ctx(async () => null)],
+  ["rewrite() returns junk", ctx(async () => 42)],
 ];
 for (const [name, c] of breakages) {
   let threw = null;

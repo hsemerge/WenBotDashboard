@@ -108,46 +108,27 @@ const route = async (request, context) => {
 
     url.pathname = bespoke;
 
-    // Shareable board deep links (megrewards.com/csgobig, /degen). The page reads
-    // the path on load and opens that board. For /csgobig we also rewrite the
-    // OpenGraph/Twitter tags so link-unfurls (Discord/X) show the GOLD CSGOBig
-    // artwork + title instead of the default purple MegRewards card — the URL
-    // fragment (#csgobig) can't do this because crawlers never receive it.
-    const CSGOBIG_OG = {
-      slugs: new Set(["meggambles"]),
-    };
-    if (path === "/csgobig" && CSGOBIG_OG.slugs.has(slug)) {
-      // Best-effort, and deliberately so.
-      //
-      // This is the only path in this function that BUFFERS the response instead
-      // of streaming it — everything else hands the rewrite straight back. That
-      // makes it the only one that can fail on something other than routing: the
-      // body read, a rewrite that resolves to an error page mid-deploy, memory
-      // pressure on a cold isolate. Nothing here was caught, and an uncaught
-      // throw in an edge function is not a degraded page, it is Netlify's crash
-      // screen instead of the site.
-      //
-      // What is at stake if this fails is the link-unfurl artwork on Discord and
-      // X. What was at stake without the catch was the page. Serve the page.
-      try {
-        const res  = await context.rewrite(url.toString());
-        let   html = await res.text();
-        const origin = `${url.protocol}//${host}`;
-        html = html
-          .split(`${origin}/portals/${slug}/assets/megrewards-poster.jpg`)
-          .join(`${origin}/portals/${slug}/assets/csgobig-og.png`)
-          .split("MegRewards — Wager Race")
-          .join("MegRewards × CSGOBig — Monthly Coin Race");
-        const headers = new Headers(res.headers);
-        headers.delete("content-length");   // body length changed
-        headers.delete("content-encoding"); // body is now decoded text
-        return new Response(html, { status: res.status, headers });
-      } catch (e) {
-        console.error("[custom-domain] csgobig og rewrite failed, serving the plain page:", e && e.message);
-        return context.rewrite(url.toString());
-      }
-    }
-
+    // Shareable board deep links (megrewards.com/csgobig, /degen) are plain
+    // rewrites — the page reads the path on load and opens that board.
+    //
+    // /csgobig used to be special: it buffered the whole response to swap the
+    // OpenGraph tags, so a Discord or X preview of that link showed CSGOBig
+    // artwork rather than the default MegRewards card. Removed, for two reasons.
+    //
+    // It had not worked for some time. It searched for "megrewards-poster.jpg"
+    // and "MegRewards — Wager Race"; the page has said "megrewards-og.jpg" and
+    // "MegRewards | Wager Leaderboards" since it was retitled. Zero matches, so
+    // it read the entire page into memory on every request and changed nothing.
+    //
+    // And it was the ONLY path here that buffered rather than streamed, which
+    // made it the only one that could fail for a reason other than routing —
+    // this is where the "This edge function has crashed" page on
+    // megrewards.com/csgobig came from. Deleting it removes that whole class of
+    // failure rather than guarding it.
+    //
+    // If per-board previews are wanted again, the durable way is real OG tags in
+    // each board's own document, not string surgery on a shared page that breaks
+    // silently the next time a title changes.
     return context.rewrite(url.toString());
   }
 
