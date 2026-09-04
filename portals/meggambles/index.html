@@ -1029,10 +1029,15 @@
     (s.portal?.links || [])
       .filter(l => !roomNames.has(String(l.label || '').toLowerCase()))
       .forEach(l => items.push([l.icon || '🔗', l.label, l.href, true]));
-    if (soc.kick)    items.push(['🟢', 'Kick',    soc.kick,    true]);
-    if (soc.discord) items.push(['💬', 'Discord', soc.discord, true]);
-    if (soc.youtube) items.push(['▶',  'YouTube', soc.youtube, true]);
-    if (soc.twitter) items.push(['𝕏',  'Twitter', soc.twitter, true]);
+    if (soc.kick)      items.push(['🟢', 'Kick',      soc.kick,      true]);
+    if (soc.discord)   items.push(['💬', 'Discord',   soc.discord,   true]);
+    if (soc.youtube)   items.push(['▶',  'YouTube',   soc.youtube,   true]);
+    // Labelled X, not Twitter: the icon already says X and the account she
+    // points people at lives on x.com.
+    if (soc.twitter)   items.push(['𝕏',  'X',         soc.twitter,   true]);
+    // Instagram was never read here, so setting it on the streamer record did
+    // nothing — the bar simply skipped it.
+    if (soc.instagram) items.push(['📸', 'Instagram', soc.instagram, true]);
 
     // Dedupe by href so a page never shows twice (e.g. Wager Rewards).
     const seen = new Set();
@@ -1336,16 +1341,14 @@
                  'Daily giveaways',
                  'Bi-weekly leaderboard',
                ] } },
-    // No url: EthBet has not opened, so nothing links out to it yet. `url` is
-    // what the room card and the opening-soon panel link to, and an empty one
-    // makes both render as plain "Coming soon" instead. The domain is .gg.
-    ethbet:  { name:'EthBet',   tag:'Crypto casino',       code:'MEG', url:'',
+    // Open now. `url` is what the card and the room page link out to; while it
+    // was empty both rendered "Coming soon" regardless of `live`, which is why
+    // the two move together. The domain is .gg.
+    ethbet:  { name:'EthBet',   tag:'Crypto casino',       code:'MEG', url:'https://ethbet.gg/?ref=meg',
                site:'https://ethbet.gg/?ref=meg',
-               banner:'/portals/meggambles/assets/megnew3.png', logo:'/portals/meggambles/assets/megnew3.png', theme:'theme-ethbet', live:false,
-               blurb:'Instant deposits, provably fair, daily rewards. Opening soon.',
-               // Listed before the doors open: these are what a viewer gets on
-               // day one, and the card still reads "Coming soon" rather than
-               // linking out.
+               banner:'/portals/meggambles/assets/megnew3.png', logo:'/portals/meggambles/assets/megnew3.png', theme:'theme-ethbet', live:true,
+               blurb:'Instant deposits, provably fair, daily rewards.',
+               // Front-page offer: what viewers get signing up under code MEG.
                offer: { benefits: [
                  'Bi-weekly $1,500 leaderboard',
                  'Daily giveaway',
@@ -2047,9 +2050,12 @@
     const bio = s.streamer.bio;
     const soc = s.streamer.socials || {};
     const links = [];
-    if (soc.discord) links.push(`<a href="${esc(soc.discord)}" target="_blank" rel="noopener" style="color:var(--accent2)">Discord</a>`);
-    if (soc.youtube) links.push(`<a href="${esc(soc.youtube)}" target="_blank" rel="noopener" style="color:var(--accent2)">YouTube</a>`);
-    if (soc.twitter) links.push(`<a href="${esc(soc.twitter)}" target="_blank" rel="noopener" style="color:var(--accent2)">Twitter</a>`);
+    // Same set the link bar carries, so the About block never lists fewer places
+    // to find her than the nav does.
+    if (soc.discord)   links.push(`<a href="${esc(soc.discord)}" target="_blank" rel="noopener" style="color:var(--accent2)">Discord</a>`);
+    if (soc.youtube)   links.push(`<a href="${esc(soc.youtube)}" target="_blank" rel="noopener" style="color:var(--accent2)">YouTube</a>`);
+    if (soc.twitter)   links.push(`<a href="${esc(soc.twitter)}" target="_blank" rel="noopener" style="color:var(--accent2)">X</a>`);
+    if (soc.instagram) links.push(`<a href="${esc(soc.instagram)}" target="_blank" rel="noopener" style="color:var(--accent2)">Instagram</a>`);
     if (!bio && !links.length) { sec.classList.add('hidden'); return; }
     sec.classList.remove('hidden');
     document.getElementById('aboutBody').innerHTML =
